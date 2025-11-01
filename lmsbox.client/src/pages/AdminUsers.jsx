@@ -69,14 +69,7 @@ export default function AdminUsers() {
     }
   };
 
-  const statusBadge = (s) => {
-    const map = {
-      Active: 'bg-green-100 text-green-800',
-      Inactive: 'bg-gray-100 text-gray-800',
-      Suspended: 'bg-red-100 text-red-800'
-    };
-    return <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${map[s] || 'bg-gray-100 text-gray-800'}`}>{s}</span>;
-  };
+  // statusBadge helper is unused; remove to satisfy lint
 
   return (
     <div className="min-h-screen bg-gray-50">

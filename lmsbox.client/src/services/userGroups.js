@@ -15,7 +15,7 @@ export async function listUserGroups(search = '') {
     const data = await res.json();
     const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
     return items;
-  } catch (err) {
+  } catch (_err) {
     // Mock fallback
     const mock = [
       { id: 'ug-1', name: 'Marketing Team', description: 'All marketing department staff', courseCount: 3, userCount: 12 },
@@ -34,7 +34,7 @@ export async function getUserGroup(groupId) {
     const res = await fetch(`/api/admin/user-groups/${encodeURIComponent(groupId)}`, { credentials: 'include' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
-  } catch (err) {
+  } catch (_err) {
     // Mock
     return {
       id: groupId,
@@ -46,12 +46,12 @@ export async function getUserGroup(groupId) {
   }
 }
 
-export async function saveUserGroup(group, isEdit = false) {
+export async function saveUserGroup(group, _isEdit = false) {
   await new Promise((r) => setTimeout(r, 500));
   return { id: group.id || 'ug-' + Math.random().toString(36).slice(2, 8) };
 }
 
-export async function deleteUserGroup(groupId) {
+export async function deleteUserGroup(_groupId) {
   await new Promise((r) => setTimeout(r, 300));
   return { success: true };
 }

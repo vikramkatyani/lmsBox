@@ -1,22 +1,43 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import LearnerHeader from '../components/LearnerHeader';
-import { useTheme } from '../theme/ThemeContext';
+import { CourseGridSkeleton } from '../components/CourseCardSkeleton';
 import { getMyCourses, getMyCertificates } from '../services/learnerCourses';
+import { useDebounce } from '../hooks/useDebounce';
 import toast from 'react-hot-toast';
 
-function CourseCard({ course, onNavigate }) {
+const CourseCard = React.memo(function CourseCard({ course, onNavigate }) {
   const [hover, setHover] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  const handleClick = useCallback(() => {
+    onNavigate(course.id);
+  }, [course.id, onNavigate]);
+
+  const handleMouseEnter = useCallback(() => setHover(true), []);
+  const handleMouseLeave = useCallback(() => setHover(false), []);
+
+  const handleImageError = useCallback(() => {
+    if (!imageError) {
+      setImageError(true);
+    }
+  }, [imageError]);
 
   return (
     <div
-      onClick={() => onNavigate(course.id)}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+      onClick={handleClick}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       className="relative bg-white rounded overflow-hidden shadow hover:shadow-lg cursor-pointer transition"
     >
       <div className="relative h-40 bg-gray-100 overflow-hidden">
-        <img src={course.banner} alt={course.title} className={`w-full h-full object-cover transition-transform ${hover ? 'scale-105 filter blur-sm brightness-75' : ''}`} />
+        <img 
+          src={imageError ? '/assets/default-course-banner.png' : course.banner} 
+          alt={course.title} 
+          loading="lazy"
+          className={`w-full h-full object-cover transition-transform ${hover ? 'scale-105 filter blur-sm brightness-75' : ''}`}
+          onError={handleImageError}
+        />
         {hover && (
             <div className="absolute inset-0 flex items-center justify-center">
             <div className="bg-white/60 rounded-full p-3">
@@ -29,7 +50,7 @@ function CourseCard({ course, onNavigate }) {
       </div>
 
       <div className="p-4">
-  <h3 className="text-lg font-semibold text-gray-900">{course.title}</h3>
+        <h3 className="text-lg font-semibold text-gray-900">{course.title}</h3>
 
         <div className="mt-4">
           <div className="h-2 bg-gray-200 rounded overflow-hidden">
@@ -46,10 +67,9 @@ function CourseCard({ course, onNavigate }) {
       </div>
     </div>
   );
-}
+});
 
-export default function Courses({ initialTab } = {}) {
-  const theme = useTheme();
+export default function Courses({ initialTab = {} }) {
   const params = useParams();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
@@ -57,6 +77,9 @@ export default function Courses({ initialTab } = {}) {
   const [progressFilter, setProgressFilter] = useState('all');
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // Debounce search query to avoid excessive API calls
+  const debouncedQuery = useDebounce(query, 300);
 
   // Determine active tab: precedence -> url param -> initialTab prop -> default 'all'
   const tabParam = params.tab;
@@ -67,46 +90,60 @@ export default function Courses({ initialTab } = {}) {
     document.title = pageTitle;
   }, []);
 
-  // Load courses when tab or filters change
+  // Load courses when tab changes or search query changes
   useEffect(() => {
-    loadCourses();
-  }, [activeTab]);
-
-  const loadCourses = async () => {
-    setLoading(true);
-    try {
-      let data;
-      if (activeTab === 'certificates') {
-        data = await getMyCertificates();
-      } else {
-        // For 'all' tab, we'll handle filtering client-side for now
-        // You could also pass progressFilter to the API
-        data = await getMyCourses('', 'all');
+    // Create an AbortController for this request
+    const abortController = new AbortController();
+    
+    const loadCourses = async () => {
+      setLoading(true);
+      try {
+        let data;
+        if (activeTab === 'certificates') {
+          data = await getMyCertificates(abortController.signal);
+        } else {
+          // Use debounced query for search
+          data = await getMyCourses(debouncedQuery, 'all', abortController.signal);
+        }
+        
+        // Only update state if the request wasn't aborted
+        if (!abortController.signal.aborted) {
+          setCourses(data);
+        }
+      } catch (e) {
+        // Don't show error if the request was intentionally aborted
+        if (!abortController.signal.aborted) {
+          console.error('Error loading courses:', e);
+          toast.error('Failed to load courses');
+        }
+      } finally {
+        // Only update loading state if the request wasn't aborted
+        if (!abortController.signal.aborted) {
+          setLoading(false);
+        }
       }
-      setCourses(data);
-    } catch (e) {
-      console.error('Error loading courses:', e);
-      toast.error('Failed to load courses');
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  useEffect(() => {
-    const pageTitle = import.meta.env.VITE_APP_TITLE ? `${import.meta.env.VITE_APP_TITLE} - Courses` : 'LMS Box - Courses';
-    document.title = pageTitle;
-  }, []);
+    loadCourses();
 
-  const setTab = (tab) => {
+    // Cleanup function to abort the request if activeTab changes
+    return () => {
+      abortController.abort();
+    };
+  }, [activeTab, debouncedQuery]); // Use debouncedQuery instead of direct query
+
+  const setTab = useCallback((tab) => {
+    // Reset loading state when changing tabs to provide immediate feedback
+    setLoading(true);
     // navigate to path-based tab
     navigate(`/courses/${tab}`);
-  };
+  }, [navigate]);
 
-  const resetFilters = () => {
+  const resetFilters = useCallback(() => {
     setQuery('');
     setSort('recently_accessed');
     setProgressFilter('all');
-  };
+  }, []);
 
   // Filter and sort courses based on current controls
   const visibleCourses = useMemo(() => {
@@ -144,9 +181,9 @@ export default function Courses({ initialTab } = {}) {
     return list;
   }, [courses, query, sort, progressFilter]);
 
-  const goToCourse = (id) => {
+  const goToCourse = useCallback((id) => {
     navigate(`/course/${id}`);
-  };
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-page-bg">
@@ -219,7 +256,7 @@ export default function Courses({ initialTab } = {}) {
         {/* Grid of cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {loading ? (
-            <div className="col-span-full text-center text-gray-600 py-8">Loading courses...</div>
+            <CourseGridSkeleton count={8} />
           ) : visibleCourses.length === 0 ? (
             <div className="col-span-full text-gray-600">No data found.</div>
           ) : (

@@ -56,9 +56,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\lmsbox.client\lmsbox.client.esproj">
-      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-    </ProjectReference>
     <ProjectReference Include="..\lmsbox.domain\lmsbox.domain.csproj" />
     <ProjectReference Include="..\lmsbox.infrastructure\lmsbox.infrastructure.csproj" />
   </ItemGroup>

@@ -92,7 +92,25 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    });
+
+// Add response compression for better performance
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProvider>();
+    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
+});
+
+// Add response caching
+builder.Services.AddResponseCaching();
+
+// Add memory cache for better performance
+builder.Services.AddMemoryCache();
 
 var corsSection = builder.Configuration.GetSection("Cors");
 var allowedOrigins = corsSection.GetValue<string[]>("AllowedOrigins") ?? Array.Empty<string>();
@@ -132,6 +150,12 @@ var app = builder.Build();
 
 // Serilog request logging - logs HTTP requests and responses
 app.UseSerilogRequestLogging();
+
+// Enable response compression
+app.UseResponseCompression();
+
+// Enable response caching
+app.UseResponseCaching();
 
 if (app.Environment.IsDevelopment())
 {

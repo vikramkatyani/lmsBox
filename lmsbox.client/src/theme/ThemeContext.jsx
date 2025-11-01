@@ -12,7 +12,7 @@ function getTenantConfig() {
 }
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(getTenantConfig());
+  const [theme] = useState(getTenantConfig());
 
   useEffect(() => {
     // Set CSS variable for Tailwind

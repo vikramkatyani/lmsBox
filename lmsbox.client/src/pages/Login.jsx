@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { useState, useEffect } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
-import { setAuthToken, getLastVisitedPage, clearLastVisitedPage } from '../utils/auth';
+import { Navigate } from 'react-router-dom';
+import { getUserRole, setAuthToken } from '../utils/auth';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../theme/ThemeContext';
 import lmsLogo from '../assets/lmsbox-logo.png'; 
@@ -19,14 +19,18 @@ export default function Login() {
   const tenantName = theme?.name || import.meta.env.VITE_APP_TITLE || 'LMS Box';
   const pageTitle = `${tenantName} - Login`;
 
-  // Redirect if already authenticated
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
+  // Set page title
   useEffect(() => {
     document.title = pageTitle;
   }, [pageTitle]);
+
+  // Compute redirect target (rendered in JSX to avoid conditional hooks)
+  const role = getUserRole();
+  const redirectTarget = isAuthenticated
+    ? (role && (role === 'admin' || role === 'Admin' || role === 'OrgAdmin' || role === 'SuperAdmin')
+        ? '/admin/dashboard'
+        : '/courses/all')
+    : null;
 
   const onSubmit = async (data) => {
     try {
@@ -57,9 +61,39 @@ export default function Login() {
     }
   };
 
+  // Development login function (bypasses email verification)
+  const devLogin = async (email) => {
+    try {
+      setStatus('loading');
+      setMessage('');
+
+      const response = await api.post('/auth/dev-login', { email });
+      
+      if (response.data.token) {
+        setAuthToken(response.data.token);
+        setStatus('success');
+        setMessage('Successfully logged in!');
+        
+        // Redirect after a short delay
+        setTimeout(() => {
+          const role = response.data.user?.roles?.[0];
+          if (role && (role === 'admin' || role === 'Admin' || role === 'OrgAdmin' || role === 'SuperAdmin')) {
+            window.location.href = '/admin/dashboard';
+          } else {
+            window.location.href = '/courses/all';
+          }
+        }, 1000);
+      }
+    } catch (error) {
+      setStatus('error');
+      setMessage(error.response?.data?.message || 'Development login failed. Please try again.');
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-login-page-bg px-4">
       <div className="grid lg:grid-cols-2 gap-8 max-w-6xl w-full items-center">
+        {redirectTarget && <Navigate to={redirectTarget} replace />}
         
         {/* Left: Login Form */}
         <div className="bg-login-box-bg p-8 rounded-lg shadow-lg max-w-md w-full mx-auto">
@@ -117,6 +151,30 @@ export default function Login() {
               <a href="#" className="text-login-box-link-text font-medium hover:underline ml-1">Register here</a>
             </p> */}
           </form>
+
+          {/* Development Login Section */}
+          {import.meta.env.DEV && (
+            <div className="mt-8 pt-6 border-t border-gray-300">
+              <h3 className="text-sm font-medium text-gray-600 mb-4 text-center">Development Login (Skip Email)</h3>
+              <div className="space-y-2">
+                <button
+                  onClick={() => devLogin('19vaibhav90@gmail.com')}
+                  disabled={status === 'loading'}
+                  className="w-full py-2 px-4 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50"
+                >
+                  Login as Learner (19vaibhav90@gmail.com)
+                </button>
+                <button
+                  onClick={() => devLogin('admin@dev.local')}
+                  disabled={status === 'loading'}
+                  className="w-full py-2 px-4 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50"
+                >
+                  Login as Admin (admin@dev.local)
+                </button>
+              </div>
+            </div>
+          )}
+
           <RecaptchaComponent />
         </div>
 

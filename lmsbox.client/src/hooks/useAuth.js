@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { getAuthToken } from '../utils/auth';
 
 export function useAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => !!getAuthToken());
-  const navigate = useNavigate();
 
   useEffect(() => {
     // Check authentication status when component mounts

@@ -15,7 +15,7 @@ export async function listUsers(search = '') {
     const data = await res.json();
     const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
     return items;
-  } catch (err) {
+  } catch (_err) {
     // Mock fallback
     const mock = [
       { id: 'u1', firstName: 'Alice', lastName: 'Johnson', email: 'alice@example.com', role: 'Learner', groupNames: ['Engineering Team', 'Product Training'], joinedDate: '2024-01-15', status: 'Active' },
@@ -44,7 +44,7 @@ export async function getUser(userId) {
     const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}`, { credentials: 'include' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
-  } catch (err) {
+  } catch (_err) {
     // Mock
     return {
       id: userId,
@@ -58,12 +58,12 @@ export async function getUser(userId) {
   }
 }
 
-export async function saveUser(user, isEdit = false) {
+export async function saveUser(user, _isEdit = false) {
   await new Promise((r) => setTimeout(r, 500));
   return { id: user.id || 'u-' + Math.random().toString(36).slice(2, 8) };
 }
 
-export async function deleteUser(userId) {
+export async function deleteUser(_userId) {
   await new Promise((r) => setTimeout(r, 300));
   return { success: true };
 }

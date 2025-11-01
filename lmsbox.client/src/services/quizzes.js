@@ -11,7 +11,7 @@ export async function listQuizzes(search = '') {
     const data = await res.json();
     const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
     return items.map((it) => ({ id: it.id, title: it.title || it.name || it.id }));
-  } catch (err) {
+  } catch (_err) {
     // Fallback mock list
     const mock = [
       { id: 'qz-101', title: 'Security Basics' },
@@ -32,7 +32,7 @@ export async function getQuiz(quizId) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return normalizeQuiz(data);
-  } catch (err) {
+  } catch (_err) {
     // mock fallback
     return {
       id: quizId,
@@ -62,7 +62,7 @@ export async function getQuiz(quizId) {
 }
 
 // Save or update a quiz (stub)
-export async function saveQuiz(quiz, isEdit = false) {
+export async function saveQuiz(quiz, _isEdit = false) {
   // If your backend exists, replace with fetch POST/PUT calls.
   // We simulate a short delay.
   await new Promise((r) => setTimeout(r, 500));

@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/login';
+import Login from './pages/Login';
 import VerifyLogin from './pages/VerifyLogin';
-import Courses from './pages/courses';
+import Courses from './pages/Courses';
 import Certificates from './pages/certificates';
 import CourseContent from './pages/CourseContent';
 import AdminDashboard from './pages/AdminDashboard';

@@ -285,5 +285,94 @@ namespace lmsBox.Server.Controllers
                 }
             }
         }
+
+        // Development-only direct login endpoint (bypasses email verification)
+        [HttpPost("dev-login")]
+        public async Task<IActionResult> DevLogin([FromBody] DevLoginRequest request)
+        {
+            // Only allow in development environment
+            if (!_config.GetValue<bool>("DevMode", false) && 
+                !string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase))
+            {
+                return NotFound();
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Email))
+            {
+                return BadRequest(new { message = "Email is required" });
+            }
+
+            try
+            {
+                var user = await _userManager.FindByEmailAsync(request.Email);
+                if (user == null)
+                {
+                    return BadRequest(new { message = "User not found" });
+                }
+
+                // Generate JWT token directly (same logic as verify-login)
+                var jwtSection = _config.GetSection("Jwt");
+                var keyBytes = Encoding.UTF8.GetBytes(jwtSection["Key"]);
+                var expiresMinutes = int.Parse(jwtSection["ExpiryMinutes"]);
+                var now = DateTime.UtcNow;
+
+                var claims = new List<Claim>
+                {
+                    new(ClaimTypes.NameIdentifier, user.Id),
+                    new(ClaimTypes.Email, user.Email),
+                    new("jti", Guid.NewGuid().ToString())
+                };
+
+                if (!string.IsNullOrWhiteSpace(user.FirstName) || !string.IsNullOrWhiteSpace(user.LastName))
+                {
+                    var name = (user.FirstName ?? string.Empty).Trim();
+                    if (!string.IsNullOrWhiteSpace(user.LastName)) name = string.IsNullOrWhiteSpace(name) ? user.LastName : name + " " + user.LastName;
+                    claims.Add(new Claim("name", name));
+                }
+
+                var roles = await _userManager.GetRolesAsync(user);
+                foreach (var r in roles)
+                {
+                    claims.Add(new Claim(ClaimTypes.Role, r));
+                }
+
+                var creds = new SigningCredentials(new SymmetricSecurityKey(keyBytes), SecurityAlgorithms.HmacSha256);
+                var jwt = new JwtSecurityToken(
+                    issuer: jwtSection["Issuer"],
+                    audience: jwtSection["Audience"],
+                    claims: claims,
+                    notBefore: now,
+                    expires: now.AddMinutes(expiresMinutes),
+                    signingCredentials: creds
+                );
+
+                var tokenString = new JwtSecurityTokenHandler().WriteToken(jwt);
+
+                _logger.LogInformation("User {UserId} authenticated via dev-login. Roles={Roles}", user.Id, string.Join(',', roles));
+
+                return Ok(new
+                {
+                    token = tokenString,
+                    expires = jwt.ValidTo,
+                    user = new
+                    {
+                        id = user.Id,
+                        email = user.Email,
+                        name = $"{user.FirstName} {user.LastName}".Trim(),
+                        roles = roles
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during dev login for {Email}", request.Email);
+                return StatusCode(500, new { message = "An error occurred during login" });
+            }
+        }
+    }
+
+    public class DevLoginRequest
+    {
+        public string Email { get; set; }
     }
 }

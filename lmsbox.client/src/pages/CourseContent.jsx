@@ -1,34 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import LearnerHeader from '../components/LearnerHeader';
+import { getCourseDetails } from '../services/courseDetails';
+import toast from 'react-hot-toast';
 import video1 from '../assets/video1.mp4';
 import pdf2 from '../assets/pdf2.pdf';
-
-// Mock course data - replace with API calls
-const MOCK_COURSE_DATA = {
-  c1: {
-    title: 'Cyber Security Essentials for UK Businesses (Level 1)',
-    description: 'Learn the fundamentals of cyber security and how to protect your business from cyber threats.',
-    lessons: [
-      { id: 'l1', title: 'Understanding Cyber Threats in the UK Landscape', type: 'video', duration: '10:30', completed: true, url: video1 },
-      { id: 'l2', title: 'Password Hygiene & Access Control Basics', type: 'video', duration: '15:20', completed: true, url: video1 },
-      { id: 'l3', title: 'Recognising and Responding to Phishing Attacks', type: 'pdf', completed: false, url: pdf2 },
-      { id: 'l4', title: 'Safe Browsing, Email, and Device Practices', type: 'video', duration: '22:45', completed: false, url: video1 },
-      { id: 'l5', title: 'GDPR & Data Protection Fundamentals', type: 'video', duration: '18:30', completed: false, url: video1 },
-      { id: 'l6', title: 'Incident Reporting & Cyber Resilience Planning', type: 'scorm', completed: false, url: '/src/assets/SCORM12/shared/launchpage.html' },
-      { id: 'l7', title: 'Knowledge Check Quiz', type: 'quiz', questions: 10, completed: false }
-    ]
-  },
-  c2: {
-    title: 'The Complete JavaScript Course: Version 1',
-    description: 'Master JavaScript with the most complete course! Projects, challenges, quizzes, JavaScript ES6+',
-    lessons: [
-      { id: 'l1', title: 'JavaScript Fundamentals', type: 'video', duration: '25:00', completed: false, url: video1 },
-      { id: 'l2', title: 'Variables and Data Types', type: 'video', duration: '20:15', completed: false, url: video1 },
-      { id: 'l3', title: 'Practice Exercises', type: 'pdf', completed: false, url: pdf2 }
-    ]
-  }
-};
 
 function LessonItem({ lesson, isActive, onClick }) {
   const getIcon = (type) => {
@@ -69,8 +45,8 @@ function LessonItem({ lesson, isActive, onClick }) {
         isActive ? 'bg-blue-50 border-l-4 border-blue-600' : 'hover:bg-gray-50'
       }`}
     >
-      <div className={`${lesson.completed ? 'text-green-600' : 'text-gray-400'}`}>
-        {lesson.completed ? (
+      <div className={`${lesson.isCompleted ? 'text-green-600' : 'text-gray-400'}`}>
+        {lesson.isCompleted ? (
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
@@ -85,9 +61,9 @@ function LessonItem({ lesson, isActive, onClick }) {
             {lesson.title}
           </p>
         </div>
-        {/* {lesson.duration && (
+        {lesson.duration && lesson.duration !== "15:00" && (
           <p className="text-xs text-gray-500 ml-6">{lesson.duration}</p>
-        )} */}
+        )}
         {lesson.questions && (
           <p className="text-xs text-gray-500 ml-6">{lesson.questions} questions</p>
         )}
@@ -221,19 +197,53 @@ export default function CourseContent() {
   const [course, setCourse] = useState(null);
   const [activeLesson, setActiveLesson] = useState(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch course data - replace with actual API call
-    const courseData = MOCK_COURSE_DATA[courseId];
-    if (!courseData) {
+    // Create an AbortController for this request
+    const abortController = new AbortController();
+    
+    const loadCourseDetails = async () => {
+      setLoading(true);
+      try {
+        const courseData = await getCourseDetails(courseId, abortController.signal);
+        
+        if (!courseData && !abortController.signal.aborted) {
+          toast.error('Course not found or access denied');
+          navigate('/courses/all');
+          return;
+        }
+        
+        if (!abortController.signal.aborted) {
+          setCourse(courseData);
+          // Set first lesson as active by default
+          if (courseData.lessons && courseData.lessons.length > 0) {
+            setActiveLesson(courseData.lessons[0]);
+          }
+        }
+      } catch (error) {
+        if (!abortController.signal.aborted) {
+          console.error('Error loading course details:', error);
+          toast.error('Failed to load course details');
+          navigate('/courses/all');
+        }
+      } finally {
+        if (!abortController.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    if (courseId) {
+      loadCourseDetails();
+    } else {
       navigate('/courses/all');
-      return;
     }
-    setCourse(courseData);
-    // Set first lesson as active by default
-    if (courseData.lessons.length > 0) {
-      setActiveLesson(courseData.lessons[0]);
-    }
+
+    // Cleanup function to abort the request if component unmounts or courseId changes
+    return () => {
+      abortController.abort();
+    };
   }, [courseId, navigate]);
 
   useEffect(() => {
@@ -242,12 +252,12 @@ export default function CourseContent() {
     }
   }, [course]);
 
-  if (!course) {
+  if (loading || !course) {
     return (
       <div className="min-h-screen bg-page-bg">
         <LearnerHeader />
         <div className="flex items-center justify-center h-96">
-          <p className="text-gray-500">Loading course...</p>
+          <p className="text-gray-500">{loading ? 'Loading course...' : 'Course not found'}</p>
         </div>
       </div>
     );
@@ -308,7 +318,7 @@ export default function CourseContent() {
             </button>
             <h2 className="text-lg font-semibold text-gray-900">{course.title}</h2>
             <p className="text-sm text-gray-500 mt-1">
-              {course.lessons.filter(l => l.completed).length} of {course.lessons.length} completed
+              {course.lessons.filter(l => l.isCompleted).length} of {course.lessons.length} completed
             </p>
           </div>
           <div className="p-4 space-y-2">
@@ -348,9 +358,9 @@ export default function CourseContent() {
                     <h4 className="text-base font-semibold text-gray-900 mb-2">Certificates</h4>
                     <p className="text-sm text-gray-600 mb-3">Get certificate by completing entire course</p>
                     <button 
-                      disabled={course.status !== 'completed'}
+                      disabled={!course.isCompleted}
                       className={`px-6 py-2 rounded border transition-colors ${
-                        course.status === 'completed'
+                        course.isCompleted
                           ? 'border-purple-500 text-purple-600 hover:bg-purple-50'
                           : 'border-gray-300 text-gray-400 cursor-not-allowed'
                       }`}

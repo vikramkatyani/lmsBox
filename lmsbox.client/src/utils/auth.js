@@ -58,7 +58,7 @@ export const decodeToken = (token) => {
       return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
     }).join(''));
     return JSON.parse(jsonPayload);
-  } catch (e) {
+  } catch (_e) {
     return null;
   }
 };
