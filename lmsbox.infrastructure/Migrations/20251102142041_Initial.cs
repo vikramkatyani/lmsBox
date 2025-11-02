@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace lmsbox.infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class MigrateDatabase : Migration
+    public partial class Initial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -53,6 +53,21 @@ namespace lmsbox.infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Organisations", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "RevokedTokens",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Jti = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    TokenHash = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    RevokedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RevokedTokens", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -241,10 +256,16 @@ namespace lmsbox.infrastructure.Migrations
                 name: "Courses",
                 columns: table => new
                 {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     Title = table.Column<string>(type: "nvarchar(250)", maxLength: 250, nullable: false),
                     Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ShortDescription = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Category = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Tags = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CertificateEnabled = table.Column<bool>(type: "bit", nullable: false),
+                    BannerUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     OrganisationId = table.Column<long>(type: "bigint", nullable: false),
                     CreatedByUserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
@@ -296,7 +317,7 @@ namespace lmsbox.infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "MagicLinkTokens",
+                name: "LoginLinkTokens",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
@@ -305,13 +326,16 @@ namespace lmsbox.infrastructure.Migrations
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UsedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    SentAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    SendFailedCount = table.Column<int>(type: "int", nullable: false),
+                    LastSendError = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     ApplicationUserId = table.Column<string>(type: "nvarchar(450)", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_MagicLinkTokens", x => x.Id);
+                    table.PrimaryKey("PK_LoginLinkTokens", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_MagicLinkTokens_AspNetUsers_ApplicationUserId",
+                        name: "FK_LoginLinkTokens_AspNetUsers_ApplicationUserId",
                         column: x => x.ApplicationUserId,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id");
@@ -352,7 +376,7 @@ namespace lmsbox.infrastructure.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    CourseId = table.Column<long>(type: "bigint", nullable: true),
+                    CourseId = table.Column<string>(type: "nvarchar(450)", nullable: true),
                     Comment = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Rating = table.Column<int>(type: "int", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
@@ -379,7 +403,7 @@ namespace lmsbox.infrastructure.Migrations
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    CourseId = table.Column<long>(type: "bigint", nullable: false),
+                    CourseId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     Title = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
                     Content = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Ordinal = table.Column<int>(type: "int", nullable: false),
@@ -409,7 +433,7 @@ namespace lmsbox.infrastructure.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    CourseId = table.Column<long>(type: "bigint", nullable: false),
+                    CourseId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     LearningGroupId = table.Column<long>(type: "bigint", nullable: false),
                     AssignedByUserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     AssignedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
@@ -451,7 +475,7 @@ namespace lmsbox.infrastructure.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     LearningGroupId = table.Column<long>(type: "bigint", nullable: false),
-                    CourseId = table.Column<long>(type: "bigint", nullable: false),
+                    CourseId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     AssignedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
@@ -507,7 +531,7 @@ namespace lmsbox.infrastructure.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    CourseId = table.Column<long>(type: "bigint", nullable: true),
+                    CourseId = table.Column<string>(type: "nvarchar(450)", nullable: true),
                     LessonId = table.Column<long>(type: "bigint", nullable: true),
                     ProgressPercent = table.Column<int>(type: "int", nullable: false),
                     Completed = table.Column<bool>(type: "bit", nullable: false),
@@ -680,9 +704,14 @@ namespace lmsbox.infrastructure.Migrations
                 column: "CreatedByUserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_MagicLinkTokens_ApplicationUserId",
-                table: "MagicLinkTokens",
+                name: "IX_LoginLinkTokens_ApplicationUserId",
+                table: "LoginLinkTokens",
                 column: "ApplicationUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RevokedTokens_ExpiresAt",
+                table: "RevokedTokens",
+                column: "ExpiresAt");
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserUserRole_RoleId",
@@ -735,7 +764,10 @@ namespace lmsbox.infrastructure.Migrations
                 name: "LearnerProgresses");
 
             migrationBuilder.DropTable(
-                name: "MagicLinkTokens");
+                name: "LoginLinkTokens");
+
+            migrationBuilder.DropTable(
+                name: "RevokedTokens");
 
             migrationBuilder.DropTable(
                 name: "UserUserRole");

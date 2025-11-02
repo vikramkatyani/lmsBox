@@ -163,7 +163,7 @@ public class CoursesController : ControllerBase
     /// <param name="courseId">Course ID</param>
     /// <returns>Course details with lessons and progress</returns>
     [HttpGet("{courseId}")]
-    public async Task<ActionResult<CourseDetailDto>> GetCourseDetail(long courseId)
+    public async Task<ActionResult<CourseDetailDto>> GetCourseDetail(string courseId)
     {
         try
         {

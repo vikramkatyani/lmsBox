@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using System.Text.Json;
+using lmsbox.domain.Utils;
 
 namespace lmsBox.Server.Controllers;
 
@@ -135,7 +136,7 @@ public class AdminCoursesController : ControllerBase
     /// Get a specific course for editing
     /// </summary>
     [HttpGet("{courseId}")]
-    public async Task<ActionResult<AdminCourseDetailDto>> GetCourse(long courseId)
+    public async Task<ActionResult<AdminCourseDetailDto>> GetCourse(string courseId)
     {
         try
         {
@@ -243,6 +244,7 @@ public class AdminCoursesController : ControllerBase
             // Create new course
             var course = new Course
             {
+                Id = ShortGuid.Generate(), // Generate short GUID
                 Title = request.Title.Trim(),
                 Description = request.Description?.Trim(),
                 ShortDescription = request.ShortDescription?.Trim(),
@@ -300,7 +302,7 @@ public class AdminCoursesController : ControllerBase
     /// Update an existing course
     /// </summary>
     [HttpPut("{courseId}")]
-    public async Task<ActionResult<AdminCourseDetailDto>> UpdateCourse(long courseId, [FromBody] UpdateCourseRequest request)
+    public async Task<ActionResult<AdminCourseDetailDto>> UpdateCourse(string courseId, [FromBody] UpdateCourseRequest request)
     {
         try
         {
@@ -405,7 +407,7 @@ public class AdminCoursesController : ControllerBase
     /// Delete a course
     /// </summary>
     [HttpDelete("{courseId}")]
-    public async Task<ActionResult> DeleteCourse(long courseId)
+    public async Task<ActionResult> DeleteCourse(string courseId)
     {
         try
         {
@@ -473,7 +475,7 @@ public class AdminCourseListResponse
 
 public class AdminCourseDto
 {
-    public long Id { get; set; }
+    public string Id { get; set; } = null!;
     public string Title { get; set; } = null!;
     public string? Description { get; set; }
     public string? ShortDescription { get; set; }

@@ -10,7 +10,7 @@ public class LearnerProgress
     [ForeignKey(nameof(UserId))]
     public ApplicationUser? User { get; set; }
 
-    public long? CourseId { get; set; }
+    public string? CourseId { get; set; }
     [ForeignKey(nameof(CourseId))]
     public Course? Course { get; set; }
 

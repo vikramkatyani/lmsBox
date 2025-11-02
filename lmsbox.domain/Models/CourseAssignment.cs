@@ -7,7 +7,7 @@ public class CourseAssignment
     public int Id { get; set; }
 
     // The course being assigned
-    public long CourseId { get; set; }
+    public string CourseId { get; set; } = null!;
     [ForeignKey(nameof(CourseId))]
     public Course? Course { get; set; }
 

@@ -6,7 +6,7 @@ public class Lesson
 {
     public long Id { get; set; }
 
-    public long CourseId { get; set; }
+    public string CourseId { get; set; } = null!;
     [ForeignKey(nameof(CourseId))]
     public Course? Course { get; set; }
 

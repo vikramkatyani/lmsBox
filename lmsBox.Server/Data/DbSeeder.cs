@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using lmsbox.domain.Models;
 using lmsbox.infrastructure.Data;
 using System.Collections.Generic;
+using lmsbox.domain.Utils;
 
 namespace lmsBox.Server.Data;
 public static class DbSeeder
@@ -228,6 +229,7 @@ public static class DbSeeder
             {
                 var course = new Course
                 {
+                    Id = ShortGuid.Generate(),
                     Title = courseData.Title,
                     Description = courseData.Description,
                     OrganisationId = organisation.Id,

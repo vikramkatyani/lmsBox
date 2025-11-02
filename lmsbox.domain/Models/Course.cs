@@ -6,7 +6,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace lmsbox.domain.Models;
 public class Course
 {
-    public long Id { get; set; }
+    [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.None)]
+    public string Id { get; set; } = null!;
 
     [Required]
     public string Title { get; set; } = null!;

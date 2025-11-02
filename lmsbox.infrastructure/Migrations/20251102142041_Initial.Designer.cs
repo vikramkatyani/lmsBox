@@ -12,8 +12,8 @@ using lmsbox.infrastructure.Data;
 namespace lmsbox.infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251029094010_MigrateDatabase")]
-    partial class MigrateDatabase
+    [Migration("20251102142041_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -317,11 +317,17 @@ namespace lmsbox.infrastructure.Migrations
 
             modelBuilder.Entity("lmsbox.domain.Models.Course", b =>
                 {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+                    b.Property<string>("BannerUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Category")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("CertificateEnabled")
+                        .HasColumnType("bit");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -336,10 +342,23 @@ namespace lmsbox.infrastructure.Migrations
                     b.Property<long>("OrganisationId")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("ShortDescription")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Tags")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(250)
                         .HasColumnType("nvarchar(250)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -370,8 +389,9 @@ namespace lmsbox.infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
-                    b.Property<long>("CourseId")
-                        .HasColumnType("bigint");
+                    b.Property<string>("CourseId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<DateTime?>("DueDate")
                         .HasColumnType("datetime2");
@@ -404,8 +424,8 @@ namespace lmsbox.infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<long?>("CourseId")
-                        .HasColumnType("bigint");
+                    b.Property<string>("CourseId")
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -437,8 +457,9 @@ namespace lmsbox.infrastructure.Migrations
                     b.Property<DateTime>("AssignedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<long>("CourseId")
-                        .HasColumnType("bigint");
+                    b.Property<string>("CourseId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<DateTime?>("ExpiresAt")
                         .HasColumnType("datetime2");
@@ -499,8 +520,8 @@ namespace lmsbox.infrastructure.Migrations
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<long?>("CourseId")
-                        .HasColumnType("bigint");
+                    b.Property<string>("CourseId")
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<long?>("LessonId")
                         .HasColumnType("bigint");
@@ -569,8 +590,9 @@ namespace lmsbox.infrastructure.Migrations
                     b.Property<string>("Content")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<long>("CourseId")
-                        .HasColumnType("bigint");
+                    b.Property<string>("CourseId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -598,7 +620,7 @@ namespace lmsbox.infrastructure.Migrations
                     b.ToTable("Lessons", (string)null);
                 });
 
-            modelBuilder.Entity("lmsbox.domain.Models.MagicLinkToken", b =>
+            modelBuilder.Entity("lmsbox.domain.Models.LoginLinkToken", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -611,6 +633,15 @@ namespace lmsbox.infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LastSendError")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("SendFailedCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("SentAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("TokenHash")
@@ -628,7 +659,7 @@ namespace lmsbox.infrastructure.Migrations
 
                     b.HasIndex("ApplicationUserId");
 
-                    b.ToTable("MagicLinkTokens");
+                    b.ToTable("LoginLinkTokens");
                 });
 
             modelBuilder.Entity("lmsbox.domain.Models.Organisation", b =>
@@ -700,6 +731,31 @@ namespace lmsbox.infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("UserUserRole");
+                });
+
+            modelBuilder.Entity("lmsbox.infrastructure.Data.RevokedToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Jti")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("RevokedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("TokenHash")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.ToTable("RevokedTokens");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -939,10 +995,10 @@ namespace lmsbox.infrastructure.Migrations
                     b.Navigation("CreatedByUser");
                 });
 
-            modelBuilder.Entity("lmsbox.domain.Models.MagicLinkToken", b =>
+            modelBuilder.Entity("lmsbox.domain.Models.LoginLinkToken", b =>
                 {
                     b.HasOne("lmsbox.domain.Models.ApplicationUser", null)
-                        .WithMany("MagicLinkTokens")
+                        .WithMany("LoginLinkTokens")
                         .HasForeignKey("ApplicationUserId");
                 });
 
@@ -973,7 +1029,7 @@ namespace lmsbox.infrastructure.Migrations
 
                     b.Navigation("LearnerProgresses");
 
-                    b.Navigation("MagicLinkTokens");
+                    b.Navigation("LoginLinkTokens");
 
                     b.Navigation("UserUserRoles");
                 });
