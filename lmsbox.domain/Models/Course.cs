@@ -12,6 +12,20 @@ public class Course
     public string Title { get; set; } = null!;
 
     public string? Description { get; set; }
+    
+    public string? ShortDescription { get; set; }
+    
+    public string? Category { get; set; }
+    
+    public string? Tags { get; set; } // JSON array of tags as string
+    
+    public bool CertificateEnabled { get; set; } = true;
+    
+    public string? BannerUrl { get; set; }
+    
+    public string Status { get; set; } = "Draft"; // Draft, Active, Archived
+    
+    public DateTime? UpdatedAt { get; set; }
 
     // Ownership: course belongs to an organisation
     public long OrganisationId { get; set; }

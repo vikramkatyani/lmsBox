@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
 import toast from 'react-hot-toast';
 import { uploadMedia, uploadScorm } from '../services/upload';
 import { listQuizzes } from '../services/quizzes';
 import usePageTitle from '../hooks/usePageTitle';
+import { adminCourseService, courseHelpers } from '../services/adminCourses';
 
 export default function AdminCourseEditor() {
   const navigate = useNavigate();
@@ -13,6 +14,8 @@ export default function AdminCourseEditor() {
 
   usePageTitle(isNew ? 'Add Course' : 'Edit Course');
 
+  const [loading, setLoading] = useState(!isNew);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     title: '',
     shortDescription: '',
@@ -21,14 +24,38 @@ export default function AdminCourseEditor() {
     tags: [],
     certificateEnabled: true,
     bannerFile: null,
-    bannerPreview: ''
+    bannerPreview: '',
+    status: 'Draft'
   });
 
   const [tagInput, setTagInput] = useState('');
   const [submitted, setSubmitted] = useState(false);
-  const [activeTab, setActiveTab] = useState('details'); // details | curriculum
+  const [activeTab, setActiveTab] = useState('details'); // details | lessons
 
-  // Curriculum state
+  // Load course data if editing
+  useEffect(() => {
+    if (!isNew && courseId) {
+      loadCourse();
+    }
+  }, [courseId, isNew]);
+
+  const loadCourse = async () => {
+    try {
+      setLoading(true);
+      const courseData = await adminCourseService.getCourse(courseId);
+      const formData = courseHelpers.transformCourseResponseToForm(courseData);
+      setForm(formData);
+      setLessons(courseData.lessons || []);
+    } catch (error) {
+      console.error('Error loading course:', error);
+      toast.error('Failed to load course data');
+      navigate('/admin/courses');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Lessons state
   const [lessons, setLessons] = useState([]);
   const [isEditingLesson, setIsEditingLesson] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
@@ -129,7 +156,7 @@ export default function AdminCourseEditor() {
 
   const removeTag = (tag) => setForm(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tag) }));
 
-  // ---------- Curriculum handlers ----------
+  // ---------- Lessons handlers ----------
   const newId = () => 'l' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-3);
   const defaultDraftFor = (type) => ({
     id: '',
@@ -217,23 +244,30 @@ export default function AdminCourseEditor() {
       toast.error('Please enter a course title');
       return;
     }
-    // Build payload (in real app, upload file first or send as multipart)
-    const payload = {
-      title: form.title.trim(),
-      shortDescription: form.shortDescription.trim(),
-      longDescription: form.longDescription.trim(),
-      category: form.category.trim(),
-      tags: form.tags,
-      certificateEnabled: form.certificateEnabled,
-      bannerName: form.bannerFile?.name || null,
-      lessons: lessons.map((l, idx) => ({
-        ...l,
-        order: idx + 1
-      }))
-    };
-    console.log('Saving course', isNew ? '(new)' : `(edit:${courseId})`, payload);
-    toast.success(isNew ? 'Course created' : 'Course updated');
-    navigate('/admin/courses');
+    
+    try {
+      setSaving(true);
+      
+      // Prepare course data
+      const courseData = courseHelpers.transformCourseFormToRequest(form);
+      
+      let savedCourse;
+      if (isNew) {
+        savedCourse = await adminCourseService.createCourse(courseData);
+        toast.success('Course created successfully');
+      } else {
+        savedCourse = await adminCourseService.updateCourse(courseId, courseData);
+        toast.success('Course updated successfully');
+      }
+      
+      navigate('/admin/courses');
+    } catch (error) {
+      console.error('Error saving course:', error);
+      const message = error.response?.data?.message || 'Failed to save course';
+      toast.error(message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -248,21 +282,28 @@ export default function AdminCourseEditor() {
         </button>
         <h1 className="text-3xl font-bold text-gray-900 mb-6">{isNew ? 'Create New Course' : 'Edit Course'}</h1>
 
-        <div className="bg-white rounded-lg shadow">
-          {/* Tabs */}
-          <div className="px-6 pt-4 border-b">
-            <div className="flex gap-6">
-              <button
+        {loading ? (
+          <div className="bg-white rounded-lg shadow p-8">
+            <div className="flex items-center justify-center">
+              <div className="text-gray-500">Loading course data...</div>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg shadow">
+            {/* Tabs */}
+            <div className="px-6 pt-4 border-b">
+              <div className="flex gap-6">
+                <button
                 className={`pb-3 text-sm font-medium border-b-2 ${activeTab==='details' ? 'border-(--tenant-primary) text-(--tenant-primary)' : 'border-transparent text-gray-600 hover:text-gray-900'}`}
                 onClick={() => setActiveTab('details')}
               >
                 Details
               </button>
               <button
-                className={`pb-3 text-sm font-medium border-b-2 ${activeTab==='curriculum' ? 'border-(--tenant-primary) text-(--tenant-primary)' : 'border-transparent text-gray-600 hover:text-gray-900'}`}
-                onClick={() => setActiveTab('curriculum')}
+                className={`pb-3 text-sm font-medium border-b-2 ${activeTab==='lessons' ? 'border-(--tenant-primary) text-(--tenant-primary)' : 'border-transparent text-gray-600 hover:text-gray-900'}`}
+                onClick={() => setActiveTab('lessons')}
               >
-                Curriculum
+                Lessons
               </button>
             </div>
           </div>
@@ -348,12 +389,18 @@ export default function AdminCourseEditor() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                  <input
+                  <select
                     value={form.category}
                     onChange={(e) => handleChange('category', e.target.value)}
                     className="w-full border border-gray-300 rounded px-4 py-2"
-                    placeholder="e.g., Security, Compliance, Soft Skills"
-                  />
+                  >
+                    <option value="">Select a category</option>
+                    {courseHelpers.getCategoryOptions().map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
@@ -384,12 +431,12 @@ export default function AdminCourseEditor() {
           </div>
           )}
 
-          {/* Curriculum Tab */}
-          {activeTab === 'curriculum' && (
+          {/* Lessons Tab */}
+          {activeTab === 'lessons' && (
             <div className="p-6 space-y-6">
               {/* Add lesson */}
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold text-gray-900">Curriculum</h2>
+                <h2 className="text-lg font-semibold text-gray-900">Lessons</h2>
                 <div className="flex items-center gap-2">
                   <AddLessonMenu onAdd={(type) => {
                     startAddLesson(type);
@@ -635,11 +682,18 @@ export default function AdminCourseEditor() {
 
               <div className="flex justify-end gap-3 pt-2">
                 <button onClick={() => navigate(-1)} className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">Cancel</button>
-                <button onClick={onSave} className="px-4 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90 cursor-pointer">Save Course</button>
+                <button 
+                  onClick={onSave} 
+                  disabled={saving}
+                  className="px-4 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {saving ? 'Saving...' : 'Save Course'}
+                </button>
               </div>
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   );

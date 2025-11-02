@@ -1,79 +1,68 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
 import toast from 'react-hot-toast';
 import usePageTitle from '../hooks/usePageTitle';
-
-// Mock admin course data (replace with API integration)
-const SAMPLE_ADMIN_COURSES = [
-  {
-    id: 'c1',
-    title: 'Cyber Security Essentials for UK Businesses (Level 1)',
-    category: 'Security',
-    status: 'Active', // Active | Draft | Archived
-    updatedAt: '2025-10-15T10:30:00Z',
-    learners: 328
-  },
-  {
-    id: 'c2',
-    title: 'Effective Workplace Communication: Speak, Listen, Lead',
-    category: 'Soft Skills',
-    status: 'Draft',
-    updatedAt: '2025-10-05T09:00:00Z',
-    learners: 42
-  },
-  {
-    id: 'c3',
-    title: 'Employee Engagement Through Transparent Communication',
-    category: 'HR',
-    status: 'Active',
-    updatedAt: '2025-09-28T12:00:00Z',
-    learners: 117
-  },
-  {
-    id: 'c4',
-    title: 'GDPR Compliance & Data Handling Best Practices',
-    category: 'Compliance',
-    status: 'Archived',
-    updatedAt: '2025-08-10T16:45:00Z',
-    learners: 980
-  }
-];
+import { adminCourseService, courseHelpers } from '../services/adminCourses';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function AdminCourses() {
   const navigate = useNavigate();
-  const [courses, setCourses] = useState(SAMPLE_ADMIN_COURSES);
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('updated_desc');
   const [status, setStatus] = useState('all');
   const [category, setCategory] = useState('all');
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, course: null });
 
   usePageTitle('Manage Courses');
 
-  const categories = useMemo(() => {
-    const set = new Set(courses.map(c => c.category));
-    return ['all', ...Array.from(set)];
-  }, [courses]);
+  // Load courses on component mount and when filters change
+  useEffect(() => {
+    loadCourses();
+  }, [query, sort, status, category]);
 
-  const filtered = useMemo(() => {
-    let list = courses.slice();
-    if (query.trim()) {
-      const q = query.toLowerCase();
-      list = list.filter(c => c.title.toLowerCase().includes(q));
+  const loadCourses = async () => {
+    try {
+      setLoading(true);
+      const response = await adminCourseService.listCourses({
+        search: query.trim() || undefined,
+        status: status !== 'all' ? status : undefined,
+        category: category !== 'all' ? category : undefined,
+        sort
+      });
+      
+      const formattedCourses = response.courses.map(courseHelpers.formatCourseForDisplay);
+      setCourses(formattedCourses);
+    } catch (error) {
+      console.error('Error loading courses:', error);
+      toast.error('Failed to load courses');
+      setCourses([]);
+    } finally {
+      setLoading(false);
     }
-    if (status !== 'all') list = list.filter(c => c.status.toLowerCase() === status);
-    if (category !== 'all') list = list.filter(c => c.category === category);
+  };
 
-    // sort
-    if (sort === 'updated_desc') list.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-    if (sort === 'updated_asc') list.sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt));
-    if (sort === 'title_az') list.sort((a, b) => a.title.localeCompare(b.title));
-    if (sort === 'title_za') list.sort((a, b) => b.title.localeCompare(a.title));
-    if (sort === 'learners_desc') list.sort((a, b) => b.learners - a.learners);
-    if (sort === 'learners_asc') list.sort((a, b) => a.learners - b.learners);
+  const categories = useMemo(() => {
+    const categoryOptions = courseHelpers.getCategoryOptions();
+    return ['all', ...categoryOptions.map(opt => opt.value)];
+  }, []);
 
-    return list;
-  }, [courses, query, status, category, sort]);
+  const handleDeleteCourse = async (course) => {
+    try {
+      await adminCourseService.deleteCourse(course.id);
+      toast.success('Course deleted successfully');
+      loadCourses(); // Reload the list
+      setDeleteDialog({ open: false, course: null });
+    } catch (error) {
+      console.error('Error deleting course:', error);
+      const message = error.response?.data?.message || 'Failed to delete course';
+      toast.error(message);
+    }
+  };
+
+  const filtered = courses; // Filtering is now done on the server side
 
   const resetFilters = () => {
     setQuery('');
@@ -83,15 +72,29 @@ export default function AdminCourses() {
   };
 
   const onEdit = (id) => navigate(`/admin/courses/${id}/edit`);
-  const onArchiveToggle = (id) => {
-    setCourses(prev => prev.map(c => c.id === id ? { ...c, status: c.status === 'Archived' ? 'Active' : 'Archived' } : c));
-    toast.success('Course status updated');
+  
+  const onArchiveToggle = async (courseId) => {
+    const course = courses.find(c => c.id === courseId);
+    if (!course) return;
+    
+    const newStatus = course.status === 'Archived' ? 'Active' : 'Archived';
+    try {
+      await adminCourseService.updateCourse(courseId, { 
+        ...courseHelpers.transformCourseFormToRequest(course),
+        status: newStatus 
+      });
+      toast.success(`Course ${newStatus.toLowerCase()} successfully`);
+      loadCourses(); // Reload the list
+    } catch (error) {
+      console.error('Error updating course status:', error);
+      toast.error('Failed to update course status');
+    }
   };
-  const onDelete = (id) => {
-    if (!window.confirm('Delete this course? This action cannot be undone.')) return;
-    setCourses(prev => prev.filter(c => c.id !== id));
-    toast.success('Course deleted');
+
+  const onDelete = (course) => {
+    setDeleteDialog({ open: true, course });
   };
+  
   const onCreateNew = () => navigate('/admin/courses/new');
 
   const statusBadge = (s) => {
@@ -180,7 +183,11 @@ export default function AdminCourses() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filtered.length === 0 ? (
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">Loading courses...</td>
+                  </tr>
+                ) : filtered.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-8 text-center text-gray-500">No courses found.</td>
                   </tr>
@@ -191,15 +198,15 @@ export default function AdminCourses() {
                         <div className="font-medium text-gray-900">{c.title}</div>
                         <div className="text-xs text-gray-500">ID: {c.id}</div>
                       </td>
-                      <td className="px-6 py-4 text-gray-700">{c.category}</td>
-                      <td className="px-6 py-4">{statusBadge(c.status)}</td>
-                      <td className="px-6 py-4 text-gray-700">{new Date(c.updatedAt).toLocaleDateString()}</td>
-                      <td className="px-6 py-4 text-right text-gray-700">{c.learners.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-gray-700">{c.category || 'Uncategorized'}</td>
+                      <td className="px-6 py-4">{statusBadge(c.statusDisplay)}</td>
+                      <td className="px-6 py-4 text-gray-700">{c.updatedAt}</td>
+                      <td className="px-6 py-4 text-right text-gray-700">{(c.learners || 0).toLocaleString()}</td>
                       <td className="px-6 py-4">
                         <div className="flex justify-end gap-2">
                           <button onClick={() => onEdit(c.id)} className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100">Edit</button>
                           <button onClick={() => onArchiveToggle(c.id)} className="px-3 py-1.5 text-sm bg-yellow-50 text-yellow-800 rounded hover:bg-yellow-100">{c.status === 'Archived' ? 'Unarchive' : 'Archive'}</button>
-                          <button onClick={() => onDelete(c.id)} className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100">Delete</button>
+                          <button onClick={() => onDelete(c)} className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100">Delete</button>
                         </div>
                       </td>
                     </tr>
@@ -210,6 +217,18 @@ export default function AdminCourses() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteDialog.open}
+        title="Delete Course"
+        message={`Are you sure you want to delete "${deleteDialog.course?.title}"? This action cannot be undone.`}
+        onConfirm={() => handleDeleteCourse(deleteDialog.course)}
+        onCancel={() => setDeleteDialog({ open: false, course: null })}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 }
