@@ -5,6 +5,7 @@ import { getCourseDetails } from '../services/courseDetails';
 import toast from 'react-hot-toast';
 import video1 from '../assets/video1.mp4';
 import pdf2 from '../assets/pdf2.pdf';
+import usePageTitle from '../hooks/usePageTitle';
 
 function LessonItem({ lesson, isActive, onClick }) {
   const getIcon = (type) => {
@@ -199,6 +200,8 @@ export default function CourseContent() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  usePageTitle(course ? `${course.title} - Course Content` : 'Course Content');
+
   useEffect(() => {
     // Create an AbortController for this request
     const abortController = new AbortController();
@@ -245,12 +248,6 @@ export default function CourseContent() {
       abortController.abort();
     };
   }, [courseId, navigate]);
-
-  useEffect(() => {
-    if (course) {
-      document.title = `${course.title} - Course Content`;
-    }
-  }, [course]);
 
   if (loading || !course) {
     return (

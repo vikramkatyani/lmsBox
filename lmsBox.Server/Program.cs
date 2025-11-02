@@ -146,6 +146,9 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<ILoginLinkService, LoginLinkService>();
 builder.Services.AddHttpClient();
 
+// Email service registration (uses SendGrid like LoginLinkService)
+builder.Services.AddScoped<lmsBox.Server.Services.IEmailService, lmsBox.Server.Services.EmailService>();
+
 var app = builder.Build();
 
 // Serilog request logging - logs HTTP requests and responses

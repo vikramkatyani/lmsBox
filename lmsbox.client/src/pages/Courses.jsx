@@ -5,6 +5,7 @@ import { CourseGridSkeleton } from '../components/CourseCardSkeleton';
 import { getMyCourses, getMyCertificates } from '../services/learnerCourses';
 import { useDebounce } from '../hooks/useDebounce';
 import toast from 'react-hot-toast';
+import usePageTitle from '../hooks/usePageTitle';
 
 const CourseCard = React.memo(function CourseCard({ course, onNavigate }) {
   const [hover, setHover] = useState(false);
@@ -85,10 +86,7 @@ export default function Courses({ initialTab = {} }) {
   const tabParam = params.tab;
   const activeTab = tabParam || initialTab || 'all';
 
-  useEffect(() => {
-    const pageTitle = import.meta.env.VITE_APP_TITLE ? `${import.meta.env.VITE_APP_TITLE} - Courses` : 'LMS Box - Courses';
-    document.title = pageTitle;
-  }, []);
+  usePageTitle('Courses');
 
   // Load courses when tab changes or search query changes
   useEffect(() => {

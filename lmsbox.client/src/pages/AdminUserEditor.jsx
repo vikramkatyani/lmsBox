@@ -4,18 +4,21 @@ import AdminHeader from '../components/AdminHeader';
 import toast from 'react-hot-toast';
 import { getUser, saveUser } from '../services/users';
 import { listUserGroups } from '../services/userGroups';
+import usePageTitle from '../hooks/usePageTitle';
 
 export default function AdminUserEditor() {
   const navigate = useNavigate();
   const { userId } = useParams();
   const isNew = !userId;
 
+  usePageTitle(isNew ? 'Add User' : 'Edit User');
+
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
     email: '',
     groupIds: [],
-    role: 'learner',
+    role: 'Learner',
     status: 'Active'
   });
 
@@ -37,16 +40,39 @@ export default function AdminUserEditor() {
             lastName: u.lastName || '',
             email: u.email || '',
             groupIds: u.groupIds || [],
-            role: u.role || 'learner',
+            role: u.role || 'Learner',
             status: u.status || 'Active'
           });
         } catch (e) {
           console.error(e);
-          toast.error('Failed to load user');
+          
+          // Display detailed error message
+          let errorMessage = 'Failed to load user';
+          
+          if (e.response?.data?.message) {
+            errorMessage = e.response.data.message;
+          } else if (e.message) {
+            errorMessage = e.message;
+          }
+          
+          // Handle specific error cases
+          if (e.response?.status === 404) {
+            errorMessage = 'User not found. It may have been deleted.';
+            // Navigate back after a short delay
+            setTimeout(() => navigate('/admin/users'), 2000);
+          } else if (e.response?.status === 403) {
+            errorMessage = 'You do not have permission to view this user.';
+          } else if (e.response?.status === 500) {
+            errorMessage = 'Server error occurred while loading user. Please try again.';
+          } else if (!e.response) {
+            errorMessage = 'Network error. Please check your connection and try again.';
+          }
+          
+          toast.error(errorMessage);
         }
       })();
     }
-  }, [isNew, userId]);
+  }, [isNew, userId, navigate]);
 
   const handleChange = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -97,12 +123,59 @@ export default function AdminUserEditor() {
     }
     try {
       const payload = { id: userId, ...form };
-      await saveUser(payload, !isNew);
-      toast.success(isNew ? 'User created' : 'User updated');
+      const response = await saveUser(payload, !isNew);
+      
+      // Display success message with details
+      if (isNew) {
+        const message = response?.message || 'User created successfully';
+        const emailStatus = response?.emailStatus;
+        
+        if (emailStatus === 'failed') {
+          toast.success(`${message}`, {
+            duration: 6000 // Show longer for important info
+          });
+          // Show a warning about email failure
+          setTimeout(() => {
+            toast.error('Registration email failed to send. You may need to manually notify the user.', {
+              duration: 8000
+            });
+          }, 1000);
+        } else {
+          toast.success(`${message}${response?.id ? ` (ID: ${response.id})` : ''}`);
+        }
+      } else {
+        const message = response?.message || 'User updated successfully';
+        toast.success(message);
+      }
+      
       navigate('/admin/users');
     } catch (e) {
-      console.error(e);
-      toast.error('Failed to save user');
+      console.error('Error saving user:', e);
+      
+      // Simple and robust error message extraction
+      let errorMessage = 'Failed to save user';
+      
+      // Try different ways to get the error message
+      if (e.response?.data?.message) {
+        errorMessage = e.response.data.message;
+      } else if (e.message && e.message !== 'Request failed with status code 400') {
+        errorMessage = e.message;
+      } else if (e.response?.data) {
+        // Sometimes the message might be directly in data or have a different structure
+        if (typeof e.response.data === 'string') {
+          errorMessage = e.response.data;
+        } else if (e.response.data.error) {
+          errorMessage = e.response.data.error;
+        }
+      }
+      
+      // Handle duplicate email specifically
+      if (errorMessage.toLowerCase().includes('email already exists') || 
+          errorMessage.toLowerCase().includes('user with this email')) {
+        errorMessage = 'A user with this email address already exists. Please use a different email.';
+      }
+      
+      toast.error(errorMessage, { duration: 5000 });
     }
   };
 
@@ -171,8 +244,8 @@ export default function AdminUserEditor() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                 <select value={form.role} onChange={(e) => handleChange('role', e.target.value)} className="w-full border rounded px-4 py-2">
-                  <option value="learner">Learner</option>
-                  <option value="admin">Admin</option>
+                  <option value="Learner">Learner</option>
+                  <option value="OrgAdmin">Admin</option>
                 </select>
               </div>
 

@@ -239,8 +239,6 @@ namespace lmsBox.Server.Controllers
 
                 try
                 {
-                    var client = _httpClientFactory.CreateClient();
-                    var content = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>());
                     // Try to read the raw token from Authorization header (Bearer <token>)
                     string? token = null;
                     if (Request.Headers.TryGetValue("Authorization", out var ah))
@@ -256,32 +254,16 @@ namespace lmsBox.Server.Controllers
                     // Do not log the token itself. Log whether token was present.
                     _logger.LogInformation("Logout invoked. TokenPresent={HasToken}", !string.IsNullOrEmpty(token));
 
-                    var response = await client.PostAsync("https://www.google.com/recaptcha/api/siteverify", content);
-                    response.EnsureSuccessStatusCode();
-
-                    using var stream = await response.Content.ReadAsStreamAsync();
-                    var doc = await JsonSerializer.DeserializeAsync<JsonElement>(stream);
-
-                    var success = doc.TryGetProperty("success", out var s) && s.GetBoolean();
-                    var errors = Array.Empty<string>();
-                    if (doc.TryGetProperty("error-codes", out var ec) && ec.ValueKind == JsonValueKind.Array)
-                    {
-                        var list = new List<string>();
-                        foreach (var e in ec.EnumerateArray())
-                        {
-                            if (e.ValueKind == JsonValueKind.String) list.Add(e.GetString() ?? string.Empty);
-                        }
-                        errors = list.ToArray();
-                    }
-
-                    // Return as IActionResult
-                    _logger.LogInformation("Logout completed. RecaptchaSuccess={Success}", success);
-                    return Ok(new { success, errors });
+                    // For logout, we don't need reCAPTCHA verification
+                    // Simply invalidate the session/token and return success
+                    
+                    _logger.LogInformation("Logout completed successfully");
+                    return Ok(new { success = true, message = "Logged out successfully" });
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "reCAPTCHA verification request failed.");
-                    return StatusCode(500, new { success = false, errors = new[] { "verification-failed" } });
+                    _logger.LogWarning(ex, "Logout request failed.");
+                    return StatusCode(500, new { success = false, errors = new[] { "logout-failed" } });
                 }
             }
         }
@@ -373,6 +355,6 @@ namespace lmsBox.Server.Controllers
 
     public class DevLoginRequest
     {
-        public string Email { get; set; }
+        public required string Email { get; set; }
     }
 }

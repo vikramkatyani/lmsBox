@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
 import toast from 'react-hot-toast';
 import { listUsers, deleteUser } from '../services/users';
+import usePageTitle from '../hooks/usePageTitle';
 
 export default function AdminUsers() {
   const navigate = useNavigate();
@@ -10,6 +11,8 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  usePageTitle('Manage Users');
 
   useEffect(() => {
     loadUsers();
@@ -22,7 +25,26 @@ export default function AdminUsers() {
       setUsers(items);
     } catch (e) {
       console.error(e);
-      toast.error('Failed to load users');
+      
+      // Display detailed error message
+      let errorMessage = 'Failed to load users';
+      
+      if (e.response?.data?.message) {
+        errorMessage = e.response.data.message;
+      } else if (e.message) {
+        errorMessage = e.message;
+      }
+      
+      // Handle specific error cases
+      if (e.response?.status === 403) {
+        errorMessage = 'You do not have permission to view users.';
+      } else if (e.response?.status === 500) {
+        errorMessage = 'Server error occurred while loading users. Please try again.';
+      } else if (!e.response) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -60,12 +82,38 @@ export default function AdminUsers() {
   const onDelete = async (id) => {
     if (!window.confirm('Delete this user? This action cannot be undone.')) return;
     try {
-      await deleteUser(id);
+      const response = await deleteUser(id);
       setUsers((prev) => prev.filter((u) => u.id !== id));
-      toast.success('User deleted');
+      
+      // Display success message with details
+      const message = response?.message || 'User deleted successfully';
+      toast.success(message);
     } catch (e) {
       console.error(e);
-      toast.error('Failed to delete user');
+      
+      // Display detailed error message
+      let errorMessage = 'Failed to delete user';
+      
+      if (e.response?.data?.message) {
+        errorMessage = e.response.data.message;
+      } else if (e.message) {
+        errorMessage = e.message;
+      }
+      
+      // Handle specific error cases
+      if (e.response?.status === 404) {
+        errorMessage = 'User not found. It may have already been deleted.';
+      } else if (e.response?.status === 403) {
+        errorMessage = 'You do not have permission to delete this user.';
+      } else if (e.response?.status === 409) {
+        errorMessage = 'Cannot delete user. The user may have associated data that prevents deletion.';
+      } else if (e.response?.status === 500) {
+        errorMessage = 'Server error occurred while deleting user. Please try again.';
+      } else if (!e.response) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      }
+      
+      toast.error(errorMessage);
     }
   };
 

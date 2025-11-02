@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Registration - {{AppName}}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+        .welcome-title {
+            color: #28a745;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .user-details {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin: 20px 0;
+            border-left: 4px solid #007bff;
+        }
+        .cta-button {
+            display: inline-block;
+            background-color: #007bff;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .cta-button:hover {
+            background-color: #0056b3;
+        }
+        .footer {
+            border-top: 1px solid #e9ecef;
+            padding-top: 20px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 14px;
+        }
+        .support-info {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .important-note {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">{{AppName}}</div>
+            <h1 class="welcome-title">Welcome to Our Learning Platform!</h1>
+        </div>
+
+        <div class="content">
+            <p>Hello <strong>{{FirstName}} {{LastName}}</strong>,</p>
+            
+            <p>Great news! Your account has been successfully created on our learning management system. You now have access to our comprehensive training platform.</p>
+
+            <div class="user-details">
+                <h3>📋 Your Account Details:</h3>
+                <p><strong>Email:</strong> {{Email}}</p>
+                <p><strong>Role:</strong> {{Role}}</p>
+                <p><strong>Registration Date:</strong> {{RegistrationDate}}</p>
+            </div>
+
+            <div class="important-note">
+                <h3>🔐 Getting Started:</h3>
+                <p>To access your account, simply visit our login page and use the "Request Login Link" feature with your registered email address. You'll receive a secure login link that will grant you immediate access to the platform.</p>
+            </div>
+
+            <div style="text-align: center;">
+                <a href="{{LoginUrl}}" class="cta-button">Access Your Account</a>
+            </div>
+
+            <h3>🎯 What You Can Do:</h3>
+            <ul>
+                <li>Browse and enroll in available courses</li>
+                <li>Track your learning progress</li>
+                <li>Earn certificates upon course completion</li>
+                <li>Access course materials anytime, anywhere</li>
+                {{#if IsAdmin}}
+                <li>Manage users and course assignments (Admin privileges)</li>
+                <li>Generate learning reports and analytics</li>
+                {{/if}}
+            </ul>
+
+            <div class="support-info">
+                <h3>💡 Need Help?</h3>
+                <p>If you have any questions or need assistance getting started, our support team is here to help:</p>
+                <ul>
+                    <li>📧 Email: <a href="mailto:{{SupportEmail}}">{{SupportEmail}}</a></li>
+                    {{#if SupportPhone}}
+                    <li>📞 Phone: {{SupportPhone}}</li>
+                    {{/if}}
+                </ul>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>This email was sent to {{Email}} because an account was created for you on {{AppName}}.</p>
+            <p>&copy; {{Year}} {{OrganizationName}}. All rights reserved.</p>
+            {{#if UnsubscribeUrl}}
+            <p><a href="{{UnsubscribeUrl}}">Unsubscribe</a> from account notifications</p>
+            {{/if}}
+        </div>
+    </div>
+</body>
+</html>

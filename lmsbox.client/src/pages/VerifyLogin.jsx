@@ -3,17 +3,15 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { setAuthToken, getLastVisitedPage, getUserRole } from '../utils/auth';
 import api from '../utils/api';
 import lmsLogo from '../assets/lmsbox-logo.png';
+import usePageTitle from '../hooks/usePageTitle';
 
 export default function VerifyLogin() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [status, setStatus] = useState('verifying'); // verifying, success, error
-  const pageTitle = import.meta.env.VITE_APP_TITLE ? `${import.meta.env.VITE_APP_TITLE} - Verify Login` : 'LMS Box - Verify Login';
   
-    useEffect(() => {
-      document.title = pageTitle;
-    }, [pageTitle]);
-
+  usePageTitle('Verify Login');
+  
   useEffect(() => {
     const verifyToken = async () => {
       try {

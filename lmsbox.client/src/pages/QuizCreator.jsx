@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
 import toast from 'react-hot-toast';
 import { getQuiz, saveQuiz as saveQuizApi } from '../services/quizzes';
+import usePageTitle from '../hooks/usePageTitle';
 
 export default function QuizCreator() {
   const navigate = useNavigate();
@@ -11,6 +12,8 @@ export default function QuizCreator() {
   const params = new URLSearchParams(location.search);
   const returnTo = params.get('returnTo');
   const isEdit = !!quizId;
+  
+  usePageTitle(isEdit ? 'Edit Quiz' : 'Create Quiz');
   
   const [quizData, setQuizData] = useState({
     title: '',

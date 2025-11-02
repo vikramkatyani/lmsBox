@@ -4,11 +4,14 @@ import AdminHeader from '../components/AdminHeader';
 import toast from 'react-hot-toast';
 import { uploadMedia, uploadScorm } from '../services/upload';
 import { listQuizzes } from '../services/quizzes';
+import usePageTitle from '../hooks/usePageTitle';
 
 export default function AdminCourseEditor() {
   const navigate = useNavigate();
   const { courseId } = useParams();
   const isNew = !courseId;
+
+  usePageTitle(isNew ? 'Add Course' : 'Edit Course');
 
   const [form, setForm] = useState({
     title: '',

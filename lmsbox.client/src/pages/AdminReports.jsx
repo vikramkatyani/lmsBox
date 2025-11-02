@@ -1,7 +1,10 @@
 import React from 'react';
 import AdminHeader from '../components/AdminHeader';
+import usePageTitle from '../hooks/usePageTitle';
 
 export default function AdminReports() {
+  usePageTitle('Reports & Analytics');
+  
   return (
     <div className="min-h-screen bg-gray-50">
       <AdminHeader />

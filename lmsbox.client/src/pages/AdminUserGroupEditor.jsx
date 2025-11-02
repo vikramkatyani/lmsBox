@@ -3,11 +3,14 @@ import { useNavigate, useParams } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
 import toast from 'react-hot-toast';
 import { getUserGroup, saveUserGroup, listCoursesForMapping, listUsers } from '../services/userGroups';
+import usePageTitle from '../hooks/usePageTitle';
 
 export default function AdminUserGroupEditor() {
   const navigate = useNavigate();
   const { groupId } = useParams();
   const isNew = !groupId;
+
+  usePageTitle(isNew ? 'Add User Group' : 'Edit User Group');
 
   const [form, setForm] = useState({
     name: '',

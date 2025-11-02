@@ -3,12 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
 import toast from 'react-hot-toast';
 import { listUserGroups, deleteUserGroup } from '../services/userGroups';
+import usePageTitle from '../hooks/usePageTitle';
 
 export default function AdminUserGroups() {
   const navigate = useNavigate();
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
+
+  usePageTitle('User Groups');
 
   React.useEffect(() => {
     loadGroups();

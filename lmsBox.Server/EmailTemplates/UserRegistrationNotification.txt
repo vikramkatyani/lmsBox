@@ -1,0 +1,40 @@
+Hello {{FirstName}} {{LastName}},
+
+Welcome to {{AppName}}!
+
+Your account has been successfully created on our learning management system. You now have access to our comprehensive training platform.
+
+ACCOUNT DETAILS:
+- Email: {{Email}}
+- Role: {{Role}}
+- Registration Date: {{RegistrationDate}}
+
+GETTING STARTED:
+To access your account, simply visit our login page and use the "Request Login Link" feature with your registered email address. You'll receive a secure login link that will grant you immediate access to the platform.
+
+Access your account: {{LoginUrl}}
+
+WHAT YOU CAN DO:
+- Browse and enroll in available courses
+- Track your learning progress
+- Earn certificates upon course completion
+- Access course materials anytime, anywhere
+{{#if IsAdmin}}
+- Manage users and course assignments (Admin privileges)
+- Generate learning reports and analytics
+{{/if}}
+
+NEED HELP?
+If you have any questions or need assistance getting started, our support team is here to help:
+- Email: {{SupportEmail}}
+{{#if SupportPhone}}
+- Phone: {{SupportPhone}}
+{{/if}}
+
+---
+This email was sent to {{Email}} because an account was created for you on {{AppName}}.
+© {{Year}} {{OrganizationName}}. All rights reserved.
+
+{{#if UnsubscribeUrl}}
+Unsubscribe: {{UnsubscribeUrl}}
+{{/if}}

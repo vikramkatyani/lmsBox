@@ -8,6 +8,7 @@ import lmsLogo from '../assets/lmsbox-logo.png';
 import loginIllustration from '../assets/login-image.png';
 import api from '../utils/api';
 import { RecaptchaComponent, executeRecaptcha } from '../utils/recaptcha';
+import usePageTitle from '../hooks/usePageTitle';
 
 export default function Login() {
   const { register, handleSubmit, formState: { errors } } = useForm();
@@ -17,12 +18,8 @@ export default function Login() {
   const theme = useTheme();
   const logoSrc = theme?.logo || lmsLogo;
   const tenantName = theme?.name || import.meta.env.VITE_APP_TITLE || 'LMS Box';
-  const pageTitle = `${tenantName} - Login`;
-
-  // Set page title
-  useEffect(() => {
-    document.title = pageTitle;
-  }, [pageTitle]);
+  
+  usePageTitle('Login');
 
   // Compute redirect target (rendered in JSX to avoid conditional hooks)
   const role = getUserRole();

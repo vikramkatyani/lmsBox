@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
 import toast from 'react-hot-toast';
+import usePageTitle from '../hooks/usePageTitle';
 
 // Mock admin course data (replace with API integration)
 const SAMPLE_ADMIN_COURSES = [
@@ -46,6 +47,8 @@ export default function AdminCourses() {
   const [sort, setSort] = useState('updated_desc');
   const [status, setStatus] = useState('all');
   const [category, setCategory] = useState('all');
+
+  usePageTitle('Manage Courses');
 
   const categories = useMemo(() => {
     const set = new Set(courses.map(c => c.category));
