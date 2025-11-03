@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'react-hot-toast';
 import Login from './pages/Login';
 import VerifyLogin from './pages/VerifyLogin';
+import AuthTest from './pages/AuthTest';
 import Courses from './pages/Courses';
 import Certificates from './pages/certificates';
 import CourseContent from './pages/CourseContent';
@@ -33,6 +34,7 @@ function App() {
             element={<Login />}
           />
           <Route path="/verify-login" element={<VerifyLogin />} />
+          <Route path="/auth-test" element={<AuthTest />} />
           {/* Protected courses routes (path-based tabs) */}
           <Route path="/courses" element={<Navigate to="/courses/all" replace />} />
           <Route

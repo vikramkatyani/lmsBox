@@ -88,7 +88,58 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidAudience = jwtSection["Audience"],
         ValidateLifetime = true,
-        ClockSkew = System.TimeSpan.Zero
+        ClockSkew = TimeSpan.FromMinutes(5)
+    };
+    
+    options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+    {
+        OnAuthenticationFailed = context =>
+        {
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            logger.LogWarning("❌ JWT Authentication failed: {Error} | Path: {Path} | Exception: {Exception}", 
+                context.Exception.Message, 
+                context.Request.Path,
+                context.Exception.GetType().Name);
+            
+            if (context.Exception is SecurityTokenExpiredException)
+            {
+                logger.LogWarning("🕐 Token expired. ValidTo: {ValidTo}, UtcNow: {UtcNow}", 
+                    ((SecurityTokenExpiredException)context.Exception).Expires,
+                    DateTime.UtcNow);
+            }
+            
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = context =>
+        {
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            var userId = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value 
+                      ?? context.Principal?.FindFirst("sub")?.Value;
+            var roles = string.Join(",", context.Principal?.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value) ?? Array.Empty<string>());
+            
+            // Log all claims for debugging
+            var allClaims = string.Join(" | ", context.Principal?.Claims.Select(c => $"{c.Type}={c.Value}") ?? Array.Empty<string>());
+            
+            logger.LogInformation("✅ JWT Token validated | User: {UserId} | Roles: {Roles} | Path: {Path}", 
+                userId, 
+                roles,
+                context.Request.Path);
+            logger.LogDebug("📋 All Claims: {Claims}", allClaims);
+            return Task.CompletedTask;
+        },
+        OnMessageReceived = context =>
+        {
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            var hasAuth = context.Request.Headers.ContainsKey("Authorization");
+            var authValue = hasAuth ? context.Request.Headers["Authorization"].ToString() : "none";
+            var tokenPreview = authValue.StartsWith("Bearer ") ? authValue.Substring(7, Math.Min(20, authValue.Length - 7)) + "..." : authValue;
+            
+            logger.LogDebug("📨 Auth Header Received | Has: {HasAuth} | Preview: {TokenPreview} | Path: {Path}", 
+                hasAuth, 
+                tokenPreview,
+                context.Request.Path);
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -190,8 +241,14 @@ else
     });
 }
 
-app.UseHttpsRedirection();
 app.UseCors("LocalDevClient");
+
+// Only use HTTPS redirection in production to avoid losing Authorization headers during redirect
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

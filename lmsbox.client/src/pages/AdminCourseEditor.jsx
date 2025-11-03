@@ -30,7 +30,7 @@ export default function AdminCourseEditor() {
 
   const [tagInput, setTagInput] = useState('');
   const [submitted, setSubmitted] = useState(false);
-  const [activeTab, setActiveTab] = useState('details'); // details | lessons
+  const [activeTab, setActiveTab] = useState('details'); // details | lessons | quizzes
 
   // Load course data if editing
   useEffect(() => {
@@ -39,6 +39,13 @@ export default function AdminCourseEditor() {
     }
   }, [courseId, isNew]);
 
+  // Load quizzes when quizzes tab is selected
+  useEffect(() => {
+    if (activeTab === 'quizzes' && courseId && !isNew) {
+      loadCourseQuizzes();
+    }
+  }, [activeTab, courseId, isNew]);
+
   const loadCourse = async () => {
     try {
       setLoading(true);
@@ -46,12 +53,33 @@ export default function AdminCourseEditor() {
       const formData = courseHelpers.transformCourseResponseToForm(courseData);
       setForm(formData);
       setLessons(courseData.lessons || []);
+      // Load quizzes for this course
+      await loadCourseQuizzes();
     } catch (error) {
       console.error('Error loading course:', error);
       toast.error('Failed to load course data');
       navigate('/admin/courses');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCourseQuizzes = async () => {
+    if (!courseId) return;
+    try {
+      setQuizzesLoading(true);
+      // Load all quizzes and filter by courseId
+      const allQuizzes = await listQuizzes('');
+      
+      // Filter by courseId (now returned directly from backend)
+      const filtered = allQuizzes.filter(q => q.courseId === courseId);
+      
+      setCourseQuizzes(filtered);
+    } catch (error) {
+      console.error('Error loading course quizzes:', error);
+      toast.error('Failed to load quizzes');
+    } finally {
+      setQuizzesLoading(false);
     }
   };
 
@@ -78,6 +106,10 @@ export default function AdminCourseEditor() {
   const [quizSearch, setQuizSearch] = useState('');
   const [quizLoading, setQuizLoading] = useState(false);
   const [quizOptions, setQuizOptions] = useState([]);
+
+  // Course quizzes state
+  const [courseQuizzes, setCourseQuizzes] = useState([]);
+  const [quizzesLoading, setQuizzesLoading] = useState(false);
 
   const openQuizPicker = async () => {
     setQuizPickerOpen(true);
@@ -305,6 +337,12 @@ export default function AdminCourseEditor() {
               >
                 Lessons
               </button>
+              <button
+                className={`pb-3 text-sm font-medium border-b-2 ${activeTab==='quizzes' ? 'border-(--tenant-primary) text-(--tenant-primary)' : 'border-transparent text-gray-600 hover:text-gray-900'}`}
+                onClick={() => setActiveTab('quizzes')}
+              >
+                Quizzes
+              </button>
             </div>
           </div>
 
@@ -469,6 +507,9 @@ export default function AdminCourseEditor() {
                             <div className="font-medium text-gray-900">{l.title || <span className="text-gray-400">Untitled</span>}</div>
                             {l.description && (
                               <div className="text-xs text-gray-500 truncate max-w-[420px]">{l.description}</div>
+                            )}
+                            {l.type === 'quiz' && l.quizId && (
+                              <div className="text-xs text-blue-600 mt-1">Quiz ID: {l.quizId}</div>
                             )}
                           </td>
                           <td className="px-4 py-3">
@@ -690,6 +731,74 @@ export default function AdminCourseEditor() {
                   {saving ? 'Saving...' : 'Save Course'}
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Quizzes Tab */}
+          {activeTab === 'quizzes' && (
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold text-gray-900">Course Quizzes</h2>
+                <button
+                  onClick={() => navigate(`/admin/quiz/create/${courseId}`)}
+                  className="px-4 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90 cursor-pointer"
+                >
+                  Create New Quiz
+                </button>
+              </div>
+
+              {quizzesLoading ? (
+                <div className="text-center py-8">
+                  <div className="text-gray-500">Loading quizzes...</div>
+                </div>
+              ) : courseQuizzes.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-gray-500 mb-4">No quizzes created for this course yet.</div>
+                  <button
+                    onClick={() => navigate(`/admin/quiz/create/${courseId}`)}
+                    className="px-4 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90 cursor-pointer"
+                  >
+                    Create First Quiz
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {courseQuizzes.map((quiz) => (
+                    <div key={quiz.id} className="border rounded-lg p-4 bg-white shadow-sm">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-medium text-gray-900">{quiz.title}</h3>
+                          <p className="text-sm text-gray-600 mt-1">{quiz.description}</p>
+                          <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                            <span>Passing Score: {quiz.passingScore}%</span>
+                            <span>Questions: {quiz.questionCount || 0}</span>
+                            {quiz.isTimed && <span>Time Limit: {quiz.timeLimit} min</span>}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => navigate(`/admin/quiz/edit/${quiz.id}`)}
+                            className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm('Delete this quiz? This action cannot be undone.')) {
+                                // TODO: Implement delete
+                                toast.info('Delete functionality coming soon');
+                              }
+                            }}
+                            className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

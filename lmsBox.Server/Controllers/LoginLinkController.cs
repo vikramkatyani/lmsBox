@@ -137,7 +137,7 @@ namespace lmsBox.Server.Controllers
                     var jwtSection = _config.GetSection("Jwt");
                     var keyBytes = Encoding.UTF8.GetBytes(jwtSection["Key"] ?? "dev-secret-change-me-please-0123456789");
                     var expiresMinutes = int.TryParse(_config["LoginLink:AuthTokenExpiryMinutes"], out var em) ? em : 60;
-                    var now = DateTime.UtcNow;
+                    var now = DateTimeOffset.UtcNow;
 
                     var claims = new List<Claim>
                     {
@@ -164,8 +164,8 @@ namespace lmsBox.Server.Controllers
                         issuer: jwtSection["Issuer"],
                         audience: jwtSection["Audience"],
                         claims: claims,
-                        notBefore: now,
-                        expires: now.AddMinutes(expiresMinutes),
+                        notBefore: now.DateTime,
+                        expires: now.AddMinutes(expiresMinutes).DateTime,
                         signingCredentials: creds
                     );
 
@@ -176,7 +176,7 @@ namespace lmsBox.Server.Controllers
                     return Ok(new
                     {
                         token = tokenString,
-                        expires = jwt.ValidTo,
+                        expires = now.AddMinutes(expiresMinutes).ToUnixTimeMilliseconds(),
                     });
                 }
                 catch (Exception ex)

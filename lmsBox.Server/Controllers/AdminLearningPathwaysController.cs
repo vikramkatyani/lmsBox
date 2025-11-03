@@ -98,27 +98,27 @@ public class AdminLearningPathwaysController : ControllerBase
 
         return Ok(new
         {
-            pathway.Id,
-            pathway.Name,
-            pathway.Description,
-            pathway.CreatedAt,
-            CreatedBy = pathway.CreatedByUser!.UserName,
-            Members = pathway.LearnerGroups
+            id = pathway.Id,
+            name = pathway.Name,
+            description = pathway.Description,
+            createdAt = pathway.CreatedAt,
+            createdBy = pathway.CreatedByUser!.UserName,
+            members = pathway.LearnerGroups
                 .Where(learner => learner.IsActive)
                 .Select(learner => new
                 {
-                    learner.UserId,
-                    UserName = learner.User!.UserName,
-                    Email = learner.User.Email,
-                    learner.JoinedAt
+                    userId = learner.UserId,
+                    userName = learner.User!.UserName,
+                    email = learner.User.Email,
+                    joinedAt = learner.JoinedAt
                 }).ToList(),
-            Courses = pathway.GroupCourses.Select(gc => new
+            courses = pathway.GroupCourses.Select(gc => new
             {
-                gc.Course!.Id,
-                gc.Course.Title,
-                gc.Course.Description,
-                gc.AssignedAt,
-                gc.ExpiresAt
+                id = gc.Course!.Id,
+                title = gc.Course.Title,
+                description = gc.Course.Description,
+                assignedAt = gc.AssignedAt,
+                expiresAt = gc.ExpiresAt
             }).ToList()
         });
     }

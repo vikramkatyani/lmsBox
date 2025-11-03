@@ -38,7 +38,9 @@ api.interceptors.response.use(
     
     // Handle 401 Unauthorized - token expired or invalid
     if (error.response?.status === 401) {
-      console.warn('🔐 Unauthorized access - logging out user');
+      console.error('🔐 Unauthorized access - 401 response received');
+      console.error('Request URL:', error.config?.url);
+      console.error('Response data:', error.response?.data);
       
       // Import auth utilities dynamically to avoid circular imports
       import('./auth').then(({ removeAuthToken }) => {

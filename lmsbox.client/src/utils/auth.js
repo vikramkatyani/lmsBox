@@ -1,9 +1,9 @@
 // Store token with expiration
-export const setAuthToken = (token) => {
+export const setAuthToken = (token, expires) => {
   if (token) {
     localStorage.setItem('token', token);
-    // Set expiration to 8 hours from now
-    const expiration = new Date().getTime() + (8 * 60 * 60 * 1000);
+    // Use provided expiration (Unix timestamp in milliseconds) or default to 8 hours from now
+    const expiration = expires ? expires : new Date().getTime() + (8 * 60 * 60 * 1000);
     localStorage.setItem('tokenExpiration', expiration.toString());
   }
 };
@@ -13,16 +13,43 @@ export const getAuthToken = () => {
   const token = localStorage.getItem('token');
   const expiration = localStorage.getItem('tokenExpiration');
   
+  console.log('🔍 getAuthToken called:', {
+    hasToken: !!token,
+    tokenLength: token?.length,
+    tokenPreview: token?.substring(0, 20) + '...',
+    expiration: expiration,
+    localStorage: {
+      token: !!localStorage.getItem('token'),
+      expiration: localStorage.getItem('tokenExpiration')
+    }
+  });
+  
   if (!token || !expiration) {
+    console.log('❌ No token or expiration found');
     return null;
   }
 
   // Check if token is expired
-  if (new Date().getTime() > parseInt(expiration)) {
+  const now = new Date().getTime();
+  const expirationTime = parseInt(expiration);
+  
+  console.log('🕐 Time check:', {
+    now,
+    expirationTime,
+    nowDate: new Date(now).toISOString(),
+    expirationDate: new Date(expirationTime).toISOString(),
+    diff: expirationTime - now,
+    diffMinutes: Math.floor((expirationTime - now) / 1000 / 60)
+  });
+  
+  if (now > expirationTime) {
+    console.log('❌ Token expired', { now, expirationTime, diff: now - expirationTime });
     removeAuthToken();
     return null;
   }
 
+  const timeLeft = Math.floor((expirationTime - now) / 1000 / 60); // minutes
+  console.log('✅ Token valid, expires in:', timeLeft, 'minutes');
   return token;
 };
 

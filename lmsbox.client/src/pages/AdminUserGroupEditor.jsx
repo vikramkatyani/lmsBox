@@ -16,7 +16,9 @@ export default function AdminUserGroupEditor() {
     name: '',
     description: '',
     courseIds: [],
-    userIds: []
+    userIds: [],
+    courses: [], // Store full course objects
+    members: [] // Store full member objects
   });
 
   const [submitted, setSubmitted] = useState(false);
@@ -39,14 +41,24 @@ export default function AdminUserGroupEditor() {
       (async () => {
         try {
           const g = await getUserGroup(groupId);
+          console.log('📦 Loaded pathway data:', g);
+          
+          const courses = g.courses || [];
+          const members = g.members || [];
+          
+          console.log('📚 Courses:', courses);
+          console.log('👥 Members:', members);
+          
           setForm({
             name: g.name || '',
             description: g.description || '',
-            courseIds: g.courseIds || [],
-            userIds: g.userIds || []
+            courseIds: courses.map(c => c.id),
+            userIds: members.map(m => m.userId),
+            courses: courses,
+            members: members
           });
         } catch (e) {
-          console.error(e);
+          console.error('❌ Failed to load pathway:', e);
           toast.error('Failed to load pathway');
         }
       })();
@@ -86,7 +98,21 @@ export default function AdminUserGroupEditor() {
   const toggleCourse = (cId) => {
     setForm((prev) => {
       const has = prev.courseIds.includes(cId);
-      return { ...prev, courseIds: has ? prev.courseIds.filter((id) => id !== cId) : [...prev.courseIds, cId] };
+      if (has) {
+        return { 
+          ...prev, 
+          courseIds: prev.courseIds.filter((id) => id !== cId),
+          courses: prev.courses.filter(c => c.id !== cId)
+        };
+      } else {
+        // Find the course in options to get full details
+        const course = courseOptions.find(c => c.id === cId);
+        return { 
+          ...prev, 
+          courseIds: [...prev.courseIds, cId],
+          courses: course ? [...prev.courses, course] : prev.courses
+        };
+      }
     });
   };
 
@@ -121,7 +147,25 @@ export default function AdminUserGroupEditor() {
   const toggleUser = (uId) => {
     setForm((prev) => {
       const has = prev.userIds.includes(uId);
-      return { ...prev, userIds: has ? prev.userIds.filter((id) => id !== uId) : [...prev.userIds, uId] };
+      if (has) {
+        return { 
+          ...prev, 
+          userIds: prev.userIds.filter((id) => id !== uId),
+          members: prev.members.filter(m => m.userId !== uId)
+        };
+      } else {
+        // Find the user in options to get full details
+        const user = userOptions.find(u => u.id === uId);
+        if (user) {
+          const userName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+          return { 
+            ...prev, 
+            userIds: [...prev.userIds, uId],
+            members: [...prev.members, { userId: user.id, userName, email: user.email }]
+          };
+        }
+        return prev;
+      }
     });
   };
 
@@ -224,11 +268,14 @@ export default function AdminUserGroupEditor() {
                 <div className="text-center text-gray-500 py-8">No courses assigned yet.</div>
               ) : (
                 <ul className="divide-y border rounded">
-                  {form.courseIds.map((cId) => (
-                    <li key={cId} className="px-4 py-3 flex items-center justify-between hover:bg-gray-50">
-                      <span className="text-sm text-gray-900">{cId}</span>
+                  {form.courses.map((course) => (
+                    <li key={course.id} className="px-4 py-3 flex items-center justify-between hover:bg-gray-50">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{course.title}</div>
+                        <div className="text-xs text-gray-500">{course.id}</div>
+                      </div>
                       <button
-                        onClick={() => toggleCourse(cId)}
+                        onClick={() => toggleCourse(course.id)}
                         className="text-sm text-red-600 hover:text-red-700"
                       >
                         Remove
@@ -299,11 +346,14 @@ export default function AdminUserGroupEditor() {
                 <div className="text-center text-gray-500 py-8">No users assigned yet.</div>
               ) : (
                 <ul className="divide-y border rounded">
-                  {form.userIds.map((uId) => (
-                    <li key={uId} className="px-4 py-3 flex items-center justify-between hover:bg-gray-50">
-                      <span className="text-sm text-gray-900">{uId}</span>
+                  {form.members.map((member) => (
+                    <li key={member.userId} className="px-4 py-3 flex items-center justify-between hover:bg-gray-50">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{member.userName || member.email}</div>
+                        <div className="text-xs text-gray-500">{member.email}</div>
+                      </div>
                       <button
-                        onClick={() => toggleUser(uId)}
+                        onClick={() => toggleUser(member.userId)}
                         className="text-sm text-red-600 hover:text-red-700"
                       >
                         Remove
@@ -332,24 +382,27 @@ export default function AdminUserGroupEditor() {
                     <div className="text-sm text-gray-500">No users found.</div>
                   ) : (
                     <ul className="divide-y max-h-60 overflow-y-auto">
-                      {userOptions.map((u) => (
-                        <li key={u.id} className="py-2 flex items-center justify-between">
-                          <div>
-                            <div className="text-sm text-gray-900">{u.name}</div>
-                            <div className="text-xs text-gray-500">{u.email}</div>
-                          </div>
-                          <button
-                            onClick={() => toggleUser(u.id)}
-                            className={`px-3 py-1.5 text-sm rounded ${
-                              form.userIds.includes(u.id)
-                                ? 'bg-red-50 text-red-700 hover:bg-red-100'
-                                : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                            }`}
-                          >
-                            {form.userIds.includes(u.id) ? 'Remove' : 'Add'}
-                          </button>
-                        </li>
-                      ))}
+                      {userOptions.map((u) => {
+                        const displayName = [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email;
+                        return (
+                          <li key={u.id} className="py-2 flex items-center justify-between">
+                            <div>
+                              <div className="text-sm text-gray-900">{displayName}</div>
+                              <div className="text-xs text-gray-500">{u.email}</div>
+                            </div>
+                            <button
+                              onClick={() => toggleUser(u.id)}
+                              className={`px-3 py-1.5 text-sm rounded ${
+                                form.userIds.includes(u.id)
+                                  ? 'bg-red-50 text-red-700 hover:bg-red-100'
+                                  : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                              }`}
+                            >
+                              {form.userIds.includes(u.id) ? 'Remove' : 'Add'}
+                            </button>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </div>

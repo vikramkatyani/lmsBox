@@ -22,6 +22,9 @@ namespace lmsbox.infrastructure.Data
         // Course Management
         public DbSet<Course> Courses { get; set; } = null!;
         public DbSet<Lesson> Lessons { get; set; } = null!;
+        public DbSet<Quiz> Quizzes { get; set; } = null!;
+        public DbSet<QuizQuestion> QuizQuestions { get; set; } = null!;
+        public DbSet<QuizQuestionOption> QuizQuestionOptions { get; set; } = null!;
 
         // Learner Grouping
         public DbSet<LearningGroup> LearningGroups { get; set; } = null!;

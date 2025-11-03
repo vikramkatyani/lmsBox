@@ -44,6 +44,9 @@ public class Course
     // Lessons inside this course
     public ICollection<Lesson> Lessons { get; set; } = new List<Lesson>();
 
+    // Quizzes in this course
+    public ICollection<Quiz> Quizzes { get; set; } = new List<Quiz>();
+
     // Mapping to learning groups
     public ICollection<GroupCourse> GroupCourses { get; set; } = new List<GroupCourse>();
 

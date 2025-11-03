@@ -25,7 +25,8 @@ export default function QuizCreator() {
     shuffleAnswers: false,
     showResults: true,
     allowRetake: true,
-    maxAttempts: 3
+    maxAttempts: 3,
+    courseId: courseId || ''
   });
 
   const [questions, setQuestions] = useState([]);
@@ -190,7 +191,8 @@ export default function QuizCreator() {
           shuffleAnswers: q.shuffleAnswers,
           showResults: q.showResults,
           allowRetake: q.allowRetake,
-          maxAttempts: q.maxAttempts
+          maxAttempts: q.maxAttempts,
+          courseId: q.courseId
         });
         setQuestions(q.questions || []);
       } catch (e) {
@@ -206,6 +208,11 @@ export default function QuizCreator() {
       return;
     }
 
+    if (!quizData.courseId.trim()) {
+      toast.error('Course ID is required');
+      return;
+    }
+
     if (questions.length === 0) {
       toast.error('Add at least one question');
       return;
@@ -215,7 +222,6 @@ export default function QuizCreator() {
       const quizPayload = {
         id: quizId,
         ...quizData,
-        courseId,
         questions,
         totalPoints: questions.reduce((sum, q) => sum + q.points, 0)
       };
@@ -233,8 +239,8 @@ export default function QuizCreator() {
           // fall through
         }
       }
-      if (courseId) {
-        navigate(`/admin/courses/${courseId}/edit`);
+      if (quizData.courseId) {
+        navigate(`/admin/courses/${quizData.courseId}/edit`);
       } else {
         navigate('/admin/courses');
       }
@@ -289,6 +295,18 @@ export default function QuizCreator() {
                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 rows="3"
                 placeholder="Enter quiz description"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Course ID *</label>
+              <input
+                type="text"
+                value={quizData.courseId}
+                onChange={(e) => handleQuizInfoChange('courseId', e.target.value)}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter course ID"
+                disabled={isEdit} // Don't allow changing course when editing
               />
             </div>
 

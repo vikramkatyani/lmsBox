@@ -45,22 +45,36 @@ export async function getUserGroup(groupId) {
   try {
     const response = await api.get(`/api/AdminLearningPathways/${encodeURIComponent(groupId)}`);
     const data = response.data;
-    // Transform API response to match UI expectations
+    
+    console.log('🔍 getUserGroup raw response:', data);
+    
+    // Return full data including arrays for UI display
     return {
       id: data.id,
       name: data.name,
       description: data.description,
-      courseIds: data.courses?.map(c => c.id) || [],
-      userIds: data.members?.map(m => m.userId) || []
+      courses: data.courses || [],
+      members: data.members || [],
+      courseIds: (data.courses || []).map(c => c.id),
+      userIds: (data.members || []).map(m => m.userId)
     };
-  } catch (_err) {
+  } catch (err) {
+    console.error('❌ getUserGroup error:', err);
     // Mock
     return {
       id: groupId,
       name: 'Sample Group',
       description: 'Mock group for editing',
+      courses: [
+        { id: 'c1', title: 'Cyber Security Essentials', description: 'Learn security basics' },
+        { id: 'c2', title: 'GDPR Compliance', description: 'Data protection' }
+      ],
+      members: [
+        { userId: 'u1', userName: 'Alice Johnson', email: 'alice@example.com' },
+        { userId: 'u2', userName: 'Bob Smith', email: 'bob@example.com' }
+      ],
       courseIds: ['c1', 'c2'],
-      userIds: ['u1', 'u2', 'u3']
+      userIds: ['u1', 'u2']
     };
   }
 }

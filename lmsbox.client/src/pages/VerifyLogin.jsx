@@ -39,12 +39,32 @@ export default function VerifyLogin() {
           clearTimeout(timeout);
 
           if (response.data && response.data.token) {
+            console.log('🎫 Login response received:', {
+              hasToken: !!response.data.token,
+              tokenLength: response.data.token?.length,
+              tokenPreview: response.data.token?.substring(0, 20) + '...',
+              expires: response.data.expires,
+              expiresDate: response.data.expires ? new Date(response.data.expires).toISOString() : 'N/A'
+            });
+            
             // Store the JWT token using our auth utility
-            setAuthToken(response.data.token);
+            setAuthToken(response.data.token, response.data.expires);
+            
+            // Verify storage immediately
+            const storedToken = localStorage.getItem('token');
+            const storedExpiration = localStorage.getItem('tokenExpiration');
+            console.log('✅ Token stored, verification:', {
+              tokenStored: !!storedToken,
+              tokenLength: storedToken?.length,
+              expirationStored: storedExpiration,
+              expirationDate: storedExpiration ? new Date(parseInt(storedExpiration)).toISOString() : 'N/A'
+            });
+            
             setStatus('success');
 
             // Get user role from token
             const userRole = getUserRole();
+            console.log('👤 User role:', userRole);
             
             // Redirect based on user role
             let redirectPath;
@@ -53,6 +73,8 @@ export default function VerifyLogin() {
             } else {
               redirectPath = getLastVisitedPage() || '/courses/all';
             }
+            
+            console.log('🔀 Redirecting to:', redirectPath);
             
             // Redirect after a brief delay
             setTimeout(() => {
