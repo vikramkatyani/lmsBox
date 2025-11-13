@@ -219,7 +219,7 @@ namespace lmsbox.infrastructure.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
-                    b.Property<long>("OrganisationID")
+                    b.Property<long?>("OrganisationID")
                         .HasColumnType("bigint")
                         .HasColumnName("OrganisationID");
 
@@ -333,8 +333,17 @@ namespace lmsbox.infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedByUserId")
+                        .HasColumnType("nvarchar(450)");
+
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
 
                     b.Property<long>("OrganisationId")
                         .HasColumnType("bigint");
@@ -360,6 +369,8 @@ namespace lmsbox.infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("DeletedByUserId");
 
                     b.HasIndex("OrganisationId", "Title")
                         .IsUnique()
@@ -441,6 +452,62 @@ namespace lmsbox.infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Feedbacks");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.GlobalLibraryContent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AzureBlobPath")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FileName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long>("FileSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("MimeType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Tags")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UploadedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UploadedOn")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("GlobalLibraryContents");
                 });
 
             modelBuilder.Entity("lmsbox.domain.Models.GroupCourse", b =>
@@ -839,12 +906,85 @@ namespace lmsbox.infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<long>("AllocatedStorageGB")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("BannerUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedOn")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Domain")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FaviconUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FromEmail")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FromName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ManagerEmail")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ManagerName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ManagerPhone")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("MaxUsers")
+                        .HasColumnType("int");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("RenewalDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SendGridApiKey")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SmtpHost")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SmtpPassword")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("SmtpPort")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("SmtpUseSsl")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("SmtpUsername")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SupportEmail")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ThemeSettings")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedOn")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -1151,9 +1291,7 @@ namespace lmsbox.infrastructure.Migrations
                 {
                     b.HasOne("lmsbox.domain.Models.Organisation", "Organisation")
                         .WithMany("Users")
-                        .HasForeignKey("OrganisationID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("OrganisationID");
 
                     b.Navigation("Organisation");
                 });
@@ -1175,6 +1313,10 @@ namespace lmsbox.infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("lmsbox.domain.Models.ApplicationUser", "DeletedByUser")
+                        .WithMany()
+                        .HasForeignKey("DeletedByUserId");
+
                     b.HasOne("lmsbox.domain.Models.Organisation", "Organisation")
                         .WithMany()
                         .HasForeignKey("OrganisationId")
@@ -1182,6 +1324,8 @@ namespace lmsbox.infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("CreatedByUser");
+
+                    b.Navigation("DeletedByUser");
 
                     b.Navigation("Organisation");
                 });

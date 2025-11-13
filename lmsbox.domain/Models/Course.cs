@@ -41,6 +41,13 @@ public class Course
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    // Soft delete fields
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+    public string? DeletedByUserId { get; set; }
+    [ForeignKey(nameof(DeletedByUserId))]
+    public ApplicationUser? DeletedByUser { get; set; }
+
     // Lessons inside this course
     public ICollection<Lesson> Lessons { get; set; } = new List<Lesson>();
 

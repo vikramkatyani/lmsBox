@@ -151,9 +151,14 @@ export default function AdminUsers() {
         
         <div className="bg-white rounded-lg shadow">
           <div className="px-6 py-4 border-b flex flex-wrap gap-3 items-center justify-end">
-            <button onClick={onCreate} className="px-4 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90 cursor-pointer">
-              Add New User
-            </button>
+            <div className="flex gap-2">
+              <button onClick={onCreate} className="px-4 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90 cursor-pointer">
+                Add New User
+              </button>
+              <button onClick={() => navigate('/admin/users/bulk-new')} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                Bulk Add Users
+              </button>
+            </div>
           </div>
 
           {/* Controls */}

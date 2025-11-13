@@ -8,7 +8,7 @@
         --color-login-btn-text: #1b365d;
         --color-login-input-bg: #FFFFFF;
         --color-login-input-border: #FFFFFF;
-        
+
         --color-logout-btn: #2afeae;
         --color-logout-btn-text: #1b365d;
 
@@ -32,4 +32,31 @@
         --color-boxlms-secondary-btn-txt: #FFFFFF;
 
         --color-boxlms-primary-body-txt: #1b365d;
+
+        /* SuperAdmin specific colors */
+        --color-superadmin-header-bg: #1b365d;
+        --color-superadmin-header-text: #FFFFFF;
+        --color-superadmin-btn-bg: #2afeae;
+        --color-superadmin-btn-text: #1b365d;
+        --color-superadmin-btn-hover: #25e89e;
+        --color-superadmin-text: #36454F;
+        --color-superadmin-accent: #2afeae;
+
+        /* Font families */
+        --font-heading: 'Albert Sans', sans-serif;
+        --font-body: 'Inter', sans-serif;
+    }
+
+    /* Global font styles */
+    body {
+        font-family: var(--font-body);
+        font-weight: 400;
+        letter-spacing: -0.02em;
+        color: var(--color-page-txt);
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        font-family: var(--font-heading);
+        font-weight: 800;
+        letter-spacing: -0.04em;
     }

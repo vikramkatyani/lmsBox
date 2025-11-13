@@ -156,6 +156,12 @@ namespace lmsBox.Server.Controllers
                 return BadRequest(new { message = "Course not found" });
             }
 
+            // Check if course is published
+            if (course.Status == "Published")
+            {
+                return BadRequest(new { message = "Cannot add quizzes to published courses. Please unpublish the course first." });
+            }
+
             // Get current user
             var user = await _userManager.GetUserAsync(User);
             if (user == null)
@@ -261,11 +267,18 @@ namespace lmsBox.Server.Controllers
             var quiz = await _context.Quizzes
                 .Include(q => q.Questions)
                     .ThenInclude(qq => qq.Options)
+                .Include(q => q.Course)
                 .FirstOrDefaultAsync(q => q.Id == id);
 
             if (quiz == null)
             {
                 return NotFound(new { message = "Quiz not found" });
+            }
+
+            // Check if course is published
+            if (quiz.Course?.Status == "Published")
+            {
+                return BadRequest(new { message = "Cannot edit quizzes in published courses. Please unpublish the course first." });
             }
 
             // Verify course exists if changed
@@ -360,10 +373,19 @@ namespace lmsBox.Server.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteQuiz(string id)
         {
-            var quiz = await _context.Quizzes.FindAsync(id);
+            var quiz = await _context.Quizzes
+                .Include(q => q.Course)
+                .FirstOrDefaultAsync(q => q.Id == id);
+                
             if (quiz == null)
             {
                 return NotFound(new { message = "Quiz not found" });
+            }
+
+            // Check if course is published
+            if (quiz.Course?.Status == "Published")
+            {
+                return BadRequest(new { message = "Cannot delete quizzes from published courses. Please unpublish the course first." });
             }
 
             // Also delete the corresponding lesson

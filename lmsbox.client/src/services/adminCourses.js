@@ -56,6 +56,12 @@ export const adminCourseService = {
   async updateCourseStatus(courseId, status) {
     const response = await api.put(`/api/admin/courses/${courseId}/status`, { status });
     return response.data;
+  },
+
+  // Duplicate a course
+  async duplicateCourse(courseId) {
+    const response = await api.post(`/api/admin/courses/${courseId}/duplicate`);
+    return response.data;
   }
 };
 

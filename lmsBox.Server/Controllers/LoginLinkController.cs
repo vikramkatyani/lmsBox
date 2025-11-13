@@ -23,7 +23,7 @@ using System.Threading.Tasks;
 namespace lmsBox.Server.Controllers
 {
     [ApiController]
-    [Route("auth")]
+    [Route("api/auth")]
     public class LoginLinkController : ControllerBase
     {
         private readonly ILoginLinkService _loginLinkService;

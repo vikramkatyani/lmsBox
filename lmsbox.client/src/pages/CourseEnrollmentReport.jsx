@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import AdminHeader from '../components/AdminHeader';
 import { getCourseEnrollmentReport, exportToCSV, exportToJSON } from '../services/reports';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import { 
@@ -146,7 +147,9 @@ export default function CourseEnrollmentReport() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gray-50">
+      <AdminHeader />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header with Back Button */}
       <div className="mb-6">
         <button
@@ -160,7 +163,7 @@ export default function CourseEnrollmentReport() {
         <p className="text-gray-600">Track course enrollments, completion rates, and popularity metrics</p>
       </div>
 
-      {/* Filters */}
+  {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
@@ -206,7 +209,7 @@ export default function CourseEnrollmentReport() {
             </button>
           </div>
         </div>
-      </div>
+  </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
@@ -260,20 +263,20 @@ export default function CourseEnrollmentReport() {
         </div>
       </div>
 
-      {/* Most/Least Popular */}
+  {/* Most/Least Popular */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg shadow p-6 border border-green-200">
+        <div className="bg-linear-to-r from-green-50 to-green-100 rounded-lg shadow p-6 border border-green-200">
           <div className="flex items-start">
-            <ArrowTrendingUpIcon className="h-8 w-8 text-green-600 mr-3 flex-shrink-0" />
+            <ArrowTrendingUpIcon className="h-8 w-8 text-green-600 mr-3 shrink-0" />
             <div>
               <p className="text-sm font-medium text-green-800 mb-1">Most Popular Course</p>
               <p className="text-lg font-bold text-green-900">{reportData.summary.mostPopularCourse}</p>
             </div>
           </div>
         </div>
-        <div className="bg-gradient-to-r from-red-50 to-red-100 rounded-lg shadow p-6 border border-red-200">
+        <div className="bg-linear-to-r from-red-50 to-red-100 rounded-lg shadow p-6 border border-red-200">
           <div className="flex items-start">
-            <ArrowTrendingDownIcon className="h-8 w-8 text-red-600 mr-3 flex-shrink-0" />
+            <ArrowTrendingDownIcon className="h-8 w-8 text-red-600 mr-3 shrink-0" />
             <div>
               <p className="text-sm font-medium text-red-800 mb-1">Least Popular Course</p>
               <p className="text-lg font-bold text-red-900">{reportData.summary.leastPopularCourse}</p>
@@ -282,7 +285,7 @@ export default function CourseEnrollmentReport() {
         </div>
       </div>
 
-      {/* Charts */}
+  {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Top 10 Courses by Enrollment</h3>
@@ -320,7 +323,7 @@ export default function CourseEnrollmentReport() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Popularity Distribution</h3>
           <div className="h-64">
@@ -356,7 +359,7 @@ export default function CourseEnrollmentReport() {
         </div>
       </div>
 
-      {/* Filters for Course List */}
+  {/* Filters for Course List */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -384,7 +387,7 @@ export default function CourseEnrollmentReport() {
         </div>
       </div>
 
-      {/* Course List Table */}
+  {/* Course List Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">Course Details</h3>
@@ -465,6 +468,7 @@ export default function CourseEnrollmentReport() {
             </tbody>
           </table>
         </div>
+      </div>
       </div>
     </div>
   );

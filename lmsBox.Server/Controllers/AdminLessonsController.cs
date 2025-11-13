@@ -172,6 +172,12 @@ public class AdminLessonsController : ControllerBase
                 return NotFound(new { message = "Course not found" });
             }
 
+            // Check if course is published
+            if (course.Status == "Published")
+            {
+                return BadRequest(new { message = "Cannot add lessons to published courses. Please unpublish the course first." });
+            }
+
             // Check access rights
             if (userRole == "OrgAdmin")
             {
@@ -274,6 +280,12 @@ public class AdminLessonsController : ControllerBase
                 return NotFound(new { message = "Lesson not found" });
             }
 
+            // Check if course is published
+            if (lesson.Course?.Status == "Published")
+            {
+                return BadRequest(new { message = "Cannot edit lessons in published courses. Please unpublish the course first." });
+            }
+
             // Check access rights
             if (userRole == "OrgAdmin")
             {
@@ -360,6 +372,12 @@ public class AdminLessonsController : ControllerBase
             if (lesson == null)
             {
                 return NotFound(new { message = "Lesson not found" });
+            }
+
+            // Check if course is published
+            if (lesson.Course?.Status == "Published")
+            {
+                return BadRequest(new { message = "Cannot delete lessons from published courses. Please unpublish the course first." });
             }
 
             // Check access rights
@@ -780,6 +798,12 @@ public class AdminLessonsController : ControllerBase
             if (course == null)
             {
                 return NotFound(new { message = "Course not found" });
+            }
+
+            // Check if course is published
+            if (course.Status == "Published")
+            {
+                return BadRequest(new { message = "Cannot reorder lessons in published courses. Please unpublish the course first." });
             }
 
             // Check access rights

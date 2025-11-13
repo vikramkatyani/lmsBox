@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (.NET)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            **/packages.lock.json
+
+      - name: Restore
+        run: dotnet restore lmsBox.sln
+
+      - name: Build
+        run: dotnet build lmsBox.sln --configuration Release --no-restore
+
+      - name: Detect test projects
+        id: detect_tests
+        shell: bash
+        run: |
+          if ls **/*Test*.csproj 1> /dev/null 2>&1; then
+            echo "found=true" >> $GITHUB_OUTPUT
+          else
+            echo "found=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Test
+        if: steps.detect_tests.outputs.found == 'true'
+        run: dotnet test lmsBox.sln --configuration Release --no-build --logger trx
+
+      - name: Publish
+        run: dotnet publish lmsBox.Server/lmsBox.Server.csproj -c Release -o out
+
+      - name: Upload backend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-publish
+          path: out
+
+  frontend:
+    name: Frontend (Vite/React)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lmsbox.client
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: lmsbox.client/package-lock.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: lmsbox.client/dist

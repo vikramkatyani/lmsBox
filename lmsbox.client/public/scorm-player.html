@@ -17,10 +17,71 @@
             height: 100%;
             border: none;
         }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: Arial, sans-serif;
+            color: #666;
+        }
     </style>
 </head>
 <body>
+    <div id="loading">Loading SCORM content...</div>
     <iframe id="scorm-iframe"></iframe>
+    
     <script src="/scorm-api.js"></script>
+    <script>
+        // Make API available to the iframe content
+        window.API_1484_11 = window.API; // SCORM 2004
+        window.API = window.API; // SCORM 1.2
+        
+        // Helper function for SCORM content that might call these directly
+        function ScormProcessInitialize() {
+            return window.API.LMSInitialize("");
+        }
+        
+        function ScormProcessFinish() {
+            return window.API.LMSFinish("");
+        }
+        
+        function ScormProcessGetValue(element) {
+            return window.API.LMSGetValue(element);
+        }
+        
+        function ScormProcessSetValue(element, value) {
+            return window.API.LMSSetValue(element, value);
+        }
+        
+        // Load SCORM content
+        document.addEventListener('DOMContentLoaded', function() {
+            var scormUrl = new URLSearchParams(window.location.search).get('url');
+            var iframe = document.getElementById('scorm-iframe');
+            var loading = document.getElementById('loading');
+            
+            if (scormUrl) {
+                iframe.onload = function() {
+                    loading.style.display = 'none';
+                    
+                    // Try to make API available to iframe
+                    try {
+                        iframe.contentWindow.API = window.API;
+                        iframe.contentWindow.API_1484_11 = window.API;
+                        iframe.contentWindow.ScormProcessInitialize = ScormProcessInitialize;
+                        iframe.contentWindow.ScormProcessFinish = ScormProcessFinish;
+                        iframe.contentWindow.ScormProcessGetValue = ScormProcessGetValue;
+                        iframe.contentWindow.ScormProcessSetValue = ScormProcessSetValue;
+                    } catch(e) {
+                        console.log('Could not inject API into iframe (cross-origin):', e);
+                    }
+                };
+                
+                iframe.src = scormUrl;
+            } else {
+                loading.textContent = 'No SCORM content URL provided';
+            }
+        });
+    </script>
 </body>
 </html>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import AdminHeader from '../components/AdminHeader';
 import { getPathwayProgressReport, exportToCSV, exportToJSON } from '../services/reports';
 import { Bar, Line, Doughnut } from 'react-chartjs-2';
 import { 
@@ -81,10 +82,13 @@ export default function PathwayProgressReport() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading report...</p>
+      <div className="min-h-screen bg-gray-50">
+        <AdminHeader />
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading report...</p>
+          </div>
         </div>
       </div>
     );
@@ -143,7 +147,9 @@ export default function PathwayProgressReport() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gray-50">
+      <AdminHeader />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header with Back Button */}
       <div className="mb-6">
         <button
@@ -501,6 +507,7 @@ export default function PathwayProgressReport() {
             </tbody>
           </table>
         </div>
+      </div>
       </div>
     </div>
   );

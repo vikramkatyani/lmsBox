@@ -41,7 +41,7 @@ export default function Login() {
       }
 
       // Send request with recaptcha token
-      await api.post('/auth/login', {
+      await api.post('/api/auth/login', {
         email: data.email,
         recaptchaToken
       });
@@ -64,13 +64,23 @@ export default function Login() {
       setStatus('loading');
       setMessage('');
 
-      const response = await api.post('/auth/dev-login', { email });
+      const response = await api.post('/api/auth/dev-login', { email });
       
       if (response.data.token) {
         setAuthToken(response.data.token);
         setStatus('success');
         setMessage('Successfully logged in!');
-        
+        try {
+          // Check profile completeness
+          const me = await api.get('/api/profile/me');
+          const firstEmpty = !me.data?.firstName || me.data.firstName.trim().length === 0;
+          const lastEmpty = !me.data?.lastName || me.data.lastName.trim().length === 0;
+          if (firstEmpty && lastEmpty) {
+            window.location.href = '/profile/complete';
+            return;
+          }
+        } catch (_e) { /* ignore */ }
+
         // Redirect after a short delay
         setTimeout(() => {
           const role = response.data.user?.roles?.[0];

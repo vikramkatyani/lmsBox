@@ -8,6 +8,7 @@ import Certificates from './pages/certificates';
 import CourseContent from './pages/CourseContent';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
+import AdminUsersBulkCreate from './pages/AdminUsersBulkCreate';
 import AdminCourses from './pages/AdminCourses';
 import AdminReports from './pages/AdminReports';
 import AdminCourseEditor from './pages/AdminCourseEditor';
@@ -29,12 +30,28 @@ import CustomReportBuilder from './pages/CustomReportBuilder';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
 import { ThemeProvider } from './theme/ThemeContext';
+import CompleteProfile from './pages/CompleteProfile';
+import SuperAdminLogin from './pages/SuperAdminLogin';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
+import SuperAdminOrganisations from './pages/SuperAdminOrganisations';
+import SuperAdminOrganisationForm from './pages/SuperAdminOrganisationForm';
+import SuperAdminLibrary from './pages/SuperAdminLibrary';
+import SuperAdminLibraryCreate from './pages/SuperAdminLibraryCreate';
 
 function App() {
   return (
     <ThemeProvider>
       <Router>
         <Routes>
+          {/* Super Admin routes - separate from regular users */}
+          <Route path="/superadmin/login" element={<SuperAdminLogin />} />
+          <Route path="/superadmin/dashboard" element={<SuperAdminDashboard />} />
+          <Route path="/superadmin/organisations" element={<SuperAdminOrganisations />} />
+          <Route path="/superadmin/organisations/create" element={<SuperAdminOrganisationForm />} />
+          <Route path="/superadmin/organisations/:id/edit" element={<SuperAdminOrganisationForm />} />
+          <Route path="/superadmin/library" element={<SuperAdminLibrary />} />
+          <Route path="/superadmin/library/create" element={<SuperAdminLibraryCreate />} />
+          
           {/* Public routes */}
           <Route 
             path="/" 
@@ -53,6 +70,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <Courses />
+              </ProtectedRoute>
+            }
+          />
+          {/* Profile completion route */}
+          <Route
+            path="/profile/complete"
+            element={
+              <ProtectedRoute>
+                <CompleteProfile />
               </ProtectedRoute>
             }
           />
@@ -90,6 +116,14 @@ function App() {
             element={
               <AdminRoute>
                 <AdminUserEditor />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/users/bulk-new"
+            element={
+              <AdminRoute>
+                <AdminUsersBulkCreate />
               </AdminRoute>
             }
           />

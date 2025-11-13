@@ -151,3 +151,13 @@ export async function deleteUser(userId) {
     }
   }
 }
+
+export async function bulkCreateUsers({ emailsText, emails, groupIds }) {
+  const payload = {
+    EmailsText: emailsText,
+    Emails: emails,
+    GroupIds: groupIds
+  };
+  const res = await api.post('/api/admin/users/bulk', payload);
+  return res.data;
+}

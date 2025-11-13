@@ -16,7 +16,7 @@ public class AzureBlobService : IAzureBlobService
     public AzureBlobService(IConfiguration configuration, ILogger<AzureBlobService> logger)
     {
         _connectionString = configuration["AzureStorage:ConnectionString"];
-        _containerName = configuration["AzureStorage:ContainerName"] ?? "lms-content";
+    _containerName = configuration["AzureStorage:ContainerName"] ?? "lms-content";
         _logger = logger;
 
         if (!string.IsNullOrEmpty(_connectionString))
@@ -50,6 +50,87 @@ public class AzureBlobService : IAzureBlobService
         {
             // Create organization folder path: organisations/{orgId}/library/{fileName}
             var blobPath = $"organisations/{organisationId}/library/{fileName}";
+            var blobClient = _containerClient.GetBlobClient(blobPath);
+
+            // Set content type
+            var blobHttpHeaders = new BlobHttpHeaders
+            {
+                ContentType = contentType
+            };
+
+            // Upload with overwrite
+            await blobClient.UploadAsync(fileStream, new BlobUploadOptions
+            {
+                HttpHeaders = blobHttpHeaders
+            });
+
+            _logger.LogInformation("File uploaded successfully: {BlobPath}", blobPath);
+
+            return blobClient.Uri.ToString();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading file to blob storage");
+            throw;
+        }
+    }
+
+    public async Task<string> UploadToCustomPathAsync(Stream fileStream, string fileName, string folderPath, string contentType, string? subFolder = null)
+    {
+        if (_containerClient == null)
+        {
+            throw new InvalidOperationException("Azure Blob Storage is not configured");
+        }
+
+        try
+        {
+            // Create custom folder path: folderPath/subFolder/fileName (if subFolder provided)
+            var blobPath = subFolder != null 
+                ? $"{folderPath}/{subFolder}/{fileName}"
+                : $"{folderPath}/{fileName}";
+                
+            var blobClient = _containerClient.GetBlobClient(blobPath);
+
+            // Set content type
+            var blobHttpHeaders = new BlobHttpHeaders
+            {
+                ContentType = contentType
+            };
+
+            // Upload with overwrite
+            await blobClient.UploadAsync(fileStream, new BlobUploadOptions
+            {
+                HttpHeaders = blobHttpHeaders
+            });
+
+            _logger.LogInformation("File uploaded successfully: {BlobPath}", blobPath);
+
+            return blobClient.Uri.ToString();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading file to blob storage");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Upload a file to Azure Blob Storage with custom folder path
+    /// </summary>
+    public async Task<string> UploadFileAsync(Stream fileStream, string fileName, string folderPath, string contentType, string? subFolder = null)
+    {
+        if (_containerClient == null)
+        {
+            throw new InvalidOperationException("Azure Blob Storage is not configured");
+        }
+
+        try
+        {
+            // Create blob path: folderPath/subFolder/fileName or folderPath/fileName
+            var blobPath = subFolder != null 
+                ? $"{folderPath}/{subFolder}/{fileName}"
+                : $"{folderPath}/{fileName}";
+            
             var blobClient = _containerClient.GetBlobClient(blobPath);
 
             // Set content type

@@ -44,9 +44,9 @@ public class AdminDashboardController : ControllerBase
             if (orgId.HasValue)
                 usersQuery = usersQuery.Where(u => u.OrganisationID == orgId);
             
-            //var pathwaysQuery = _context.LearningPathways.AsNoTracking();
-            //if (orgId.HasValue)
-            //    pathwaysQuery = pathwaysQuery.Where(p => p.OrganisationId == orgId);
+            var pathwaysQuery = _context.LearningPathways.AsNoTracking();
+            if (orgId.HasValue)
+                pathwaysQuery = pathwaysQuery.Where(p => p.OrganisationId == orgId);
             
             var groupsQuery = _context.LearningGroups.AsNoTracking();
             if (orgId.HasValue)
@@ -62,16 +62,16 @@ public class AdminDashboardController : ControllerBase
             var inactiveUsers = await usersQuery.Where(u => u.ActiveStatus == 0).CountAsync();
             var suspendedUsers = await usersQuery.Where(u => u.ActiveStatus == -1).CountAsync();
             
-            var totalPathways = await groupsQuery.CountAsync();
+            var totalPathways = await pathwaysQuery.CountAsync();
             //var activePathways = await groupsQuery.Where(p => p.IsActive).CountAsync();
             
             //var totalGroups = await groupsQuery.CountAsync();
 
-            // Assignments (simpler query without navigation)
-            var assignmentsTotal = await _context.CourseAssignments.AsNoTracking().CountAsync();
+            //// Assignments (simpler query without navigation)
+            //var assignmentsTotal = await _context.CourseAssignments.AsNoTracking().CountAsync();
             
             // Learning Progress (simpler queries)
-            var totalEnrollments = await _context.LearnerProgresses.AsNoTracking().CountAsync();
+            var totalEnrollments = await _context.LearnerProgresses.AsNoTracking().Where(lp => lp.LessonId > 0).CountAsync();
             var completedEnrollments = await _context.LearnerProgresses.AsNoTracking().Where(lp => lp.Completed).CountAsync();
             var inProgressEnrollments = await _context.LearnerProgresses.AsNoTracking()
                 .Where(lp => !lp.Completed && lp.ProgressPercent > 0).CountAsync();
@@ -82,44 +82,54 @@ public class AdminDashboardController : ControllerBase
             var assignmentsCompleted = 0;
             var assignmentsPending = 0;
 
-            // Course completion history (last 7 days) - simplified
+            // Course completion history (last 12 months, month-wise)
             var today = DateTime.UtcNow.Date;
-            var sevenDaysAgo = today.AddDays(-6);
-            var completionHistory = new System.Collections.Generic.List<object>();
-            
-            var completions = await _context.LearnerProgresses
-                .AsNoTracking()
-                .Where(lp => lp.Completed && lp.CompletedAt.HasValue && lp.CompletedAt.Value.Date >= sevenDaysAgo)
-                .GroupBy(lp => lp.CompletedAt.Value.Date)
-                .Select(g => new { Date = g.Key, Count = g.Count() })
-                .ToListAsync();
+            var startMonth = new DateTime(today.Year, today.Month, 1).AddMonths(-11); // 12 months including current
+            var endMonth = new DateTime(today.Year, today.Month, 1).AddMonths(1); // exclusive upper bound
 
-            for (int i = 6; i >= 0; i--)
+            var monthlyCompletionsQuery = _context.LearnerProgresses
+                .AsNoTracking()
+                .Where(lp => lp.Completed && lp.CompletedAt.HasValue && lp.CompletedAt.Value >= startMonth && lp.CompletedAt.Value < endMonth);
+
+            if (orgId.HasValue)
             {
-                var date = today.AddDays(-i);
-                var count = completions.FirstOrDefault(c => c.Date == date)?.Count ?? 0;
-                completionHistory.Add(new { date = date.ToString("MMM dd"), count });
+                monthlyCompletionsQuery = monthlyCompletionsQuery.Where(lp => lp.User != null && lp.User.OrganisationID == orgId.Value);
             }
 
-            // User registration history (last 7 days) - simplified
-            var registrationHistory = new System.Collections.Generic.List<object>();
+            var completionGroups = await monthlyCompletionsQuery
+                .GroupBy(lp => new { Year = lp.CompletedAt!.Value.Year, Month = lp.CompletedAt!.Value.Month })
+                .Select(g => new { g.Key.Year, g.Key.Month, Count = g.Count() })
+                .ToListAsync();
+
+            var completionHistory = new System.Collections.Generic.List<object>();
+            for (int i = 0; i < 12; i++)
+            {
+                var dt = startMonth.AddMonths(i);
+                var grp = completionGroups.FirstOrDefault(c => c.Year == dt.Year && c.Month == dt.Month);
+                var count = grp?.Count ?? 0;
+                completionHistory.Add(new { date = dt.ToString("MMM yyyy"), count });
+            }
+
+            // User registration history (last 12 months, month-wise)
             var userRegistrationsQuery = _context.Users
                 .AsNoTracking()
-                .Where(u => u.CreatedOn.Date >= sevenDaysAgo);
+                .Where(u => u.CreatedOn >= startMonth && u.CreatedOn < endMonth);
             
             if (orgId.HasValue)
                 userRegistrationsQuery = userRegistrationsQuery.Where(u => u.OrganisationID == orgId);
 
-            var registrations = await userRegistrationsQuery
-                .GroupBy(u => u.CreatedOn.Date)
-                .Select(g => new { Date = g.Key, Count = g.Count() })
+            var registrationGroups = await userRegistrationsQuery
+                .GroupBy(u => new { Year = u.CreatedOn.Year, Month = u.CreatedOn.Month })
+                .Select(g => new { g.Key.Year, g.Key.Month, Count = g.Count() })
                 .ToListAsync();
 
-            for (int i = 6; i >= 0; i--)
+            var registrationHistory = new System.Collections.Generic.List<object>();
+            for (int i = 0; i < 12; i++)
             {
-                var date = today.AddDays(-i);
-                var count = registrations.FirstOrDefault(r => r.Date == date)?.Count ?? 0;
-                registrationHistory.Add(new { date = date.ToString("MMM dd"), count });
+                var dt = startMonth.AddMonths(i);
+                var grp = registrationGroups.FirstOrDefault(r => r.Year == dt.Year && r.Month == dt.Month);
+                var count = grp?.Count ?? 0;
+                registrationHistory.Add(new { date = dt.ToString("MMM yyyy"), count });
             }
 
             // Recent activities - combine recent registrations and completions
@@ -180,7 +190,7 @@ public class AdminDashboardController : ControllerBase
                 suspendedUsers,
                 totalPathways,
                 //activePathways,
-                assignmentsTotal,
+                //assignmentsTotal,
                 assignmentsCompleted,
                 assignmentsPending,
                 totalEnrollments,

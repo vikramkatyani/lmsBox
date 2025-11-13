@@ -26,7 +26,7 @@ export default function VerifyLogin() {
         const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
         try {
-          const response = await api.post('/auth/verify-login-link', 
+          const response = await api.post('/api/auth/verify-login-link', 
             { token },
             { 
               signal: controller.signal,
@@ -61,6 +61,17 @@ export default function VerifyLogin() {
             });
             
             setStatus('success');
+
+            // If profile incomplete (no first and last name), send to profile completion
+            try {
+              const me = await api.get('/api/profile/me');
+              const firstEmpty = !me.data?.firstName || me.data.firstName.trim().length === 0;
+              const lastEmpty = !me.data?.lastName || me.data.lastName.trim().length === 0;
+              if (firstEmpty && lastEmpty) {
+                navigate('/profile/complete');
+                return;
+              }
+            } catch (_e) { /* ignore */ }
 
             // Get user role from token
             const userRole = getUserRole();

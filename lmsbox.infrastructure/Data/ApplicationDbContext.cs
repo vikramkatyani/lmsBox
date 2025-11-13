@@ -53,6 +53,9 @@ namespace lmsbox.infrastructure.Data
         public DbSet<PathwayCourse> PathwayCourses { get; set; } = null!;
         public DbSet<LearnerPathwayProgress> LearnerPathwayProgresses { get; set; } = null!;
 
+        // Global Library Content (Super Admin managed)
+        public DbSet<GlobalLibraryContent> GlobalLibraryContents { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);

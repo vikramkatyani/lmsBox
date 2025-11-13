@@ -294,6 +294,11 @@ export default function AdminCourseEditor() {
 
   // Drag and drop handlers
   const handleDragStart = (e, lesson, index) => {
+    // Prevent dragging for published courses
+    if (form.status === 'Published') {
+      e.preventDefault();
+      return;
+    }
     setDraggedLesson({ lesson, index });
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/html', e.currentTarget);
@@ -637,7 +642,7 @@ export default function AdminCourseEditor() {
                 <h2 className="text-lg font-semibold text-gray-900">Lessons</h2>
                 <div className="flex items-center gap-2">
                   <AddLessonMenu 
-                    disabled={isNew}
+                    disabled={isNew || form.status === 'Published'}
                     onAdd={(type) => {
                       if (type === 'video') {
                         handleOpenVideoLessonModal();
@@ -658,6 +663,12 @@ export default function AdminCourseEditor() {
               {isNew && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
                   <strong>Note:</strong> Please save the course first before adding lessons.
+                </div>
+              )}
+
+              {form.status === 'Published' && !isNew && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+                  <strong>Note:</strong> This course is published. Lessons cannot be modified while the course is published. Published courses cannot be unpublished, but they can be archived or deleted.
                 </div>
               )}
 
@@ -682,13 +693,15 @@ export default function AdminCourseEditor() {
                       lessons.map((l, idx) => (
                         <tr 
                           key={l.id} 
-                          draggable
+                          draggable={form.status !== 'Published'}
                           onDragStart={(e) => handleDragStart(e, l, idx)}
                           onDragOver={(e) => handleDragOver(e, idx)}
                           onDragLeave={handleDragLeave}
                           onDrop={(e) => handleDrop(e, idx)}
                           onDragEnd={handleDragEnd}
-                          className={`hover:bg-gray-50 cursor-move transition-colors ${
+                          className={`hover:bg-gray-50 transition-colors ${
+                            form.status !== 'Published' ? 'cursor-move' : ''
+                          } ${
                             draggedOverLesson === idx && draggedLesson?.index !== idx
                               ? 'bg-blue-50 border-t-2 border-blue-400' 
                               : ''
@@ -718,13 +731,15 @@ export default function AdminCourseEditor() {
                                 <>
                                   <button 
                                     onClick={() => handleOpenVideoLessonModal(l)} 
-                                    className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100"
+                                    disabled={form.status === 'Published'}
+                                    className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     Edit
                                   </button>
                                   <button 
                                     onClick={() => handleDeleteLesson(l.id)} 
-                                    className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100"
+                                    disabled={form.status === 'Published'}
+                                    className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     Delete
                                   </button>
@@ -733,13 +748,15 @@ export default function AdminCourseEditor() {
                                 <>
                                   <button 
                                     onClick={() => handleOpenPdfLessonModal(l)} 
-                                    className="px-3 py-1.5 text-sm bg-purple-50 text-purple-700 rounded hover:bg-purple-100"
+                                    disabled={form.status === 'Published'}
+                                    className="px-3 py-1.5 text-sm bg-purple-50 text-purple-700 rounded hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     Edit
                                   </button>
                                   <button 
                                     onClick={() => handleDeleteLesson(l.id)} 
-                                    className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100"
+                                    disabled={form.status === 'Published'}
+                                    className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     Delete
                                   </button>
@@ -748,13 +765,15 @@ export default function AdminCourseEditor() {
                                 <>
                                   <button 
                                     onClick={() => handleOpenScormLessonModal(l)} 
-                                    className="px-3 py-1.5 text-sm bg-green-50 text-green-700 rounded hover:bg-green-100"
+                                    disabled={form.status === 'Published'}
+                                    className="px-3 py-1.5 text-sm bg-green-50 text-green-700 rounded hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     Edit
                                   </button>
                                   <button 
                                     onClick={() => handleDeleteLesson(l.id)} 
-                                    className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100"
+                                    disabled={form.status === 'Published'}
+                                    className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     Delete
                                   </button>
@@ -763,23 +782,25 @@ export default function AdminCourseEditor() {
                                 <>
                                   <button 
                                     onClick={() => handleOpenQuizLessonModal(l)} 
-                                    className="px-3 py-1.5 text-sm bg-orange-50 text-orange-700 rounded hover:bg-orange-100"
+                                    disabled={form.status === 'Published'}
+                                    className="px-3 py-1.5 text-sm bg-orange-50 text-orange-700 rounded hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     Edit
                                   </button>
                                   <button 
                                     onClick={() => handleDeleteLesson(l.id)} 
-                                    className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100"
+                                    disabled={form.status === 'Published'}
+                                    className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     Delete
                                   </button>
                                 </>
                               ) : (
                                 <>
-                                  <button onClick={() => moveLesson(idx, 'up')} disabled={idx===0} className="px-2 py-1 text-sm bg-gray-100 text-gray-700 rounded disabled:opacity-40">↑</button>
-                                  <button onClick={() => moveLesson(idx, 'down')} disabled={idx===lessons.length-1} className="px-2 py-1 text-sm bg-gray-100 text-gray-700 rounded disabled:opacity-40">↓</button>
-                                  <button onClick={() => editLesson(idx)} className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100">Edit</button>
-                                  <button onClick={() => deleteLesson(idx)} className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100">Delete</button>
+                                  <button onClick={() => moveLesson(idx, 'up')} disabled={idx===0 || form.status === 'Published'} className="px-2 py-1 text-sm bg-gray-100 text-gray-700 rounded disabled:opacity-40 disabled:cursor-not-allowed">↑</button>
+                                  <button onClick={() => moveLesson(idx, 'down')} disabled={idx===lessons.length-1 || form.status === 'Published'} className="px-2 py-1 text-sm bg-gray-100 text-gray-700 rounded disabled:opacity-40 disabled:cursor-not-allowed">↓</button>
+                                  <button onClick={() => editLesson(idx)} disabled={form.status === 'Published'} className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed">Edit</button>
+                                  <button onClick={() => deleteLesson(idx)} disabled={form.status === 'Published'} className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed">Delete</button>
                                 </>
                               )}
                             </div>
@@ -1003,13 +1024,19 @@ export default function AdminCourseEditor() {
                 </div>
               )}
               
+              {form.status === 'Published' && !isNew && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 mb-6">
+                  <strong>Note:</strong> This course is published. Quizzes cannot be modified while the course is published. Published courses cannot be unpublished, but they can be archived or deleted.
+                </div>
+              )}
+              
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">Course Quizzes</h2>
                 <button
                   onClick={() => navigate(`/admin/quiz/create/${courseId}`)}
-                  disabled={isNew}
+                  disabled={isNew || form.status === 'Published'}
                   className={`px-4 py-2 rounded ${
-                    isNew 
+                    isNew || form.status === 'Published'
                       ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
                       : 'bg-boxlms-primary-btn text-boxlms-primary-btn-txt hover:brightness-90 cursor-pointer'
                   }`}
@@ -1027,9 +1054,9 @@ export default function AdminCourseEditor() {
                   <div className="text-gray-500 mb-4">No quizzes created for this course yet.</div>
                   <button
                     onClick={() => navigate(`/admin/quiz/create/${courseId}`)}
-                    disabled={isNew}
+                    disabled={isNew || form.status === 'Published'}
                     className={`px-4 py-2 rounded ${
-                      isNew 
+                      isNew || form.status === 'Published'
                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
                         : 'bg-boxlms-primary-btn text-boxlms-primary-btn-txt hover:brightness-90 cursor-pointer'
                     }`}
@@ -1054,7 +1081,8 @@ export default function AdminCourseEditor() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => navigate(`/admin/quiz/edit/${quiz.id}`)}
-                            className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100"
+                            disabled={form.status === 'Published'}
+                            className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Edit
                           </button>
@@ -1065,7 +1093,8 @@ export default function AdminCourseEditor() {
                                 toast.info('Delete functionality coming soon');
                               }
                             }}
-                            className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100"
+                            disabled={form.status === 'Published'}
+                            className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Delete
                           </button>

@@ -13,7 +13,7 @@ public class ApplicationUser : IdentityUser
     public string? LastName { get; set; }
 
     [Column("OrganisationID")]
-    public long OrganisationID { get; set; }
+    public long? OrganisationID { get; set; } // Nullable for SuperAdmin
 
     public DateTime CreatedOn { get; set; } = DateTime.UtcNow;
 

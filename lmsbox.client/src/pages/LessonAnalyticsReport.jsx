@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import AdminHeader from '../components/AdminHeader';
 import { getLessonAnalyticsReport, exportToCSV, exportToJSON } from '../services/reports';
 import { Bar, Doughnut, Pie } from 'react-chartjs-2';
 import {
@@ -80,10 +81,13 @@ export default function LessonAnalyticsReport() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading report...</p>
+      <div className="min-h-screen bg-gray-50">
+        <AdminHeader />
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading report...</p>
+          </div>
         </div>
       </div>
     );
@@ -153,7 +157,9 @@ export default function LessonAnalyticsReport() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gray-50">
+      <AdminHeader />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header with Back Button */}
       <div className="mb-6">
         <button
@@ -277,7 +283,7 @@ export default function LessonAnalyticsReport() {
       {/* Popular and Problematic Lessons */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         {/* Popular Lessons */}
-        <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg shadow p-6 border border-green-200">
+        <div className="bg-linear-to-r from-green-50 to-green-100 rounded-lg shadow p-6 border border-green-200">
           <div className="flex items-center mb-4">
             <FireIcon className="h-6 w-6 text-green-600 mr-2" />
             <h3 className="text-lg font-semibold text-green-900">Popular Lessons ({reportData.popularLessons.length})</h3>
@@ -297,7 +303,7 @@ export default function LessonAnalyticsReport() {
         </div>
 
         {/* Problematic Lessons */}
-        <div className="bg-gradient-to-r from-red-50 to-red-100 rounded-lg shadow p-6 border border-red-200">
+        <div className="bg-linear-to-r from-red-50 to-red-100 rounded-lg shadow p-6 border border-red-200">
           <div className="flex items-center mb-4">
             <ExclamationTriangleIcon className="h-6 w-6 text-red-600 mr-2" />
             <h3 className="text-lg font-semibold text-red-900">Needs Improvement ({reportData.problematicLessons.length})</h3>
@@ -517,6 +523,7 @@ export default function LessonAnalyticsReport() {
             </tbody>
           </table>
         </div>
+      </div>
       </div>
     </div>
   );

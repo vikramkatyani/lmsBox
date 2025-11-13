@@ -1,5 +1,6 @@
 using lmsbox.domain.Models;
 using lmsbox.infrastructure.Data;
+using lmsBox.Server.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,11 +15,13 @@ public class CoursesController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<CoursesController> _logger;
+    private readonly IAzureBlobService _blobService;
 
-    public CoursesController(ApplicationDbContext context, ILogger<CoursesController> logger)
+    public CoursesController(ApplicationDbContext context, ILogger<CoursesController> logger, IAzureBlobService blobService)
     {
         _context = context;
         _logger = logger;
+        _blobService = blobService;
     }
 
     /// <summary>
@@ -49,9 +52,23 @@ public class CoursesController : ControllerBase
                 .Select(lg => lg.LearningGroupId)
                 .ToListAsync();
 
-            // Get courses mapped to these groups with optimized query
+            // Get user's assigned learning pathways
+            var userPathwayIds = await _context.LearnerPathwayProgresses
+                .Where(lpp => lpp.UserId == userId)
+                .Select(lpp => lpp.LearningPathwayId)
+                .ToListAsync();
+
+            // Get course IDs from learning pathways
+            var pathwayCourseIds = await _context.PathwayCourses
+                .Where(pc => userPathwayIds.Contains(pc.LearningPathwayId))
+                .Select(pc => pc.CourseId)
+                .ToListAsync();
+
+            // Get courses mapped to learning groups OR learning pathways with optimized query
             var courses = await _context.Courses
-                .Where(c => c.GroupCourses.Any(gc => userGroupIds.Contains(gc.LearningGroupId)))
+                .Where(c => !c.IsDeleted && 
+                    (c.GroupCourses.Any(gc => userGroupIds.Contains(gc.LearningGroupId)) ||
+                     pathwayCourseIds.Contains(c.Id)))
                 .Select(c => new
                 {
                     Course = c,
@@ -175,12 +192,18 @@ public class CoursesController : ControllerBase
             }
 
             // Check if user has access to this course through group assignments
-            var hasAccess = await _context.LearnerGroups
+            var hasAccessThroughGroup = await _context.LearnerGroups
                 .Where(lg => lg.UserId == userId && lg.IsActive)
                 .Join(_context.GroupCourses, lg => lg.LearningGroupId, gc => gc.LearningGroupId, (lg, gc) => gc)
                 .AnyAsync(gc => gc.CourseId == courseId);
 
-            if (!hasAccess)
+            // Check if user has access to this course through learning pathways
+            var hasAccessThroughPathway = await _context.LearnerPathwayProgresses
+                .Where(lpp => lpp.UserId == userId)
+                .Join(_context.PathwayCourses, lpp => lpp.LearningPathwayId, pc => pc.LearningPathwayId, (lpp, pc) => pc)
+                .AnyAsync(pc => pc.CourseId == courseId);
+
+            if (!hasAccessThroughGroup && !hasAccessThroughPathway)
             {
                 return Forbid("You don't have access to this course");
             }
@@ -188,7 +211,7 @@ public class CoursesController : ControllerBase
             // Get course with lessons
             var course = await _context.Courses
                 .Include(c => c.Lessons.OrderBy(l => l.Ordinal))
-                .FirstOrDefaultAsync(c => c.Id == courseId);
+                .FirstOrDefaultAsync(c => c.Id == courseId && !c.IsDeleted);
 
             if (course == null)
             {
@@ -236,6 +259,19 @@ public class CoursesController : ControllerBase
                         "quiz" => "", // Quiz doesn't need a URL
                         _ => ""
                     };
+
+                    // Generate SAS URL for Azure Blob Storage content if configured
+                    if (!string.IsNullOrEmpty(url) && _blobService.IsConfigured() && url.Contains("blob.core.windows.net"))
+                    {
+                        try
+                        {
+                            url = _blobService.GetSasUrlAsync(url, 24).Result;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to generate SAS URL for lesson {LessonId}, using original URL", lesson.Id);
+                        }
+                    }
                     
                     // Format duration for video lessons
                     string duration = "";
@@ -393,6 +429,17 @@ public class CoursesController : ControllerBase
 
     private async Task UpdateCourseProgress(string userId, string courseId)
     {
+        // Get all lessons in the course
+        var totalLessons = await _context.Lessons
+            .Where(l => l.CourseId == courseId)
+            .CountAsync();
+
+        if (totalLessons == 0)
+        {
+            return; // No lessons in course
+        }
+
+        // Get lesson progress records
         var lessonProgresses = await _context.LearnerProgresses
             .Where(lp => lp.UserId == userId && lp.CourseId == courseId && lp.LessonId != null)
             .ToListAsync();
@@ -413,16 +460,83 @@ public class CoursesController : ControllerBase
             _context.LearnerProgresses.Add(courseProgress);
         }
 
-        if (lessonProgresses.Any())
-        {
-            var avgProgress = (int)lessonProgresses.Average(lp => lp.ProgressPercent);
-            courseProgress.ProgressPercent = avgProgress;
+        // Calculate progress based on total lessons in course
+        var completedLessons = lessonProgresses.Count(lp => lp.Completed);
+        var progressPercent = (int)Math.Round((double)completedLessons / totalLessons * 100);
+        courseProgress.ProgressPercent = progressPercent;
 
-            var allCompleted = lessonProgresses.All(lp => lp.Completed);
-            if (allCompleted && !courseProgress.Completed)
+        // Mark course as completed if all lessons are completed
+        var allCompleted = completedLessons == totalLessons;
+        if (allCompleted && !courseProgress.Completed)
+        {
+            courseProgress.Completed = true;
+            courseProgress.CompletedAt = DateTime.UtcNow;
+            
+            // Update pathway progress if this course is part of any pathways
+            await UpdatePathwayProgress(userId, courseId);
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    private async Task UpdatePathwayProgress(string userId, string courseId)
+    {
+        // Find all pathways that contain this course
+        var pathwayIds = await _context.PathwayCourses
+            .Where(pc => pc.CourseId == courseId)
+            .Select(pc => pc.LearningPathwayId)
+            .ToListAsync();
+
+        foreach (var pathwayId in pathwayIds)
+        {
+            // Check if user is enrolled in this pathway
+            var pathwayProgress = await _context.LearnerPathwayProgresses
+                .FirstOrDefaultAsync(lpp => lpp.UserId == userId && lpp.LearningPathwayId == pathwayId);
+
+            if (pathwayProgress == null)
+                continue;
+
+            // Get all courses in this pathway
+            var pathwayCourses = await _context.PathwayCourses
+                .Where(pc => pc.LearningPathwayId == pathwayId)
+                .Select(pc => pc.CourseId)
+                .ToListAsync();
+
+            // Get completed courses from this pathway
+            var completedCourses = await _context.LearnerProgresses
+                .Where(lp => lp.UserId == userId 
+                    && lp.LessonId == null 
+                    && lp.Completed 
+                    && lp.CourseId != null
+                    && pathwayCourses.Contains(lp.CourseId))
+                .CountAsync();
+
+            // Update pathway progress
+            pathwayProgress.CompletedCourses = completedCourses;
+            pathwayProgress.TotalCourses = pathwayCourses.Count;
+            pathwayProgress.ProgressPercent = pathwayCourses.Count > 0 
+                ? (int)((completedCourses / (double)pathwayCourses.Count) * 100) 
+                : 0;
+            pathwayProgress.LastAccessedAt = DateTime.UtcNow;
+
+            // Check if pathway is completed
+            if (completedCourses == pathwayCourses.Count && !pathwayProgress.IsCompleted)
             {
-                courseProgress.Completed = true;
-                courseProgress.CompletedAt = DateTime.UtcNow;
+                pathwayProgress.IsCompleted = true;
+                pathwayProgress.CompletedAt = DateTime.UtcNow;
+            }
+
+            // Update current course to next incomplete course
+            if (!pathwayProgress.IsCompleted)
+            {
+                var nextIncompleteCourse = await _context.PathwayCourses
+                    .Where(pc => pc.LearningPathwayId == pathwayId)
+                    .OrderBy(pc => pc.SequenceOrder)
+                    .Select(pc => pc.CourseId)
+                    .FirstOrDefaultAsync(cId => !_context.LearnerProgresses
+                        .Any(lp => lp.UserId == userId && lp.CourseId == cId && lp.LessonId == null && lp.Completed));
+
+                pathwayProgress.CurrentCourseId = nextIncompleteCourse;
             }
         }
 

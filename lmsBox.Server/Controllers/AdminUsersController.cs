@@ -115,10 +115,10 @@ namespace lmsBox.Server.Controllers
                 var appUsers = await _userManager.Users.Where(u => userIds.Contains(u.Id)).ToListAsync();
                 
                 // Get learning pathway names for each user
-                var learnerGroupsData = await _context.LearnerGroups
-                    .Where(lg => userIds.Contains(lg.UserId) && lg.IsActive)
-                    .Include(lg => lg.LearningGroup)
-                    .Select(lg => new { lg.UserId, lg.LearningGroup!.Name })
+                var learnerPathwaysData = await _context.LearnerPathwayProgresses
+                    .Where(lpp => userIds.Contains(lpp.UserId))
+                    .Include(lpp => lpp.LearningPathway)
+                    .Select(lpp => new { lpp.UserId, lpp.LearningPathway!.Title })
                     .ToListAsync();
                 
                 var usersWithRoles = new List<object>();
@@ -133,9 +133,9 @@ namespace lmsBox.Server.Controllers
                         continue;
 
                     // Get learning pathway names for this user
-                    var pathwayNames = learnerGroupsData
-                        .Where(lg => lg.UserId == user.id)
-                        .Select(lg => lg.Name)
+                    var pathwayNames = learnerPathwaysData
+                        .Where(lpp => lpp.UserId == user.id)
+                        .Select(lpp => lpp.Title)
                         .ToList();
 
                     usersWithRoles.Add(new
@@ -192,13 +192,13 @@ namespace lmsBox.Server.Controllers
                 var primaryRole = roles.FirstOrDefault() ?? "Learner";
 
                 // Get learning pathway assignments with names
-                var learnerGroups = await _context.LearnerGroups
-                    .Where(lg => lg.UserId == id && lg.IsActive)
-                    .Include(lg => lg.LearningGroup)
-                    .Select(lg => new
+                var learnerPathways = await _context.LearnerPathwayProgresses
+                    .Where(lpp => lpp.UserId == id)
+                    .Include(lpp => lpp.LearningPathway)
+                    .Select(lpp => new
                     {
-                        id = lg.LearningGroupId.ToString(),
-                        name = lg.LearningGroup!.Name
+                        id = lpp.LearningPathwayId,
+                        name = lpp.LearningPathway!.Title
                     })
                     .ToListAsync();
 
@@ -210,7 +210,7 @@ namespace lmsBox.Server.Controllers
                     email = user.Email,
                     role = primaryRole,
                     status = user.EmailConfirmed ? "Active" : "Pending",
-                    learningPathways = learnerGroups
+                    learningPathways = learnerPathways
                 };
 
                 return Ok(result);
@@ -377,19 +377,18 @@ namespace lmsBox.Server.Controllers
                 if (request.GroupIds != null && request.GroupIds.Any())
                 {
                     _logger.LogInformation("Assigning user {UserId} to {Count} learning pathways", user.Id, request.GroupIds.Count);
-                    foreach (var groupIdStr in request.GroupIds)
+                    foreach (var pathwayId in request.GroupIds)
                     {
-                        if (long.TryParse(groupIdStr, out var groupId))
+                        var newAssignment = new LearnerPathwayProgress
                         {
-                            var newAssignment = new LearnerGroup
-                            {
-                                UserId = user.Id,
-                                LearningGroupId = groupId,
-                                JoinedAt = DateTime.UtcNow,
-                                IsActive = true
-                            };
-                            _context.LearnerGroups.Add(newAssignment);
-                        }
+                            UserId = user.Id,
+                            LearningPathwayId = pathwayId,
+                            EnrolledAt = DateTime.UtcNow,
+                            ProgressPercent = 0,
+                            CompletedCourses = 0,
+                            TotalCourses = 0 // Will be calculated based on pathway courses
+                        };
+                        _context.LearnerPathwayProgresses.Add(newAssignment);
                     }
                     await _context.SaveChangesAsync();
                     _logger.LogInformation("Learning pathway assignments saved for user {UserId}", user.Id);
@@ -405,6 +404,154 @@ namespace lmsBox.Server.Controllers
             {
                 _logger.LogError(ex, "Unexpected error creating user with email {Email}", request?.Email);
                 return StatusCode(500, new { message = "Failed to create user" });
+            }
+        }
+
+        // POST /api/admin/users/bulk
+        [HttpPost("bulk")]
+        public async Task<IActionResult> BulkCreateUsers([FromBody] BulkCreateUsersRequest request)
+        {
+            try
+            {
+                if (request == null)
+                {
+                    return BadRequest(new { message = "Invalid request" });
+                }
+
+                // Combine emails from array and/or text into a single normalized list
+                var emailList = new List<string>();
+                if (!string.IsNullOrWhiteSpace(request.EmailsText))
+                {
+                    var parts = request.EmailsText
+                        .Split(new[] { ',', ';', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(e => e.Trim())
+                        .Where(e => !string.IsNullOrWhiteSpace(e));
+                    emailList.AddRange(parts);
+                }
+                if (request.Emails != null && request.Emails.Any())
+                {
+                    emailList.AddRange(request.Emails.Where(e => !string.IsNullOrWhiteSpace(e)).Select(e => e.Trim()));
+                }
+
+                // Distinct, case-insensitive
+                emailList = emailList
+                    .Select(e => e.ToLowerInvariant())
+                    .Distinct()
+                    .ToList();
+
+                if (emailList.Count == 0)
+                {
+                    return BadRequest(new { message = "No valid email addresses provided" });
+                }
+
+                // Validate format roughly
+                bool IsValidEmail(string email)
+                    => email.Contains('@') && email.Contains('.') && email.Length <= 254;
+
+                var invalidEmails = emailList.Where(e => !IsValidEmail(e)).ToList();
+                if (invalidEmails.Any())
+                {
+                    return BadRequest(new { message = "Some emails are invalid", invalidEmails });
+                }
+
+                // Gather context info
+                var currentAdminUser = await _userManager.GetUserAsync(User);
+                var currentAdminId = currentAdminUser?.Id ?? "system";
+                var organisation = await _context.Organisations.FirstOrDefaultAsync();
+                if (organisation == null)
+                {
+                    return StatusCode(500, new { message = "System configuration error: No organisation found" });
+                }
+
+                var roleToAssign = "Learner"; // fixed role per requirements
+
+                var results = new List<object>();
+
+                foreach (var email in emailList)
+                {
+                    try
+                    {
+                        var existing = await _userManager.FindByEmailAsync(email);
+                        if (existing != null)
+                        {
+                            results.Add(new { email, status = "skipped", reason = "exists", userId = existing.Id });
+                            continue;
+                        }
+
+                        var user = new ApplicationUser
+                        {
+                            UserName = email,
+                            Email = email,
+                            FirstName = string.Empty,
+                            LastName = string.Empty,
+                            EmailConfirmed = true, // Active
+                            OrganisationID = organisation.Id,
+                            CreatedOn = DateTime.UtcNow,
+                            CreatedBy = currentAdminId,
+                            ActiveStatus = 1,
+                            ActivatedOn = DateTime.UtcNow,
+                            ActivatedBy = currentAdminId,
+                            DeactivatedBy = currentAdminId
+                        };
+
+                        // Create user with temp password then clear hash as in single create
+                        var tempPassword = GenerateRandomPassword();
+                        var createResult = await _userManager.CreateAsync(user, tempPassword);
+                        if (!createResult.Succeeded)
+                        {
+                            results.Add(new { email, status = "failed", reason = string.Join(", ", createResult.Errors.Select(e => e.Description)) });
+                            continue;
+                        }
+
+                        user.PasswordHash = null;
+                        await _userManager.UpdateAsync(user);
+
+                        // Assign role (ignore failures, but record)
+                        var roleResult = await _userManager.AddToRoleAsync(user, roleToAssign);
+                        var roleAssigned = roleResult.Succeeded;
+
+                        // Assign to learning pathways if provided
+                        if (request.GroupIds != null && request.GroupIds.Any())
+                        {
+                            foreach (var pathwayId in request.GroupIds)
+                            {
+                                var assignment = new LearnerPathwayProgress
+                                {
+                                    UserId = user.Id,
+                                    LearningPathwayId = pathwayId,
+                                    EnrolledAt = DateTime.UtcNow,
+                                    ProgressPercent = 0,
+                                    CompletedCourses = 0,
+                                    TotalCourses = 0
+                                };
+                                _context.LearnerPathwayProgresses.Add(assignment);
+                            }
+                            await _context.SaveChangesAsync();
+                        }
+
+                        results.Add(new { email, status = "created", userId = user.Id, roleAssigned });
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to bulk create user {Email}", email);
+                        results.Add(new { email, status = "failed", reason = ex.Message });
+                    }
+                }
+
+                var summary = new
+                {
+                    total = emailList.Count,
+                    created = results.Count(r => (string)r.GetType().GetProperty("status")!.GetValue(r)! == "created"),
+                    skipped = results.Count(r => (string)r.GetType().GetProperty("status")!.GetValue(r)! == "skipped"),
+                    failed = results.Count(r => (string)r.GetType().GetProperty("status")!.GetValue(r)! == "failed"),
+                };
+
+                return Ok(new { summary, results });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error in bulk user creation");
+                return StatusCode(500, new { message = "Failed to bulk create users" });
             }
         }
 
@@ -458,31 +605,27 @@ namespace lmsBox.Server.Controllers
                 // Update learning pathway assignments if provided
                 if (request.GroupIds != null)
                 {
-                    // Get existing active assignments
-                    var existingAssignments = await _context.LearnerGroups
-                        .Where(lg => lg.UserId == id && lg.IsActive)
+                    // Get existing assignments
+                    var existingAssignments = await _context.LearnerPathwayProgresses
+                        .Where(lpp => lpp.UserId == id)
                         .ToListAsync();
 
-                    // Deactivate existing assignments
-                    foreach (var assignment in existingAssignments)
-                    {
-                        assignment.IsActive = false;
-                    }
+                    // Remove existing assignments
+                    _context.LearnerPathwayProgresses.RemoveRange(existingAssignments);
 
                     // Create new assignments
-                    foreach (var groupIdStr in request.GroupIds)
+                    foreach (var pathwayId in request.GroupIds)
                     {
-                        if (long.TryParse(groupIdStr, out var groupId))
+                        var newAssignment = new LearnerPathwayProgress
                         {
-                            var newAssignment = new LearnerGroup
-                            {
-                                UserId = id,
-                                LearningGroupId = groupId,
-                                JoinedAt = DateTime.UtcNow,
-                                IsActive = true
-                            };
-                            _context.LearnerGroups.Add(newAssignment);
-                        }
+                            UserId = id,
+                            LearningPathwayId = pathwayId,
+                            EnrolledAt = DateTime.UtcNow,
+                            ProgressPercent = 0,
+                            CompletedCourses = 0,
+                            TotalCourses = 0 // Will be calculated based on pathway courses
+                        };
+                        _context.LearnerPathwayProgresses.Add(newAssignment);
                     }
 
                     await _context.SaveChangesAsync();
@@ -543,5 +686,12 @@ namespace lmsBox.Server.Controllers
             return new string(Enumerable.Repeat(chars, 12)
                 .Select(s => s[random.Next(s.Length)]).ToArray());
         }
+    }
+
+    public class BulkCreateUsersRequest
+    {
+        public string? EmailsText { get; set; }
+        public List<string>? Emails { get; set; }
+        public List<string>? GroupIds { get; set; }
     }
 }

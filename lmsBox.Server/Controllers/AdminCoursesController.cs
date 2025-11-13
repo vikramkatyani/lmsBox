@@ -64,6 +64,7 @@ public class AdminCoursesController : ControllerBase
                 .Include(c => c.Organisation)
                 .Include(c => c.CreatedByUser)
                 .Include(c => c.Lessons)
+                .Where(c => !c.IsDeleted) // Exclude soft-deleted courses
                 .AsQueryable();
 
             // Organization filtering: OrgAdmin can only see their org's courses
@@ -127,6 +128,26 @@ public class AdminCoursesController : ControllerBase
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
+
+            // Get course IDs for learner count calculation
+            var courseIds = courses.Select(c => c.Id).ToList();
+
+            // Calculate learner counts based on Learning Pathways
+            // A user has access to a course if they are enrolled in any pathway that contains this course
+            
+            // First, get all pathway-course mappings for these courses
+            var pathwayCourseMappings = await _context.PathwayCourses
+                .Where(pc => courseIds.Contains(pc.CourseId))
+                .Select(pc => new { pc.CourseId, pc.LearningPathwayId })
+                .ToListAsync();
+
+            // Create a dictionary of CourseId -> List of PathwayIds
+            var coursePathwaysDict = pathwayCourseMappings
+                .GroupBy(pc => pc.CourseId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(pc => pc.LearningPathwayId).ToList()
+                );
 
             var courseList = courses.Select(c => new AdminCourseDto
             {
@@ -198,7 +219,7 @@ public class AdminCoursesController : ControllerBase
                 .Include(c => c.Organisation)
                 .Include(c => c.CreatedByUser)
                 .Include(c => c.Lessons)
-                .FirstOrDefaultAsync(c => c.Id == courseId);
+                .FirstOrDefaultAsync(c => c.Id == courseId && !c.IsDeleted);
 
             if (course == null)
             {
@@ -291,7 +312,7 @@ public class AdminCoursesController : ControllerBase
                 Status = "Draft", // New courses start as Draft
                 CertificateEnabled = request.CertificateEnabled,
                 BannerUrl = request.BannerUrl,
-                OrganisationId = user.OrganisationID,
+                OrganisationId = user.OrganisationID ?? 0,
                 CreatedByUserId = userId,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -363,7 +384,7 @@ public class AdminCoursesController : ControllerBase
             var course = await _context.Courses
                 .Include(c => c.Organisation)
                 .Include(c => c.Lessons)
-                .FirstOrDefaultAsync(c => c.Id == courseId);
+                .FirstOrDefaultAsync(c => c.Id == courseId && !c.IsDeleted);
 
             if (course == null)
             {
@@ -393,9 +414,14 @@ public class AdminCoursesController : ControllerBase
             course.BannerUrl = request.BannerUrl;
             course.UpdatedAt = DateTime.UtcNow;
 
-            // Update lessons if provided
+            // Only allow lesson modifications if course is NOT published
             if (request.Lessons != null)
             {
+                if (course.Status == "Published")
+                {
+                    return BadRequest(new { message = "Cannot add, remove, or reorder lessons for published courses. Unpublish the course first to make lesson changes." });
+                }
+
                 // Get existing lesson IDs
                 var existingLessonIds = course.Lessons.Select(l => l.Id).ToList();
                 var requestLessonIds = request.Lessons
@@ -533,7 +559,7 @@ public class AdminCoursesController : ControllerBase
 
             var course = await _context.Courses
                 .Include(c => c.Lessons)
-                .FirstOrDefaultAsync(c => c.Id == courseId);
+                .FirstOrDefaultAsync(c => c.Id == courseId && !c.IsDeleted);
 
             if (course == null)
             {
@@ -608,6 +634,224 @@ public class AdminCoursesController : ControllerBase
     }
 
     /// <summary>
+    /// Duplicate a course with all lessons and quizzes
+    /// </summary>
+    [HttpPost("{courseId}/duplicate")]
+    public async Task<ActionResult<AdminCourseDetailDto>> DuplicateCourse(string courseId)
+    {
+        try
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userRole = User.FindFirstValue(ClaimTypes.Role);
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { message = "User not authenticated" });
+            }
+
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Id == userId);
+
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
+
+            // Get original course with all related data
+            var originalCourse = await _context.Courses
+                .Include(c => c.Lessons.OrderBy(l => l.Ordinal))
+                .ThenInclude(l => l.Quiz)
+                .ThenInclude(q => q!.Questions)
+                .ThenInclude(q => q.Options)
+                .FirstOrDefaultAsync(c => c.Id == courseId);
+
+            if (originalCourse == null)
+            {
+                return NotFound(new { message = "Course not found" });
+            }
+
+            // Check organization access for OrgAdmin
+            if (userRole == "OrgAdmin" && originalCourse.OrganisationId != user.OrganisationID)
+            {
+                return Forbid("You can only duplicate courses from your organization");
+            }
+
+            // Create new course (copy)
+            var newCourse = new Course
+            {
+                Id = ShortGuid.Generate(),
+                Title = $"{originalCourse.Title} (Copy)",
+                Description = originalCourse.Description,
+                ShortDescription = originalCourse.ShortDescription,
+                Category = originalCourse.Category,
+                Tags = originalCourse.Tags,
+                Status = "Draft", // Always create as draft
+                CertificateEnabled = originalCourse.CertificateEnabled,
+                BannerUrl = originalCourse.BannerUrl,
+                OrganisationId = originalCourse.OrganisationId,
+                CreatedByUserId = userId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _context.Courses.Add(newCourse);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Created duplicate course {NewCourseId} from {OriginalCourseId}", newCourse.Id, courseId);
+
+            // Copy lessons and their associated quizzes
+            var quizIdMapping = new Dictionary<string, string>(); // Old quiz ID -> New quiz ID
+
+            foreach (var originalLesson in originalCourse.Lessons)
+            {
+                string? newQuizId = null;
+
+                // If lesson has a quiz, duplicate it first
+                if (!string.IsNullOrEmpty(originalLesson.QuizId))
+                {
+                    var originalQuiz = originalLesson.Quiz;
+                    if (originalQuiz != null)
+                    {
+                        newQuizId = ShortGuid.Generate();
+                        quizIdMapping[originalLesson.QuizId] = newQuizId;
+
+                        var newQuiz = new Quiz
+                        {
+                            Id = newQuizId,
+                            Title = originalQuiz.Title,
+                            Description = originalQuiz.Description,
+                            PassingScore = originalQuiz.PassingScore,
+                            TimeLimit = originalQuiz.TimeLimit,
+                            IsTimed = originalQuiz.IsTimed,
+                            MaxAttempts = originalQuiz.MaxAttempts,
+                            ShuffleQuestions = originalQuiz.ShuffleQuestions,
+                            ShuffleAnswers = originalQuiz.ShuffleAnswers,
+                            ShowResults = originalQuiz.ShowResults,
+                            AllowRetake = originalQuiz.AllowRetake,
+                            CourseId = newCourse.Id,
+                            CreatedByUserId = userId,
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow
+                        };
+
+                        _context.Quizzes.Add(newQuiz);
+                        await _context.SaveChangesAsync();
+
+                        _logger.LogInformation("Created duplicate quiz {NewQuizId} from {OriginalQuizId}", newQuizId, originalLesson.QuizId);
+
+                        // Copy quiz questions and options
+                        foreach (var originalQuestion in originalQuiz.Questions.OrderBy(q => q.Order))
+                        {
+                            var newQuestion = new QuizQuestion
+                            {
+                                QuizId = newQuizId,
+                                Question = originalQuestion.Question,
+                                Type = originalQuestion.Type,
+                                Points = originalQuestion.Points,
+                                Order = originalQuestion.Order,
+                                Explanation = originalQuestion.Explanation
+                            };
+
+                            _context.QuizQuestions.Add(newQuestion);
+                            await _context.SaveChangesAsync();
+
+                            // Copy answer options
+                            foreach (var originalOption in originalQuestion.Options.OrderBy(o => o.Order))
+                            {
+                                var newOption = new QuizQuestionOption
+                                {
+                                    QuizQuestionId = newQuestion.Id,
+                                    Text = originalOption.Text,
+                                    IsCorrect = originalOption.IsCorrect,
+                                    Order = originalOption.Order
+                                };
+
+                                _context.QuizQuestionOptions.Add(newOption);
+                            }
+                        }
+
+                        await _context.SaveChangesAsync();
+                    }
+                }
+
+                // Create new lesson
+                var newLesson = new Lesson
+                {
+                    Title = originalLesson.Title,
+                    Content = originalLesson.Content,
+                    Type = originalLesson.Type,
+                    Ordinal = originalLesson.Ordinal,
+                    VideoUrl = originalLesson.VideoUrl,
+                    VideoDurationSeconds = originalLesson.VideoDurationSeconds,
+                    DocumentUrl = originalLesson.DocumentUrl,
+                    ScormUrl = originalLesson.ScormUrl,
+                    ScormEntryUrl = originalLesson.ScormEntryUrl,
+                    QuizId = newQuizId,
+                    IsOptional = originalLesson.IsOptional,
+                    CourseId = newCourse.Id,
+                    CreatedByUserId = userId,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.Lessons.Add(newLesson);
+            }
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Successfully duplicated course {CourseId} to {NewCourseId} with {LessonCount} lessons",
+                courseId, newCourse.Id, originalCourse.Lessons.Count);
+
+            // Return the new course details
+            var newCourseWithLessons = await _context.Courses
+                .Include(c => c.Lessons.OrderBy(l => l.Ordinal))
+                .FirstOrDefaultAsync(c => c.Id == newCourse.Id);
+
+            var result = new AdminCourseDetailDto
+            {
+                Id = newCourse.Id,
+                Title = newCourse.Title,
+                Description = newCourse.Description,
+                ShortDescription = newCourse.ShortDescription,
+                Category = newCourse.Category,
+                Tags = string.IsNullOrEmpty(newCourse.Tags)
+                    ? Array.Empty<string>()
+                    : (JsonSerializer.Deserialize<List<string>>(newCourse.Tags)?.ToArray() ?? Array.Empty<string>()),
+                Status = newCourse.Status,
+                CertificateEnabled = newCourse.CertificateEnabled,
+                BannerUrl = newCourse.BannerUrl,
+                CreatedAt = newCourse.CreatedAt,
+                UpdatedAt = newCourse.UpdatedAt,
+                OrganisationId = newCourse.OrganisationId,
+                Lessons = newCourseWithLessons?.Lessons.Select(l => new AdminLessonDto
+                {
+                    Id = l.Id,
+                    Order = l.Ordinal,
+                    Type = l.Type ?? "content",
+                    Title = l.Title ?? "",
+                    Description = l.Content, // Use Content field as Description
+                    IsOptional = l.IsOptional,
+                    Src = l.Type switch
+                    {
+                        "video" => l.VideoUrl,
+                        "document" => l.DocumentUrl,
+                        "scorm" => l.ScormUrl,
+                        _ => null
+                    },
+                    EntryUrl = l.ScormEntryUrl,
+                    QuizId = l.QuizId
+                }).ToList() ?? new List<AdminLessonDto>()
+            };
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error duplicating course {CourseId}", courseId);
+            return StatusCode(500, new { message = "An error occurred while duplicating the course", details = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Delete a course
     /// </summary>
     [HttpDelete("{courseId}")]
@@ -633,6 +877,12 @@ public class AdminCoursesController : ControllerBase
 
             var course = await _context.Courses
                 .Include(c => c.Lessons)
+                    .ThenInclude(l => l.Quiz!)
+                        .ThenInclude(q => q.Questions)
+                            .ThenInclude(qq => qq.Options)
+                .Include(c => c.Quizzes)
+                    .ThenInclude(q => q.Questions)
+                        .ThenInclude(qq => qq.Options)
                 .Include(c => c.GroupCourses)
                 .Include(c => c.CourseAssignments)
                 .FirstOrDefaultAsync(c => c.Id == courseId);
@@ -648,19 +898,100 @@ public class AdminCoursesController : ControllerBase
                 return Forbid("You can only delete courses from your organization");
             }
 
-            // Check if course has assignments or group mappings
-            if (course.GroupCourses.Any() || course.CourseAssignments.Any())
+            // Mark course as deleted (soft delete)
+            course.IsDeleted = true;
+            course.DeletedAt = DateTime.UtcNow;
+            course.DeletedByUserId = userId;
+
+            // Delete all related learner progress records
+            var progressRecords = await _context.LearnerProgresses
+                .Where(lp => lp.CourseId == courseId)
+                .ToListAsync();
+            _context.LearnerProgresses.RemoveRange(progressRecords);
+
+            // Delete all feedback related to this course
+            var feedbackRecords = await _context.Feedbacks
+                .Where(f => f.CourseId == courseId)
+                .ToListAsync();
+            _context.Feedbacks.RemoveRange(feedbackRecords);
+
+            // Delete all pathway course mappings
+            var pathwayCourses = await _context.PathwayCourses
+                .Where(pc => pc.CourseId == courseId)
+                .ToListAsync();
+            _context.PathwayCourses.RemoveRange(pathwayCourses);
+
+            // Delete all group course mappings
+            if (course.GroupCourses.Any())
             {
-                return BadRequest(new { message = "Cannot delete course that is assigned to groups or has active assignments. Please remove all assignments first." });
+                _context.GroupCourses.RemoveRange(course.GroupCourses);
             }
 
-            // Remove course and related data
-            _context.Courses.Remove(course);
+            // Delete all course assignments
+            if (course.CourseAssignments.Any())
+            {
+                _context.CourseAssignments.RemoveRange(course.CourseAssignments);
+            }
+
+            // Delete all quiz questions and options for lessons
+            foreach (var lesson in course.Lessons.Where(l => l.Quiz != null))
+            {
+                if (lesson.Quiz?.Questions != null)
+                {
+                    foreach (var question in lesson.Quiz.Questions)
+                    {
+                        if (question.Options != null)
+                        {
+                            _context.QuizQuestionOptions.RemoveRange(question.Options);
+                        }
+                    }
+                    _context.QuizQuestions.RemoveRange(lesson.Quiz.Questions);
+                }
+                if (lesson.Quiz != null)
+                {
+                    _context.Quizzes.Remove(lesson.Quiz);
+                }
+            }
+
+            // Delete all standalone quizzes (not linked to lessons)
+            foreach (var quiz in course.Quizzes.Where(q => !course.Lessons.Any(l => l.QuizId == q.Id)))
+            {
+                if (quiz.Questions != null)
+                {
+                    foreach (var question in quiz.Questions)
+                    {
+                        if (question.Options != null)
+                        {
+                            _context.QuizQuestionOptions.RemoveRange(question.Options);
+                        }
+                    }
+                    _context.QuizQuestions.RemoveRange(quiz.Questions);
+                }
+                _context.Quizzes.Remove(quiz);
+            }
+
+            // Delete all lessons
+            _context.Lessons.RemoveRange(course.Lessons);
+
+            // Create audit log
+            var auditLog = new AuditLog
+            {
+                Action = $"Course Deleted: {course.Title} (ID: {courseId})",
+                PerformedBy = $"{user.FirstName} {user.LastName} ({user.Email})",
+                PerformedAt = DateTime.UtcNow,
+                Details = $"Course ID: {courseId}, Course Title: {course.Title}, Organization: {course.OrganisationId}, Deleted Lessons: {course.Lessons.Count}, Deleted Quizzes: {course.Quizzes.Count}, Deleted Progress Records: {progressRecords.Count}, Deleted Feedback: {feedbackRecords.Count}"
+            };
+            _context.AuditLogs.Add(auditLog);
+
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Course {CourseId} deleted by user {UserId}", courseId, userId);
+            _logger.LogInformation("Course {CourseId} soft deleted by user {UserId} ({UserEmail})", courseId, userId, user.Email);
 
-            return Ok(new { message = "Course deleted successfully" });
+            return Ok(new { 
+                message = "Course and all associated records deleted successfully",
+                deletedAt = course.DeletedAt,
+                deletedBy = $"{user.FirstName} {user.LastName}"
+            });
         }
         catch (Exception ex)
         {

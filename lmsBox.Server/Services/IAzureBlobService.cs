@@ -8,6 +8,11 @@ public interface IAzureBlobService
     Task<string> UploadFileAsync(Stream fileStream, string fileName, string organisationId, string contentType);
 
     /// <summary>
+    /// Upload a file to Azure Blob Storage with custom folder path
+    /// </summary>
+    Task<string> UploadToCustomPathAsync(Stream fileStream, string fileName, string folderPath, string contentType, string? subFolder = null);
+
+    /// <summary>
     /// List all files in an organization's library folder
     /// </summary>
     Task<List<BlobFileInfo>> ListOrganisationFilesAsync(string organisationId, string? fileType = null);

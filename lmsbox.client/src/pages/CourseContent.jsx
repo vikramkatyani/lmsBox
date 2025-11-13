@@ -4,8 +4,6 @@ import LearnerHeader from '../components/LearnerHeader';
 import QuizPlayer from '../components/QuizPlayer';
 import { getCourseDetails } from '../services/courseDetails';
 import toast from 'react-hot-toast';
-import video1 from '../assets/video1.mp4';
-import pdf2 from '../assets/pdf2.pdf';
 import usePageTitle from '../hooks/usePageTitle';
 
 function LessonItem({ lesson, isActive, onClick }) {
@@ -312,17 +310,30 @@ function ContentPanel({ lesson, courseId, onProgressUpdate }) {
           <div className="w-full h-full bg-gray-100 relative">
             {lesson.url ? (
               <>
-                <iframe 
-                  ref={iframeRef}
-                  src={lesson.url}
+                <object 
+                  data={lesson.url}
+                  type="application/pdf"
                   className="w-full h-full"
                   title="PDF Viewer"
-                  sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-                  onError={(e) => {
-                    console.error('PDF load error:', e);
-                    console.error('PDF URL:', lesson.url);
-                  }}
-                />
+                >
+                  <div className="flex flex-col items-center justify-center h-full p-8">
+                    <svg className="w-20 h-20 mb-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                    </svg>
+                    <p className="text-gray-600 mb-4">Unable to display PDF in browser</p>
+                    <a 
+                      href={lesson.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors inline-flex items-center space-x-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      <span>Open PDF in New Tab</span>
+                    </a>
+                  </div>
+                </object>
                 {!lesson.isCompleted && (
                   <div className="absolute bottom-4 right-4 z-10">
                     <button
@@ -377,11 +388,13 @@ function ContentPanel({ lesson, courseId, onProgressUpdate }) {
           </div>
         );
       case 'scorm':
+        // Use proxy endpoint to avoid CORS issues with SCORM content
+        const proxyUrl = lesson.url ? `/api/scorm-proxy?url=${encodeURIComponent(lesson.url)}` : null;
         return (
           <div className="w-full h-full bg-gray-50 relative">
-            {lesson.url ? (
+            {proxyUrl ? (
               <iframe 
-                src={`/scorm-player.html?url=${encodeURIComponent(lesson.url)}`}
+                src={`/scorm-player.html?url=${encodeURIComponent(proxyUrl)}`}
                 className="w-full h-full border-0"
                 title="SCORM Content Player"
                 allow="autoplay; fullscreen"
@@ -470,7 +483,29 @@ export default function CourseContent() {
         },
         body: JSON.stringify(progressData)
       });
-      // Silently update progress, no need to show success message
+      
+      // Only update the local state when lesson is marked as completed
+      // This prevents interrupting video playback and avoids full page reload
+      if (progressData.completed) {
+        // Update the lesson in the course state to show completion status
+        setCourse(prevCourse => {
+          if (!prevCourse) return prevCourse;
+          
+          return {
+            ...prevCourse,
+            lessons: prevCourse.lessons.map(lesson => 
+              lesson.id === lessonId 
+                ? { ...lesson, isCompleted: true, progressPercent: 100 }
+                : lesson
+            )
+          };
+        });
+        
+        // Update active lesson if it's the completed one
+        if (activeLesson?.id === lessonId) {
+          setActiveLesson(prev => prev ? { ...prev, isCompleted: true, progressPercent: 100 } : prev);
+        }
+      }
     } catch (error) {
       console.error('Error updating progress:', error);
       // Don't show error to user, it's background sync
@@ -492,55 +527,55 @@ export default function CourseContent() {
     }
   };
 
+  const loadCourseDetails = async (signal = null) => {
+    setLoading(true);
+    try {
+      const courseData = await getCourseDetails(courseId, signal);
+      
+      if (!courseData && (!signal || !signal.aborted)) {
+        toast.error('Course not found or access denied');
+        navigate('/courses/all');
+        return;
+      }
+      
+      if (!signal || !signal.aborted) {
+        setCourse(courseData);
+        // Set active lesson based on last accessed or first lesson
+        if (courseData.lessons && courseData.lessons.length > 0) {
+          let lessonToShow = courseData.lessons[0]; // Default to first lesson
+          
+          // If there's a last accessed lesson, use that instead
+          if (courseData.lastAccessedLessonId) {
+            const lastLesson = courseData.lessons.find(
+              lesson => lesson.id === courseData.lastAccessedLessonId
+            );
+            if (lastLesson) {
+              lessonToShow = lastLesson;
+            }
+          }
+          
+          setActiveLesson(lessonToShow);
+        }
+      }
+    } catch (error) {
+      if (!signal || !signal.aborted) {
+        console.error('Error loading course details:', error);
+        toast.error('Failed to load course details');
+        navigate('/courses/all');
+      }
+    } finally {
+      if (!signal || !signal.aborted) {
+        setLoading(false);
+      }
+    }
+  };
+
   useEffect(() => {
     // Create an AbortController for this request
     const abortController = new AbortController();
-    
-    const loadCourseDetails = async () => {
-      setLoading(true);
-      try {
-        const courseData = await getCourseDetails(courseId, abortController.signal);
-        
-        if (!courseData && !abortController.signal.aborted) {
-          toast.error('Course not found or access denied');
-          navigate('/courses/all');
-          return;
-        }
-        
-        if (!abortController.signal.aborted) {
-          setCourse(courseData);
-          // Set active lesson based on last accessed or first lesson
-          if (courseData.lessons && courseData.lessons.length > 0) {
-            let lessonToShow = courseData.lessons[0]; // Default to first lesson
-            
-            // If there's a last accessed lesson, use that instead
-            if (courseData.lastAccessedLessonId) {
-              const lastLesson = courseData.lessons.find(
-                lesson => lesson.id === courseData.lastAccessedLessonId
-              );
-              if (lastLesson) {
-                lessonToShow = lastLesson;
-              }
-            }
-            
-            setActiveLesson(lessonToShow);
-          }
-        }
-      } catch (error) {
-        if (!abortController.signal.aborted) {
-          console.error('Error loading course details:', error);
-          toast.error('Failed to load course details');
-          navigate('/courses/all');
-        }
-      } finally {
-        if (!abortController.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    };
 
     if (courseId) {
-      loadCourseDetails();
+      loadCourseDetails(abortController.signal);
     } else {
       navigate('/courses/all');
     }

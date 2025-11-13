@@ -86,6 +86,24 @@ export default function AdminCourses() {
     }
   };
 
+  const handleDuplicateCourse = async (course) => {
+    if (!window.confirm(`Are you sure you want to duplicate "${course.title}"?\n\nA copy will be created as a draft course with all lessons and quizzes.`)) {
+      return;
+    }
+
+    try {
+      const loadingToast = toast.loading('Duplicating course...');
+      await adminCourseService.duplicateCourse(course.id);
+      toast.dismiss(loadingToast);
+      toast.success(`Course "${course.title}" duplicated successfully!`);
+      loadCourses(); // Reload the list to show the new course
+    } catch (error) {
+      console.error('Error duplicating course:', error);
+      const message = error.response?.data?.message || 'Failed to duplicate course';
+      toast.error(message);
+    }
+  };
+
   const filtered = courses; // Filtering is now done on the server side
 
   const resetFilters = () => {
@@ -180,8 +198,6 @@ export default function AdminCourses() {
                   <option value="updated_asc">Oldest Updated</option>
                   <option value="title_az">Title: A to Z</option>
                   <option value="title_za">Title: Z to A</option>
-                  <option value="learners_desc">Learners: High to Low</option>
-                  <option value="learners_asc">Learners: Low to High</option>
                 </select>
               </div>
 
@@ -217,7 +233,6 @@ export default function AdminCourses() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Learners</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -225,7 +240,7 @@ export default function AdminCourses() {
                 {loading ? (
                   Array.from({ length: 3 }).map((_, idx) => (
                     <tr key={idx} className="animate-pulse">
-                      {Array.from({ length: 6 }).map((_, colIdx) => (
+                      {Array.from({ length: 5 }).map((_, colIdx) => (
                         <td key={colIdx} className="px-6 py-4">
                           <div className="h-4 bg-gray-200 rounded w-full"></div>
                         </td>
@@ -234,7 +249,7 @@ export default function AdminCourses() {
                   ))
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">No courses found.</td>
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">No courses found.</td>
                   </tr>
                 ) : (
                   filtered.map((c) => (
@@ -246,10 +261,17 @@ export default function AdminCourses() {
                       <td className="px-6 py-4 text-gray-700">{c.category || 'Uncategorized'}</td>
                       <td className="px-6 py-4">{statusBadge(c.statusDisplay)}</td>
                       <td className="px-6 py-4 text-gray-700">{c.updatedAt}</td>
-                      <td className="px-6 py-4 text-right text-gray-700">{(c.learners || 0).toLocaleString()}</td>
                       <td className="px-6 py-4">
                         <div className="flex justify-end gap-2">
                           <button onClick={() => onEdit(c.id)} className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100">Edit</button>
+                          
+                          <button 
+                            onClick={() => handleDuplicateCourse(c)} 
+                            className="px-3 py-1.5 text-sm bg-purple-50 text-purple-700 rounded hover:bg-purple-100"
+                            title="Duplicate course with all lessons and quizzes"
+                          >
+                            Duplicate
+                          </button>
                           
                           {c.status === 'Draft' && (
                             <button 
@@ -257,15 +279,6 @@ export default function AdminCourses() {
                               className="px-3 py-1.5 text-sm bg-green-50 text-green-700 rounded hover:bg-green-100"
                             >
                               Publish
-                            </button>
-                          )}
-                          
-                          {c.status === 'Published' && (
-                            <button 
-                              onClick={() => handlePublishToggle(c.id)} 
-                              className="px-3 py-1.5 text-sm bg-gray-50 text-gray-700 rounded hover:bg-gray-100"
-                            >
-                              Unpublish
                             </button>
                           )}
                           

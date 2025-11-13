@@ -193,7 +193,7 @@ export default function AdminDashboard() {
                 </svg>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Total Enrollments</p>
+                <p className="text-sm font-medium text-gray-500">Total Lessons</p>
                 <p className="text-2xl font-semibold text-gray-900">
                   {loading ? <span className="animate-pulse text-gray-300">...</span> : (stats?.totalEnrollments ?? '--')}
                 </p>
@@ -207,7 +207,7 @@ export default function AdminDashboard() {
 
         {/* Secondary Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
+         {/* <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-500">Assignments</p>
@@ -225,7 +225,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-500">Quizzes</p>
@@ -258,7 +258,7 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Completion Trend */}
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Course Completions (Last 7 Days)</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Course Completions (Last 12 Months)</h2>
             <div style={{ height: '250px' }}>
               {loading ? (
                 <div className="flex items-center justify-center h-full">
@@ -276,7 +276,7 @@ export default function AdminDashboard() {
 
           {/* Registration Trend */}
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">User Registrations (Last 7 Days)</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">User Registrations (Last 12 Months)</h2>
             <div style={{ height: '250px' }}>
               {loading ? (
                 <div className="flex items-center justify-center h-full">

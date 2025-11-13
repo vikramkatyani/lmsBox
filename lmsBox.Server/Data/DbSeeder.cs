@@ -43,7 +43,43 @@ public static class DbSeeder
             }
         }
 
-        // Create admin user
+        // Create SuperAdmin user (no organisation)
+        var superAdminEmail = "superadmin@lmsbox.system";
+        var superAdmin = await userManager.FindByEmailAsync(superAdminEmail);
+        if (superAdmin == null)
+        {
+            superAdmin = new ApplicationUser
+            {
+                UserName = superAdminEmail,
+                Email = superAdminEmail,
+                EmailConfirmed = true,
+                FirstName = "Super",
+                LastName = "Admin",
+                OrganisationID = null, // SuperAdmin has no organisation
+                CreatedBy = "system",
+                ActivatedBy = "system",
+                DeactivatedBy = "system",
+                ActiveStatus = 1,
+                ActivatedOn = DateTime.UtcNow,
+                CreatedOn = DateTime.UtcNow
+            };
+            var createSuperAdmin = await userManager.CreateAsync(superAdmin, "SuperAdmin@123");
+            if (!createSuperAdmin.Succeeded)
+            {
+                logger.LogWarning("SuperAdmin creation failed: {Errors}", string.Join(",", createSuperAdmin.Errors.Select(e => e.Description)));
+            }
+            else
+            {
+                await userManager.AddToRoleAsync(superAdmin, "SuperAdmin");
+                logger.LogInformation("SuperAdmin user created: {Email}", superAdminEmail);
+            }
+        }
+        else
+        {
+            logger.LogInformation("SuperAdmin user already exists: {Email}", superAdminEmail);
+        }
+
+        // Create admin user for organisation
         var adminEmail = "admin@dev.local";
         var admin = await userManager.FindByEmailAsync(adminEmail);
         if (admin == null)
@@ -53,48 +89,33 @@ public static class DbSeeder
                 UserName = "admin@dev.local",
                 Email = adminEmail,
                 EmailConfirmed = true,
-                FirstName = "Org",
-                LastName = "Admin",
+                FirstName = "Admin",
+                LastName = "User",
                 OrganisationID = organisation.Id,
                 CreatedBy = "system",
                 ActivatedBy = "system",
-                DeactivatedBy = "system"
+                DeactivatedBy = "system",
+                ActiveStatus = 1,
+                ActivatedOn = DateTime.UtcNow,
+                CreatedOn = DateTime.UtcNow
             };
             var createAdmin = await userManager.CreateAsync(admin, "P@ssw0rd1!");
-            if (!createAdmin.Succeeded) logger.LogWarning("Admin creation failed: {Errors}", string.Join(",", createAdmin.Errors.Select(e => e.Description)));
-            else await userManager.AddToRoleAsync(admin, "OrgAdmin");
-        }
-
-        // Create a learner user
-        var learnerEmail = "19vaibhav90@gmail.com";
-        var learner = await userManager.FindByEmailAsync(learnerEmail);
-        if (learner == null)
-        {
-            learner = new ApplicationUser
+            if (!createAdmin.Succeeded) 
             {
-                UserName = learnerEmail,
-                Email = learnerEmail,
-                EmailConfirmed = true,
-                FirstName = "Test",
-                LastName = "Learner",
-                OrganisationID = organisation.Id,
-                CreatedBy = admin.Id,
-                ActivatedBy = admin.Id,
-                DeactivatedBy = admin.Id
-            };
-            var createLearner = await userManager.CreateAsync(learner, "P@ssw0rd1!");
-            if (!createLearner.Succeeded) logger.LogWarning("Learner creation failed: {Errors}", string.Join(",", createLearner.Errors.Select(e => e.Description)));
-            else await userManager.AddToRoleAsync(learner, "Learner");
+                logger.LogWarning("Admin creation failed: {Errors}", string.Join(",", createAdmin.Errors.Select(e => e.Description)));
+            }
+            else 
+            {
+                await userManager.AddToRoleAsync(admin, "OrgAdmin");
+                logger.LogInformation("Admin user created: {Email}", adminEmail);
+            }
+        }
+        else
+        {
+            logger.LogInformation("Admin user already exists: {Email}", adminEmail);
         }
 
-        // Create multiple realistic courses with lessons
-        await SeedCoursesAsync(db, admin, organisation, logger);
-
-        // Create learning groups and assign courses
-        await SeedLearningGroupsAsync(db, admin, learner, organisation, logger);
-
-        // Create learner progress data
-        await SeedLearnerProgressAsync(db, learner, logger);
+        // Skip creating courses, pathways, learners, and progress data
 
         logger.LogInformation("Seeding completed.");
     }
@@ -259,84 +280,97 @@ public static class DbSeeder
         }
     }
 
-    private static async Task SeedLearningGroupsAsync(ApplicationDbContext db, ApplicationUser admin, ApplicationUser learner, Organisation organisation, ILogger logger)
+    private static async Task SeedLearningPathwaysAsync(ApplicationDbContext db, ApplicationUser admin, ApplicationUser learner, Organisation organisation, ILogger logger)
     {
-        var groups = new[]
+        var pathways = new[]
         {
-            new { Name = "Management Team", Description = "Senior management and team leaders" },
-            new { Name = "New Employees", Description = "Recent hires and onboarding group" },
-            new { Name = "IT Department", Description = "Information technology staff" },
-            new { Name = "Sales Team", Description = "Sales and business development" },
-            new { Name = "All Staff", Description = "Organization-wide mandatory training group" }
+            new { Name = "Management Development Program", Description = "Comprehensive training for senior management and team leaders", Courses = new[] { "Leadership", "Communication" } },
+            new { Name = "New Employee Onboarding", Description = "Essential training for recent hires", Courses = new[] { "Health & Safety", "GDPR", "Cyber Security" } },
+            new { Name = "IT Professional Certification", Description = "Technical training for IT staff", Courses = new[] { "Cyber Security", "GDPR" } },
+            new { Name = "Sales Excellence Program", Description = "Skills development for sales team", Courses = new[] { "Digital Marketing", "Communication" } },
+            new { Name = "Mandatory Compliance Training", Description = "Organization-wide required training", Courses = new[] { "Health & Safety", "GDPR" } }
         };
 
         var allCourses = db.Courses.ToList();
 
-        foreach (var groupData in groups)
+        foreach (var pathwayData in pathways)
         {
-            if (!db.LearningGroups.Any(g => g.Name == groupData.Name))
+            if (!db.LearningPathways.Any(lp => lp.Title == pathwayData.Name))
             {
-                var group = new LearningGroup
+                var pathway = new LearningPathway
                 {
-                    Name = groupData.Name,
-                    Description = groupData.Description,
+                    Id = ShortGuid.Generate(),
+                    Title = pathwayData.Name,
+                    Description = pathwayData.Description,
+                    ShortDescription = pathwayData.Description,
+                    Category = "Professional Development",
+                    IsActive = true,
+                    EstimatedDurationHours = 10,
+                    DifficultyLevel = "Intermediate",
                     OrganisationId = organisation.Id,
                     CreatedByUserId = admin.Id,
                     CreatedAt = DateTime.UtcNow.AddDays(-Random.Shared.Next(1, 30))
                 };
-                db.LearningGroups.Add(group);
+                db.LearningPathways.Add(pathway);
                 await db.SaveChangesAsync();
 
-                // Assign courses to groups based on group type
-                var coursesToAssign = groupData.Name switch
-                {
-                    "Management Team" => allCourses.Where(c => c.Title.Contains("Leadership") || c.Title.Contains("Communication")).ToList(),
-                    "New Employees" => allCourses.Where(c => c.Title.Contains("Health & Safety") || c.Title.Contains("GDPR") || c.Title.Contains("Cyber Security")).ToList(),
-                    "IT Department" => allCourses.Where(c => c.Title.Contains("Cyber Security") || c.Title.Contains("GDPR")).ToList(),
-                    "Sales Team" => allCourses.Where(c => c.Title.Contains("Digital Marketing") || c.Title.Contains("Communication")).ToList(),
-                    "All Staff" => allCourses.Where(c => c.Title.Contains("Health & Safety") || c.Title.Contains("GDPR")).ToList(),
-                    _ => new List<Course>()
-                };
+                // Assign courses to pathway based on keywords
+                var coursesToAssign = allCourses.Where(c => 
+                    pathwayData.Courses.Any(keyword => c.Title.Contains(keyword))
+                ).ToList();
 
+                int sequenceOrder = 1;
                 foreach (var course in coursesToAssign)
                 {
-                    db.GroupCourses.Add(new GroupCourse
+                    db.PathwayCourses.Add(new PathwayCourse
                     {
-                        LearningGroupId = group.Id,
+                        LearningPathwayId = pathway.Id,
                         CourseId = course.Id,
-                        AssignedAt = DateTime.UtcNow.AddDays(-Random.Shared.Next(1, 20))
+                        SequenceOrder = sequenceOrder++,
+                        IsMandatory = true,
+                        AddedAt = DateTime.UtcNow.AddDays(-Random.Shared.Next(1, 20))
                     });
                 }
 
-                // Add learner to multiple groups
-                if (groupData.Name == "All Staff" || groupData.Name == "New Employees")
+                // Enroll learner in specific pathways
+                if (pathwayData.Name.Contains("Mandatory") || pathwayData.Name.Contains("Onboarding"))
                 {
-                    db.LearnerGroups.Add(new LearnerGroup
+                    db.LearnerPathwayProgresses.Add(new LearnerPathwayProgress
                     {
                         UserId = learner.Id,
-                        LearningGroupId = group.Id,
-                        JoinedAt = DateTime.UtcNow.AddDays(-Random.Shared.Next(1, 15)),
-                        IsActive = true
+                        LearningPathwayId = pathway.Id,
+                        TotalCourses = coursesToAssign.Count,
+                        CompletedCourses = 0,
+                        ProgressPercent = 0,
+                        IsCompleted = false,
+                        EnrolledAt = DateTime.UtcNow.AddDays(-Random.Shared.Next(1, 15))
                     });
                 }
 
                 await db.SaveChangesAsync();
-                logger.LogInformation("Created learning group: {GroupName} with {CourseCount} courses", groupData.Name, coursesToAssign.Count());
+                logger.LogInformation("Created learning pathway: {PathwayName} with {CourseCount} courses", pathwayData.Name, coursesToAssign.Count);
             }
         }
     }
 
     private static async Task SeedLearnerProgressAsync(ApplicationDbContext db, ApplicationUser learner, ILogger logger)
     {
-        // Get courses assigned to the learner through groups
-        var learnerCourses = db.GroupCourses
-            .Where(gc => gc.LearningGroup.LearnerGroups.Any(lg => lg.UserId == learner.Id && lg.IsActive))
-            .Select(gc => gc.Course)
+        // Get courses assigned to the learner through pathways
+        var learnerPathways = db.LearnerPathwayProgresses
+            .Where(lpp => lpp.UserId == learner.Id)
+            .Select(lpp => lpp.LearningPathwayId)
+            .ToList();
+
+        var learnerCourses = db.PathwayCourses
+            .Where(pc => learnerPathways.Contains(pc.LearningPathwayId))
+            .Select(pc => pc.Course)
             .Distinct()
             .ToList();
 
         foreach (var course in learnerCourses)
         {
+            if (course == null) continue;
+
             // Create course-level progress
             if (!db.LearnerProgresses.Any(lp => lp.UserId == learner.Id && lp.CourseId == course.Id && lp.LessonId == null))
             {

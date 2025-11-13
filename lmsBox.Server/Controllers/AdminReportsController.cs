@@ -46,6 +46,14 @@ public class AdminReportsController : ControllerBase
             var start = startDate ?? DateTime.UtcNow.AddMonths(-3);
             var end = endDate ?? DateTime.UtcNow;
 
+            // Get organization info for header
+            var orgName = "All Organizations";
+            if (orgId.HasValue)
+            {
+                var org = await _context.Organisations.FindAsync(orgId.Value);
+                orgName = org?.Name ?? "Unknown Organization";
+            }
+
             var usersQuery = _context.Users.AsNoTracking();
             if (orgId.HasValue)
                 usersQuery = usersQuery.Where(u => u.OrganisationID == orgId);
@@ -141,7 +149,25 @@ public class AdminReportsController : ControllerBase
                 averageTimeSpentPerUserHours = result.Any() ? Math.Round(result.Average(u => u.totalTimeSpentHours), 2) : 0
             };
 
-            return Ok(new { users = result, summary });
+            var header = new
+            {
+                reportName = "User Activity Report",
+                generatedAt = DateTime.UtcNow,
+                dateRange = new
+                {
+                    start,
+                    end
+                },
+                organization = orgName,
+                filters = new
+                {
+                    startDate,
+                    endDate,
+                    minDaysDormant
+                }
+            };
+
+            return Ok(new { header, users = result, summary });
         }
         catch (Exception ex)
         {
@@ -164,6 +190,14 @@ public class AdminReportsController : ControllerBase
             var orgId = await GetOrgIdFilter();
             var start = startDate ?? DateTime.UtcNow.AddMonths(-3);
             var end = endDate ?? DateTime.UtcNow;
+
+            // Get organization info for header
+            var orgName = "All Organizations";
+            if (orgId.HasValue)
+            {
+                var org = await _context.Organisations.FindAsync(orgId.Value);
+                orgName = org?.Name ?? "Unknown Organization";
+            }
 
             var usersQuery = _context.Users.AsNoTracking();
             if (orgId.HasValue)
@@ -257,7 +291,24 @@ public class AdminReportsController : ControllerBase
                 averageTimePerCourseMinutes = result.Any() ? Math.Round(result.Average(r => r.averageTimePerCourse), 2) : 0
             };
 
-            return Ok(new { users = result, summary });
+            var header = new
+            {
+                reportName = "User Progress Report",
+                generatedAt = DateTime.UtcNow,
+                dateRange = new
+                {
+                    start,
+                    end
+                },
+                organization = orgName,
+                filters = new
+                {
+                    startDate,
+                    endDate
+                }
+            };
+
+            return Ok(new { header, users = result, summary });
         }
         catch (Exception ex)
         {
@@ -280,6 +331,14 @@ public class AdminReportsController : ControllerBase
             var orgId = await GetOrgIdFilter();
             var start = startDate ?? DateTime.UtcNow.AddMonths(-3);
             var end = endDate ?? DateTime.UtcNow;
+
+            // Get organization info for header
+            var orgName = "All Organizations";
+            if (orgId.HasValue)
+            {
+                var org = await _context.Organisations.FindAsync(orgId.Value);
+                orgName = org?.Name ?? "Unknown Organization";
+            }
 
             var coursesQuery = _context.Courses.AsNoTracking();
             if (orgId.HasValue)
@@ -357,7 +416,25 @@ public class AdminReportsController : ControllerBase
                 leastPopularCourse = result.LastOrDefault()?.courseTitle ?? "N/A"
             };
 
-            return Ok(new { courses = result, summary, categoryBreakdown });
+            // Align header structure with the Course Progress report (conditional dateRange, filters block)
+            var header = new
+            {
+                reportName = "Course Enrollment Report",
+                generatedAt = DateTime.UtcNow,
+                dateRange = startDate.HasValue || endDate.HasValue ? new
+                {
+                    start = startDate,
+                    end = endDate
+                } : null,
+                organization = orgName,
+                filters = new
+                {
+                    startDate,
+                    endDate
+                }
+            };
+
+            return Ok(new { header, courses = result, summary, categoryBreakdown });
         }
         catch (Exception ex)
         {
@@ -380,6 +457,14 @@ public class AdminReportsController : ControllerBase
             var orgId = await GetOrgIdFilter();
             var start = startDate ?? DateTime.UtcNow.AddMonths(-3);
             var end = endDate ?? DateTime.UtcNow;
+
+            // Get organization info for header
+            var orgName = "All Organizations";
+            if (orgId.HasValue)
+            {
+                var org = await _context.Organisations.FindAsync(orgId.Value);
+                orgName = org?.Name ?? "Unknown Organization";
+            }
 
             var coursesQuery = _context.Courses.AsNoTracking();
             if (orgId.HasValue)
@@ -489,7 +574,24 @@ public class AdminReportsController : ControllerBase
                 worstPerforming = result.LastOrDefault()?.courseTitle ?? "N/A"
             };
 
-            return Ok(new { courses = result, summary, completionTrends = recentCompletions, categoryBreakdown });
+            var header = new
+            {
+                reportName = "Course Completion Report",
+                generatedAt = DateTime.UtcNow,
+                dateRange = new
+                {
+                    start,
+                    end
+                },
+                organization = orgName,
+                filters = new
+                {
+                    startDate,
+                    endDate
+                }
+            };
+
+            return Ok(new { header, courses = result, summary, completionTrends = recentCompletions, categoryBreakdown });
         }
         catch (Exception ex)
         {
@@ -512,6 +614,14 @@ public class AdminReportsController : ControllerBase
         try
         {
             var orgId = await GetOrgIdFilter();
+
+            // Get organization info for header
+            var orgName = "All Organizations";
+            if (orgId.HasValue)
+            {
+                var org = await _context.Organisations.FindAsync(orgId.Value);
+                orgName = org?.Name ?? "Unknown Organization";
+            }
 
             var lessonsQuery = _context.Lessons.AsNoTracking();
             
@@ -675,8 +785,28 @@ public class AdminReportsController : ControllerBase
                 problematicLessonsCount = problematicLessons.Count
             };
 
+            var header = new
+            {
+                reportName = "Lesson Analytics Report",
+                generatedAt = DateTime.UtcNow,
+                dateRange = startDate.HasValue || endDate.HasValue ? new
+                {
+                    start = startDate,
+                    end = endDate
+                } : null,
+                organization = orgName,
+                filters = new
+                {
+                    courseId,
+                    lessonType,
+                    startDate,
+                    endDate
+                }
+            };
+
             return Ok(new
             {
+                header,
                 lessons = result,
                 summary,
                 typeBreakdown,
@@ -709,6 +839,14 @@ public class AdminReportsController : ControllerBase
             var orgId = await GetOrgIdFilter();
             var start = startDate ?? DateTime.UtcNow.AddMonths(-1);
             var end = endDate ?? DateTime.UtcNow;
+
+            // Get organization info for header
+            var orgName = "All Organizations";
+            if (orgId.HasValue)
+            {
+                var org = await _context.Organisations.FindAsync(orgId.Value);
+                orgName = org?.Name ?? "Unknown Organization";
+            }
 
             var progressQuery = _context.LearnerProgresses
                 .AsNoTracking()
@@ -839,8 +977,28 @@ public class AdminReportsController : ControllerBase
                 peakActivityHours = Math.Round(dailyTimeBreakdown.OrderByDescending(d => d.totalTimeSpentHours).FirstOrDefault()?.totalTimeSpentHours ?? 0, 2)
             };
 
+            var header = new
+            {
+                reportName = "Time Tracking & Engagement Report",
+                generatedAt = DateTime.UtcNow,
+                dateRange = new
+                {
+                    start,
+                    end
+                },
+                organization = orgName,
+                filters = new
+                {
+                    userId,
+                    courseId,
+                    startDate,
+                    endDate
+                }
+            };
+
             return Ok(new
             {
+                header,
                 summary,
                 userTimeAnalytics,
                 courseTimeAnalytics,
@@ -869,6 +1027,14 @@ public class AdminReportsController : ControllerBase
         try
         {
             var orgId = await GetOrgIdFilter();
+
+            // Get organization info for header
+            var orgName = "All Organizations";
+            if (orgId.HasValue)
+            {
+                var org = await _context.Organisations.FindAsync(orgId.Value);
+                orgName = org?.Name ?? "Unknown Organization";
+            }
 
             var pathwaysQuery = _context.LearningPathways.AsNoTracking();
             if (orgId.HasValue)
@@ -1016,8 +1182,27 @@ public class AdminReportsController : ControllerBase
                 totalInProgress = result.Sum(p => p.inProgress)
             };
 
+            var header = new
+            {
+                reportName = "Learning Pathway Progress Report",
+                generatedAt = DateTime.UtcNow,
+                dateRange = startDate.HasValue || endDate.HasValue ? new
+                {
+                    start = startDate,
+                    end = endDate
+                } : null,
+                organization = orgName,
+                filters = new
+                {
+                    startDate,
+                    endDate,
+                    activeOnly
+                }
+            };
+
             return Ok(new
             {
+                header,
                 pathways = result,
                 summary,
                 engagementBreakdown,
@@ -1042,6 +1227,14 @@ public class AdminReportsController : ControllerBase
         try
         {
             var orgId = await GetOrgIdFilter();
+
+            // Get organization info for header
+            var orgName = "All Organizations";
+            if (orgId.HasValue)
+            {
+                var org = await _context.Organisations.FindAsync(orgId.Value);
+                orgName = org?.Name ?? "Unknown Organization";
+            }
 
             var pathwaysQuery = _context.LearningPathways.AsNoTracking();
             if (orgId.HasValue)
@@ -1155,8 +1348,21 @@ public class AdminReportsController : ControllerBase
                 unassignedPathwaysCount = unassignedPathways.Count
             };
 
+            var header = new
+            {
+                reportName = "Learning Pathway Assignments Report",
+                generatedAt = DateTime.UtcNow,
+                organization = orgName,
+                filters = new
+                {
+                    pathwayId,
+                    activeOnly
+                }
+            };
+
             return Ok(new
             {
+                header,
                 pathways = result,
                 summary,
                 assignmentTrends,
@@ -1186,6 +1392,14 @@ public class AdminReportsController : ControllerBase
         try
         {
             var orgId = await GetOrgIdFilter();
+
+            // Get organization info for header
+            var orgName = "All Organizations";
+            if (orgId.HasValue)
+            {
+                var org = await _context.Organisations.FindAsync(orgId.Value);
+                orgName = org?.Name ?? "Unknown Organization";
+            }
 
             // Get users
             var usersQuery = _context.Users.AsNoTracking();
@@ -1401,8 +1615,29 @@ public class AdminReportsController : ControllerBase
                     : 0
             };
 
+            var header = new
+            {
+                reportName = "User-Course Progress Report",
+                generatedAt = DateTime.UtcNow,
+                dateRange = startDate.HasValue || endDate.HasValue ? new
+                {
+                    start = startDate,
+                    end = endDate
+                } : null,
+                organization = orgName,
+                filters = new
+                {
+                    search,
+                    courseId,
+                    status,
+                    startDate,
+                    endDate
+                }
+            };
+
             return Ok(new
             {
+                header,
                 userCourseProgress,
                 userStats,
                 courseStats,
@@ -1433,6 +1668,14 @@ public class AdminReportsController : ControllerBase
         try
         {
             var orgId = await GetOrgIdFilter();
+
+            // Get organization info for header
+            var orgName = "All Organizations";
+            if (orgId.HasValue)
+            {
+                var org = await _context.Organisations.FindAsync(orgId.Value);
+                orgName = org?.Name ?? "Unknown Organization";
+            }
 
             var coursesQuery = _context.Courses.AsNoTracking();
             if (orgId.HasValue)
@@ -1562,8 +1805,27 @@ public class AdminReportsController : ControllerBase
                 leastAccessedContent = result.Where(c => !c.isUnused).OrderBy(c => c.accessCount).FirstOrDefault()?.contentTitle ?? "N/A"
             };
 
+            var header = new
+            {
+                reportName = "Content Usage Report",
+                generatedAt = DateTime.UtcNow,
+                dateRange = startDate.HasValue || endDate.HasValue ? new
+                {
+                    start = startDate,
+                    end = endDate
+                } : null,
+                organization = orgName,
+                filters = new
+                {
+                    category,
+                    startDate,
+                    endDate
+                }
+            };
+
             return Ok(new
             {
+                header,
                 content = result,
                 summary,
                 categoryBreakdown,
