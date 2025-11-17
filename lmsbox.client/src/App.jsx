@@ -4,7 +4,6 @@ import Login from './pages/Login';
 import VerifyLogin from './pages/VerifyLogin';
 import AuthTest from './pages/AuthTest';
 import Courses from './pages/Courses';
-import Certificates from './pages/certificates';
 import CourseContent from './pages/CourseContent';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
