@@ -1,6 +1,6 @@
 {
   "default": {
-    "name": "LMSBOX",
+    "name": "lmsbox",
     "primaryColor": "#1b365d",
     "logo": "/assets/lmsbox-logo.png"
   },
