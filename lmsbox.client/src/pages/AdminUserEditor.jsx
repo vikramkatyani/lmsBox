@@ -4,12 +4,15 @@ import AdminHeader from '../components/AdminHeader';
 import toast from 'react-hot-toast';
 import { getUser, saveUser } from '../services/users';
 import { listUserGroups } from '../services/learningPathways';
+import { getUserId } from '../utils/auth';
 import usePageTitle from '../hooks/usePageTitle';
 
 export default function AdminUserEditor() {
   const navigate = useNavigate();
   const { userId } = useParams();
   const isNew = !userId;
+  const currentUserId = getUserId();
+  const isEditingSelf = !isNew && userId === currentUserId;
 
   usePageTitle(isNew ? 'Add User' : 'Edit User');
 
@@ -277,11 +280,20 @@ export default function AdminUserEditor() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select value={form.status} onChange={(e) => handleChange('status', e.target.value)} className="w-full border rounded px-4 py-2">
+                <select 
+                  value={form.status} 
+                  onChange={(e) => handleChange('status', e.target.value)} 
+                  disabled={isEditingSelf}
+                  className={`w-full border rounded px-4 py-2 ${isEditingSelf ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                  title={isEditingSelf ? 'Cannot change status of your own account' : ''}
+                >
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
                   <option value="Suspended">Suspended</option>
                 </select>
+                {isEditingSelf && (
+                  <p className="text-xs text-gray-500 mt-1">You cannot change the status of your own account</p>
+                )}
               </div>
             </div>
 

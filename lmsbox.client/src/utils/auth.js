@@ -121,6 +121,20 @@ export const getUserName = () => {
   return decoded?.name || decoded?.email || 'User';
 };
 
+// Get user ID from token
+export const getUserId = () => {
+  const token = getAuthToken();
+  if (!token) return null;
+  const decoded = decodeToken(token);
+  // Check for Microsoft claims format
+  const msUserId = decoded?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'];
+  if (msUserId) {
+    return msUserId;
+  }
+  // Fallback to standard claims
+  return decoded?.sub || decoded?.nameid || decoded?.userId || null;
+};
+
 // Clear last visited page
 export const clearLastVisitedPage = () => {
   localStorage.removeItem('lastVisitedPage');

@@ -4,6 +4,7 @@ import AdminHeader from '../components/AdminHeader';
 import Pagination from '../components/Pagination';
 import toast from 'react-hot-toast';
 import { listUsers, deleteUser } from '../services/users';
+import { getUserId } from '../utils/auth';
 import usePageTitle from '../hooks/usePageTitle';
 
 export default function AdminUsers() {
@@ -14,6 +15,8 @@ export default function AdminUsers() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [sortBy, setSortBy] = useState('joinedDate');
+  const [sortOrder, setSortOrder] = useState('desc');
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -27,7 +30,7 @@ export default function AdminUsers() {
 
   useEffect(() => {
     loadUsers();
-  }, [page, pageSize, statusFilter]);
+  }, [page, pageSize, statusFilter, sortBy, sortOrder]);
 
   const loadUsers = async () => {
     setLoading(true);
@@ -37,6 +40,8 @@ export default function AdminUsers() {
         pageSize,
         search: query,
         status: statusFilter === 'all' ? undefined : statusFilter,
+        sortBy,
+        sortOrder,
       });
       setUsers(result.items || []);
       setPagination(result.pagination || {
@@ -75,9 +80,11 @@ export default function AdminUsers() {
   };
 
   const filtered = useMemo(() => {
-    // Server-side filtering is now handled by the API
-    return users;
+    // Filter out SuperAdmin users from the list
+    return users.filter(u => u.role !== 'SuperAdmin');
   }, [users]);
+
+  const currentUserId = getUserId();
 
   const handleSearch = () => {
     setPage(1); // Reset to first page on search
@@ -97,6 +104,31 @@ export default function AdminUsers() {
     setQuery('');
     setStatusFilter('all');
     setPage(1);
+    setSortBy('joinedDate');
+    setSortOrder('desc');
+  };
+
+  const handleSort = (column) => {
+    if (sortBy === column) {
+      // Toggle order if clicking the same column
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new column with default ascending order
+      setSortBy(column);
+      setSortOrder('asc');
+    }
+    setPage(1); // Reset to first page when sorting
+  };
+
+  const SortIcon = ({ column }) => {
+    if (sortBy !== column) {
+      return <span className="ml-1 text-gray-400">⇅</span>;
+    }
+    return sortOrder === 'asc' ? (
+      <span className="ml-1 text-blue-600">↑</span>
+    ) : (
+      <span className="ml-1 text-blue-600">↓</span>
+    );
   };
 
   const onCreate = () => navigate('/admin/users/new');
@@ -205,12 +237,52 @@ export default function AdminUsers() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User Role</th>
+                  <th 
+                    onClick={() => handleSort('firstName')}
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  >
+                    <div className="flex items-center">
+                      Name
+                      <SortIcon column="firstName" />
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => handleSort('email')}
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  >
+                    <div className="flex items-center">
+                      Email
+                      <SortIcon column="email" />
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => handleSort('role')}
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  >
+                    <div className="flex items-center">
+                      User Role
+                      <SortIcon column="role" />
+                    </div>
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Learning Pathways</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined On</th>
+                  <th 
+                    onClick={() => handleSort('status')}
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  >
+                    <div className="flex items-center">
+                      Status
+                      <SortIcon column="status" />
+                    </div>
+                  </th>
+                  <th 
+                    onClick={() => handleSort('joinedDate')}
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  >
+                    <div className="flex items-center">
+                      Joined On
+                      <SortIcon column="joinedDate" />
+                    </div>
+                  </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -274,8 +346,24 @@ export default function AdminUsers() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex justify-end gap-2">
-                          <button onClick={() => onEdit(u.id)} className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100">Edit</button>
-                          <button onClick={() => onDelete(u.id)} className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100">Delete</button>
+                          <button 
+                            onClick={() => onEdit(u.id)} 
+                            className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100"
+                          >
+                            Edit
+                          </button>
+                          <button 
+                            onClick={() => onDelete(u.id)} 
+                            disabled={u.id === currentUserId}
+                            className={`px-3 py-1.5 text-sm rounded ${
+                              u.id === currentUserId 
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                                : 'bg-red-50 text-red-700 hover:bg-red-100'
+                            }`}
+                            title={u.id === currentUserId ? 'Cannot delete your own account' : 'Delete user'}
+                          >
+                            Delete
+                          </button>
                         </div>
                       </td>
                     </tr>
