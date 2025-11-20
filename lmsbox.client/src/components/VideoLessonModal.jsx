@@ -21,7 +21,7 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
     isOptional: false,
   });
 
-  const [videoSource, setVideoSource] = useState('url'); // 'url', 'upload', 'library'
+  const [videoSource, setVideoSource] = useState('upload'); // 'upload', 'library'
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
@@ -29,6 +29,25 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
   const [selectedLibraryVideo, setSelectedLibraryVideo] = useState(null);
   const [isLoadingLibrary, setIsLoadingLibrary] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [showSourceSelector, setShowSourceSelector] = useState(false);
+
+  // Fetch fresh lesson data with SAS token when editing
+  useEffect(() => {
+    const fetchLessonWithToken = async () => {
+      if (lesson && lesson.id && courseId) {
+        try {
+          const freshLesson = await lessonsService.getLesson(courseId, lesson.id);
+          setPreviewUrl(freshLesson.videoUrl || '');
+        } catch (error) {
+          console.error('Error fetching lesson with token:', error);
+          setPreviewUrl(lesson.videoUrl || '');
+        }
+      }
+    };
+
+    fetchLessonWithToken();
+  }, [lesson, courseId]);
 
   useEffect(() => {
     if (lesson) {
@@ -42,9 +61,11 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
         isOptional: lesson.isOptional || false,
       });
       
-      if (lesson.videoUrl) {
-        setVideoSource('url');
-      }
+      // Don't show source selector if editing existing video
+      setShowSourceSelector(!lesson.videoUrl);
+    } else {
+      // New lesson - show source selector
+      setShowSourceSelector(true);
     }
   }, [lesson]);
 
@@ -302,67 +323,110 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
 
               {/* Video Source Selection */}
               <div className="mt-6">
-                <label className="block text-sm font-medium text-gray-700 mb-3">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Video Source *
                 </label>
 
-                {/* Source tabs */}
-                <div className="flex border-b border-gray-200 mb-4">
-                  <button
-                    type="button"
-                    onClick={() => handleVideoSourceChange('url')}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 transition ${
-                      videoSource === 'url'
-                        ? 'border-indigo-600 text-indigo-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    <VideoCameraIcon className="h-5 w-5 inline mr-1" />
-                    External URL
-                  </button>
+                {/* Show existing video with preview and change option */}
+                {formData.videoUrl && !showSourceSelector && (
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                    <div className="flex items-center justify-center text-green-600 mb-3">
+                      <CheckCircleIcon className="h-6 w-6 mr-2" />
+                      <span className="text-sm font-medium">Video added to lesson</span>
+                    </div>
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">Current Video:</p>
+                          <p className="text-xs text-gray-600 mt-1 break-all">
+                            {formData.videoUrl.split('?')[0].split('/').pop()}
+                          </p>
+                        </div>
+                        <a 
+                          href={previewUrl || formData.videoUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="ml-3 inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 bg-white border border-indigo-300 rounded-md hover:bg-indigo-50 transition shrink-0"
+                        >
+                          <PlayIcon className="h-4 w-4 mr-1" />
+                          Preview
+                        </a>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowSourceSelector(true)}
+                      className="mt-3 text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                    >
+                      Change video
+                    </button>
+                  </div>
+                )}
+
+                {/* Show source selector for new lessons or when changing */}
+                {showSourceSelector && (
+                  <>
+                    <p className="text-xs text-gray-500 mb-3">Select how you want to add the video to this lesson</p>
+
+                    {/* Source cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <button
                     type="button"
                     onClick={() => handleVideoSourceChange('upload')}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 transition ${
+                    className={`p-4 rounded-lg border-2 text-left transition ${
                       videoSource === 'upload'
-                        ? 'border-indigo-600 text-indigo-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                        ? 'border-indigo-600 bg-indigo-50'
+                        : 'border-gray-200 hover:border-gray-300 bg-white'
                     }`}
                   >
-                    <CloudArrowUpIcon className="h-5 w-5 inline mr-1" />
-                    Upload File
+                    <div className="flex items-start">
+                      <CloudArrowUpIcon className={`h-6 w-6 mr-3 shrink-0 ${
+                        videoSource === 'upload' ? 'text-indigo-600' : 'text-gray-400'
+                      }`} />
+                      <div className="flex-1">
+                        <div className={`font-medium ${
+                          videoSource === 'upload' ? 'text-indigo-900' : 'text-gray-900'
+                        }`}>
+                          Upload New File
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Upload a video from your computer
+                        </div>
+                      </div>
+                      {videoSource === 'upload' && (
+                        <CheckCircleIcon className="h-5 w-5 text-indigo-600 ml-2 shrink-0" />
+                      )}
+                    </div>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleVideoSourceChange('library')}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 transition ${
+                    className={`p-4 rounded-lg border-2 text-left transition ${
                       videoSource === 'library'
-                        ? 'border-indigo-600 text-indigo-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                        ? 'border-indigo-600 bg-indigo-50'
+                        : 'border-gray-200 hover:border-gray-300 bg-white'
                     }`}
                   >
-                    <FolderIcon className="h-5 w-5 inline mr-1" />
-                    LMS Library
+                    <div className="flex items-start">
+                      <FolderIcon className={`h-6 w-6 mr-3 shrink-0 ${
+                        videoSource === 'library' ? 'text-indigo-600' : 'text-gray-400'
+                      }`} />
+                      <div className="flex-1">
+                        <div className={`font-medium ${
+                          videoSource === 'library' ? 'text-indigo-900' : 'text-gray-900'
+                        }`}>
+                          LMS Library
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Choose from previously uploaded videos
+                        </div>
+                      </div>
+                      {videoSource === 'library' && (
+                        <CheckCircleIcon className="h-5 w-5 text-indigo-600 ml-2 shrink-0" />
+                      )}
+                    </div>
                   </button>
                 </div>
-
-                {/* External URL */}
-                {videoSource === 'url' && (
-                  <div>
-                    <input
-                      type="url"
-                      name="videoUrl"
-                      value={formData.videoUrl}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      placeholder="https://example.com/video.mp4"
-                      required
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Enter a direct URL to a video file (MP4, AVI, MOV, etc.)
-                    </p>
-                  </div>
-                )}
 
                 {/* Upload File */}
                 {videoSource === 'upload' && (
@@ -468,15 +532,7 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
                     )}
                   </div>
                 )}
-
-                {/* Video Preview */}
-                {formData.videoUrl && !isUploading && (
-                  <div className="mt-4 border border-gray-200 rounded-lg p-4 bg-gray-50">
-                    <p className="text-sm font-medium text-gray-700 mb-2">Video Preview:</p>
-                    <div className="text-xs text-gray-600 break-all">
-                      {formData.videoUrl}
-                    </div>
-                  </div>
+                  </>
                 )}
               </div>
             </div>

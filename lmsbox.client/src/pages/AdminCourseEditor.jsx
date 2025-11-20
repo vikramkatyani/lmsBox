@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
 import VideoLessonModal from '../components/VideoLessonModal';
 import PdfLessonModal from '../components/PdfLessonModal';
@@ -15,6 +15,7 @@ import lessonsService from '../services/lessons';
 export default function AdminCourseEditor() {
   const navigate = useNavigate();
   const { courseId } = useParams();
+  const [searchParams] = useSearchParams();
   const isNew = !courseId;
 
   usePageTitle(isNew ? 'Add Course' : 'Edit Course');
@@ -36,6 +37,14 @@ export default function AdminCourseEditor() {
   const [tagInput, setTagInput] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [activeTab, setActiveTab] = useState('details'); // details | lessons | quizzes
+
+  // Set active tab from query parameter
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && ['details', 'lessons', 'quizzes'].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   // Load course data if editing
   useEffect(() => {

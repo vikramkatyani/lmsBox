@@ -27,6 +27,25 @@ export default function PdfLessonModal({ isOpen, onClose, courseId, lesson, onSa
   const [selectedLibraryPdf, setSelectedLibraryPdf] = useState(null);
   const [isLoadingLibrary, setIsLoadingLibrary] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [showSourceSelector, setShowSourceSelector] = useState(false);
+
+  // Fetch fresh lesson data with SAS token when editing
+  useEffect(() => {
+    const fetchLessonWithToken = async () => {
+      if (lesson && lesson.id && courseId) {
+        try {
+          const freshLesson = await lessonsService.getLesson(courseId, lesson.id);
+          setPreviewUrl(freshLesson.documentUrl || '');
+        } catch (error) {
+          console.error('Error fetching lesson with token:', error);
+          setPreviewUrl(lesson.documentUrl || '');
+        }
+      }
+    };
+
+    fetchLessonWithToken();
+  }, [lesson, courseId]);
 
   useEffect(() => {
     if (lesson) {
@@ -39,9 +58,11 @@ export default function PdfLessonModal({ isOpen, onClose, courseId, lesson, onSa
         isOptional: lesson.isOptional || false,
       });
       
-      if (lesson.documentUrl) {
-        setPdfSource('library');
-      }
+      // Don't show source selector if editing existing document
+      setShowSourceSelector(!lesson.documentUrl);
+    } else {
+      // New lesson - show source selector
+      setShowSourceSelector(true);
     }
   }, [lesson]);
 
@@ -268,35 +289,108 @@ export default function PdfLessonModal({ isOpen, onClose, courseId, lesson, onSa
 
               {/* PDF Source Selection */}
               <div className="mt-6">
-                <label className="block text-sm font-medium text-gray-700 mb-3">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   PDF Source *
                 </label>
 
-                {/* Source tabs */}
-                <div className="flex border-b border-gray-200 mb-4">
+                {/* Show existing PDF with preview and change option */}
+                {formData.documentUrl && !showSourceSelector && (
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                    <div className="flex items-center justify-center text-green-600 mb-3">
+                      <CheckCircleIcon className="h-6 w-6 mr-2" />
+                      <span className="text-sm font-medium">PDF added to lesson</span>
+                    </div>
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">Current PDF:</p>
+                          <p className="text-xs text-gray-600 mt-1 break-all">
+                            {formData.documentUrl.split('?')[0].split('/').pop()}
+                          </p>
+                        </div>
+                        <a 
+                          href={previewUrl || formData.documentUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="ml-3 inline-flex items-center px-3 py-1.5 text-sm font-medium text-purple-600 bg-white border border-purple-300 rounded-md hover:bg-purple-50 transition shrink-0"
+                        >
+                          <DocumentTextIcon className="h-4 w-4 mr-1" />
+                          Preview
+                        </a>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowSourceSelector(true)}
+                      className="mt-3 text-sm text-purple-600 hover:text-purple-800 font-medium"
+                    >
+                      Change PDF
+                    </button>
+                  </div>
+                )}
+
+                {/* Show source selector for new lessons or when changing */}
+                {showSourceSelector && (
+                  <>
+                    <p className="text-xs text-gray-500 mb-3">Select how you want to add the PDF to this lesson</p>
+
+                    {/* Source cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <button
                     type="button"
                     onClick={() => handlePdfSourceChange('upload')}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 transition ${
+                    className={`p-4 rounded-lg border-2 text-left transition ${
                       pdfSource === 'upload'
-                        ? 'border-purple-600 text-purple-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                        ? 'border-purple-600 bg-purple-50'
+                        : 'border-gray-200 hover:border-gray-300 bg-white'
                     }`}
                   >
-                    <CloudArrowUpIcon className="h-5 w-5 inline mr-1" />
-                    Upload File
+                    <div className="flex items-start">
+                      <CloudArrowUpIcon className={`h-6 w-6 mr-3 shrink-0 ${
+                        pdfSource === 'upload' ? 'text-purple-600' : 'text-gray-400'
+                      }`} />
+                      <div className="flex-1">
+                        <div className={`font-medium ${
+                          pdfSource === 'upload' ? 'text-purple-900' : 'text-gray-900'
+                        }`}>
+                          Upload New File
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Upload a PDF from your computer
+                        </div>
+                      </div>
+                      {pdfSource === 'upload' && (
+                        <CheckCircleIcon className="h-5 w-5 text-purple-600 ml-2 shrink-0" />
+                      )}
+                    </div>
                   </button>
                   <button
                     type="button"
                     onClick={() => handlePdfSourceChange('library')}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 transition ${
+                    className={`p-4 rounded-lg border-2 text-left transition ${
                       pdfSource === 'library'
-                        ? 'border-purple-600 text-purple-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                        ? 'border-purple-600 bg-purple-50'
+                        : 'border-gray-200 hover:border-gray-300 bg-white'
                     }`}
                   >
-                    <FolderIcon className="h-5 w-5 inline mr-1" />
-                    LMS Library
+                    <div className="flex items-start">
+                      <FolderIcon className={`h-6 w-6 mr-3 shrink-0 ${
+                        pdfSource === 'library' ? 'text-purple-600' : 'text-gray-400'
+                      }`} />
+                      <div className="flex-1">
+                        <div className={`font-medium ${
+                          pdfSource === 'library' ? 'text-purple-900' : 'text-gray-900'
+                        }`}>
+                          LMS Library
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Choose from previously uploaded PDFs
+                        </div>
+                      </div>
+                      {pdfSource === 'library' && (
+                        <CheckCircleIcon className="h-5 w-5 text-purple-600 ml-2 shrink-0" />
+                      )}
+                    </div>
                   </button>
                 </div>
 
@@ -404,15 +498,7 @@ export default function PdfLessonModal({ isOpen, onClose, courseId, lesson, onSa
                     )}
                   </div>
                 )}
-
-                {/* PDF Preview */}
-                {formData.documentUrl && !isUploading && (
-                  <div className="mt-4 border border-gray-200 rounded-lg p-4 bg-gray-50">
-                    <p className="text-sm font-medium text-gray-700 mb-2">PDF Document:</p>
-                    <div className="text-xs text-gray-600 break-all">
-                      {formData.documentUrl}
-                    </div>
-                  </div>
+                  </>
                 )}
               </div>
             </div>

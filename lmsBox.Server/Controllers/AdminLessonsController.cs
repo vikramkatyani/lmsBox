@@ -122,6 +122,26 @@ public class AdminLessonsController : ControllerBase
                 }
             }
 
+            // Generate SAS tokens for blob URLs
+            string? videoUrlWithSas = null;
+            string? documentUrlWithSas = null;
+            string? scormUrlWithSas = null;
+
+            if (!string.IsNullOrEmpty(lesson.VideoUrl))
+            {
+                videoUrlWithSas = await _blobService.GetSasUrlAsync(lesson.VideoUrl, 24);
+            }
+
+            if (!string.IsNullOrEmpty(lesson.DocumentUrl))
+            {
+                documentUrlWithSas = await _blobService.GetSasUrlAsync(lesson.DocumentUrl, 24);
+            }
+
+            if (!string.IsNullOrEmpty(lesson.ScormUrl))
+            {
+                scormUrlWithSas = await _blobService.GetSasUrlAsync(lesson.ScormUrl, 24);
+            }
+
             var lessonDto = new LessonDetailDto
             {
                 Id = lesson.Id,
@@ -132,11 +152,11 @@ public class AdminLessonsController : ControllerBase
                 Type = lesson.Type,
                 QuizId = lesson.QuizId,
                 QuizTitle = lesson.Quiz?.Title,
-                VideoUrl = lesson.VideoUrl,
+                VideoUrl = videoUrlWithSas ?? lesson.VideoUrl,
                 VideoDurationSeconds = lesson.VideoDurationSeconds,
-                ScormUrl = lesson.ScormUrl,
+                ScormUrl = scormUrlWithSas ?? lesson.ScormUrl,
                 ScormEntryUrl = lesson.ScormEntryUrl,
-                DocumentUrl = lesson.DocumentUrl,
+                DocumentUrl = documentUrlWithSas ?? lesson.DocumentUrl,
                 IsOptional = lesson.IsOptional,
                 CreatedAt = lesson.CreatedAt
             };

@@ -51,7 +51,11 @@ export default function QuizPlayer({ quizId, onComplete }) {
     const timer = setInterval(() => {
       setTimeRemaining(prev => {
         if (prev <= 1) {
-          handleSubmit(); // Auto-submit when time runs out
+          // Auto-submit on time expiry, allow incomplete answers
+          setSubmitted(true);
+          setTimeout(() => {
+            handleSubmit(true); // pass a flag to allow incomplete
+          }, 100); // slight delay to ensure UI updates
           return 0;
         }
         return prev - 1;
@@ -76,13 +80,12 @@ export default function QuizPlayer({ quizId, onComplete }) {
     });
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (allowIncomplete = false) => {
     if (submitted) return;
 
-    // Validate all questions answered
+    // Validate all questions answered unless auto-submit
     const unanswered = quiz.questions.filter(q => !answers[q.id] || (Array.isArray(answers[q.id]) && answers[q.id].length === 0));
-    
-    if (unanswered.length > 0) {
+    if (!allowIncomplete && unanswered.length > 0) {
       toast.error(`Please answer all questions. ${unanswered.length} question(s) remaining.`);
       return;
     }

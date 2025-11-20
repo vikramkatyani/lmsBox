@@ -275,21 +275,40 @@ public class AzureBlobService : IAzureBlobService
     {
         if (_containerClient == null)
         {
-            throw new InvalidOperationException("Azure Blob Storage is not configured");
+            _logger.LogWarning("Azure Blob Storage is not configured, returning original URL");
+            return blobUrl;
+        }
+
+        if (string.IsNullOrEmpty(blobUrl))
+        {
+            _logger.LogWarning("Blob URL is null or empty");
+            return blobUrl;
         }
 
         try
         {
             var uri = new Uri(blobUrl);
-            var blobName = uri.AbsolutePath.Split(new[] { _containerName + "/" }, StringSplitOptions.None).Last();
+            
+            // Extract blob name from the URI path
+            // Expected format: https://storage.blob.core.windows.net/container/path/to/blob
+            var pathSegments = uri.AbsolutePath.TrimStart('/').Split('/');
+            
+            // First segment is container name, rest is the blob path
+            if (pathSegments.Length < 2)
+            {
+                _logger.LogWarning("Invalid blob URL format: {BlobUrl}", blobUrl);
+                return blobUrl;
+            }
+
+            // Skip the container name (first segment) and get the rest as blob name
+            var blobName = string.Join("/", pathSegments.Skip(1));
 
             var blobClient = _containerClient.GetBlobClient(blobName);
 
             // Check if the blob client can generate SAS tokens
             if (!blobClient.CanGenerateSasUri)
             {
-                // If using connection string, this should work. If using managed identity, might need different approach
-                _logger.LogWarning("Cannot generate SAS URI for blob");
+                _logger.LogWarning("Cannot generate SAS URI for blob: {BlobName}", blobName);
                 return blobUrl;
             }
 
@@ -305,11 +324,12 @@ public class AzureBlobService : IAzureBlobService
             sasBuilder.SetPermissions(BlobSasPermissions.Read);
 
             var sasUri = blobClient.GenerateSasUri(sasBuilder);
+            _logger.LogInformation("Generated SAS URL for blob: {BlobName}, expires at {ExpiresOn}", blobName, sasBuilder.ExpiresOn);
             return sasUri.ToString();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error generating SAS URL");
+            _logger.LogError(ex, "Error generating SAS URL for: {BlobUrl}", blobUrl);
             return blobUrl; // Return original URL as fallback
         }
     }

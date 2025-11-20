@@ -231,6 +231,7 @@ export default function AdminCourses() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lessons</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -240,7 +241,7 @@ export default function AdminCourses() {
                 {loading ? (
                   Array.from({ length: 3 }).map((_, idx) => (
                     <tr key={idx} className="animate-pulse">
-                      {Array.from({ length: 5 }).map((_, colIdx) => (
+                      {Array.from({ length: 6 }).map((_, colIdx) => (
                         <td key={colIdx} className="px-6 py-4">
                           <div className="h-4 bg-gray-200 rounded w-full"></div>
                         </td>
@@ -249,7 +250,7 @@ export default function AdminCourses() {
                   ))
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">No courses found.</td>
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">No courses found.</td>
                   </tr>
                 ) : (
                   filtered.map((c) => (
@@ -259,6 +260,15 @@ export default function AdminCourses() {
                         <div className="text-xs text-gray-500">ID: {c.id}</div>
                       </td>
                       <td className="px-6 py-4 text-gray-700">{c.category || 'Uncategorized'}</td>
+                      <td className="px-6 py-4">
+                        <button 
+                          onClick={() => navigate(`/admin/courses/${c.id}/edit?tab=lessons`)}
+                          className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                          title="View lessons"
+                        >
+                          {c.lessonCount || 0}
+                        </button>
+                      </td>
                       <td className="px-6 py-4">{statusBadge(c.statusDisplay)}</td>
                       <td className="px-6 py-4 text-gray-700">{c.updatedAt}</td>
                       <td className="px-6 py-4">

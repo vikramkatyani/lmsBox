@@ -141,7 +141,7 @@ export default function LearnerHeader() {
   return (
     <header className="flex shadow-md py-3 px-4 sm:px-10 bg-boxlms-navbar min-h-[70px] tracking-wide relative z-50">
       <div className="flex flex-wrap items-center justify-between lg:gap-y-4 gap-y-6 gap-x-4 w-full">
-        <Link to="/dashboard">
+        <Link to="/courses/all" className="hidden lg:block">
           <img src={theme.logo} alt="Logo" className="h-8 w-auto" />
         </Link>
 

@@ -29,6 +29,7 @@ export default function QuizLessonModal({ isOpen, onClose, courseId, lesson, onS
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [isLoadingQuizzes, setIsLoadingQuizzes] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showSourceSelector, setShowSourceSelector] = useState(false);
 
   useEffect(() => {
     if (lesson) {
@@ -44,7 +45,14 @@ export default function QuizLessonModal({ isOpen, onClose, courseId, lesson, onS
       if (lesson.quizId) {
         setQuizSource('existing');
         loadQuizDetails(lesson.quizId);
+        // Don't show source selector if editing existing quiz
+        setShowSourceSelector(false);
+      } else {
+        setShowSourceSelector(true);
       }
+    } else {
+      // New lesson - show source selector
+      setShowSourceSelector(true);
     }
   }, [lesson]);
 
@@ -256,12 +264,51 @@ export default function QuizLessonModal({ isOpen, onClose, courseId, lesson, onS
 
               {/* Quiz Selection */}
               <div className="mt-6">
-                <label className="block text-sm font-medium text-gray-700 mb-3">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Quiz Selection *
                 </label>
 
-                {/* Source tabs */}
-                <div className="flex border-b border-gray-200 mb-4">
+                {/* Show existing quiz with preview and change option */}
+                {formData.quizId && selectedQuiz && !showSourceSelector && (
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                    <div className="flex items-center justify-center text-green-600 mb-3">
+                      <CheckCircleIcon className="h-6 w-6 mr-2" />
+                      <span className="text-sm font-medium">Quiz added to lesson</span>
+                    </div>
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">Current Quiz:</p>
+                          <p className="text-sm font-semibold text-gray-900 mt-1">{selectedQuiz.title}</p>
+                          <div className="flex items-center gap-3 mt-2 text-xs text-gray-600">
+                            <span>📝 {selectedQuiz.questionCount || 0} questions</span>
+                            {selectedQuiz.passingScore && (
+                              <span>✅ {selectedQuiz.passingScore}% to pass</span>
+                            )}
+                            {selectedQuiz.isTimed && selectedQuiz.timeLimit && (
+                              <span>⏱️ {selectedQuiz.timeLimit} min</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowSourceSelector(true)}
+                      className="mt-3 text-sm text-orange-600 hover:text-orange-800 font-medium"
+                    >
+                      Change quiz
+                    </button>
+                  </div>
+                )}
+
+                {/* Show source selector for new lessons or when changing */}
+                {showSourceSelector && (
+                  <>
+                    <p className="text-xs text-gray-500 mb-3">Choose how to add a quiz to this lesson</p>
+
+                    {/* Source tabs */}
+                    <div className="flex border-b border-gray-200 mb-4">
                   <button
                     type="button"
                     onClick={() => handleQuizSourceChange('existing')}
@@ -384,33 +431,7 @@ export default function QuizLessonModal({ isOpen, onClose, courseId, lesson, onS
                     </button>
                   </div>
                 )}
-
-                {/* Selected Quiz Preview */}
-                {selectedQuiz && quizSource === 'existing' && (
-                  <div className="mt-4 border border-orange-200 rounded-lg p-4 bg-orange-50">
-                    <p className="text-sm font-medium text-gray-700 mb-2">Selected Quiz:</p>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-gray-900">{selectedQuiz.title}</p>
-                        <div className="flex items-center gap-3 mt-2 text-xs text-gray-600">
-                          <span>📝 {selectedQuiz.questionCount || 0} questions</span>
-                          {selectedQuiz.passingScore && (
-                            <span>✅ {selectedQuiz.passingScore}% to pass</span>
-                          )}
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedQuiz(null);
-                          setFormData(prev => ({ ...prev, quizId: '' }));
-                        }}
-                        className="text-sm text-gray-600 hover:text-gray-800"
-                      >
-                        Change
-                      </button>
-                    </div>
-                  </div>
+                  </>
                 )}
               </div>
             </div>
