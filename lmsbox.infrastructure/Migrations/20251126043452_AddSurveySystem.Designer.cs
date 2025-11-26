@@ -12,7 +12,7 @@ using lmsbox.infrastructure.Data;
 namespace lmsbox.infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251125113203_AddSurveySystem")]
+    [Migration("20251126043452_AddSurveySystem")]
     partial class AddSurveySystem
     {
         /// <inheritdoc />
@@ -1265,7 +1265,7 @@ namespace lmsbox.infrastructure.Migrations
 
                     b.HasIndex("OrganisationId");
 
-                    b.ToTable("Survey");
+                    b.ToTable("Surveys");
                 });
 
             modelBuilder.Entity("lmsbox.domain.Models.SurveyQuestion", b =>
@@ -1309,7 +1309,7 @@ namespace lmsbox.infrastructure.Migrations
 
                     b.HasIndex("SurveyId");
 
-                    b.ToTable("SurveyQuestion");
+                    b.ToTable("SurveyQuestions");
                 });
 
             modelBuilder.Entity("lmsbox.domain.Models.SurveyQuestionResponse", b =>
@@ -1344,7 +1344,7 @@ namespace lmsbox.infrastructure.Migrations
 
                     b.HasIndex("SurveyResponseId");
 
-                    b.ToTable("SurveyQuestionResponse");
+                    b.ToTable("SurveyQuestionResponses");
                 });
 
             modelBuilder.Entity("lmsbox.domain.Models.SurveyResponse", b =>
@@ -1380,7 +1380,7 @@ namespace lmsbox.infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("SurveyResponse");
+                    b.ToTable("SurveyResponses");
                 });
 
             modelBuilder.Entity("lmsbox.domain.Models.UserRole", b =>
@@ -1835,13 +1835,13 @@ namespace lmsbox.infrastructure.Migrations
                     b.HasOne("lmsbox.domain.Models.ApplicationUser", "CreatedByUser")
                         .WithMany()
                         .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("lmsbox.domain.Models.Organisation", "Organisation")
                         .WithMany()
                         .HasForeignKey("OrganisationId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("CreatedByUser");
@@ -1865,7 +1865,7 @@ namespace lmsbox.infrastructure.Migrations
                     b.HasOne("lmsbox.domain.Models.SurveyQuestion", "SurveyQuestion")
                         .WithMany("QuestionResponses")
                         .HasForeignKey("SurveyQuestionId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("lmsbox.domain.Models.SurveyResponse", "SurveyResponse")
@@ -1883,18 +1883,19 @@ namespace lmsbox.infrastructure.Migrations
                 {
                     b.HasOne("lmsbox.domain.Models.Course", "Course")
                         .WithMany()
-                        .HasForeignKey("CourseId");
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("lmsbox.domain.Models.Survey", "Survey")
                         .WithMany("Responses")
                         .HasForeignKey("SurveyId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("lmsbox.domain.Models.ApplicationUser", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Course");

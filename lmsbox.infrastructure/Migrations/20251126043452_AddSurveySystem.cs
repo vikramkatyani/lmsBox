@@ -76,7 +76,7 @@ namespace lmsbox.infrastructure.Migrations
                 nullable: true);
 
             migrationBuilder.CreateTable(
-                name: "Survey",
+                name: "Surveys",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
@@ -94,23 +94,23 @@ namespace lmsbox.infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Survey", x => x.Id);
+                    table.PrimaryKey("PK_Surveys", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Survey_AspNetUsers_CreatedByUserId",
+                        name: "FK_Surveys_AspNetUsers_CreatedByUserId",
                         column: x => x.CreatedByUserId,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_Survey_Organisations_OrganisationId",
+                        name: "FK_Surveys_Organisations_OrganisationId",
                         column: x => x.OrganisationId,
                         principalTable: "Organisations",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
-                name: "SurveyQuestion",
+                name: "SurveyQuestions",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
@@ -127,17 +127,17 @@ namespace lmsbox.infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_SurveyQuestion", x => x.Id);
+                    table.PrimaryKey("PK_SurveyQuestions", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_SurveyQuestion_Survey_SurveyId",
+                        name: "FK_SurveyQuestions_Surveys_SurveyId",
                         column: x => x.SurveyId,
-                        principalTable: "Survey",
+                        principalTable: "Surveys",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "SurveyResponse",
+                name: "SurveyResponses",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
@@ -150,28 +150,29 @@ namespace lmsbox.infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_SurveyResponse", x => x.Id);
+                    table.PrimaryKey("PK_SurveyResponses", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_SurveyResponse_AspNetUsers_UserId",
+                        name: "FK_SurveyResponses_AspNetUsers_UserId",
                         column: x => x.UserId,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_SurveyResponse_Courses_CourseId",
+                        name: "FK_SurveyResponses_Courses_CourseId",
                         column: x => x.CourseId,
                         principalTable: "Courses",
-                        principalColumn: "Id");
-                    table.ForeignKey(
-                        name: "FK_SurveyResponse_Survey_SurveyId",
-                        column: x => x.SurveyId,
-                        principalTable: "Survey",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_SurveyResponses_Surveys_SurveyId",
+                        column: x => x.SurveyId,
+                        principalTable: "Surveys",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
-                name: "SurveyQuestionResponse",
+                name: "SurveyQuestionResponses",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
@@ -185,17 +186,17 @@ namespace lmsbox.infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_SurveyQuestionResponse", x => x.Id);
+                    table.PrimaryKey("PK_SurveyQuestionResponses", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_SurveyQuestionResponse_SurveyQuestion_SurveyQuestionId",
+                        name: "FK_SurveyQuestionResponses_SurveyQuestions_SurveyQuestionId",
                         column: x => x.SurveyQuestionId,
-                        principalTable: "SurveyQuestion",
+                        principalTable: "SurveyQuestions",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_SurveyQuestionResponse_SurveyResponse_SurveyResponseId",
+                        name: "FK_SurveyQuestionResponses_SurveyResponses_SurveyResponseId",
                         column: x => x.SurveyResponseId,
-                        principalTable: "SurveyResponse",
+                        principalTable: "SurveyResponses",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -211,57 +212,57 @@ namespace lmsbox.infrastructure.Migrations
                 column: "PreCourseSurveyId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Survey_CreatedByUserId",
-                table: "Survey",
-                column: "CreatedByUserId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Survey_OrganisationId",
-                table: "Survey",
-                column: "OrganisationId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_SurveyQuestion_SurveyId",
-                table: "SurveyQuestion",
-                column: "SurveyId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_SurveyQuestionResponse_SurveyQuestionId",
-                table: "SurveyQuestionResponse",
+                name: "IX_SurveyQuestionResponses_SurveyQuestionId",
+                table: "SurveyQuestionResponses",
                 column: "SurveyQuestionId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_SurveyQuestionResponse_SurveyResponseId",
-                table: "SurveyQuestionResponse",
+                name: "IX_SurveyQuestionResponses_SurveyResponseId",
+                table: "SurveyQuestionResponses",
                 column: "SurveyResponseId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_SurveyResponse_CourseId",
-                table: "SurveyResponse",
-                column: "CourseId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_SurveyResponse_SurveyId",
-                table: "SurveyResponse",
+                name: "IX_SurveyQuestions_SurveyId",
+                table: "SurveyQuestions",
                 column: "SurveyId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_SurveyResponse_UserId",
-                table: "SurveyResponse",
+                name: "IX_SurveyResponses_CourseId",
+                table: "SurveyResponses",
+                column: "CourseId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SurveyResponses_SurveyId",
+                table: "SurveyResponses",
+                column: "SurveyId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SurveyResponses_UserId",
+                table: "SurveyResponses",
                 column: "UserId");
 
+            migrationBuilder.CreateIndex(
+                name: "IX_Surveys_CreatedByUserId",
+                table: "Surveys",
+                column: "CreatedByUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Surveys_OrganisationId",
+                table: "Surveys",
+                column: "OrganisationId");
+
             migrationBuilder.AddForeignKey(
-                name: "FK_Courses_Survey_PostCourseSurveyId",
+                name: "FK_Courses_Surveys_PostCourseSurveyId",
                 table: "Courses",
                 column: "PostCourseSurveyId",
-                principalTable: "Survey",
+                principalTable: "Surveys",
                 principalColumn: "Id");
 
             migrationBuilder.AddForeignKey(
-                name: "FK_Courses_Survey_PreCourseSurveyId",
+                name: "FK_Courses_Surveys_PreCourseSurveyId",
                 table: "Courses",
                 column: "PreCourseSurveyId",
-                principalTable: "Survey",
+                principalTable: "Surveys",
                 principalColumn: "Id");
         }
 
@@ -269,24 +270,24 @@ namespace lmsbox.infrastructure.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropForeignKey(
-                name: "FK_Courses_Survey_PostCourseSurveyId",
+                name: "FK_Courses_Surveys_PostCourseSurveyId",
                 table: "Courses");
 
             migrationBuilder.DropForeignKey(
-                name: "FK_Courses_Survey_PreCourseSurveyId",
+                name: "FK_Courses_Surveys_PreCourseSurveyId",
                 table: "Courses");
 
             migrationBuilder.DropTable(
-                name: "SurveyQuestionResponse");
+                name: "SurveyQuestionResponses");
 
             migrationBuilder.DropTable(
-                name: "SurveyQuestion");
+                name: "SurveyQuestions");
 
             migrationBuilder.DropTable(
-                name: "SurveyResponse");
+                name: "SurveyResponses");
 
             migrationBuilder.DropTable(
-                name: "Survey");
+                name: "Surveys");
 
             migrationBuilder.DropIndex(
                 name: "IX_Courses_PostCourseSurveyId",

@@ -73,6 +73,10 @@ namespace lmsbox.infrastructure.Data
             builder.ApplyConfiguration(new LearningPathwayConfiguration());
             builder.ApplyConfiguration(new PathwayCourseConfiguration());
             builder.ApplyConfiguration(new LearnerPathwayProgressConfiguration());
+            builder.ApplyConfiguration(new SurveyConfiguration());
+            builder.ApplyConfiguration(new SurveyResponseConfiguration());
+            builder.ApplyConfiguration(new SurveyQuestionConfiguration());
+            builder.ApplyConfiguration(new SurveyQuestionResponseConfiguration());
 
             // Optional: keep revoked tokens short-lived and index expiry for cleanup queries
             builder.Entity<RevokedToken>()
