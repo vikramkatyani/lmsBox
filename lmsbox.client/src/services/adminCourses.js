@@ -77,7 +77,11 @@ export const courseHelpers = {
       tags: formData.tags || [],
       certificateEnabled: formData.certificateEnabled,
       bannerUrl: formData.bannerPreview || null,
-      status: formData.status || 'Draft'
+      status: formData.status || 'Draft',
+      preCourseSurveyId: formData.preCourseSurveyId || null,
+      postCourseSurveyId: formData.postCourseSurveyId || null,
+      isPreSurveyMandatory: formData.isPreSurveyMandatory || false,
+      isPostSurveyMandatory: formData.isPostSurveyMandatory || false
     };
   },
 
@@ -92,7 +96,11 @@ export const courseHelpers = {
       certificateEnabled: courseData.certificateEnabled ?? true,
       bannerFile: null,
       bannerPreview: courseData.bannerUrl || '',
-      status: courseData.status || 'Draft'
+      status: courseData.status || 'Draft',
+      preCourseSurveyId: courseData.preCourseSurveyId || null,
+      postCourseSurveyId: courseData.postCourseSurveyId || null,
+      isPreSurveyMandatory: courseData.isPreSurveyMandatory || false,
+      isPostSurveyMandatory: courseData.isPostSurveyMandatory || false
     };
   },
 

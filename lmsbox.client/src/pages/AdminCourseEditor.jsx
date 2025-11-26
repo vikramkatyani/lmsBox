@@ -11,6 +11,7 @@ import { listQuizzes } from '../services/quizzes';
 import usePageTitle from '../hooks/usePageTitle';
 import { adminCourseService, courseHelpers } from '../services/adminCourses';
 import lessonsService from '../services/lessons';
+import { adminSurveyService } from '../services/surveys';
 
 export default function AdminCourseEditor() {
   const navigate = useNavigate();
@@ -31,17 +32,25 @@ export default function AdminCourseEditor() {
     certificateEnabled: true,
     bannerFile: null,
     bannerPreview: '',
-    status: 'Draft'
+    status: 'Draft',
+    preCourseSurveyId: null,
+    postCourseSurveyId: null,
+    isPreSurveyMandatory: false,
+    isPostSurveyMandatory: false
   });
 
   const [tagInput, setTagInput] = useState('');
   const [submitted, setSubmitted] = useState(false);
-  const [activeTab, setActiveTab] = useState('details'); // details | lessons | quizzes
+  const [activeTab, setActiveTab] = useState('details'); // details | lessons | quizzes | surveys
+  
+  // Surveys state
+  const [availableSurveys, setAvailableSurveys] = useState([]);
+  const [surveysLoading, setSurveysLoading] = useState(false);
 
   // Set active tab from query parameter
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab && ['details', 'lessons', 'quizzes'].includes(tab)) {
+    if (tab && ['details', 'lessons', 'quizzes', 'surveys'].includes(tab)) {
       setActiveTab(tab);
     }
   }, [searchParams]);
@@ -50,6 +59,7 @@ export default function AdminCourseEditor() {
   useEffect(() => {
     if (!isNew && courseId) {
       loadCourse();
+      loadSurveys(); // Load surveys for dropdowns
     }
   }, [courseId, isNew]);
 
@@ -94,6 +104,19 @@ export default function AdminCourseEditor() {
       toast.error('Failed to load quizzes');
     } finally {
       setQuizzesLoading(false);
+    }
+  };
+
+  const loadSurveys = async () => {
+    try {
+      setSurveysLoading(true);
+      const surveys = await adminSurveyService.listSurveys();
+      setAvailableSurveys(surveys);
+    } catch (error) {
+      console.error('Error loading surveys:', error);
+      toast.error('Failed to load surveys');
+    } finally {
+      setSurveysLoading(false);
     }
   };
 
@@ -517,6 +540,15 @@ export default function AdminCourseEditor() {
               >
                 Quizzes
               </button>
+              <button
+                className={`pb-3 text-sm font-medium border-b-2 ${activeTab==='surveys' ? 'border-(--tenant-primary) text-(--tenant-primary)' : 'border-transparent text-gray-600 hover:text-gray-900'}`}
+                onClick={() => {
+                  setActiveTab('surveys');
+                  if (!isNew) loadSurveys();
+                }}
+              >
+                Surveys
+              </button>
             </div>
           </div>
 
@@ -597,6 +629,89 @@ export default function AdminCourseEditor() {
                     />
                     <span className="text-sm text-gray-700">Issue certificate on completion</span>
                   </label>
+                </div>
+
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Survey Settings</h3>
+                  <p className="text-xs text-gray-600 mb-3">Configure pre and post-course surveys. Use the Surveys tab to create/manage surveys.</p>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Pre-Course Survey (Optional)</label>
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={form.preCourseSurveyId || ''}
+                          onChange={(e) => handleChange('preCourseSurveyId', e.target.value ? parseInt(e.target.value) : null)}
+                          className="flex-1 border border-gray-300 rounded px-3 py-1.5 text-sm"
+                          disabled={form.status === 'Published'}
+                        >
+                          <option value="">No pre-course survey</option>
+                          {availableSurveys.map(s => (
+                            <option key={s.id} value={s.id}>{s.title}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => {
+                            setActiveTab('surveys');
+                            loadSurveys();
+                          }}
+                          className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                        >
+                          Manage
+                        </button>
+                      </div>
+                      {form.preCourseSurveyId && (
+                        <label className="inline-flex items-center gap-2 mt-2">
+                          <input
+                            type="checkbox"
+                            checked={form.isPreSurveyMandatory}
+                            onChange={(e) => handleChange('isPreSurveyMandatory', e.target.checked)}
+                            className="rounded text-blue-600 focus:ring-blue-500"
+                            disabled={form.status === 'Published'}
+                          />
+                          <span className="text-xs text-gray-700">Mandatory (must complete before accessing lessons)</span>
+                        </label>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Post-Course Survey (Optional)</label>
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={form.postCourseSurveyId || ''}
+                          onChange={(e) => handleChange('postCourseSurveyId', e.target.value ? parseInt(e.target.value) : null)}
+                          className="flex-1 border border-gray-300 rounded px-3 py-1.5 text-sm"
+                          disabled={form.status === 'Published'}
+                        >
+                          <option value="">No post-course survey</option>
+                          {availableSurveys.map(s => (
+                            <option key={s.id} value={s.id}>{s.title}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => {
+                            setActiveTab('surveys');
+                            loadSurveys();
+                          }}
+                          className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                        >
+                          Manage
+                        </button>
+                      </div>
+                      {form.postCourseSurveyId && (
+                        <label className="inline-flex items-center gap-2 mt-2">
+                          <input
+                            type="checkbox"
+                            checked={form.isPostSurveyMandatory}
+                            onChange={(e) => handleChange('isPostSurveyMandatory', e.target.checked)}
+                            className="rounded text-blue-600 focus:ring-blue-500"
+                            disabled={form.status === 'Published'}
+                          />
+                          <span className="text-xs text-gray-700">Mandatory (must complete for course completion & certificate)</span>
+                        </label>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <div>
@@ -1104,6 +1219,114 @@ export default function AdminCourseEditor() {
                             }}
                             disabled={form.status === 'Published'}
                             className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Surveys Tab */}
+          {activeTab === 'surveys' && (
+            <div className="p-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 mb-6">
+                <strong>Survey Management:</strong> Create and manage surveys here. Then assign them to this course in the Details tab.
+              </div>
+              
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold text-gray-900">All Surveys</h2>
+                <button
+                  onClick={() => navigate('/admin/surveys/create')}
+                  className="px-4 py-2 rounded bg-boxlms-primary-btn text-boxlms-primary-btn-txt hover:brightness-90 cursor-pointer"
+                >
+                  Create New Survey
+                </button>
+              </div>
+
+              {surveysLoading ? (
+                <div className="text-center py-8">
+                  <div className="text-gray-500">Loading surveys...</div>
+                </div>
+              ) : availableSurveys.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-gray-500 mb-4">No surveys created yet.</div>
+                  <button
+                    onClick={() => navigate('/admin/surveys/create')}
+                    className="px-4 py-2 rounded bg-boxlms-primary-btn text-boxlms-primary-btn-txt hover:brightness-90 cursor-pointer"
+                  >
+                    Create First Survey
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {availableSurveys.map((survey) => (
+                    <div key={survey.id} className="border rounded-lg p-4 bg-white shadow-sm">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3">
+                            <h3 className="text-lg font-medium text-gray-900">{survey.title}</h3>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                              survey.surveyType === 'PreCourse' ? 'bg-blue-100 text-blue-800' :
+                              survey.surveyType === 'PostCourse' ? 'bg-green-100 text-green-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {survey.surveyType}
+                            </span>
+                            {survey.isActive ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                Active
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                Inactive
+                              </span>
+                            )}
+                          </div>
+                          {survey.description && (
+                            <p className="text-sm text-gray-600 mt-1">{survey.description}</p>
+                          )}
+                          <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                            <span>Questions: {survey.questionCount || 0}</span>
+                            <span>Created: {new Date(survey.createdAt).toLocaleDateString()}</span>
+                          </div>
+                          
+                          {/* Show if assigned to this course */}
+                          {(form.preCourseSurveyId === survey.id || form.postCourseSurveyId === survey.id) && (
+                            <div className="mt-2">
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                                ✓ Assigned to this course
+                                {form.preCourseSurveyId === survey.id && ' (Pre-Course)'}
+                                {form.postCourseSurveyId === survey.id && ' (Post-Course)'}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => navigate(`/admin/surveys/edit/${survey.id}`)}
+                            className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (window.confirm('Delete this survey? This action cannot be undone.')) {
+                                try {
+                                  await adminSurveyService.deleteSurvey(survey.id);
+                                  toast.success('Survey deleted successfully');
+                                  loadSurveys();
+                                } catch (error) {
+                                  console.error('Error deleting survey:', error);
+                                  toast.error('Failed to delete survey');
+                                }
+                              }
+                            }}
+                            className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100"
                           >
                             Delete
                           </button>

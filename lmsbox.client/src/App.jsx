@@ -17,6 +17,7 @@ import AdminUserGroups from './pages/AdminUserGroups';
 import AdminUserGroupEditor from './pages/AdminUserGroupEditor';
 import AdminUserEditor from './pages/AdminUserEditor';
 import QuizCreator from './pages/QuizCreator';
+import AdminSurveyEditor from './pages/AdminSurveyEditor';
 import UserActivityReport from './pages/UserActivityReport';
 import UserProgressReport from './pages/UserProgressReport';
 import CourseEnrollmentReport from './pages/CourseEnrollmentReport';
@@ -187,6 +188,22 @@ function App() {
             element={
               <AdminRoute>
                 <AdminCourseEditor />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/surveys/create"
+            element={
+              <AdminRoute>
+                <AdminSurveyEditor />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/surveys/edit/:surveyId"
+            element={
+              <AdminRoute>
+                <AdminSurveyEditor />
               </AdminRoute>
             }
           />
