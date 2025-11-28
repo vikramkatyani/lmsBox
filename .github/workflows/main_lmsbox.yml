@@ -37,10 +37,10 @@ jobs:
           VITE_API_BASE: https://lmsbox-e0d2dqb4hwb8aqfp.uksouth-01.azurewebsites.net
 
       - name: Build with dotnet
-        run: dotnet build --configuration Release
+        run: dotnet build lmsBox.Server/lmsBox.Server.csproj --configuration Release
 
       - name: dotnet publish
-        run: dotnet publish -c Release -o ./myapp
+        run: dotnet publish lmsBox.Server/lmsBox.Server.csproj -c Release -o ./myapp
 
       - name: Copy frontend to wwwroot
         run: |
