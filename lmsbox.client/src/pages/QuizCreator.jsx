@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
+import AIAssistant from '../components/AIAssistant';
 import toast from 'react-hot-toast';
 import { getQuiz, saveQuiz as saveQuizApi } from '../services/quizzes';
 import usePageTitle from '../hooks/usePageTitle';
+import { Sparkles } from 'lucide-react';
 
 export default function QuizCreator() {
   const navigate = useNavigate();
@@ -12,6 +14,10 @@ export default function QuizCreator() {
   const params = new URLSearchParams(location.search);
   const returnTo = params.get('returnTo');
   const isEdit = !!quizId;
+  
+  usePageTitle(isEdit ? 'Edit Quiz' : 'Create Quiz');
+  
+  const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
   
   usePageTitle(isEdit ? 'Edit Quiz' : 'Create Quiz');
   
@@ -250,24 +256,88 @@ export default function QuizCreator() {
     }
   };
 
+  const handleApplyAIQuestions = (content) => {
+    try {
+      // Strip markdown code blocks if present
+      let cleanContent = content.trim();
+      if (cleanContent.startsWith('```')) {
+        cleanContent = cleanContent.replace(/^```json\n/, '').replace(/^```\n/, '').replace(/\n```$/, '');
+      }
+      
+      const parsed = JSON.parse(cleanContent);
+      
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Transform AI format to quiz format
+        const transformedQuestions = parsed.map((q, index) => ({
+          type: q.options && q.options.length > 0 ? 'mc_single' : 'mc_single',
+          question: q.question || '',
+          points: 1,
+          options: q.options && Array.isArray(q.options) 
+            ? q.options.map(opt => ({
+                text: opt.text || opt,
+                isCorrect: opt.isCorrect || false
+              }))
+            : [
+                { text: '', isCorrect: false },
+                { text: '', isCorrect: false },
+                { text: '', isCorrect: false },
+                { text: '', isCorrect: false }
+              ],
+          explanation: q.explanation || ''
+        }));
+        
+        setQuestions(prev => [...prev, ...transformedQuestions]);
+        toast.success(`${transformedQuestions.length} questions added from AI!`);
+      } else {
+        toast.error('Invalid question format from AI');
+      }
+    } catch (e) {
+      console.error('Failed to parse AI content:', e);
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(content);
+        toast('Content copied to clipboard for manual use', { icon: 'ℹ️' });
+      } else {
+        toast.error('Could not parse AI-generated questions');
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <AdminHeader />
+      <AIAssistant 
+        mode="slideIn"
+        isOpen={aiAssistantOpen}
+        onClose={() => setAiAssistantOpen(false)}
+        context={quizData.title ? `Creating quiz: ${quizData.title}` : 'Creating a new quiz'}
+        onApplyContent={handleApplyAIQuestions}
+        defaultTab="quiz"
+      />
       
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <button
+              onClick={() => navigate(-1)}
+              className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Back
+            </button>
+            <h1 className="text-3xl font-bold text-gray-900">{isEdit ? 'Edit Quiz' : 'Create Quiz'}</h1>
+            <p className="text-gray-600 mt-2">{isEdit ? 'Update questions and settings of this quiz' : 'Build an interactive quiz for your course'}</p>
+          </div>
+          
           <button
-            onClick={() => navigate(-1)}
-            className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
+            onClick={() => setAiAssistantOpen(true)}
+            className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg hover:shadow-lg transition-all duration-200 flex items-center gap-2"
           >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Back
+            <Sparkles className="w-5 h-5" />
+            AI Assistant
           </button>
-          <h1 className="text-3xl font-bold text-gray-900">{isEdit ? 'Edit Quiz' : 'Create Quiz'}</h1>
-          <p className="text-gray-600 mt-2">{isEdit ? 'Update questions and settings of this quiz' : 'Build an interactive quiz for your course'}</p>
         </div>
 
         {/* Quiz Information */}

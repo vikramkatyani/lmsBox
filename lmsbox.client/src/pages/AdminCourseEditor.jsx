@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
+import AIAssistant from '../components/AIAssistant';
 import VideoLessonModal from '../components/VideoLessonModal';
 import PdfLessonModal from '../components/PdfLessonModal';
 import ScormLessonModal from '../components/ScormLessonModal';
@@ -12,6 +13,7 @@ import usePageTitle from '../hooks/usePageTitle';
 import { adminCourseService, courseHelpers } from '../services/adminCourses';
 import lessonsService from '../services/lessons';
 import { adminSurveyService } from '../services/surveys';
+import { Sparkles } from 'lucide-react';
 
 export default function AdminCourseEditor() {
   const navigate = useNavigate();
@@ -23,6 +25,7 @@ export default function AdminCourseEditor() {
 
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
+  const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
   const [form, setForm] = useState({
     title: '',
     shortDescription: '',
@@ -501,16 +504,77 @@ export default function AdminCourseEditor() {
     }
   };
 
+  const handleApplyAIContent = (content) => {
+    try {
+      // Strip markdown code blocks if present
+      let cleanContent = content.trim();
+      if (cleanContent.startsWith('```')) {
+        cleanContent = cleanContent.replace(/^```json\n/, '').replace(/^```\n/, '').replace(/\n```$/, '');
+      }
+      
+      // Try to parse as JSON
+      const parsed = JSON.parse(cleanContent);
+      
+      // Check if it's a course outline
+      if (parsed.title) {
+        setForm(prev => ({
+          ...prev,
+          title: parsed.title || prev.title,
+          shortDescription: parsed.shortDescription || parsed.summary || prev.shortDescription,
+          longDescription: parsed.longDescription || parsed.description || prev.longDescription,
+          tags: parsed.tags && Array.isArray(parsed.tags) ? parsed.tags : prev.tags,
+        }));
+        
+        toast.success('Course details applied! You can now add lessons manually.');
+        setAiAssistantOpen(false);
+      }
+      // Check if it's quiz questions
+      else if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].question) {
+        toast('Quiz questions detected. Please use this on the Quiz Creator page.', { icon: 'ℹ️' });
+      }
+      else {
+        toast('Content copied. You can manually apply the changes.', { icon: 'ℹ️' });
+      }
+    } catch (e) {
+      // Not JSON, might be HTML or text content for lesson
+      // Copy to clipboard for manual use in lesson editor
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(content);
+        toast.success('Lesson content copied to clipboard! Paste it into your lesson editor.');
+      } else {
+        toast('Content generated. Please copy it manually.', { icon: 'ℹ️' });
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <AdminHeader />
+      <AIAssistant 
+        mode="slideIn"
+        isOpen={aiAssistantOpen}
+        onClose={() => setAiAssistantOpen(false)}
+        context={form.title ? `Creating course: ${form.title}` : 'Creating a new course'}
+        onApplyContent={handleApplyAIContent}
+        defaultTab="course"
+      />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <button onClick={() => navigate(-1)} className="flex items-center text-gray-600 hover:text-gray-900 mb-4">
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Back
-        </button>
+        <div className="flex items-center justify-between mb-4">
+          <button onClick={() => navigate(-1)} className="flex items-center text-gray-600 hover:text-gray-900">
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back
+          </button>
+          
+          <button
+            onClick={() => setAiAssistantOpen(true)}
+            className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+          >
+            <Sparkles className="w-5 h-5" />
+            AI Assistant
+          </button>
+        </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-6">{isNew ? 'Create New Course' : 'Edit Course'}</h1>
 
         {loading ? (

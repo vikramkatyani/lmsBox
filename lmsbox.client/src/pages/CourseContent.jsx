@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import LearnerHeader from '../components/LearnerHeader';
 import QuizPlayer from '../components/QuizPlayer';
+import SurveyPlayer from '../components/SurveyPlayer';
 import { getCourseDetails } from '../services/courseDetails';
+import { learnerSurveyService } from '../services/surveys';
 import toast from 'react-hot-toast';
 import usePageTitle from '../hooks/usePageTitle';
 import { API_BASE } from '../utils/apiBase';
@@ -39,6 +41,13 @@ function LessonItem({ lesson, isActive, onClick }) {
         return (
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+          </svg>
+        );
+      case 'survey':
+        return (
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+            <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
           </svg>
         );
       default:
@@ -472,6 +481,11 @@ export default function CourseContent() {
   const [activeLesson, setActiveLesson] = useState(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  
+  // Survey states
+  const [surveyItems, setSurveyItems] = useState([]);
+  const [activeSurvey, setActiveSurvey] = useState(null);
+  const [surveyLoading, setSurveyLoading] = useState(false);
 
   usePageTitle(course ? `${course.title} - Course Content` : 'Course Content');
 
@@ -494,7 +508,7 @@ export default function CourseContent() {
         setCourse(prevCourse => {
           if (!prevCourse) return prevCourse;
           
-          return {
+          const updatedCourse = {
             ...prevCourse,
             lessons: prevCourse.lessons.map(lesson => 
               lesson.id === lessonId 
@@ -502,6 +516,17 @@ export default function CourseContent() {
                 : lesson
             )
           };
+          
+          // Check if all lessons are now completed
+          const allLessonsComplete = updatedCourse.lessons.every(l => l.isCompleted);
+          if (allLessonsComplete && updatedCourse.hasPostSurvey && !updatedCourse.postSurveyCompleted) {
+            // Load post-survey if not already loaded
+            if (!surveyItems.find(s => s.surveyType === 'post')) {
+              loadPostSurvey();
+            }
+          }
+          
+          return updatedCourse;
         });
         
         // Update active lesson if it's the completed one
@@ -530,6 +555,99 @@ export default function CourseContent() {
     }
   };
 
+  const loadPreSurvey = async () => {
+    try {
+      const surveyData = await learnerSurveyService.getPreCourseSurvey(courseId);
+      if (surveyData.alreadyCompleted) {
+        // Add as completed survey item
+        setSurveyItems(prev => [{
+          id: 'pre-survey',
+          title: surveyData.title || 'Pre-Course Survey',
+          type: 'survey',
+          isCompleted: true,
+          surveyType: 'pre',
+          order: -1 // Show before lessons
+        }, ...prev]);
+        return null; // Return null to indicate completed
+      }
+      // Add as active survey item
+      const preSurveyItem = {
+        id: 'pre-survey',
+        title: surveyData.title || 'Pre-Course Survey',
+        type: 'survey',
+        isCompleted: false,
+        isMandatory: surveyData.isMandatory,
+        surveyType: 'pre',
+        surveyData: surveyData,
+        order: -1
+      };
+      setSurveyItems(prev => [preSurveyItem, ...prev]);
+      return preSurveyItem; // Return the survey item to set as active
+    } catch (error) {
+      console.log('No pre-survey configured or error loading:', error);
+      return null;
+    }
+  };
+
+  const loadPostSurvey = async () => {
+    try {
+      const surveyData = await learnerSurveyService.getPostCourseSurvey(courseId);
+      if (surveyData.alreadyCompleted) {
+        // Add as completed survey item
+        setSurveyItems(prev => [...prev, {
+          id: 'post-survey',
+          title: surveyData.title || 'Post-Course Survey',
+          type: 'survey',
+          isCompleted: true,
+          surveyType: 'post',
+          order: 9999 // Show after lessons
+        }]);
+        return;
+      }
+      // Add as active survey item
+      setSurveyItems(prev => [...prev, {
+        id: 'post-survey',
+        title: surveyData.title || 'Post-Course Survey',
+        type: 'survey',
+        isCompleted: false,
+        isMandatory: surveyData.isMandatory,
+        surveyType: 'post',
+        surveyData: surveyData,
+        order: 9999
+      }]);
+    } catch (error) {
+      console.log('No post-survey configured or error loading:', error);
+    }
+  };
+
+  const handleSurveySubmit = async (answers, surveyType) => {
+    setSurveyLoading(true);
+    try {
+      if (surveyType === 'pre') {
+        await learnerSurveyService.submitPreCourseSurvey(courseId, answers);
+      } else {
+        await learnerSurveyService.submitPostCourseSurvey(courseId, answers);
+      }
+      toast.success('Survey submitted successfully!');
+      
+      // Mark survey as completed
+      setSurveyItems(prev => prev.map(item => 
+        item.surveyType === surveyType ? { ...item, isCompleted: true } : item
+      ));
+      setActiveSurvey(null);
+      
+      // Reload course to update overall completion status
+      await loadCourseDetails();
+    } catch (error) {
+      console.error('Error submitting survey:', error);
+      toast.error('Failed to submit survey');
+    } finally {
+      setSurveyLoading(false);
+    }
+  };
+
+
+
   const loadCourseDetails = async (signal = null) => {
     setLoading(true);
     try {
@@ -543,8 +661,25 @@ export default function CourseContent() {
       
       if (!signal || !signal.aborted) {
         setCourse(courseData);
-        // Set active lesson based on last accessed or first lesson
-        if (courseData.lessons && courseData.lessons.length > 0) {
+        
+        // Check for pre-survey and load it (both completed and incomplete)
+        let preSurveyItem = null;
+        if (courseData.hasPreSurvey) {
+          preSurveyItem = await loadPreSurvey();
+        }
+        
+        // Load post-survey if it exists
+        if (courseData.hasPostSurvey) {
+          await loadPostSurvey();
+        }
+        
+        // Set active content: pre-survey first (if exists and not completed), otherwise lesson
+        if (preSurveyItem && !courseData.preSurveyCompleted) {
+          // Show pre-survey as the first active item if not completed
+          setActiveSurvey(preSurveyItem);
+          setActiveLesson(null);
+        } else if (courseData.lessons && courseData.lessons.length > 0) {
+          // Set active lesson based on last accessed or first lesson
           let lessonToShow = courseData.lessons[0]; // Default to first lesson
           
           // If there's a last accessed lesson, use that instead
@@ -558,6 +693,7 @@ export default function CourseContent() {
           }
           
           setActiveLesson(lessonToShow);
+          setActiveSurvey(null);
         }
       }
     } catch (error) {
@@ -655,22 +791,53 @@ export default function CourseContent() {
             </button>
             <h2 className="text-lg font-semibold text-gray-900">{course.title}</h2>
             <p className="text-sm text-gray-500 mt-1">
-              {course.lessons.filter(l => l.isCompleted).length} of {course.lessons.length} completed
+              {course.lessons.filter(l => l.isCompleted).length + surveyItems.filter(s => s.isCompleted).length} of {course.lessons.length + surveyItems.length} completed
             </p>
           </div>
           <div className="p-4 space-y-2">
-            {course.lessons.map((lesson) => (
-              <LessonItem
-                key={lesson.id}
-                lesson={lesson}
-                isActive={activeLesson?.id === lesson.id}
-                onClick={() => {
-                  setActiveLesson(lesson);
-                  trackLessonAccess(lesson.id); // Track when user accesses a lesson
-                  setIsMobileSidebarOpen(false); // Close sidebar on mobile after selecting
-                }}
-              />
-            ))}
+            {/* Combine lessons and surveys, sorted by order */}
+            {[...surveyItems, ...course.lessons.map((l, idx) => ({ ...l, order: idx }))]
+              .sort((a, b) => a.order - b.order)
+              .map((item) => {
+                const isLocked = item.type !== 'survey' && 
+                  surveyItems.some(s => s.surveyType === 'pre' && s.isMandatory && !s.isCompleted);
+                
+                const isActive = item.type === 'survey' 
+                  ? activeSurvey?.id === item.id
+                  : activeLesson?.id === item.id;
+                
+                return (
+                  <div key={item.id} className="relative">
+                    {isLocked && (
+                      <div className="absolute inset-0 bg-gray-100 bg-opacity-70 rounded-lg flex items-center justify-center z-10">
+                        <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
+                    <LessonItem
+                      lesson={item}
+                      isActive={isActive}
+                      onClick={() => {
+                        if (isLocked) {
+                          toast('Please complete the pre-course survey first', { icon: '🔒' });
+                          return;
+                        }
+                        
+                        if (item.type === 'survey') {
+                          setActiveSurvey(item);
+                          setActiveLesson(null);
+                        } else {
+                          setActiveLesson(item);
+                          setActiveSurvey(null);
+                          trackLessonAccess(item.id);
+                        }
+                        setIsMobileSidebarOpen(false);
+                      }}
+                    />
+                  </div>
+                );
+              })}
           </div>
         </div>
 
@@ -678,37 +845,49 @@ export default function CourseContent() {
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Panel 2: Content Display */}
           <div className="flex-1 bg-gray-900 overflow-hidden min-h-[300px] lg:min-h-0">
-            <ContentPanel 
-              lesson={activeLesson} 
-              courseId={courseId}
-              onProgressUpdate={handleProgressUpdate}
-            />
+            {activeSurvey ? (
+              <div className="h-full overflow-y-auto bg-gray-50">
+                <SurveyPlayer
+                  survey={activeSurvey.surveyData}
+                  onSubmit={(answers) => handleSurveySubmit(answers, activeSurvey.surveyType)}
+                  onCancel={null}
+                  surveyType={activeSurvey.surveyType}
+                />
+              </div>
+            ) : (
+              <ContentPanel 
+                lesson={activeLesson} 
+                courseId={courseId}
+                onProgressUpdate={handleProgressUpdate}
+              />
+            )}
           </div>
 
           {/* Panel 3: Course Info and Certificate */}
           <div className="lg:h-48 bg-white border-t overflow-y-auto">
             <div className="p-4 lg:p-6">
-              {activeLesson && (
+              {(activeLesson || activeSurvey) && (
                 <>
                   <h3 className="text-lg lg:text-xl font-semibold text-gray-900 mb-1">
-                    {activeLesson.title}
+                    {activeLesson?.title || activeSurvey?.title}
                   </h3>
                   <p className="text-sm text-gray-500 mb-4">{course.title}</p>
                   
-                  {/* Certificates Section */}
-                  <div className="mb-4 pb-4 border-b">
-                    <h4 className="text-base font-semibold text-gray-900 mb-2">Certificates</h4>
-                    <p className="text-sm text-gray-600 mb-3">Get certificate by completing entire course</p>
-                    {course.isCompleted ? (
-                      <button
-                        onClick={async () => {
-                          try {
-                            toast.loading('Generating certificate...', { id: 'cert-gen' });
-                            const response = await fetch(`/api/learner/courses/${course.id}/certificate`, {
-                              headers: {
-                                'Authorization': `Bearer ${localStorage.getItem('token')}`
-                              }
-                            });
+                  {/* Certificates Section - only show for lessons, not surveys */}
+                  {activeLesson && (
+                    <div className="mb-4 pb-4 border-b">
+                      <h4 className="text-base font-semibold text-gray-900 mb-2">Certificates</h4>
+                      <p className="text-sm text-gray-600 mb-3">Get certificate by completing entire course</p>
+                      {course.isCompleted ? (
+                        <button
+                          onClick={async () => {
+                            try {
+                              toast.loading('Generating certificate...', { id: 'cert-gen' });
+                              const response = await fetch(`/api/learner/courses/${course.id}/certificate`, {
+                                headers: {
+                                  'Authorization': `Bearer ${localStorage.getItem('token')}`
+                                }
+                              });
                             
                             if (response.ok) {
                               const data = await response.json();
@@ -736,21 +915,22 @@ export default function CourseContent() {
                       >
                         View Certificate
                       </button>
-                    ) : (
-                      <button 
-                        disabled
-                        className="px-6 py-2 rounded border border-gray-300 text-gray-400 cursor-not-allowed"
-                      >
-                        Complete Course to Get Certificate
-                      </button>
-                    )}
-                  </div>
+                      ) : (
+                        <button 
+                          disabled
+                          className="px-6 py-2 rounded border border-gray-300 text-gray-400 cursor-not-allowed"
+                        >
+                          Complete Course to Get Certificate
+                        </button>
+                      )}
+                    </div>
+                  )}
 
                   {/* Description Section */}
                   <div>
                     <h4 className="text-base font-semibold text-gray-900 mb-2">Description</h4>
                     <p className="text-sm text-gray-600 leading-relaxed">
-                      {course.description}
+                      {activeSurvey?.surveyData?.description || course.description}
                     </p>
                   </div>
                 </>

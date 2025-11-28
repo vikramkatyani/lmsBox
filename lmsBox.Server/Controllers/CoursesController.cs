@@ -692,7 +692,7 @@ public partial class CoursesController
 
             var course = await _context.Courses
                 .Include(c => c.PreCourseSurvey)
-                    .ThenInclude(s => s!.Questions.OrderBy(q => q.OrderIndex))
+                    .ThenInclude(s => s!.Questions)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(c => c.Id == courseId && !c.IsDeleted);
 
@@ -708,11 +708,40 @@ public partial class CoursesController
 
             if (progress?.PreSurveyCompleted == true)
             {
+                // Get the survey response with answers
+                var surveyResponse = await _context.SurveyResponses
+                    .Include(sr => sr.QuestionResponses)
+                    .FirstOrDefaultAsync(sr => sr.Id == progress.PreSurveyResponseId);
+
                 return Ok(new
                 {
+                    surveyId = course.PreCourseSurvey!.Id,
+                    title = course.PreCourseSurvey!.Title,
+                    description = course.PreCourseSurvey!.Description,
+                    isMandatory = course.IsPreSurveyMandatory,
                     alreadyCompleted = true,
                     completedAt = progress.PreSurveyCompletedAt,
-                    message = "Pre-course survey already completed"
+                    questions = course.PreCourseSurvey!.Questions?.OrderBy(q => q.OrderIndex).Select(q => new
+                    {
+                        id = q.Id,
+                        questionText = q.QuestionText,
+                        questionType = q.QuestionType,
+                        options = string.IsNullOrEmpty(q.Options) ? new List<string>() : System.Text.Json.JsonSerializer.Deserialize<List<string>>(q.Options),
+                        isRequired = q.IsRequired,
+                        minRating = q.MinRating,
+                        maxRating = q.MaxRating,
+                        orderIndex = q.OrderIndex,
+                        response = surveyResponse?.QuestionResponses?.FirstOrDefault(qr => qr.SurveyQuestionId == q.Id) != null
+                            ? new
+                            {
+                                answerText = surveyResponse.QuestionResponses.FirstOrDefault(qr => qr.SurveyQuestionId == q.Id)!.AnswerText,
+                                selectedOptions = !string.IsNullOrEmpty(surveyResponse.QuestionResponses.FirstOrDefault(qr => qr.SurveyQuestionId == q.Id)!.SelectedOptions)
+                                    ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(surveyResponse.QuestionResponses.FirstOrDefault(qr => qr.SurveyQuestionId == q.Id)!.SelectedOptions!)
+                                    : null,
+                                ratingValue = surveyResponse.QuestionResponses.FirstOrDefault(qr => qr.SurveyQuestionId == q.Id)!.RatingValue
+                            }
+                            : null
+                    }).ToList()
                 });
             }
 
@@ -723,7 +752,7 @@ public partial class CoursesController
                 title = survey.Title,
                 description = survey.Description,
                 isMandatory = course.IsPreSurveyMandatory,
-                questions = survey.Questions?.Select(q => new
+                questions = survey.Questions?.OrderBy(q => q.OrderIndex).Select(q => new
                 {
                     id = q.Id,
                     questionText = q.QuestionText,
@@ -755,7 +784,7 @@ public partial class CoursesController
 
             var course = await _context.Courses
                 .Include(c => c.PostCourseSurvey)
-                    .ThenInclude(s => s!.Questions.OrderBy(q => q.OrderIndex))
+                    .ThenInclude(s => s!.Questions)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(c => c.Id == courseId && !c.IsDeleted);
 
@@ -771,11 +800,40 @@ public partial class CoursesController
 
             if (progress?.PostSurveyCompleted == true)
             {
+                // Get the survey response with answers
+                var surveyResponse = await _context.SurveyResponses
+                    .Include(sr => sr.QuestionResponses)
+                    .FirstOrDefaultAsync(sr => sr.Id == progress.PostSurveyResponseId);
+
                 return Ok(new
                 {
+                    surveyId = course.PostCourseSurvey!.Id,
+                    title = course.PostCourseSurvey!.Title,
+                    description = course.PostCourseSurvey!.Description,
+                    isMandatory = course.IsPostSurveyMandatory,
                     alreadyCompleted = true,
                     completedAt = progress.PostSurveyCompletedAt,
-                    message = "Post-course survey already completed"
+                    questions = course.PostCourseSurvey!.Questions?.OrderBy(q => q.OrderIndex).Select(q => new
+                    {
+                        id = q.Id,
+                        questionText = q.QuestionText,
+                        questionType = q.QuestionType,
+                        options = string.IsNullOrEmpty(q.Options) ? new List<string>() : System.Text.Json.JsonSerializer.Deserialize<List<string>>(q.Options),
+                        isRequired = q.IsRequired,
+                        minRating = q.MinRating,
+                        maxRating = q.MaxRating,
+                        orderIndex = q.OrderIndex,
+                        response = surveyResponse?.QuestionResponses?.FirstOrDefault(qr => qr.SurveyQuestionId == q.Id) != null
+                            ? new
+                            {
+                                answerText = surveyResponse.QuestionResponses.FirstOrDefault(qr => qr.SurveyQuestionId == q.Id)!.AnswerText,
+                                selectedOptions = !string.IsNullOrEmpty(surveyResponse.QuestionResponses.FirstOrDefault(qr => qr.SurveyQuestionId == q.Id)!.SelectedOptions)
+                                    ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(surveyResponse.QuestionResponses.FirstOrDefault(qr => qr.SurveyQuestionId == q.Id)!.SelectedOptions!)
+                                    : null,
+                                ratingValue = surveyResponse.QuestionResponses.FirstOrDefault(qr => qr.SurveyQuestionId == q.Id)!.RatingValue
+                            }
+                            : null
+                    }).ToList()
                 });
             }
 
@@ -801,7 +859,7 @@ public partial class CoursesController
                 title = survey.Title,
                 description = survey.Description,
                 isMandatory = course.IsPostSurveyMandatory,
-                questions = survey.Questions?.Select(q => new
+                questions = survey.Questions?.OrderBy(q => q.OrderIndex).Select(q => new
                 {
                     id = q.Id,
                     questionText = q.QuestionText,

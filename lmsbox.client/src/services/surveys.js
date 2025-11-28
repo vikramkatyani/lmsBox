@@ -62,3 +62,34 @@ export const adminSurveyService = {
     return response.data;
   }
 };
+
+// Learner survey service
+export const learnerSurveyService = {
+  // Get pre-course survey for a specific course
+  async getPreCourseSurvey(courseId) {
+    const response = await api.get(`/api/learner/courses/${courseId}/survey/pre`);
+    return response.data;
+  },
+
+  // Get post-course survey for a specific course
+  async getPostCourseSurvey(courseId) {
+    const response = await api.get(`/api/learner/courses/${courseId}/survey/post`);
+    return response.data;
+  },
+
+  // Submit pre-course survey responses
+  async submitPreCourseSurvey(courseId, answers) {
+    const response = await api.post(`/api/learner/courses/${courseId}/survey/pre/submit`, {
+      answers
+    });
+    return response.data;
+  },
+
+  // Submit post-course survey responses
+  async submitPostCourseSurvey(courseId, answers) {
+    const response = await api.post(`/api/learner/courses/${courseId}/survey/post/submit`, {
+      answers
+    });
+    return response.data;
+  }
+};
