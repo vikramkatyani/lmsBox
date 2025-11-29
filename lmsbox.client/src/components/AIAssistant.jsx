@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sparkles, X, MessageSquare, FileText, HelpCircle, Wand2 } from 'lucide-react';
+import { Sparkles, X, MessageSquare, FileText, HelpCircle, Wand2, Eye, Code, Copy } from 'lucide-react';
 import { aiAssistant } from '../services/aiAssistant';
 
 const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', isOpen: externalIsOpen = false, onClose = null, defaultTab = 'chat' }) => {
@@ -32,6 +32,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
   const [lessonTitle, setLessonTitle] = useState('');
   const [lessonContext, setLessonContext] = useState('');
   const [lessonContent, setLessonContent] = useState('');
+  const [isPreviewMode, setIsPreviewMode] = useState(true);
 
   // Quiz questions state
   const [quizTopic, setQuizTopic] = useState('');
@@ -482,6 +483,37 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="font-medium text-gray-900">Generated Content</h3>
                         <div className="flex gap-2">
+                          <button
+                            onClick={() => setIsPreviewMode(!isPreviewMode)}
+                            className="px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700 flex items-center gap-1"
+                            title={isPreviewMode ? 'View HTML Code' : 'View Preview'}
+                          >
+                            {isPreviewMode ? (
+                              <>
+                                <Code className="w-3 h-3" />
+                                Code
+                              </>
+                            ) : (
+                              <>
+                                <Eye className="w-3 h-3" />
+                                Preview
+                              </>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(lessonContent);
+                              const btn = event.target.closest('button');
+                              const originalText = btn.innerHTML;
+                              btn.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!';
+                              setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+                            }}
+                            className="px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700 flex items-center gap-1"
+                            title="Copy HTML to clipboard"
+                          >
+                            <Copy className="w-3 h-3" />
+                            Copy
+                          </button>
                           {onApplyContent && (
                             <button
                               onClick={() => handleApply(lessonContent, false)}
@@ -500,10 +532,19 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                           </button>
                         </div>
                       </div>
-                      <div 
-                        className="prose max-w-none text-sm text-gray-700 max-h-96 overflow-y-auto p-4 bg-white rounded border"
-                        dangerouslySetInnerHTML={{ __html: lessonContent }}
-                      />
+                      {isPreviewMode ? (
+                        <div 
+                          className="prose max-w-none text-sm text-gray-700 max-h-96 overflow-y-auto p-4 bg-white rounded border"
+                          dangerouslySetInnerHTML={{ __html: lessonContent }}
+                        />
+                      ) : (
+                        <textarea
+                          value={lessonContent}
+                          onChange={(e) => setLessonContent(e.target.value)}
+                          className="w-full h-96 p-4 bg-white rounded border font-mono text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-600"
+                          placeholder="HTML content will appear here..."
+                        />
+                      )}
                     </div>
                   )}
                 </div>
