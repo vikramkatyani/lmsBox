@@ -309,6 +309,16 @@ try {
             
             set: function(element, value) { 
                 console.log('SCORM stub: set', element, value);
+                
+                // Prevent overwriting loaded bookmark right after data loads
+                if (element.includes('location') && stubData.dataLoaded && stubData.location && stubData.location !== value) {
+                    var timeSinceLoad = Date.now() - (stubData.loadTime || 0);
+                    if (timeSinceLoad < 2000) {
+                        console.log('⚠️ SCORM stub: blocking location change from', value, 'to preserve loaded bookmark:', stubData.location);
+                        return 'true';
+                    }
+                }
+                
                 if (element.includes('lesson_status') || element.includes('completion_status')) stubData.lessonStatus = value;
                 if (element.includes('score')) stubData.score = value;
                 if (element.includes('location')) stubData.location = value;
