@@ -26,6 +26,7 @@ dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=localhost;
 dotnet user-secrets set "Jwt:Key" "your-super-secret-jwt-key-min-32-chars"
 dotnet user-secrets set "SendGrid:ApiKey" "your-sendgrid-api-key"
 dotnet user-secrets set "AzureStorage:ConnectionString" "DefaultEndpointsProtocol=https;AccountName=your_account;AccountKey=your_key;EndpointSuffix=core.windows.net"
+dotnet user-secrets set "OpenAI:ApiKey" "your-openai-api-key"
 
 # List all secrets (to verify)
 dotnet user-secrets list
@@ -73,6 +74,7 @@ If you must use `appsettings.Development.json` for local development:
 | `Jwt:Key` | JWT signing key | Min 32 characters, random string |
 | `SendGrid:ApiKey` | Email service | SG.xxxxxxxxxxxxxxxxx |
 | `AzureStorage:ConnectionString` | Azure Blob Storage | DefaultEndpointsProtocol=https;... |
+| `OpenAI:ApiKey` | OpenAI API for AI Assistant | sk-proj-... |
 
 ## Verifying Configuration
 
