@@ -10,17 +10,17 @@ public class AIAssistantService : IAIAssistantService
 
     public AIAssistantService(IConfiguration configuration, ILogger<AIAssistantService> logger)
     {
+        _logger = logger;
         var apiKey = configuration["OpenAI:ApiKey"];
+        
         if (string.IsNullOrEmpty(apiKey))
         {
-            _logger = logger;
             _logger.LogWarning("OpenAI API key is not configured. AI Assistant features will be unavailable.");
             _chatClient = null!; // Will be checked in methods
         }
         else
         {
             _chatClient = new ChatClient("gpt-4o", new ApiKeyCredential(apiKey));
-            _logger = logger;
         }
     }
 

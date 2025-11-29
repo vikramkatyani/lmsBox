@@ -31,10 +31,15 @@ public class AIAssistantController : ControllerBase
 
             return Ok(new { content = result });
         }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "AI Assistant feature unavailable");
+            return StatusCode(503, new { error = ex.Message });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error generating course outline");
-            return StatusCode(500, new { error = "Failed to generate course outline" });
+            return StatusCode(500, new { error = "Failed to generate course outline: " + ex.Message });
         }
     }
 
