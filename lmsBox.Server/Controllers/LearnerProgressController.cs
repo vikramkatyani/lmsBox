@@ -44,7 +44,7 @@ public class LearnerProgressController : ControllerBase
 
             if (!hasAccess)
             {
-                return Forbid("You don't have access to this course");
+                return StatusCode(403, new { message = "You don't have access to this course" });
             }
 
             // Get course with lessons
@@ -71,6 +71,7 @@ public class LearnerProgressController : ControllerBase
                     LessonId = null,
                     ProgressPercent = 0,
                     Completed = false,
+                    StartedAt = null, // Will be set when first lesson is accessed
                     CompletedAt = null
                 };
                 _context.LearnerProgresses.Add(courseProgress);
@@ -99,6 +100,7 @@ public class LearnerProgressController : ControllerBase
                         CourseId = courseId,
                         LessonId = lesson.Id,
                         ProgressPercent = 0,
+                        StartedAt = null, // Will be set when lesson is first accessed
                         Completed = false,
                         CompletedAt = null
                     });
@@ -159,7 +161,7 @@ public class LearnerProgressController : ControllerBase
 
             if (!hasAccess)
             {
-                return Forbid("You don't have access to this lesson");
+                return StatusCode(403, new { message = "You don't have access to this lesson" });
             }
 
             // Get or create lesson progress
@@ -174,9 +176,20 @@ public class LearnerProgressController : ControllerBase
                     CourseId = lesson.CourseId,
                     LessonId = lessonId,
                     ProgressPercent = 0,
-                    Completed = false
+                    Completed = false,
+                    StartedAt = DateTime.UtcNow
                 };
                 _context.LearnerProgresses.Add(lessonProgress);
+                
+                // Also set course-level StartedAt if this is the first lesson accessed
+                await SetCourseStartedAtIfNeeded(userId, lesson.CourseId);
+            }
+            else if (lessonProgress.StartedAt == null)
+            {
+                lessonProgress.StartedAt = DateTime.UtcNow;
+                
+                // Also set course-level StartedAt if not already set
+                await SetCourseStartedAtIfNeeded(userId, lesson.CourseId);
             }
 
             // Update lesson progress
@@ -240,7 +253,7 @@ public class LearnerProgressController : ControllerBase
 
             if (!hasAccess)
             {
-                return Forbid("You don't have access to this lesson");
+                return StatusCode(403, new { message = "You don't have access to this lesson" });
             }
 
             // Get or create lesson progress
@@ -256,12 +269,21 @@ public class LearnerProgressController : ControllerBase
                     LessonId = lessonId,
                     ProgressPercent = 100,
                     Completed = true,
+                    StartedAt = DateTime.UtcNow,
                     CompletedAt = DateTime.UtcNow
                 };
                 _context.LearnerProgresses.Add(lessonProgress);
+                
+                // Set course-level StartedAt if this is the first lesson accessed
+                await SetCourseStartedAtIfNeeded(userId, lesson.CourseId);
             }
             else if (!lessonProgress.Completed)
             {
+                if (lessonProgress.StartedAt == null)
+                {
+                    lessonProgress.StartedAt = DateTime.UtcNow;
+                    await SetCourseStartedAtIfNeeded(userId, lesson.CourseId);
+                }
                 lessonProgress.ProgressPercent = 100;
                 lessonProgress.Completed = true;
                 lessonProgress.CompletedAt = DateTime.UtcNow;
@@ -412,12 +434,231 @@ public class LearnerProgressController : ControllerBase
         _logger.LogInformation("Updated course progress for user {UserId} on course {CourseId}: {Progress}% ({Completed}/{Total} lessons)", 
             userId, courseId, progressPercent, completedLessons, totalLessons);
     }
+
+    /// <summary>
+    /// Set course-level StartedAt timestamp if not already set (when first lesson is accessed)
+    /// </summary>
+    private async Task SetCourseStartedAtIfNeeded(string userId, string courseId)
+    {
+        var courseProgress = await _context.LearnerProgresses
+            .FirstOrDefaultAsync(lp => lp.UserId == userId && lp.CourseId == courseId && lp.LessonId == null);
+        
+        if (courseProgress != null && courseProgress.StartedAt == null)
+        {
+            courseProgress.StartedAt = DateTime.UtcNow;
+            _logger.LogInformation("Set course StartedAt for user {UserId} on course {CourseId}", userId, courseId);
+        }
+    }
+
+    /// <summary>
+    /// Get SCORM data for a lesson to support resume/bookmarking
+    /// </summary>
+    [HttpGet("lessons/{lessonId}/scorm")]
+    public async Task<ActionResult<ScormDataResponse>> GetScormData(long lessonId)
+    {
+        try
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { message = "User not authenticated" });
+            }
+
+            // Get lesson progress with SCORM data
+            var lessonProgress = await _context.LearnerProgresses
+                .FirstOrDefaultAsync(lp => lp.UserId == userId && lp.LessonId == lessonId);
+
+            if (lessonProgress == null)
+            {
+                // No progress yet - return default values
+                return Ok(new ScormDataResponse
+                {
+                    ScormData = "",
+                    ScormLessonLocation = "",
+                    ScormLessonStatus = "not attempted",
+                    ScormScore = ""
+                });
+            }
+
+            return Ok(new ScormDataResponse
+            {
+                ScormData = lessonProgress.ScormData ?? "",
+                ScormLessonLocation = lessonProgress.ScormLessonLocation ?? "",
+                ScormLessonStatus = lessonProgress.ScormLessonStatus ?? "not attempted",
+                ScormScore = lessonProgress.ScormScore ?? ""
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving SCORM data for lesson {LessonId}", lessonId);
+            return StatusCode(500, new { message = "An error occurred while retrieving SCORM data" });
+        }
+    }
+
+    /// <summary>
+    /// Update SCORM lesson data (bookmark, suspend data, score, status)
+    /// </summary>
+    [HttpPost("lessons/{lessonId}/scorm")]
+    public async Task<ActionResult<LessonProgressResponse>> UpdateScormData(long lessonId, [FromBody] UpdateScormDataRequest request)
+    {
+        try
+        {
+            _logger.LogInformation("SCORM data update request received for lesson {LessonId}: Request={@Request}", 
+                lessonId, request);
+            
+            if (request == null)
+            {
+                _logger.LogWarning("SCORM update failed - request body is null");
+                return BadRequest(new { message = "Request body is required" });
+            }
+            
+            if (!ModelState.IsValid)
+            {
+                _logger.LogWarning("SCORM update failed - invalid model state: {@ModelState}", ModelState);
+                return BadRequest(new { message = "Invalid request", errors = ModelState });
+            }
+            
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                _logger.LogWarning("SCORM update unauthorized - no user ID");
+                return Unauthorized(new { message = "User not authenticated" });
+            }
+
+            // Get lesson with course info
+            var lesson = await _context.Lessons
+                .Include(l => l.Course)
+                .FirstOrDefaultAsync(l => l.Id == lessonId);
+
+            if (lesson == null)
+            {
+                return NotFound(new { message = "Lesson not found" });
+            }
+
+            // Verify user has access to this course (either through group enrollment or existing progress)
+            var hasAccess = await _context.LearnerGroups
+                .Where(lg => lg.UserId == userId && lg.IsActive)
+                .Join(_context.GroupCourses, lg => lg.LearningGroupId, gc => gc.LearningGroupId, (lg, gc) => gc)
+                .AnyAsync(gc => gc.CourseId == lesson.CourseId);
+
+            // Also check if user has existing progress (means they already started the course)
+            if (!hasAccess)
+            {
+                hasAccess = await _context.LearnerProgresses
+                    .AnyAsync(lp => lp.UserId == userId && lp.CourseId == lesson.CourseId);
+                
+                if (hasAccess)
+                {
+                    _logger.LogInformation("SCORM update allowed - user {UserId} has existing progress for course {CourseId}", userId, lesson.CourseId);
+                }
+            }
+
+            if (!hasAccess)
+            {
+                _logger.LogWarning("SCORM update forbidden - user {UserId} doesn't have access to lesson {LessonId} or course {CourseId}", userId, lessonId, lesson.CourseId);
+                return StatusCode(403, new { message = "You don't have access to this lesson" });
+            }
+
+            // Get or create lesson progress
+            var lessonProgress = await _context.LearnerProgresses
+                .Where(lp => lp.UserId == userId && lp.LessonId == lessonId)
+                .FirstOrDefaultAsync();
+
+            if (lessonProgress == null)
+            {
+                lessonProgress = new LearnerProgress
+                {
+                    UserId = userId,
+                    CourseId = lesson.CourseId,
+                    LessonId = lessonId,
+                    ProgressPercent = 0,
+                    Completed = false,
+                    StartedAt = DateTime.UtcNow
+                };
+                _context.LearnerProgresses.Add(lessonProgress);
+                
+                // Set course-level StartedAt if this is the first lesson accessed
+                await SetCourseStartedAtIfNeeded(userId, lesson.CourseId);
+            }
+            else if (lessonProgress.StartedAt == null)
+            {
+                // Set StartedAt if this is the first time accessing after creation
+                lessonProgress.StartedAt = DateTime.UtcNow;
+                await SetCourseStartedAtIfNeeded(userId, lesson.CourseId);
+            }
+
+            // Update SCORM-specific fields - always update if provided
+            if (!string.IsNullOrEmpty(request.ScormData))
+                lessonProgress.ScormData = request.ScormData;
+            
+            if (!string.IsNullOrEmpty(request.ScormLessonLocation))
+                lessonProgress.ScormLessonLocation = request.ScormLessonLocation;
+            
+            if (!string.IsNullOrEmpty(request.ScormLessonStatus))
+            {
+                lessonProgress.ScormLessonStatus = request.ScormLessonStatus;
+                
+                // Auto-complete if SCORM status indicates completion
+                if ((request.ScormLessonStatus == "completed" || request.ScormLessonStatus == "passed") && !lessonProgress.Completed)
+                {
+                    lessonProgress.Completed = true;
+                    lessonProgress.CompletedAt = DateTime.UtcNow;
+                    lessonProgress.ProgressPercent = 100;
+                }
+            }
+            
+            if (!string.IsNullOrEmpty(request.ScormScore))
+                lessonProgress.ScormScore = request.ScormScore;
+
+            lessonProgress.LastAccessedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            // Recalculate course progress if lesson was completed
+            if (lessonProgress.Completed)
+            {
+                await UpdateCourseProgress(userId, lesson.CourseId);
+            }
+
+            _logger.LogInformation("Updated SCORM data for user {UserId} on lesson {LessonId}, Status: {Status}", 
+                userId, lessonId, request.ScormLessonStatus);
+
+            return Ok(new LessonProgressResponse
+            {
+                LessonId = lessonId,
+                ProgressPercent = lessonProgress.ProgressPercent,
+                Completed = lessonProgress.Completed,
+                CompletedAt = lessonProgress.CompletedAt
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating SCORM data for lesson {LessonId}", lessonId);
+            return StatusCode(500, new { message = "An error occurred while updating SCORM data" });
+        }
+    }
 }
 
 // Request/Response DTOs
 public class UpdateLessonProgressRequest
 {
     public int ProgressPercent { get; set; }
+}
+
+public class UpdateScormDataRequest
+{
+    public string? ScormData { get; set; }
+    public string? ScormLessonLocation { get; set; }
+    public string? ScormLessonStatus { get; set; }
+    public string? ScormScore { get; set; }
+}
+
+public class ScormDataResponse
+{
+    public string ScormData { get; set; } = string.Empty;
+    public string ScormLessonLocation { get; set; } = string.Empty;
+    public string ScormLessonStatus { get; set; } = string.Empty;
+    public string ScormScore { get; set; } = string.Empty;
 }
 
 public class CourseProgressResponse

@@ -365,3 +365,9 @@ FodyWeavers.xsd
 # Application settings with sensitive data
 appsettings.Development.json
 lmsBox.Server/appsettings.Development.json
+azure-logs/
+lmsBox.Server/azure-logs-new/
+lmsBox.Server/azure-logs-new.zip
+lmsBox.Server/azure-logs-latest.zip
+azure-logs.zip
+deploy.zip

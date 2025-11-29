@@ -127,8 +127,16 @@ export default function AdminCourses() {
       loadCourses(); // Reload the list
     } catch (error) {
       console.error('Error updating course status:', error);
-      const message = error.response?.data?.message || error.response?.data?.errors?.join(', ') || 'Failed to update course status';
-      toast.error(message);
+      console.error('Error response:', error.response);
+      
+      // Handle validation errors from backend
+      if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        const errorList = error.response.data.errors.join('\n');
+        toast.error(`${error.response.data.message}\n${errorList}`, { duration: 6000 });
+      } else {
+        const message = error.response?.data?.message || 'Failed to update course status';
+        toast.error(message);
+      }
     }
   };
 

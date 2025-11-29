@@ -399,25 +399,28 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate }) {
           </div>
         );
       case 'scorm': {
-        // Use proxy endpoint to avoid CORS issues with SCORM content
+        // Use scorm-player.html in iframe to handle SCORM content with API
         const proxyUrl = lesson.url ? `${API_BASE}/api/scorm-proxy?url=${encodeURIComponent(lesson.url)}` : null;
+        const scormPlayerUrl = proxyUrl 
+          ? `/scorm-player.html?url=${encodeURIComponent(proxyUrl)}&lessonId=${lesson.id}&courseId=${_courseId}`
+          : null;
+        
         return (
-          <div className="w-full h-full bg-gray-50 relative">
-            {proxyUrl ? (
-              <iframe 
-                src={`/scorm-player.html?url=${encodeURIComponent(proxyUrl)}`}
+          <div className="w-full h-full bg-white relative">
+            {scormPlayerUrl ? (
+              <iframe
+                src={scormPlayerUrl}
                 className="w-full h-full border-0"
-                title="SCORM Content Player"
+                title="SCORM Content"
                 allow="autoplay; fullscreen"
               />
             ) : (
               <div className="flex items-center justify-center h-full">
-                <div className="text-gray-600 text-center">
-                  <svg className="w-20 h-20 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+                <div className="text-center text-gray-500">
+                  <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
                   </svg>
-                  <p>SCORM Content Player</p>
-                  <p className="text-sm text-gray-500 mt-2">Interactive content will load here</p>
+                  <p className="text-lg">SCORM content not available</p>
                 </div>
               </div>
             )}
@@ -488,6 +491,23 @@ export default function CourseContent() {
   const [surveyLoading, setSurveyLoading] = useState(false);
 
   usePageTitle(course ? `${course.title} - Course Content` : 'Course Content');
+
+  // Listen for SCORM completion messages
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.data && event.data.type === 'scorm-lesson-completed') {
+        console.log('📥 Received SCORM completion for lesson:', event.data.lessonId);
+        // Update the lesson completion status in the sidebar
+        handleProgressUpdate(event.data.lessonId, {
+          progressPercent: 100,
+          completed: true
+        });
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleProgressUpdate = async (lessonId, progressData) => {
     try {

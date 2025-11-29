@@ -10,9 +10,18 @@ namespace lmsbox.infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_LearnerProgresses_UserId",
-                table: "LearnerProgresses");
+            // Drop index only if it exists (Azure database may not have it)
+            migrationBuilder.Sql(@"
+                IF EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_LearnerProgresses_UserId' AND object_id = OBJECT_ID('LearnerProgresses'))
+                BEGIN
+                    DROP INDEX [IX_LearnerProgresses_UserId] ON [LearnerProgresses];
+                END
+            ");
+            
+            // Original code commented out:
+            // migrationBuilder.DropIndex(
+            //     name: "IX_LearnerProgresses_UserId",
+            //     table: "LearnerProgresses");
 
             migrationBuilder.AlterColumn<string>(
                 name: "CertificateId",

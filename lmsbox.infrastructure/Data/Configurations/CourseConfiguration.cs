@@ -31,5 +31,18 @@ public class CourseConfiguration : IEntityTypeConfiguration<Course>
                .WithMany()
                .HasForeignKey(c => c.CreatedByUserId)
                .OnDelete(DeleteBehavior.Restrict);
+
+        // Survey relationships - optional foreign keys
+        builder.HasOne(c => c.PreCourseSurvey)
+               .WithMany()
+               .HasForeignKey(c => c.PreCourseSurveyId)
+               .OnDelete(DeleteBehavior.Restrict)
+               .IsRequired(false);
+
+        builder.HasOne(c => c.PostCourseSurvey)
+               .WithMany()
+               .HasForeignKey(c => c.PostCourseSurveyId)
+               .OnDelete(DeleteBehavior.Restrict)
+               .IsRequired(false);
     }
 }

@@ -54,7 +54,7 @@ export const adminCourseService = {
 
   // Update course status (publish/unpublish/archive)
   async updateCourseStatus(courseId, status) {
-    const response = await api.put(`/api/admin/courses/${courseId}/status`, { status });
+    const response = await api.put(`/api/admin/courses/${courseId}/status`, { Status: status });
     return response.data;
   },
 

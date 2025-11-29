@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace lmsbox.domain.Models;
@@ -23,6 +24,8 @@ public class LearnerProgress
 
     public bool Completed { get; set; }
 
+    public DateTime? StartedAt { get; set; }
+
     public DateTime? CompletedAt { get; set; }
 
     // Video bookmark timestamp in seconds
@@ -33,6 +36,12 @@ public class LearnerProgress
 
     // Time tracking for analytics (in seconds)
     public int TotalTimeSpentSeconds { get; set; } = 0;
+    
+    // SCORM tracking
+    public string? ScormData { get; set; } // JSON string for SCORM suspend_data
+    public string? ScormLessonLocation { get; set; } // SCORM bookmark/location
+    public string? ScormLessonStatus { get; set; } // incomplete, completed, passed, failed, etc.
+    public string? ScormScore { get; set; } // SCORM score value
     
     // Current session tracking
     public DateTime? SessionStartTime { get; set; }
@@ -51,4 +60,8 @@ public class LearnerProgress
     public bool PostSurveyCompleted { get; set; } = false;
     public DateTime? PostSurveyCompletedAt { get; set; }
     public long? PostSurveyResponseId { get; set; }
+    
+    // Optimistic concurrency control
+    [Timestamp]
+    public byte[]? RowVersion { get; set; }
 }

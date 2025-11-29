@@ -206,8 +206,8 @@ builder.Services.AddScoped<lmsBox.Server.Services.IAzureBlobService, lmsBox.Serv
 // Audit Log service registration
 builder.Services.AddScoped<lmsBox.Server.Services.IAuditLogService, lmsBox.Server.Services.AuditLogService>();
 
-// Certificate service registration
-builder.Services.AddScoped<lmsBox.Server.Services.ICertificateService, lmsBox.Server.Services.CertificateService>();
+// Certificate service registration - Using stub implementation (PDF generation on hold)
+builder.Services.AddScoped<lmsBox.Server.Services.ICertificateService, lmsBox.Server.Services.CertificateServiceStub>();
 
 // AI Assistant service registration
 builder.Services.AddScoped<lmsBox.Server.Services.IAIAssistantService, lmsBox.Server.Services.AIAssistantService>();

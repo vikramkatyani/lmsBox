@@ -708,7 +708,27 @@ namespace lmsbox.infrastructure.Migrations
                     b.Property<int>("ProgressPercent")
                         .HasColumnType("int");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("ScormData")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ScormLessonLocation")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ScormLessonStatus")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ScormScore")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("SessionStartTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("StartedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<int>("TotalTimeSpentSeconds")
@@ -1545,11 +1565,13 @@ namespace lmsbox.infrastructure.Migrations
 
                     b.HasOne("lmsbox.domain.Models.Survey", "PostCourseSurvey")
                         .WithMany()
-                        .HasForeignKey("PostCourseSurveyId");
+                        .HasForeignKey("PostCourseSurveyId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("lmsbox.domain.Models.Survey", "PreCourseSurvey")
                         .WithMany()
-                        .HasForeignKey("PreCourseSurveyId");
+                        .HasForeignKey("PreCourseSurveyId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("CreatedByUser");
 

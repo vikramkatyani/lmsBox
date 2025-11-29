@@ -208,7 +208,10 @@ export default function AdminCourseEditor() {
     toast.success('Quiz selected');
   };
 
-  const isValid = useMemo(() => form.title.trim().length > 0, [form.title]);
+  const isValid = useMemo(() => 
+    form.title.trim().length > 0 && form.shortDescription.trim().length > 0, 
+    [form.title, form.shortDescription]
+  );
 
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -475,7 +478,11 @@ export default function AdminCourseEditor() {
   const onSave = async () => {
     setSubmitted(true);
     if (!isValid) {
-      toast.error('Please enter a course title');
+      if (!form.title.trim()) {
+        toast.error('Please enter a course title');
+      } else if (!form.shortDescription.trim()) {
+        toast.error('Please enter a short description');
+      }
       return;
     }
     
@@ -488,13 +495,15 @@ export default function AdminCourseEditor() {
       let _savedCourse;
       if (isNew) {
         _savedCourse = await adminCourseService.createCourse(courseData);
-        toast.success('Course created successfully');
+        toast.success('Course created successfully! Now add lessons in the Lessons tab.');
+        // Stay on the page and switch to lessons tab
+        setActiveTab('lessons');
+        // Update the URL to edit mode
+        navigate(`/admin/courses/edit/${_savedCourse.id}?tab=lessons`, { replace: true });
       } else {
         _savedCourse = await adminCourseService.updateCourse(courseId, courseData);
-        toast.success('Course updated successfully');
+        toast.success('Course updated successfully!');
       }
-      
-      navigate('/admin/courses');
     } catch (error) {
       console.error('Error saving course:', error);
       const message = error.response?.data?.message || 'Failed to save course';
@@ -628,14 +637,23 @@ export default function AdminCourseEditor() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Short Description</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Short Description <span className="text-red-500">*</span>
+                  </label>
                   <textarea
                     value={form.shortDescription}
                     onChange={(e) => handleChange('shortDescription', e.target.value)}
-                    className="w-full border border-gray-300 rounded px-4 py-2"
+                    className={`w-full border rounded px-4 py-2 ${
+                      submitted && !form.shortDescription.trim() 
+                        ? 'border-red-500 focus:ring-red-500' 
+                        : 'border-gray-300 focus:ring-blue-500'
+                    }`}
                     rows={2}
-                    placeholder="One-liner shown on cards/search results"
+                    placeholder="One-liner shown on cards/search results (required)"
                   />
+                  {submitted && !form.shortDescription.trim() && (
+                    <p className="text-sm text-red-500 mt-1">Short description is required</p>
+                  )}
                 </div>
 
                 <div>
