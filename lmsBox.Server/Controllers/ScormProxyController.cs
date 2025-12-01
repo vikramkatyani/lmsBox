@@ -100,27 +100,58 @@ public class ScormProxyController : ControllerBase
     
     var dataLoaded = false;
     var pendingCommit = false;
+    var bookmarkLocked = false; // Prevent overwriting bookmark until saved data loads
+    var bookmarkRead = false; // Track if course has read the bookmark
+    
+    // Request data immediately on script load
+    window.parent.postMessage({type:'scorm-request-data'}, '*');
+    console.log('📡 API Shim: Requested saved data on load');
     
     window.API = {
         LMSInitialize: function(p) {
-            console.log('🔧 API Shim: LMSInitialize - requesting saved data from parent');
-            window.parent.postMessage({type:'scorm-request-data'}, '*');
-            
-            // Give parent 100ms to respond with saved data before allowing commits
-            setTimeout(function() {
-                if (!dataLoaded) {
-                    console.log('⚠️ API Shim: No saved data received after 100ms, allowing saves');
-                    dataLoaded = true;
-                    if (pendingCommit) {
-                        window.API.LMSCommit('');
-                    }
-                }
-            }, 100);
-            
+            console.log('🔧 API Shim: LMSInitialize called');
+            bookmarkLocked = true; // Lock bookmark until data arrives
             return 'true';
         },
         LMSGetValue: function(element) {
+            // If asking for bookmark/status and data hasn't loaded, wait briefly
+            if (!dataLoaded && (element === 'cmi.core.lesson_location' || element === 'cmi.core.lesson_status' || element === 'cmi.suspend_data')) {
+                console.log('⏳ API Shim: LMSGetValue(' + element + ') called before data loaded, waiting...');
+                
+                // Synchronous wait (blocking) - SCORM API must be synchronous
+                var startTime = Date.now();
+                var maxWait = 2000; // Wait up to 2 seconds
+                
+                while (!dataLoaded && (Date.now() - startTime) < maxWait) {
+                    // Busy wait - not ideal but SCORM API must be synchronous
+                    var dummy = 1 + 1; // Keep loop alive
+                }
+                
+                if (dataLoaded) {
+                    console.log('✅ API Shim: Data arrived, returning ' + element + ' = ' + (scormData[element] || ''));
+                } else {
+                    console.log('⚠️ API Shim: Timeout waiting for data, returning empty ' + element);
+                }
+            }
+            
             var value = scormData[element] || '';
+            
+            // Track when course reads the bookmark - keep lock for 100ms after read
+            if (element === 'cmi.core.lesson_location' && dataLoaded && !bookmarkRead && scormData[element]) {
+                bookmarkRead = true;
+                console.log('📖 API Shim: Course read bookmark (' + value + '), keeping lock for 100ms');
+                setTimeout(function() {
+                    bookmarkLocked = false;
+                    console.log('🔓 API Shim: Bookmark lock released after read');
+                }, 100);
+            }
+            
+            // CRITICAL FIX: If course is completed but has a bookmark, return 'incomplete' so it resumes
+            if (element === 'cmi.core.lesson_status' && value === 'completed' && scormData['cmi.core.lesson_location']) {
+                console.log('🔄 API Shim: Returning incomplete instead of completed to enable bookmark resume');
+                value = 'incomplete';
+            }
+            
             console.log('🔧 API Shim: LMSGetValue(' + element + ') = ' + value);
             return value;
         },
@@ -135,6 +166,12 @@ public class ScormProxyController : ControllerBase
                     console.log('🔧 API Shim: Preventing status downgrade from ' + currentStatus + ' to ' + value);
                     return 'true';
                 }
+            }
+            
+            // Protect bookmark AND suspend_data from being overwritten before saved data loads
+            if ((element === 'cmi.core.lesson_location' || element === 'cmi.suspend_data') && bookmarkLocked) {
+                console.log('🔧 API Shim: Bookmark/suspend_data locked, ignoring SetValue until data loads');
+                return 'true';
             }
             
             scormData[element] = value;
@@ -187,40 +224,31 @@ public class ScormProxyController : ControllerBase
             if (!scormData['cmi.core.score.raw']) {
                 scormData['cmi.core.score.raw'] = e.data.data.score || '';
             }
-            if (!scormData['cmi.core.lesson_location']) {
-                scormData['cmi.core.lesson_location'] = e.data.data.lessonLocation || '';
+            
+            // Always load saved bookmark, overwriting any course defaults
+            var savedBookmark = e.data.data.lessonLocation || '';
+            console.log('🔖 API Shim: Loading saved bookmark:', savedBookmark, 'Current bookmark:', scormData['cmi.core.lesson_location']);
+            if (savedBookmark) {
+                scormData['cmi.core.lesson_location'] = savedBookmark;
+                console.log('🔖 API Shim: Bookmark set to:', scormData['cmi.core.lesson_location']);
             }
-            if (!scormData['cmi.suspend_data']) {
-                scormData['cmi.suspend_data'] = e.data.data.suspendData || '';
+            
+            // Always load saved suspend_data, overwriting any course defaults
+            var savedSuspendData = e.data.data.suspendData || '';
+            console.log('💾 API Shim: Loading saved suspend_data:', savedSuspendData);
+            if (savedSuspendData) {
+                scormData['cmi.suspend_data'] = savedSuspendData;
+                console.log('💾 API Shim: Suspend data set to:', scormData['cmi.suspend_data']);
             }
+            
+            bookmarkLocked = false; // Unlock bookmark BEFORE setting dataLoaded to prevent race
             dataLoaded = true;
-            console.log('✅ API Shim: Data loaded (preserving current session changes), status:', scormData['cmi.core.lesson_status'], 'bookmark:', scormData['cmi.core.lesson_location']);
+            console.log('✅ API Shim: Data loaded, status:', scormData['cmi.core.lesson_status'], 'bookmark:', scormData['cmi.core.lesson_location']);
             
             // If there was a pending commit, execute it now
             if (pendingCommit) {
                 console.log('📤 API Shim: Executing deferred commit');
                 window.API.LMSCommit('');
-            }
-            
-            // Try to help SCORM content navigate to bookmarked slide
-            if (scormData['cmi.core.lesson_location']) {
-                setTimeout(function() {
-                    var bookmark = scormData['cmi.core.lesson_location'];
-                    console.log('🎯 API Shim: Attempting to navigate to bookmark:', bookmark);
-                    
-                    // Try common SCORM navigation methods
-                    if (window.loadSlide) window.loadSlide(bookmark);
-                    if (window.GoToSlide) window.GoToSlide(bookmark);
-                    if (window.gotoSlide) window.gotoSlide(bookmark);
-                    if (window.jumpToSlide) window.jumpToSlide(bookmark);
-                    if (window.SCORM && window.SCORM.loadProgress) window.SCORM.loadProgress();
-                    
-                    // Dispatch custom event that content might listen for
-                    var event = new CustomEvent('scorm-bookmark-ready', { 
-                        detail: { bookmark: bookmark } 
-                    });
-                    window.dispatchEvent(event);
-                }, 200);
             }
         }
     });
