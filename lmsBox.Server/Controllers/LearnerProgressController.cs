@@ -599,14 +599,36 @@ public class LearnerProgressController : ControllerBase
             
             if (!string.IsNullOrEmpty(request.ScormLessonStatus))
             {
-                lessonProgress.ScormLessonStatus = request.ScormLessonStatus;
+                _logger.LogInformation("SCORM Status Update: User={UserId}, Lesson={LessonId}, NewStatus={NewStatus}, WasCompleted={WasCompleted}, CurrentStatus={CurrentStatus}", 
+                    userId, lessonId, request.ScormLessonStatus, wasCompleted, lessonProgress.ScormLessonStatus);
                 
-                // Auto-complete if SCORM status indicates completion
-                if ((request.ScormLessonStatus == "completed" || request.ScormLessonStatus == "passed") && !lessonProgress.Completed)
+                // PROTECT: Never allow downgrading from completed/passed to incomplete/not attempted
+                if (lessonProgress.Completed && 
+                    (request.ScormLessonStatus == "incomplete" || request.ScormLessonStatus == "not attempted"))
                 {
-                    lessonProgress.Completed = true;
-                    lessonProgress.CompletedAt = DateTime.UtcNow;
-                    lessonProgress.ProgressPercent = 100;
+                    _logger.LogWarning("BLOCKING status downgrade: Lesson {LessonId} already completed, ignoring status '{NewStatus}'", 
+                        lessonId, request.ScormLessonStatus);
+                    // Don't update ScormLessonStatus - keep it as completed
+                }
+                else
+                {
+                    lessonProgress.ScormLessonStatus = request.ScormLessonStatus;
+                    
+                    // Auto-complete if SCORM status indicates completion
+                    if (request.ScormLessonStatus == "completed" || request.ScormLessonStatus == "passed")
+                    {
+                        if (!lessonProgress.Completed)
+                        {
+                            _logger.LogInformation("Marking lesson {LessonId} as completed for user {UserId}", lessonId, userId);
+                            lessonProgress.Completed = true;
+                            lessonProgress.CompletedAt = DateTime.UtcNow;
+                            lessonProgress.ProgressPercent = 100;
+                        }
+                        else
+                        {
+                            _logger.LogInformation("Lesson {LessonId} already completed for user {UserId}, skipping re-completion", lessonId, userId);
+                        }
+                    }
                 }
             }
             

@@ -126,6 +126,17 @@ public class ScormProxyController : ControllerBase
         },
         LMSSetValue: function(element, value) {
             console.log('🔧 API Shim: LMSSetValue(' + element + ', ' + value + ')');
+            
+            // Protect completed/passed status from being overwritten by incomplete
+            if (element === 'cmi.core.lesson_status') {
+                var currentStatus = scormData[element];
+                if ((currentStatus === 'completed' || currentStatus === 'passed') && 
+                    (value === 'incomplete' || value === 'not attempted')) {
+                    console.log('🔧 API Shim: Preventing status downgrade from ' + currentStatus + ' to ' + value);
+                    return 'true';
+                }
+            }
+            
             scormData[element] = value;
             return 'true';
         },
@@ -162,12 +173,28 @@ public class ScormProxyController : ControllerBase
     window.addEventListener('message', function(e) {
         if (e.data?.type === 'scorm-init-data' && e.data.data) {
             console.log('🔧 API Shim: Received saved data from parent:', e.data.data);
-            scormData['cmi.core.lesson_status'] = e.data.data.lessonStatus || 'not attempted';
-            scormData['cmi.core.score.raw'] = e.data.data.score || '';
-            scormData['cmi.core.lesson_location'] = e.data.data.lessonLocation || '';
-            scormData['cmi.suspend_data'] = e.data.data.suspendData || '';
+            
+            // Load saved status - if it's completed/passed, lock it in
+            var savedStatus = e.data.data.lessonStatus || 'not attempted';
+            if (savedStatus === 'completed' || savedStatus === 'passed') {
+                console.log('🔒 API Shim: Lesson already completed, locking status');
+                scormData['cmi.core.lesson_status'] = savedStatus;
+            } else if (scormData['cmi.core.lesson_status'] === 'not attempted') {
+                // Only load non-completed status if current is still 'not attempted'
+                scormData['cmi.core.lesson_status'] = savedStatus;
+            }
+            
+            if (!scormData['cmi.core.score.raw']) {
+                scormData['cmi.core.score.raw'] = e.data.data.score || '';
+            }
+            if (!scormData['cmi.core.lesson_location']) {
+                scormData['cmi.core.lesson_location'] = e.data.data.lessonLocation || '';
+            }
+            if (!scormData['cmi.suspend_data']) {
+                scormData['cmi.suspend_data'] = e.data.data.suspendData || '';
+            }
             dataLoaded = true;
-            console.log('✅ API Shim: Data loaded, bookmark:', scormData['cmi.core.lesson_location']);
+            console.log('✅ API Shim: Data loaded (preserving current session changes), status:', scormData['cmi.core.lesson_status'], 'bookmark:', scormData['cmi.core.lesson_location']);
             
             // If there was a pending commit, execute it now
             if (pendingCommit) {

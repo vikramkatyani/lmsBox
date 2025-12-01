@@ -265,7 +265,19 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        // Disable caching for SCORM player files to ensure updates are immediately visible
+        if (ctx.File.Name.StartsWith("scorm-player", StringComparison.OrdinalIgnoreCase))
+        {
+            ctx.Context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
+            ctx.Context.Response.Headers.Append("Pragma", "no-cache");
+            ctx.Context.Response.Headers.Append("Expires", "0");
+        }
+    }
+});
 
 app.MapControllers();
 

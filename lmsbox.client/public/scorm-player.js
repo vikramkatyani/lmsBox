@@ -78,6 +78,21 @@
             console.log('📤 API.LMSSetValue:', element, '=', value);
             
             if (element === "cmi.core.lesson_status") {
+                // Protect completed/passed status from being downgraded
+                var currentStatus = currentScormData.scormLessonStatus || savedScormData.lessonStatus;
+                
+                // NEVER allow setting to incomplete - always upgrade to completed instead
+                if (value === 'incomplete' || value === 'not attempted') {
+                    // If we already have a better status, keep it
+                    if (currentStatus === 'completed' || currentStatus === 'passed') {
+                        console.log('🔒 Preventing status downgrade from', currentStatus, 'to', value);
+                        return "true";
+                    }
+                    // Block "incomplete" entirely - SCORM content should use "completed" or "not attempted"
+                    console.log('🚫 Blocking "incomplete" status - ignoring:', value);
+                    return "true";
+                }
+                
                 currentScormData.scormLessonStatus = String(value);
             } else if (element === "cmi.core.score.raw") {
                 currentScormData.scormScore = String(value);
