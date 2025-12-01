@@ -37,6 +37,7 @@
     var currentScormData = {};
     var isInitialized = false;
     var isSaving = false; // Prevent concurrent saves
+    var pendingSaveData = null; // Queue for pending save
     
     // Create SCORM 1.2 API for content that uses window.parent.API
     window.API = {
@@ -270,26 +271,38 @@
                 return;
             }
             
-            // Prevent concurrent saves
+            // Prevent concurrent saves - queue instead of skipping
             if (isSaving) {
-                console.log('⏳ Save already in progress from postMessage, skipping...');
+                console.log('⏳ Save already in progress, queuing this save...');
+                // Merge with pending save or create new one
+                if (!pendingSaveData) {
+                    pendingSaveData = {};
+                }
+                // Merge data - completed status takes priority
+                Object.assign(pendingSaveData, event.data.data);
                 return;
             }
             
             isSaving = true;
             
-            // AUTO-FIX: Replace "incomplete" with "completed" if we already have completed status
+            // PROTECT: Only prevent downgrading from completed/passed to incomplete/not attempted
             if (event.data.data.scormLessonStatus === 'incomplete' || event.data.data.scormLessonStatus === 'not attempted') {
                 var currentStatus = currentScormData.scormLessonStatus || savedScormData.lessonStatus;
                 if (currentStatus === 'completed' || currentStatus === 'passed') {
-                    console.log('🔄 AUTO-FIX: Replacing', event.data.data.scormLessonStatus, 'with', currentStatus);
-                    event.data.data.scormLessonStatus = currentStatus; // Replace with completed
+                    // Already completed - replace incomplete with completed
+                    console.log('🔄 PROTECTION: Replacing', event.data.data.scormLessonStatus, 'with', currentStatus, '(already completed)');
+                    event.data.data.scormLessonStatus = currentStatus;
                 } else {
-                    // If not completed yet, completely ignore incomplete status
-                    console.log('🚫 IGNORING incomplete status - no save performed');
-                    isSaving = false;
-                    return;
+                    // Not completed yet - allow incomplete to track in-progress
+                    console.log('✅ Allowing incomplete status (lesson in progress)');
                 }
+            }
+            
+            // Update completion status immediately in savedScormData to protect subsequent saves
+            if (event.data.data.scormLessonStatus === 'completed' || event.data.data.scormLessonStatus === 'passed') {
+                savedScormData.lessonStatus = event.data.data.scormLessonStatus;
+                currentScormData.scormLessonStatus = event.data.data.scormLessonStatus;
+                console.log('🔒 Locked completion status:', event.data.data.scormLessonStatus);
             }
             
             // Update local saved data
@@ -342,6 +355,19 @@
             })
             .finally(function() {
                 isSaving = false;
+                
+                // Process pending save if any
+                if (pendingSaveData) {
+                    console.log('📤 Processing queued save:', pendingSaveData);
+                    var dataToSave = pendingSaveData;
+                    pendingSaveData = null;
+                    
+                    // Trigger the save by posting a message to self
+                    window.postMessage({
+                        type: 'scorm-save',
+                        data: dataToSave
+                    }, '*');
+                }
             });
         }
     });
