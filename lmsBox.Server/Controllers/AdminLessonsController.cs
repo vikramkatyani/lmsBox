@@ -126,6 +126,7 @@ public class AdminLessonsController : ControllerBase
             string? videoUrlWithSas = null;
             string? documentUrlWithSas = null;
             string? scormUrlWithSas = null;
+            string? htmlUrlWithSas = null;
 
             if (!string.IsNullOrEmpty(lesson.VideoUrl))
             {
@@ -140,6 +141,11 @@ public class AdminLessonsController : ControllerBase
             if (!string.IsNullOrEmpty(lesson.ScormUrl))
             {
                 scormUrlWithSas = await _blobService.GetSasUrlAsync(lesson.ScormUrl, 24);
+            }
+
+            if (!string.IsNullOrEmpty(lesson.HtmlUrl))
+            {
+                htmlUrlWithSas = await _blobService.GetSasUrlAsync(lesson.HtmlUrl, 24);
             }
 
             var lessonDto = new LessonDetailDto
@@ -157,6 +163,8 @@ public class AdminLessonsController : ControllerBase
                 ScormUrl = scormUrlWithSas ?? lesson.ScormUrl,
                 ScormEntryUrl = lesson.ScormEntryUrl,
                 DocumentUrl = documentUrlWithSas ?? lesson.DocumentUrl,
+                HtmlContent = lesson.HtmlContent,
+                HtmlUrl = htmlUrlWithSas ?? lesson.HtmlUrl,
                 IsOptional = lesson.IsOptional,
                 CreatedAt = lesson.CreatedAt
             };
@@ -228,6 +236,8 @@ public class AdminLessonsController : ControllerBase
                 ScormUrl = request.ScormUrl,
                 ScormEntryUrl = request.ScormEntryUrl,
                 DocumentUrl = request.DocumentUrl,
+                HtmlContent = request.HtmlContent,
+                HtmlUrl = request.HtmlUrl,
                 IsOptional = request.IsOptional,
                 CreatedByUserId = userId,
                 CreatedAt = DateTime.UtcNow
@@ -263,6 +273,8 @@ public class AdminLessonsController : ControllerBase
                 ScormUrl = createdLesson.ScormUrl,
                 ScormEntryUrl = createdLesson.ScormEntryUrl,
                 DocumentUrl = createdLesson.DocumentUrl,
+                HtmlContent = createdLesson.HtmlContent,
+                HtmlUrl = createdLesson.HtmlUrl,
                 IsOptional = createdLesson.IsOptional,
                 CreatedAt = createdLesson.CreatedAt
             };
@@ -334,6 +346,8 @@ public class AdminLessonsController : ControllerBase
             lesson.ScormUrl = request.ScormUrl;
             lesson.ScormEntryUrl = request.ScormEntryUrl;
             lesson.DocumentUrl = request.DocumentUrl;
+            lesson.HtmlContent = request.HtmlContent;
+            lesson.HtmlUrl = request.HtmlUrl;
             lesson.IsOptional = request.IsOptional;
 
             // Update course timestamp
@@ -361,6 +375,8 @@ public class AdminLessonsController : ControllerBase
                 ScormUrl = lesson.ScormUrl,
                 ScormEntryUrl = lesson.ScormEntryUrl,
                 DocumentUrl = lesson.DocumentUrl,
+                HtmlContent = lesson.HtmlContent,
+                HtmlUrl = lesson.HtmlUrl,
                 IsOptional = lesson.IsOptional,
                 CreatedAt = lesson.CreatedAt
             };
@@ -952,6 +968,8 @@ public class LessonDetailDto
     public string? ScormUrl { get; set; }
     public string? ScormEntryUrl { get; set; }
     public string? DocumentUrl { get; set; }
+    public string? HtmlContent { get; set; }
+    public string? HtmlUrl { get; set; }
     public bool IsOptional { get; set; }
     public DateTime CreatedAt { get; set; }
 }
@@ -968,6 +986,8 @@ public class CreateLessonRequest
     public string? ScormUrl { get; set; }
     public string? ScormEntryUrl { get; set; }
     public string? DocumentUrl { get; set; }
+    public string? HtmlContent { get; set; }
+    public string? HtmlUrl { get; set; }
     public bool IsOptional { get; set; }
 }
 

@@ -125,7 +125,25 @@ Include inline styles for better formatting (fonts, colors, spacing).";
             _logger.LogDebug("Calling OpenAI API...");
             var response = await _chatClient.CompleteChatAsync(messages);
             _logger.LogInformation("Successfully generated lesson content");
-            return response.Value.Content[0].Text;
+            
+            var content = response.Value.Content[0].Text;
+            
+            // Remove markdown code block wrappers if present
+            if (content.StartsWith("```html"))
+            {
+                content = content.Substring(7); // Remove ```html
+            }
+            else if (content.StartsWith("```"))
+            {
+                content = content.Substring(3); // Remove ```
+            }
+            
+            if (content.EndsWith("```"))
+            {
+                content = content.Substring(0, content.Length - 3); // Remove trailing ```
+            }
+            
+            return content.Trim();
         }
         catch (Exception ex)
         {

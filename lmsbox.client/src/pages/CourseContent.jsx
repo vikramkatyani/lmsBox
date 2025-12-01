@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import LearnerHeader from '../components/LearnerHeader';
 import QuizPlayer from '../components/QuizPlayer';
 import SurveyPlayer from '../components/SurveyPlayer';
+import FullscreenButton from '../components/FullscreenButton';
 import { getCourseDetails } from '../services/courseDetails';
 import { learnerSurveyService } from '../services/surveys';
 import toast from 'react-hot-toast';
@@ -35,6 +36,12 @@ function LessonItem({ lesson, isActive, onClick }) {
         return (
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
             <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
+          </svg>
+        );
+      case 'html':
+        return (
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
           </svg>
         );
       case 'content':
@@ -243,6 +250,11 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate }) {
     );
   }
 
+  const videoContainerRef = useRef(null);
+  const pdfContainerRef = useRef(null);
+  const scormContainerRef = useRef(null);
+  const htmlContainerRef = useRef(null);
+
   const renderContent = () => {
     switch (lesson.type) {
       case 'video': {
@@ -265,7 +277,8 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate }) {
         }
         
         return (
-          <div className="w-full h-full bg-black">
+          <div ref={videoContainerRef} className="w-full h-full bg-black relative">
+            <FullscreenButton targetRef={videoContainerRef} className="absolute top-4 right-4 z-10" />
             {lesson.url ? (
               isYouTube || isVimeo ? (
                 <iframe
@@ -317,7 +330,8 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate }) {
       case 'pdf':
       case 'document': {
         return (
-          <div className="w-full h-full bg-gray-100 relative">
+          <div ref={pdfContainerRef} className="w-full h-full bg-gray-100 relative">
+            <FullscreenButton targetRef={pdfContainerRef} className="absolute top-4 right-4 z-10" />
             {lesson.url ? (
               <>
                 <object 
@@ -406,7 +420,7 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate }) {
           : null;
         
         return (
-          <div className="w-full h-full bg-white relative">
+          <div ref={scormContainerRef} className="w-full h-full bg-white relative">
             {scormPlayerUrl ? (
               <iframe
                 src={scormPlayerUrl}
@@ -421,6 +435,30 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate }) {
                     <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
                   </svg>
                   <p className="text-lg">SCORM content not available</p>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+      case 'html': {
+        return (
+          <div ref={htmlContainerRef} className="w-full h-full bg-white relative">
+            <FullscreenButton targetRef={htmlContainerRef} className="absolute top-4 right-4 z-10" />
+            {lesson.htmlUrl ? (
+              <iframe
+                src={lesson.htmlUrl}
+                className="w-full h-full border-0"
+                title="HTML Content"
+                sandbox="allow-scripts allow-same-origin"
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center text-gray-500">
+                  <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-lg">HTML content not available</p>
                 </div>
               </div>
             )}

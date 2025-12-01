@@ -33,6 +33,154 @@
         suspendData: ""
     };
     
+    // SCORM data that tracks changes made during the session
+    var currentScormData = {};
+    var isInitialized = false;
+    var isSaving = false; // Prevent concurrent saves
+    
+    // Create SCORM 1.2 API for content that uses window.parent.API
+    window.API = {
+        LMSInitialize: function(param) {
+            console.log('📘 API.LMSInitialize called');
+            isInitialized = true;
+            return "true";
+        },
+        
+        LMSFinish: function(param) {
+            console.log('📕 API.LMSFinish called');
+            this.LMSCommit("");
+            isInitialized = false;
+            return "true";
+        },
+        
+        LMSGetValue: function(element) {
+            console.log('📥 API.LMSGetValue:', element);
+            
+            // Return from current session data if set, otherwise from saved data
+            if (element === "cmi.core.lesson_status") {
+                return currentScormData.scormLessonStatus || savedScormData.lessonStatus || "not attempted";
+            } else if (element === "cmi.core.score.raw") {
+                return currentScormData.scormScore || savedScormData.score || "";
+            } else if (element === "cmi.core.lesson_location") {
+                return currentScormData.scormLessonLocation || savedScormData.lessonLocation || "";
+            } else if (element === "cmi.suspend_data") {
+                return currentScormData.scormData || savedScormData.suspendData || "";
+            } else if (element === "cmi.core.student_name") {
+                return "Learner";
+            } else if (element === "cmi.core.student_id") {
+                return "learner-id";
+            }
+            
+            return "";
+        },
+        
+        LMSSetValue: function(element, value) {
+            console.log('📤 API.LMSSetValue:', element, '=', value);
+            
+            if (element === "cmi.core.lesson_status") {
+                currentScormData.scormLessonStatus = String(value);
+            } else if (element === "cmi.core.score.raw") {
+                currentScormData.scormScore = String(value);
+            } else if (element === "cmi.core.lesson_location") {
+                currentScormData.scormLessonLocation = String(value);
+            } else if (element === "cmi.suspend_data") {
+                currentScormData.scormData = String(value);
+            } else if (element === "cmi.core.session_time") {
+                // Track session time but don't save it
+                console.log('⏱️ Session time:', value);
+            }
+            
+            return "true";
+        },
+        
+        LMSCommit: function(param) {
+            console.log('💾 API.LMSCommit called - saving data to backend');
+            
+            // Save current data to backend
+            if (!lessonId || !authToken) {
+                console.warn('❌ Cannot commit: missing lessonId or authToken');
+                return "true";
+            }
+            
+            // Only save if there's actual data to save
+            if (Object.keys(currentScormData).length === 0) {
+                console.log('ℹ️ No data to commit');
+                return "true";
+            }
+            
+            // Prevent concurrent saves
+            if (isSaving) {
+                console.log('⏳ Save already in progress, skipping...');
+                return "true";
+            }
+            
+            isSaving = true;
+            
+            var isCompleted = currentScormData.scormLessonStatus === 'completed' || 
+                             currentScormData.scormLessonStatus === 'passed';
+            
+            console.log('💾 Committing SCORM data:', currentScormData);
+            
+            fetch(apiBase + '/api/learner/progress/lessons/' + lessonId + '/scorm', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + authToken
+                },
+                body: JSON.stringify(currentScormData)
+            })
+            .then(function(response) {
+                if (response.ok) {
+                    console.log('✅ SCORM data committed successfully');
+                    
+                    // Update saved data with current data
+                    Object.assign(savedScormData, currentScormData);
+                    
+                    // Notify parent window if lesson was completed
+                    if (isCompleted && window.parent && window.parent !== window) {
+                        console.log('📢 Notifying parent of SCORM completion');
+                        window.parent.postMessage({
+                            type: 'scorm-lesson-completed',
+                            lessonId: lessonId
+                        }, '*');
+                    }
+                    
+                    return response.json();
+                } else {
+                    console.error('❌ Failed to commit SCORM data:', response.status);
+                    return response.text().then(function(text) {
+                        console.error('Error details:', text);
+                    });
+                }
+            })
+            .then(function(data) {
+                if (data) console.log('Backend response:', data);
+            })
+            .catch(function(error) {
+                console.error('❌ Error committing SCORM data:', error);
+            })
+            .finally(function() {
+                isSaving = false;
+            });
+            
+            return "true";
+        },
+        
+        LMSGetLastError: function() {
+            return "0";
+        },
+        
+        LMSGetErrorString: function(errorCode) {
+            return "No error";
+        },
+        
+        LMSGetDiagnostic: function(errorCode) {
+            return "No error";
+        }
+    };
+    
+    console.log('✅ SCORM 1.2 API created on window.API for content access via window.parent.API');
+    
     // Fetch existing SCORM data for bookmarking/resume
     function loadSavedScormData() {
         if (!lessonId || !authToken) {
@@ -81,14 +229,17 @@
     
     // Listen for messages from the injected SCORM API in the iframe
     window.addEventListener('message', function(event) {
-        // Handle request for saved data from iframe
+        // Handle scorm-request-data - send saved data immediately when iframe requests it
         if (event.data && event.data.type === 'scorm-request-data') {
-            console.log('📥 Received request for saved data from iframe');
-            console.log('📤 Sending saved SCORM data:', savedScormData);
-            event.source.postMessage({
-                type: 'scorm-init-data',
-                data: savedScormData
-            }, '*');
+            console.log('📨 Iframe requested SCORM data, sending:', savedScormData);
+            
+            // Send data to the requesting iframe
+            if (event.source) {
+                event.source.postMessage({
+                    type: 'scorm-init-data',
+                    data: savedScormData
+                }, '*');
+            }
             return;
         }
         
@@ -103,6 +254,14 @@
                 });
                 return;
             }
+            
+            // Prevent concurrent saves
+            if (isSaving) {
+                console.log('⏳ Save already in progress from postMessage, skipping...');
+                return;
+            }
+            
+            isSaving = true;
             
             // Update local saved data
             if (event.data.data.scormLessonStatus) savedScormData.lessonStatus = event.data.data.scormLessonStatus;
@@ -151,6 +310,9 @@
             })
             .catch(function(error) {
                 console.error('❌ Error saving SCORM data:', error);
+            })
+            .finally(function() {
+                isSaving = false;
             });
         }
     });
@@ -160,6 +322,52 @@
         var scormUrl = urlParams.get('url');
         var iframe = document.getElementById('scorm-iframe');
         var loading = document.getElementById('loading');
+        
+        // Setup fullscreen controls
+        var fullscreenBtn = document.getElementById('fullscreen-btn');
+        var minimizeBtn = document.getElementById('minimize-btn');
+        
+        if (fullscreenBtn) {
+            fullscreenBtn.addEventListener('click', function() {
+                if (document.body.requestFullscreen) {
+                    document.body.requestFullscreen();
+                } else if (document.body.webkitRequestFullscreen) {
+                    document.body.webkitRequestFullscreen();
+                } else if (document.body.mozRequestFullScreen) {
+                    document.body.mozRequestFullScreen();
+                } else if (document.body.msRequestFullscreen) {
+                    document.body.msRequestFullscreen();
+                }
+            });
+        }
+        
+        if (minimizeBtn) {
+            minimizeBtn.addEventListener('click', function() {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.mozCancelFullScreen) {
+                    document.mozCancelFullScreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+            });
+        }
+        
+        // Listen for fullscreen changes to toggle buttons
+        document.addEventListener('fullscreenchange', toggleButtons);
+        document.addEventListener('webkitfullscreenchange', toggleButtons);
+        document.addEventListener('mozfullscreenchange', toggleButtons);
+        document.addEventListener('MSFullscreenChange', toggleButtons);
+        
+        function toggleButtons() {
+            var isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || 
+                                 document.mozFullScreenElement || document.msFullscreenElement);
+            
+            if (fullscreenBtn) fullscreenBtn.style.display = isFullscreen ? 'none' : 'flex';
+            if (minimizeBtn) minimizeBtn.style.display = isFullscreen ? 'flex' : 'none';
+        }
         
         if (scormUrl) {
             console.log('📦 Loading SCORM content from proxy:', scormUrl);

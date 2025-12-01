@@ -5,6 +5,7 @@ import AIAssistant from '../components/AIAssistant';
 import VideoLessonModal from '../components/VideoLessonModal';
 import PdfLessonModal from '../components/PdfLessonModal';
 import ScormLessonModal from '../components/ScormLessonModal';
+import HtmlLessonModal from '../components/HtmlLessonModal';
 import QuizLessonModal from '../components/QuizLessonModal';
 import toast from 'react-hot-toast';
 import { uploadMedia, uploadScorm } from '../services/upload';
@@ -96,7 +97,8 @@ export default function AdminCourseEditor() {
         const newLesson = await lessonsService.createLesson(courseId, {
           title: title,
           type: 'html',
-          documentUrl: uploadResult.htmlUrl,
+          htmlContent: htmlContent,
+          htmlUrl: uploadResult.htmlUrl,
           ordinal: lessons.length + 1,
           isOptional: false
         });
@@ -104,6 +106,7 @@ export default function AdminCourseEditor() {
         setLessons([...lessons, newLesson]);
         toast.success('HTML lesson created successfully!', { id: 'html-lesson' });
         setActiveTab('lessons'); // Switch to lessons tab
+        loadLessons(); // Reload lessons to get fresh data
         setAiAssistantOpen(false); // Close AI Assistant
       } catch (error) {
         console.error('Error creating HTML lesson:', error);
@@ -195,6 +198,10 @@ export default function AdminCourseEditor() {
   // SCORM Lesson Modal state
   const [scormLessonModalOpen, setScormLessonModalOpen] = useState(false);
   const [editingScormLesson, setEditingScormLesson] = useState(null);
+
+  // HTML Lesson Modal state
+  const [htmlLessonModalOpen, setHtmlLessonModalOpen] = useState(false);
+  const [editingHtmlLesson, setEditingHtmlLesson] = useState(null);
   
   // Quiz Lesson Modal state
   const [quizLessonModalOpen, setQuizLessonModalOpen] = useState(false);
@@ -346,6 +353,17 @@ export default function AdminCourseEditor() {
   const handleScormLessonSaved = () => {
     loadLessons();
     toast.success('SCORM lesson saved successfully');
+  };
+
+  // Handle HTML lesson modal
+  const handleOpenHtmlLessonModal = (lesson = null) => {
+    setEditingHtmlLesson(lesson);
+    setHtmlLessonModalOpen(true);
+  };
+
+  const handleHtmlLessonSaved = () => {
+    loadLessons();
+    toast.success('HTML lesson saved successfully');
   };
 
   // Handle Quiz lesson modal
@@ -867,6 +885,8 @@ export default function AdminCourseEditor() {
                         handleOpenPdfLessonModal();
                       } else if (type === 'scorm') {
                         handleOpenScormLessonModal();
+                      } else if (type === 'html') {
+                        handleOpenHtmlLessonModal();
                       } else if (type === 'quiz') {
                         handleOpenQuizLessonModal();
                       } else {
@@ -984,6 +1004,23 @@ export default function AdminCourseEditor() {
                                     onClick={() => handleOpenScormLessonModal(l)} 
                                     disabled={form.status === 'Published'}
                                     className="px-3 py-1.5 text-sm bg-green-50 text-green-700 rounded hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeleteLesson(l.id)} 
+                                    disabled={form.status === 'Published'}
+                                    className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    Delete
+                                  </button>
+                                </>
+                              ) : l.type === 'html' ? (
+                                <>
+                                  <button 
+                                    onClick={() => handleOpenHtmlLessonModal(l)} 
+                                    disabled={form.status === 'Published'}
+                                    className="px-3 py-1.5 text-sm bg-teal-50 text-teal-700 rounded hover:bg-teal-100 disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     Edit
                                   </button>
@@ -1371,6 +1408,20 @@ export default function AdminCourseEditor() {
         />
       )}
 
+      {/* HTML Lesson Modal */}
+      {!isNew && courseId && (
+        <HtmlLessonModal
+          isOpen={htmlLessonModalOpen}
+          onClose={() => {
+            setHtmlLessonModalOpen(false);
+            setEditingHtmlLesson(null);
+          }}
+          courseId={courseId}
+          lesson={editingHtmlLesson}
+          onSave={handleHtmlLessonSaved}
+        />
+      )}
+
       {/* Quiz Lesson Modal */}
       {!isNew && courseId && (
         <QuizLessonModal
@@ -1395,12 +1446,14 @@ function TypeBadge({ type }) {
     document: 'bg-purple-100 text-purple-800',
     pdf: 'bg-purple-100 text-purple-800',
     scorm: 'bg-green-100 text-green-800',
+    html: 'bg-teal-100 text-teal-800',
     quiz: 'bg-orange-100 text-orange-800'
   };
   const labelMap = {
     document: 'PDF',
     pdf: 'PDF',
-    scorm: 'SCORM'
+    scorm: 'SCORM',
+    html: 'HTML'
   };
   const label = labelMap[type] || type.charAt(0).toUpperCase() + type.slice(1);
   return <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${map[type] || 'bg-gray-100 text-gray-800'}`}>{label}</span>;
@@ -1413,6 +1466,7 @@ function AddLessonMenu({ onAdd, disabled = false }) {
     { value: 'video', label: 'Video Lesson', icon: '🎥' },
     { value: 'pdf', label: 'PDF Lesson', icon: '📄' },
     { value: 'scorm', label: 'SCORM Package', icon: '📦' },
+    { value: 'html', label: 'HTML Lesson', icon: '🌐' },
     { value: 'quiz', label: 'Quiz', icon: '📝' }
   ];
   

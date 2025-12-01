@@ -594,6 +594,9 @@ public class LearnerProgressController : ControllerBase
             if (!string.IsNullOrEmpty(request.ScormLessonLocation))
                 lessonProgress.ScormLessonLocation = request.ScormLessonLocation;
             
+            // Track completion state BEFORE we update it
+            var wasCompleted = lessonProgress.Completed;
+            
             if (!string.IsNullOrEmpty(request.ScormLessonStatus))
             {
                 lessonProgress.ScormLessonStatus = request.ScormLessonStatus;
@@ -611,11 +614,11 @@ public class LearnerProgressController : ControllerBase
                 lessonProgress.ScormScore = request.ScormScore;
 
             lessonProgress.LastAccessedAt = DateTime.UtcNow;
-
+            
             await _context.SaveChangesAsync();
 
-            // Recalculate course progress if lesson was completed
-            if (lessonProgress.Completed)
+            // Update course progress after saving lesson progress (only if newly completed)
+            if (lessonProgress.Completed && !wasCompleted)
             {
                 await UpdateCourseProgress(userId, lesson.CourseId);
             }

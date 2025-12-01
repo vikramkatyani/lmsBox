@@ -36,6 +36,10 @@ public class Lesson
     // For document lessons
     public string? DocumentUrl { get; set; }
 
+    // For HTML lessons
+    public string? HtmlContent { get; set; }
+    public string? HtmlUrl { get; set; }
+
     // Optional flag
     public bool IsOptional { get; set; } = false;
 
