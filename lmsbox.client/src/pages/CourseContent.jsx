@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import LearnerHeader from '../components/LearnerHeader';
 import QuizPlayer from '../components/QuizPlayer';
 import SurveyPlayer from '../components/SurveyPlayer';
-import FullscreenButton from '../components/FullscreenButton';
 import { getCourseDetails } from '../services/courseDetails';
 import { learnerSurveyService } from '../services/surveys';
 import toast from 'react-hot-toast';
@@ -102,9 +101,45 @@ function LessonItem({ lesson, isActive, onClick }) {
 
 function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate }) {
   const videoRef = React.useRef(null);
+  const videoContainerRef = React.useRef(null);
+  const pdfContainerRef = React.useRef(null);
+  const htmlContainerRef = React.useRef(null);
+  const scormContainerRef = React.useRef(null);
   const [hasStarted, setHasStarted] = React.useState(false);
   const sessionStartTimeRef = React.useRef(null);
   const timeTrackingIntervalRef = React.useRef(null);
+
+  // Handle fullscreen state changes for PDF and HTML content
+  React.useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isFullscreen = !!(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+      );
+      
+      // Toggle buttons visibility (same IDs as SCORM player)
+      const fullscreenBtn = document.getElementById('fullscreen-btn');
+      const minimizeBtn = document.getElementById('minimize-btn');
+      if (fullscreenBtn && minimizeBtn) {
+        fullscreenBtn.style.display = isFullscreen ? 'none' : 'flex';
+        minimizeBtn.style.display = isFullscreen ? 'flex' : 'none';
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
 
   // Track session time for the current lesson
   React.useEffect(() => {
@@ -250,11 +285,6 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate }) {
     );
   }
 
-  const videoContainerRef = useRef(null);
-  const pdfContainerRef = useRef(null);
-  const scormContainerRef = useRef(null);
-  const htmlContainerRef = useRef(null);
-
   const renderContent = () => {
     switch (lesson.type) {
       case 'video': {
@@ -278,7 +308,6 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate }) {
         
         return (
           <div ref={videoContainerRef} className="w-full h-full bg-black relative">
-            <FullscreenButton targetRef={videoContainerRef} className="absolute top-4 right-4 z-10" />
             {lesson.url ? (
               isYouTube || isVimeo ? (
                 <iframe
@@ -329,9 +358,49 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate }) {
       }
       case 'pdf':
       case 'document': {
+        const togglePdfFullscreen = () => {
+          const element = pdfContainerRef.current;
+          if (!element) return;
+          
+          const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement;
+          
+          if (!isFullscreen) {
+            if (element.requestFullscreen) {
+              element.requestFullscreen();
+            } else if (element.webkitRequestFullscreen) {
+              element.webkitRequestFullscreen();
+            } else if (element.mozRequestFullScreen) {
+              element.mozRequestFullScreen();
+            } else if (element.msRequestFullscreen) {
+              element.msRequestFullscreen();
+            }
+          } else {
+            if (document.exitFullscreen) {
+              document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+              document.webkitExitFullscreen();
+            } else if (document.mozCancelFullScreen) {
+              document.mozCancelFullScreen();
+            } else if (document.msExitFullscreen) {
+              document.msExitFullscreen();
+            }
+          }
+        };
+        
         return (
           <div ref={pdfContainerRef} className="w-full h-full bg-gray-100 relative">
-            <FullscreenButton targetRef={pdfContainerRef} className="absolute top-4 right-4 z-10" />
+            <div id="controls" style={{position: 'absolute', top: '90px', right: '20px', zIndex: 1000, display: 'flex', gap: '8px'}}>
+              <button id="fullscreen-btn" title="Toggle Fullscreen" onClick={togglePdfFullscreen} style={{background: 'rgba(0, 0, 0, 0.25)', border: 'none', borderRadius: '4px', color: 'white', padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s'}}>
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                </svg>
+              </button>
+              <button id="minimize-btn" title="Minimize" onClick={togglePdfFullscreen} style={{background: 'rgba(0, 0, 0, 0.25)', border: 'none', borderRadius: '4px', color: 'white', padding: '8px 12px', cursor: 'pointer', display: 'none', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s'}}>
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+                </svg>
+              </button>
+            </div>
             {lesson.url ? (
               <>
                 <object 
@@ -442,9 +511,49 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate }) {
         );
       }
       case 'html': {
+        const toggleHtmlFullscreen = () => {
+          const element = htmlContainerRef.current;
+          if (!element) return;
+          
+          const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement;
+          
+          if (!isFullscreen) {
+            if (element.requestFullscreen) {
+              element.requestFullscreen();
+            } else if (element.webkitRequestFullscreen) {
+              element.webkitRequestFullscreen();
+            } else if (element.mozRequestFullScreen) {
+              element.mozRequestFullScreen();
+            } else if (element.msRequestFullscreen) {
+              element.msRequestFullscreen();
+            }
+          } else {
+            if (document.exitFullscreen) {
+              document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+              document.webkitExitFullscreen();
+            } else if (document.mozCancelFullScreen) {
+              document.mozCancelFullScreen();
+            } else if (document.msExitFullscreen) {
+              document.msExitFullscreen();
+            }
+          }
+        };
+        
         return (
           <div ref={htmlContainerRef} className="w-full h-full bg-white relative">
-            <FullscreenButton targetRef={htmlContainerRef} className="absolute top-4 right-4 z-10" />
+            <div id="controls" style={{position: 'absolute', top: '90px', right: '20px', zIndex: 1000, display: 'flex', gap: '8px'}}>
+              <button id="fullscreen-btn" title="Toggle Fullscreen" onClick={toggleHtmlFullscreen} style={{background: 'rgba(0, 0, 0, 0.25)', border: 'none', borderRadius: '4px', color: 'white', padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s'}}>
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                </svg>
+              </button>
+              <button id="minimize-btn" title="Minimize" onClick={toggleHtmlFullscreen} style={{background: 'rgba(0, 0, 0, 0.25)', border: 'none', borderRadius: '4px', color: 'white', padding: '8px 12px', cursor: 'pointer', display: 'none', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s'}}>
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+                </svg>
+              </button>
+            </div>
             {lesson.htmlUrl ? (
               <iframe
                 src={lesson.htmlUrl}
