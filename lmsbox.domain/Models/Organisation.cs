@@ -12,6 +12,10 @@ public class Organisation
 
     public string? Description { get; set; }
 
+    // Unique storage identifier (used for blob storage paths instead of numeric ID)
+    [Required]
+    public string StorageKey { get; set; } = Guid.NewGuid().ToString("N").Substring(0, 12);
+
     // Configuration Settings
     public int MaxUsers { get; set; } = 100;
     

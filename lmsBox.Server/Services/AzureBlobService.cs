@@ -3,6 +3,8 @@ using Azure.Storage.Blobs.Models;
 using Azure.Storage.Sas;
 using System.IO.Compression;
 using System.Xml.Linq;
+using lmsbox.infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace lmsBox.Server.Services;
 
@@ -12,12 +14,17 @@ public class AzureBlobService : IAzureBlobService
     private readonly string _containerName;
     private readonly ILogger<AzureBlobService> _logger;
     private readonly BlobContainerClient? _containerClient;
+    private readonly ApplicationDbContext _context;
 
-    public AzureBlobService(IConfiguration configuration, ILogger<AzureBlobService> logger)
+    public AzureBlobService(
+        IConfiguration configuration, 
+        ILogger<AzureBlobService> logger,
+        ApplicationDbContext context)
     {
         _connectionString = configuration["AzureStorage:ConnectionString"];
-    _containerName = configuration["AzureStorage:ContainerName"] ?? "lms-content";
+        _containerName = configuration["AzureStorage:ContainerName"] ?? "lms-content";
         _logger = logger;
+        _context = context;
 
         if (!string.IsNullOrEmpty(_connectionString))
         {
@@ -39,6 +46,30 @@ public class AzureBlobService : IAzureBlobService
         return _containerClient != null;
     }
 
+    /// <summary>
+    /// Get the storage key for an organisation by its numeric ID
+    /// </summary>
+    private async Task<string> GetStorageKeyAsync(string organisationId)
+    {
+        if (!long.TryParse(organisationId, out var orgId))
+        {
+            // If it's not numeric, assume it's already a storage key
+            return organisationId;
+        }
+
+        var org = await _context.Organisations
+            .Where(o => o.Id == orgId)
+            .Select(o => o.StorageKey)
+            .FirstOrDefaultAsync();
+
+        if (string.IsNullOrEmpty(org))
+        {
+            throw new InvalidOperationException($"Organisation with ID {organisationId} not found or has no storage key");
+        }
+
+        return org;
+    }
+
     public async Task<string> UploadFileAsync(Stream fileStream, string fileName, string organisationId, string contentType)
     {
         if (_containerClient == null)
@@ -48,8 +79,11 @@ public class AzureBlobService : IAzureBlobService
 
         try
         {
-            // Create organization folder path: organisations/{orgId}/library/{fileName}
-            var blobPath = $"organisations/{organisationId}/library/{fileName}";
+            // Get the storage key instead of using numeric ID
+            var storageKey = await GetStorageKeyAsync(organisationId);
+            
+            // Create organization folder path: organisations/{storageKey}/library/{fileName}
+            var blobPath = $"organisations/{storageKey}/library/{fileName}";
             var blobClient = _containerClient.GetBlobClient(blobPath);
 
             // Set content type
@@ -208,8 +242,11 @@ public class AzureBlobService : IAzureBlobService
 
         try
         {
+            // Get the storage key instead of using numeric ID
+            var storageKey = await GetStorageKeyAsync(organisationId);
+            
             var files = new List<BlobFileInfo>();
-            var prefix = $"organisations/{organisationId}/library/";
+            var prefix = $"organisations/{storageKey}/library/";
 
             await foreach (var blobItem in _containerClient.GetBlobsAsync(prefix: prefix))
             {
@@ -410,10 +447,13 @@ public class AzureBlobService : IAzureBlobService
 
         try
         {
-            // Create folder structure: organisations/{orgId}/library/scorm/{packageName}/
+            // Get the storage key instead of using numeric ID
+            var storageKey = await GetStorageKeyAsync(organisationId);
+            
+            // Create folder structure: organisations/{storageKey}/library/scorm/{packageName}/
             var packageName = Path.GetFileNameWithoutExtension(fileName);
             var sanitizedPackageName = SanitizeFileName(packageName);
-            var scormFolder = $"organisations/{organisationId}/library/scorm/{sanitizedPackageName}";
+            var scormFolder = $"organisations/{storageKey}/library/scorm/{sanitizedPackageName}";
 
             _logger.LogInformation($"Uploading SCORM package to: {scormFolder}");
 
