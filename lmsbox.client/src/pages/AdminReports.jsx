@@ -47,7 +47,7 @@ export default function AdminReports() {
     {
       id: 'course-enrollment',
       name: 'Course Enrollment Report',
-      description: 'Analyze enrollment trends over time across all courses',
+      description: 'Analyse enrollment trends over time across all courses',
       category: 'courses',
       icon: AcademicCapIcon,
       path: '/admin/reports/course-enrollment',

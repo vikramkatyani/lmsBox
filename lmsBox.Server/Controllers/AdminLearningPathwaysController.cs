@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using lmsbox.infrastructure.Data;
 using lmsbox.domain.Models;
+using lmsBox.Server.Services;
 using System.Security.Claims;
 
 namespace lmsBox.Server.Controllers;
@@ -13,10 +14,17 @@ namespace lmsBox.Server.Controllers;
 public class AdminLearningPathwaysController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly IEmailService _emailService;
+    private readonly ILogger<AdminLearningPathwaysController> _logger;
 
-    public AdminLearningPathwaysController(ApplicationDbContext context)
+    public AdminLearningPathwaysController(
+        ApplicationDbContext context,
+        IEmailService emailService,
+        ILogger<AdminLearningPathwaysController> logger)
     {
         _context = context;
+        _emailService = emailService;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -224,6 +232,55 @@ public class AdminLearningPathwaysController : ControllerBase
 
             _context.LearnerPathwayProgresses.AddRange(learnerProgresses);
             await _context.SaveChangesAsync();
+
+            // Send email notifications to assigned users
+            try
+            {
+                // Fetch pathway details and courses
+                var pathwayWithCourses = await _context.LearningPathways
+                    .Where(p => p.Id == pathway.Id)
+                    .Include(p => p.PathwayCourses)
+                        .ThenInclude(pc => pc.Course)
+                    .FirstOrDefaultAsync();
+
+                var courseNames = pathwayWithCourses?.PathwayCourses
+                    .Select(pc => pc.Course!.Title)
+                    .ToList() ?? new List<string>();
+
+                var organisation = await _context.Organisations.FirstOrDefaultAsync();
+                var portalUrl = $"{Request.Scheme}://{Request.Host}";
+
+                // Fetch user details and send emails
+                var users = await _context.Users
+                    .Where(u => request.UserIds.Contains(u.Id))
+                    .ToListAsync();
+
+                foreach (var userToEmail in users)
+                {
+                    try
+                    {
+                        await _emailService.SendPathwayAssignmentEmailAsync(
+                            userToEmail.Email!,
+                            organisation!.Id.ToString(),
+                            portalUrl,
+                            new List<string> { pathway.Title },
+                            courseNames,
+                            userToEmail.FirstName
+                        );
+
+                        _logger.LogInformation("Pathway assignment notification sent to {Email} for pathway {PathwayId}", 
+                            userToEmail.Email, pathway.Id);
+                    }
+                    catch (Exception emailEx)
+                    {
+                        _logger.LogError(emailEx, "Failed to send pathway assignment notification to {Email}", userToEmail.Email);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending pathway assignment notifications for pathway {PathwayId}", pathway.Id);
+            }
         }
 
         return CreatedAtAction(nameof(GetLearningPathway), new { id = pathway.Id }, new
@@ -276,6 +333,10 @@ public class AdminLearningPathwaysController : ControllerBase
         // Update users
         if (request.UserIds != null)
         {
+            // Get existing user IDs to determine new assignments
+            var existingUserIds = pathway.LearnerProgresses.Select(lp => lp.UserId).ToList();
+            var newUserIds = request.UserIds.Except(existingUserIds).ToList();
+
             // Remove existing users
             _context.LearnerPathwayProgresses.RemoveRange(pathway.LearnerProgresses);
 
@@ -291,9 +352,65 @@ public class AdminLearningPathwaysController : ControllerBase
             }).ToList();
 
             _context.LearnerPathwayProgresses.AddRange(learnerProgresses);
-        }
 
-        await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync();
+
+            // Send email notifications to newly assigned users
+            if (newUserIds.Any())
+            {
+                try
+                {
+                    // Fetch updated pathway with courses
+                    var pathwayWithCourses = await _context.LearningPathways
+                        .Where(p => p.Id == pathway.Id)
+                        .Include(p => p.PathwayCourses)
+                            .ThenInclude(pc => pc.Course)
+                        .FirstOrDefaultAsync();
+
+                    var courseNames = pathwayWithCourses?.PathwayCourses
+                        .Select(pc => pc.Course!.Title)
+                        .ToList() ?? new List<string>();
+
+                    var organisation = await _context.Organisations.FirstOrDefaultAsync();
+                    var portalUrl = $"{Request.Scheme}://{Request.Host}";
+
+                    // Fetch newly assigned user details
+                    var newUsers = await _context.Users
+                        .Where(u => newUserIds.Contains(u.Id))
+                        .ToListAsync();
+
+                    foreach (var userToEmail in newUsers)
+                    {
+                        try
+                        {
+                            await _emailService.SendPathwayAssignmentEmailAsync(
+                                userToEmail.Email!,
+                                organisation!.Id.ToString(),
+                                portalUrl,
+                                new List<string> { pathway.Title },
+                                courseNames,
+                                userToEmail.FirstName
+                            );
+
+                            _logger.LogInformation("Pathway assignment notification sent to {Email} for pathway {PathwayId}", 
+                                userToEmail.Email, pathway.Id);
+                        }
+                        catch (Exception emailEx)
+                        {
+                            _logger.LogError(emailEx, "Failed to send pathway assignment notification to {Email}", userToEmail.Email);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error sending pathway assignment notifications for pathway {PathwayId}", pathway.Id);
+                }
+            }
+        }
+        else
+        {
+            await _context.SaveChangesAsync();
+        }
 
         return NoContent();
     }

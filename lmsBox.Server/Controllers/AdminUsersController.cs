@@ -406,6 +406,47 @@ namespace lmsBox.Server.Controllers
                     }
                     await _context.SaveChangesAsync();
                     _logger.LogInformation("Learning pathway assignments saved for user {UserId}", user.Id);
+
+                    // Send pathway assignment email
+                    try
+                    {
+                        if (organisation == null)
+                        {
+                            _logger.LogWarning("Organisation not found, skipping pathway assignment email");
+                        }
+                        else if (_emailService != null)
+                        {
+                            var pathways = await _context.LearningPathways
+                                .Where(p => request.GroupIds.Contains(p.Id))
+                                .Include(p => p.PathwayCourses)
+                                    .ThenInclude(pc => pc.Course)
+                                .ToListAsync();
+
+                            var pathwayNames = pathways.Select(p => p.Title).ToList();
+                            var courseNames = pathways
+                                .SelectMany(p => p.PathwayCourses.Select(pc => pc.Course!.Title))
+                                .Distinct()
+                                .ToList();
+
+                            var portalUrl = $"{Request.Scheme}://{Request.Host}";
+
+                            await _emailService.SendPathwayAssignmentEmailAsync(
+                                user.Email!,
+                                organisation.Id.ToString(),
+                                portalUrl,
+                                pathwayNames,
+                                courseNames,
+                                user.FirstName
+                            );
+
+                            _logger.LogInformation("Pathway assignment notification sent to {Email} for {PathwayCount} pathways", 
+                                user.Email, request.GroupIds.Count);
+                        }
+                    }
+                    catch (Exception emailEx)
+                    {
+                        _logger.LogError(emailEx, "Failed to send pathway assignment notification to {Email}", user.Email);
+                    }
                 }
 
                 var message = emailStatus == "sent" 
@@ -541,6 +582,40 @@ namespace lmsBox.Server.Controllers
                                 _context.LearnerPathwayProgresses.Add(assignment);
                             }
                             await _context.SaveChangesAsync();
+
+                            // Send pathway assignment email
+                            try
+                            {
+                                var pathways = await _context.LearningPathways
+                                    .Where(p => request.GroupIds.Contains(p.Id))
+                                    .Include(p => p.PathwayCourses)
+                                        .ThenInclude(pc => pc.Course)
+                                    .ToListAsync();
+
+                                var pathwayNames = pathways.Select(p => p.Title).ToList();
+                                var courseNames = pathways
+                                    .SelectMany(p => p.PathwayCourses.Select(pc => pc.Course!.Title))
+                                    .Distinct()
+                                    .ToList();
+
+                                var portalUrl = $"{Request.Scheme}://{Request.Host}";
+
+                                await _emailService.SendPathwayAssignmentEmailAsync(
+                                    user.Email!,
+                                    organisation.Id.ToString(),
+                                    portalUrl,
+                                    pathwayNames,
+                                    courseNames,
+                                    user.FirstName
+                                );
+
+                                _logger.LogInformation("Pathway assignment notification sent to {Email} for {PathwayCount} pathways", 
+                                    user.Email, request.GroupIds.Count);
+                            }
+                            catch (Exception emailEx)
+                            {
+                                _logger.LogError(emailEx, "Failed to send pathway assignment notification to {Email}", user.Email);
+                            }
                         }
 
                         results.Add(new { email, status = "created", userId = user.Id, roleAssigned });
@@ -622,10 +697,17 @@ namespace lmsBox.Server.Controllers
                     // Get existing assignments
                     var existingAssignments = await _context.LearnerPathwayProgresses
                         .Where(lpp => lpp.UserId == id)
+                        .Select(lpp => lpp.LearningPathwayId)
                         .ToListAsync();
 
-                    // Remove existing assignments
-                    _context.LearnerPathwayProgresses.RemoveRange(existingAssignments);
+                    // Determine new pathways (not previously assigned)
+                    var newPathwayIds = request.GroupIds.Except(existingAssignments).ToList();
+
+                    // Remove all existing assignments
+                    var assignmentsToRemove = await _context.LearnerPathwayProgresses
+                        .Where(lpp => lpp.UserId == id)
+                        .ToListAsync();
+                    _context.LearnerPathwayProgresses.RemoveRange(assignmentsToRemove);
 
                     // Create new assignments
                     foreach (var pathwayId in request.GroupIds)
@@ -643,6 +725,45 @@ namespace lmsBox.Server.Controllers
                     }
 
                     await _context.SaveChangesAsync();
+
+                    // Send email notification if new pathways were assigned
+                    if (newPathwayIds.Any())
+                    {
+                        try
+                        {
+                            // Fetch pathway details and associated courses
+                            var pathways = await _context.LearningPathways
+                                .Where(p => newPathwayIds.Contains(p.Id))
+                                .Include(p => p.PathwayCourses)
+                                    .ThenInclude(pc => pc.Course)
+                                .ToListAsync();
+
+                            var pathwayNames = pathways.Select(p => p.Title).ToList();
+                            var courseNames = pathways
+                                .SelectMany(p => p.PathwayCourses.Select(pc => pc.Course!.Title))
+                                .Distinct()
+                                .ToList();
+
+                            var organisation = await _context.Organisations.FirstOrDefaultAsync();
+                            var portalUrl = $"{Request.Scheme}://{Request.Host}";
+
+                            await _emailService.SendPathwayAssignmentEmailAsync(
+                                user.Email!,
+                                organisation!.Id.ToString(),
+                                portalUrl,
+                                pathwayNames,
+                                courseNames,
+                                user.FirstName
+                            );
+
+                            _logger.LogInformation("Pathway assignment notification sent to {Email} for {PathwayCount} new pathways", user.Email, newPathwayIds.Count);
+                        }
+                        catch (Exception emailEx)
+                        {
+                            _logger.LogError(emailEx, "Failed to send pathway assignment notification to {Email}", user.Email);
+                            // Don't fail the update if email fails
+                        }
+                    }
                 }
 
                 _logger.LogInformation("User {UserId} updated successfully by {AdminUser}", user.Id, User.Identity?.Name);

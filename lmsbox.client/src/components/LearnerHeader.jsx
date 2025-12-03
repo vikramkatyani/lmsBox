@@ -220,7 +220,7 @@ export default function LearnerHeader() {
                   <li><Link to="/courses/all" className="text-sm text-gray-500 hover:text-slate-900">My Learning</Link></li>
                   <li><Link to="/courses/certificates" className="text-sm text-gray-500 hover:text-slate-900">My Certificates</Link></li>
                   <li><Link to="/notifications" className="text-sm text-gray-500 hover:text-slate-900">Notifications</Link></li>
-                  <li><Link to="/help" className="text-sm text-gray-500 hover:text-slate-900">Help Center</Link></li>
+                  <li><a href="http://www.lmsbox.co.uk/help-centre#learner-help" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-500 hover:text-slate-900">Help Center</a></li>
                 </ul>
                 {isUserAdmin && (
                   <>

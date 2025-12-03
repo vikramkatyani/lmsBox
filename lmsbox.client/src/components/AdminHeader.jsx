@@ -120,7 +120,7 @@ export default function AdminHeader({ hideNavigation = false }) {
                     { to: '/admin/dashboard', label: 'Dashboard' },
                     { to: '/admin/users', label: 'Users' },
                     { to: '/admin/courses', label: 'Courses' },
-                    { to: '/admin/learning-pathways', label: 'Learning Pathways' },
+                    { to: '/admin/learning-pathways', label: 'Pathways' },
                     { to: '/admin/surveys', label: 'Surveys' },
                     { to: '/admin/reports', label: 'Reports' }
                   ].map((link) => (
@@ -185,6 +185,7 @@ export default function AdminHeader({ hideNavigation = false }) {
                   <ul className="space-y-1.5">
                     <li><Link to="/admin/profile" className="text-sm text-gray-500 hover:text-slate-900" onClick={() => setShowProfileMenu(false)}>Profile Settings</Link></li>
                     <li><Link to="/admin/settings" className="text-sm text-gray-500 hover:text-slate-900" onClick={() => setShowProfileMenu(false)}>System Settings</Link></li>
+                    <li><a href="http://www.lmsbox.co.uk/help-centre#admin-help" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-500 hover:text-slate-900" onClick={() => setShowProfileMenu(false)}>Help Center</a></li>
                   </ul>
                   <hr className="border-b-0 my-4 border-gray-300" />
                   <button

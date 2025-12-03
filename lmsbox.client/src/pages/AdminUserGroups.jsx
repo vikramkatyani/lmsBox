@@ -76,12 +76,12 @@ export default function AdminUserGroups() {
     <div className="min-h-screen bg-gray-50">
       <AdminHeader />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Learning Pathways</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Pathways</h1>
 
         <div className="bg-white rounded-lg shadow">
           <div className="px-6 py-4 border-b flex flex-wrap gap-3 items-center justify-end">
             <button onClick={onCreate} className="px-4 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90 cursor-pointer">
-              Create Learning Pathway
+              Create Pathway
             </button>
           </div>
 

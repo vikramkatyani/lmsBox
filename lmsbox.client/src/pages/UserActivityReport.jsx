@@ -177,7 +177,7 @@ export default function UserActivityReport() {
             Back to Reports
           </button>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">User Activity Report</h1>
-          <p className="text-gray-600">Track user engagement, identify idle users, and analyze activity patterns</p>
+          <p className="text-gray-600">Track user engagement, identify idle users, and analyse activity patterns</p>
         </div>
 
         {/* Action Buttons */}

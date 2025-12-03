@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Learning Pathway Assigned</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: white;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .button {
+            display: inline-block;
+            padding: 14px 32px;
+            background-color: #007bff;
+            color: white !important;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 500;
+            margin: 20px 0;
+        }
+        .info-box {
+            background-color: #e7f3ff;
+            border-left: 4px solid: #007bff;
+            padding: 16px 20px;
+            margin: 25px 0;
+        }
+        .info-box strong {
+            display: block;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .info-box ul {
+            margin: 10px 0;
+            padding-left: 20px;
+            color: #666;
+        }
+        .info-box li {
+            margin: 6px 0;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+            font-size: 14px;
+        }
+        .footer-brand {
+            font-weight: 500;
+            color: #495057;
+        }
+        a {
+            color: #007bff;
+        }
+        p {
+            margin: 12px 0;
+        }
+        .highlight {
+            background-color: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="content">
+            {{#if FirstName}}
+            <p style="margin-top: 0;">Hello {{FirstName}},</p>
+            {{else}}
+            <p style="margin-top: 0;">Hello,</p>
+            {{/if}}
+            
+            <p>Great news! You've been assigned to <span class="highlight">{{PathwayNames}}</span> on the <strong>{{BrandName}} Learning Portal</strong>.</p>
+            
+            <div class="info-box">
+                <strong>You now have access to {{CourseCount}} course(s):</strong>
+                <ul>
+                    {{CourseListHtml}}
+                </ul>
+            </div>
+            
+            <p>To get started with your learning journey, click the button below:</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{PortalUrl}}" class="button">Access Learning Portal</a>
+            </div>
+            
+            <p>Once you log in, you'll find your assigned courses ready to begin. Complete them at your own pace and track your progress along the way.</p>
+            
+            <p>If you have any questions or need assistance, please don't hesitate to reach out to your administrator or our support team.</p>
+            
+            <p style="margin-top: 30px;">Happy learning!<br>
+            <span class="footer-brand">{{BrandName}} Support Team</span><br>
+            Contact: <a href="mailto:{{SupportEmail}}">{{SupportEmail}}</a></p>
+        </div>
+    </div>
+</body>
+</html>

@@ -937,7 +937,7 @@ export default function CourseContent() {
       <div className="flex-1 flex overflow-hidden">
         {/* Panel 1: Lessons Sidebar */}
         <div className={`
-          fixed lg:relative inset-y-0 left-0 z-50
+          fixed lg:relative inset-y-0 left-0
           w-80 bg-white border-r overflow-y-auto
           transform transition-transform duration-300 ease-in-out
           ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}

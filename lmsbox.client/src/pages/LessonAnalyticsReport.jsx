@@ -170,7 +170,7 @@ export default function LessonAnalyticsReport() {
           Back to Reports
         </button>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Lesson Analytics Report</h1>
-        <p className="text-gray-600">Analyze lesson performance, engagement levels, and difficulty</p>
+        <p className="text-gray-600">Analyse lesson performance, engagement levels, and difficulty</p>
       </div>
 
       {/* Filters */}

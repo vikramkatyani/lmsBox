@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
 import usePageTitle from '../hooks/usePageTitle';
 import { getDashboardStats } from '../services/dashboard';
@@ -32,6 +33,7 @@ ChartJS.register(
 
 export default function AdminDashboard() {
   usePageTitle('Admin Dashboard');
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -134,7 +136,10 @@ export default function AdminDashboard() {
 
         {/* Primary Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
+          <div 
+            onClick={() => navigate('/admin/users')}
+            className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg transition-shadow duration-200"
+          >
             <div className="flex items-center">
               <div className="shrink-0">
                 <svg className="h-12 w-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -150,7 +155,10 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div 
+            onClick={() => navigate('/admin/courses')}
+            className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg transition-shadow duration-200"
+          >
             <div className="flex items-center">
               <div className="shrink-0">
                 <svg className="h-12 w-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -166,7 +174,10 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div 
+            onClick={() => navigate('/admin/learning-pathways')}
+            className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg transition-shadow duration-200"
+          >
             <div className="flex items-center">
               <div className="shrink-0">
                 <svg className="h-12 w-12 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
