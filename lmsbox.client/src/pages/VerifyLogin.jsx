@@ -121,20 +121,20 @@ export default function VerifyLogin() {
 
         {status === 'success' && (
           <>
-            <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center mx-auto">
-              <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="h-12 w-12 rounded-full bg-success flex items-center justify-center mx-auto">
+              <svg className="h-6 w-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-xl font-semibold mt-4 text-green-600">Login Successful!</h2>
+            <h2 className="text-xl font-semibold mt-4 text-success">Login Successful!</h2>
             <p className="text-login-box-text mt-2">Redirecting you to the courses...</p>
           </>
         )}
 
         {status === 'error' && (
           <>
-            <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mx-auto">
-              <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="h-12 w-12 rounded-full bg-error flex items-center justify-center mx-auto">
+              <svg className="h-6 w-6 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </div>

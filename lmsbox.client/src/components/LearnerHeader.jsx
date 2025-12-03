@@ -186,7 +186,7 @@ export default function LearnerHeader() {
                 >
                   {link.label}
                 </NavLink>
-                <span className="lg:hidden absolute left-0 w-1 h-full bg-blue-600 transform scale-y-0 group-hover:scale-y-100 transition-transform duration-200" />
+                <span className="lg:hidden absolute left-0 w-1 h-full bg-[#2afeae] transform scale-y-0 group-hover:scale-y-100 transition-transform duration-200" />
               </li>
             ))} */}
           </ul>
@@ -230,7 +230,7 @@ export default function LearnerHeader() {
                         navigate('/admin/dashboard');
                         setIsProfileDropdownOpen(false);
                       }}
-                      className="w-full bg-blue-600 text-white rounded-sm px-4 py-2 text-sm font-medium cursor-pointer hover:bg-blue-700 mb-2"
+                      className="w-full bg-[#2afeae] text-[#1b365d] rounded-sm px-4 py-2 text-sm font-medium cursor-pointer hover:bg-[#25e89e] mb-2"
                     >
                       Switch to Admin View
                     </button>

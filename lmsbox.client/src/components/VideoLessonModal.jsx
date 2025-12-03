@@ -241,7 +241,7 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
         {/* Modal panel */}
         <div className="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
           {/* Header */}
-          <div className="bg-indigo-600 px-6 py-4 flex items-center justify-between">
+          <div className="bg-[#1b365d] px-6 py-4 flex items-center justify-between">
             <div className="flex items-center">
               <VideoCameraIcon className="h-6 w-6 text-white mr-2" />
               <h3 className="text-lg font-semibold text-white">
@@ -334,7 +334,7 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
                       <CheckCircleIcon className="h-6 w-6 mr-2" />
                       <span className="text-sm font-medium">Video added to lesson</span>
                     </div>
-                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                    <div className="bg-info border border-info rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <p className="text-sm font-medium text-gray-900">Current Video:</p>
@@ -346,7 +346,7 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
                           href={previewUrl || formData.videoUrl} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="ml-3 inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 bg-white border border-indigo-300 rounded-md hover:bg-indigo-50 transition shrink-0"
+                          className="ml-3 inline-flex items-center px-3 py-1.5 text-sm font-medium text-[#1b365d] bg-white border-[#1b365d] rounded-md hover:bg-info transition shrink-0"
                         >
                           <PlayIcon className="h-4 w-4 mr-1" />
                           Preview
@@ -457,7 +457,7 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
                         <div className="mt-4">
                           <div className="w-full bg-gray-200 rounded-full h-2">
                             <div
-                              className="bg-indigo-600 h-2 rounded-full transition-all"
+                              className="bg-[#2afeae] h-2 rounded-full transition-all"
                               style={{ width: `${uploadProgress}%` }}
                             ></div>
                           </div>
@@ -549,7 +549,7 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-[#1b365d] bg-[#2afeae] hover:bg-[#25e89e] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2afeae] disabled:opacity-50"
                 disabled={isSaving || isUploading || !formData.videoUrl}
               >
                 {isSaving ? 'Saving...' : lesson ? 'Update Lesson' : 'Create Lesson'}

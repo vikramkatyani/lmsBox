@@ -743,7 +743,7 @@ export default function AdminCourseEditor() {
                       <img src={form.bannerPreview} alt="Banner preview" className="w-full h-36 object-cover rounded" />
                       <div className="flex gap-2 mt-2">
                         <button type="button" onClick={removeBanner} className="px-3 py-1.5 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300">Remove</button>
-                        <button type="button" onClick={openCropModal} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
+                        <button type="button" onClick={openCropModal} className="px-3 py-1.5 text-sm bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e]">
                           Change
                         </button>
                       </div>
@@ -799,7 +799,7 @@ export default function AdminCourseEditor() {
                             type="checkbox"
                             checked={form.isPreSurveyMandatory}
                             onChange={(e) => handleChange('isPreSurveyMandatory', e.target.checked)}
-                            className="rounded text-blue-600 focus:ring-blue-500"
+                            className="rounded text-[#2afeae] focus:ring-[#2afeae]"
                             disabled={form.status === 'Published'}
                           />
                           <span className="text-xs text-gray-700">Mandatory (must complete before accessing lessons)</span>
@@ -826,7 +826,7 @@ export default function AdminCourseEditor() {
                             type="checkbox"
                             checked={form.isPostSurveyMandatory}
                             onChange={(e) => handleChange('isPostSurveyMandatory', e.target.checked)}
-                            className="rounded text-blue-600 focus:ring-blue-500"
+                            className="rounded text-[#2afeae] focus:ring-[#2afeae]"
                             disabled={form.status === 'Published'}
                           />
                           <span className="text-xs text-gray-700">Mandatory (must complete for course completion & certificate)</span>
@@ -909,13 +909,13 @@ export default function AdminCourseEditor() {
               </div>
 
               {isNew && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
+                <div className="bg-warning border border-warning rounded-lg p-4 text-sm text-warning">
                   <strong>Note:</strong> Please save the course first before adding lessons.
                 </div>
               )}
 
               {form.status === 'Published' && !isNew && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+                <div className="bg-info border border-info rounded-lg p-4 text-sm text-info">
                   <strong>Note:</strong> This course is published. Lessons cannot be modified while the course is published. Published courses cannot be unpublished, but they can be archived or deleted.
                 </div>
               )}
@@ -951,7 +951,7 @@ export default function AdminCourseEditor() {
                             form.status !== 'Published' ? 'cursor-move' : ''
                           } ${
                             draggedOverLesson === idx && draggedLesson?.index !== idx
-                              ? 'bg-blue-50 border-t-2 border-blue-400' 
+                              ? 'bg-info border-t-2 border-[#2afeae]' 
                               : ''
                           } ${draggedLesson?.index === idx ? 'opacity-50' : ''}`}
                         >
@@ -964,7 +964,7 @@ export default function AdminCourseEditor() {
                             <div className="flex items-center gap-2">
                               <div className="font-medium text-gray-900">{l.title || <span className="text-gray-400">Untitled</span>}</div>
                               {isGlobalLibraryLesson(l) && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-medium rounded">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#e8fdf6] text-[#1b365d] text-xs font-medium rounded">
                                   <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                                     <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z" />
                                   </svg>
@@ -976,7 +976,7 @@ export default function AdminCourseEditor() {
                               <div className="text-xs text-gray-500 truncate max-w-[420px]">{l.content}</div>
                             )}
                             {l.type === 'quiz' && l.quizId && (
-                              <div className="text-xs text-blue-600 mt-1">Quiz ID: {l.quizId}</div>
+                              <div className="text-xs text-[#1b365d] mt-1">Quiz ID: {l.quizId}</div>
                             )}
                           </td>
                           <td className="px-4 py-3">
@@ -1010,7 +1010,7 @@ export default function AdminCourseEditor() {
                                   <button 
                                     onClick={() => handleDeleteLesson(l.id)} 
                                     disabled={form.status === 'Published'}
-                                    className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-3 py-1.5 text-sm bg-error text-error rounded hover:bg-[#fee2e2] disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     Delete
                                   </button>
@@ -1020,14 +1020,14 @@ export default function AdminCourseEditor() {
                                   <button 
                                     onClick={() => handleOpenPdfLessonModal(l)} 
                                     disabled={form.status === 'Published'}
-                                    className="px-3 py-1.5 text-sm bg-purple-50 text-purple-700 rounded hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-3 py-1.5 text-sm bg-[#1b365d] text-white rounded hover:bg-[#234a7a] disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     Edit
                                   </button>
                                   <button 
                                     onClick={() => handleDeleteLesson(l.id)} 
                                     disabled={form.status === 'Published'}
-                                    className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-3 py-1.5 text-sm bg-error text-error rounded hover:bg-[#fee2e2] disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     Delete
                                   </button>
@@ -1037,14 +1037,14 @@ export default function AdminCourseEditor() {
                                   <button 
                                     onClick={() => handleOpenScormLessonModal(l)} 
                                     disabled={form.status === 'Published'}
-                                    className="px-3 py-1.5 text-sm bg-green-50 text-green-700 rounded hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-3 py-1.5 text-sm bg-info text-[#1b365d] rounded hover:bg-[#d5dfe9] disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     Edit
                                   </button>
                                   <button 
                                     onClick={() => handleDeleteLesson(l.id)} 
                                     disabled={form.status === 'Published'}
-                                    className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-3 py-1.5 text-sm bg-error text-error rounded hover:bg-[#fee2e2] disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     Delete
                                   </button>
@@ -1061,7 +1061,7 @@ export default function AdminCourseEditor() {
                                   <button 
                                     onClick={() => handleDeleteLesson(l.id)} 
                                     disabled={form.status === 'Published'}
-                                    className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-3 py-1.5 text-sm bg-error text-error rounded hover:bg-[#fee2e2] disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     Delete
                                   </button>
@@ -1078,7 +1078,7 @@ export default function AdminCourseEditor() {
                                   <button 
                                     onClick={() => handleDeleteLesson(l.id)} 
                                     disabled={form.status === 'Published'}
-                                    className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-3 py-1.5 text-sm bg-error text-error rounded hover:bg-[#fee2e2] disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     Delete
                                   </button>
@@ -1088,7 +1088,7 @@ export default function AdminCourseEditor() {
                                   <button onClick={() => moveLesson(idx, 'up')} disabled={idx===0 || form.status === 'Published'} className="px-2 py-1 text-sm bg-gray-100 text-gray-700 rounded disabled:opacity-40 disabled:cursor-not-allowed">↑</button>
                                   <button onClick={() => moveLesson(idx, 'down')} disabled={idx===lessons.length-1 || form.status === 'Published'} className="px-2 py-1 text-sm bg-gray-100 text-gray-700 rounded disabled:opacity-40 disabled:cursor-not-allowed">↓</button>
                                   <button onClick={() => editLesson(idx)} disabled={form.status === 'Published'} className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed">Edit</button>
-                                  <button onClick={() => deleteLesson(idx)} disabled={form.status === 'Published'} className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed">Delete</button>
+                                  <button onClick={() => deleteLesson(idx)} disabled={form.status === 'Published'} className="px-3 py-1.5 text-sm bg-error text-error rounded hover:bg-[#fee2e2] disabled:opacity-50 disabled:cursor-not-allowed">Delete</button>
                                 </>
                               )}
                             </div>
@@ -1382,7 +1382,7 @@ export default function AdminCourseEditor() {
                               }
                             }}
                             disabled={form.status === 'Published'}
-                            className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-3 py-1.5 text-sm bg-error text-error rounded hover:bg-[#fee2e2] disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Delete
                           </button>
@@ -1565,3 +1565,5 @@ function AddLessonMenu({ onAdd, disabled = false }) {
 }
 
 // Note: lesson handlers live inside the component scope above
+
+

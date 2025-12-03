@@ -142,7 +142,7 @@ export default function AdminHeader({ hideNavigation = false }) {
                       >
                     {link.label}
                   </NavLink>
-                  <span className="lg:hidden absolute left-0 w-1 h-full bg-blue-600 transform scale-y-0 group-hover:scale-y-100 transition-transform duration-200" />
+                  <span className="lg:hidden absolute left-0 w-1 h-full bg-[#2afeae] transform scale-y-0 group-hover:scale-y-100 transition-transform duration-200" />
                 </li>
               ))}
             </ul>

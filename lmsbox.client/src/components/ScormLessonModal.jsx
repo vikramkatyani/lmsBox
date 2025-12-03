@@ -173,7 +173,7 @@ export default function ScormLessonModal({ isOpen, onClose, courseId, lesson, on
         {/* Modal panel */}
         <div className="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
           {/* Header */}
-          <div className="bg-green-600 px-6 py-4 flex items-center justify-between">
+          <div className="bg-[#1b365d] px-6 py-4 flex items-center justify-between">
             <div className="flex items-center">
               <ArchiveBoxIcon className="h-6 w-6 text-white mr-2" />
               <h3 className="text-lg font-semibold text-white">
@@ -271,7 +271,7 @@ export default function ScormLessonModal({ isOpen, onClose, courseId, lesson, on
                     <div className="mt-4">
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
-                          className="bg-green-600 h-2 rounded-full transition-all"
+                          className="bg-[#2afeae] h-2 rounded-full transition-all"
                           style={{ width: `${uploadProgress}%` }}
                         ></div>
                       </div>
@@ -290,7 +290,7 @@ export default function ScormLessonModal({ isOpen, onClose, courseId, lesson, on
                         <CheckCircleIcon className="h-6 w-6 mr-2" />
                         <span className="text-sm font-medium">SCORM package uploaded successfully</span>
                       </div>
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-left">
+                      <div className="bg-success border border-success rounded-lg p-4 text-left">
                         <p className="text-sm font-medium text-gray-900 mb-2">Package Details:</p>
                         <div className="space-y-1 text-xs text-gray-600">
                           <p><span className="font-medium">Package:</span> {uploadSuccess.packageName}</p>
@@ -316,7 +316,7 @@ export default function ScormLessonModal({ isOpen, onClose, courseId, lesson, on
                   )}
 
                   {uploadError && (
-                    <div className="flex items-start justify-center text-red-600 mt-4 bg-red-50 border border-red-200 rounded p-3">
+                    <div className="flex items-start justify-center text-error mt-4 bg-error border border-error rounded p-3">
                       <ExclamationCircleIcon className="h-6 w-6 mr-2 shrink-0" />
                       <div className="text-left">
                         <p className="text-sm font-medium">Upload Failed</p>
@@ -327,7 +327,7 @@ export default function ScormLessonModal({ isOpen, onClose, courseId, lesson, on
                 </div>
 
                 {/* Info box */}
-                <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="mt-4 bg-info border border-info rounded-lg p-3">
                   <p className="text-xs text-blue-800">
                     <strong>About SCORM:</strong> SCORM (Sharable Content Object Reference Model) is a standard for e-learning content. 
                     Your ZIP file must contain an imsmanifest.xml file at the root or in a subfolder. The system will automatically 
@@ -349,7 +349,7 @@ export default function ScormLessonModal({ isOpen, onClose, courseId, lesson, on
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-[#1b365d] bg-[#2afeae] hover:bg-[#25e89e] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2afeae] disabled:opacity-50"
                 disabled={isSaving || isUploading || !formData.scormUrl}
               >
                 {isSaving ? 'Saving...' : lesson ? 'Update Lesson' : 'Create Lesson'}

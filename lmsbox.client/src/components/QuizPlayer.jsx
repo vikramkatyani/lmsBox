@@ -162,7 +162,7 @@ export default function QuizPlayer({ quizId, onComplete }) {
     return (
       <div className="w-full h-full bg-white p-8 overflow-auto">
         <div className="max-w-2xl mx-auto">
-          <div className={`text-center mb-8 p-6 rounded-lg ${results.passed ? 'bg-green-50' : 'bg-red-50'}`}>
+          <div className={`text-center mb-8 p-6 rounded-lg ${results.passed ? 'bg-success' : 'bg-error'}`}>
             <div className={`text-6xl mb-4 ${results.passed ? 'text-green-600' : 'text-red-600'}`}>
               {results.passed ? '✓' : '✗'}
             </div>
@@ -182,7 +182,7 @@ export default function QuizPlayer({ quizId, onComplete }) {
               {quiz.questions.map((question, index) => {
                 const result = results.questionResults.find(r => r.questionId === question.id);
                 return (
-                  <div key={question.id} className={`p-4 border rounded ${result?.isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                  <div key={question.id} className={`p-4 border rounded ${result?.isCorrect ? 'bg-success border-success' : 'bg-error border-error'}`}>
                     <div className="flex items-start justify-between mb-2">
                       <p className="font-medium">Question {index + 1}</p>
                       <span className={`text-sm ${result?.isCorrect ? 'text-green-600' : 'text-red-600'}`}>
@@ -212,7 +212,7 @@ export default function QuizPlayer({ quizId, onComplete }) {
                   setTimeRemaining(quiz.timeLimit * 60);
                 }
               }}
-              className="mt-6 w-full bg-blue-600 text-white px-6 py-3 rounded hover:bg-blue-700"
+              className="mt-6 w-full bg-[#2afeae] text-[#1b365d] px-6 py-3 rounded hover:bg-[#25e89e]"
             >
               Retake Quiz
             </button>
@@ -237,7 +237,7 @@ export default function QuizPlayer({ quizId, onComplete }) {
           )}
         </div>
 
-        <div className="mb-6 p-4 bg-blue-50 rounded">
+        <div className="mb-6 p-4 bg-info rounded">
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-700">
               <strong>Passing Score:</strong> {quiz.passingScore}% | 
@@ -253,7 +253,7 @@ export default function QuizPlayer({ quizId, onComplete }) {
         <div className="mb-6">
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div 
-              className="bg-blue-600 h-2 rounded-full transition-all"
+              className="bg-[#2afeae] h-2 rounded-full transition-all"
               style={{ width: `${((currentQuestionIndex + 1) / quiz.questions.length) * 100}%` }}
             />
           </div>
@@ -310,7 +310,7 @@ export default function QuizPlayer({ quizId, onComplete }) {
           {currentQuestionIndex < quiz.questions.length - 1 ? (
             <button
               onClick={() => setCurrentQuestionIndex(prev => Math.min(quiz.questions.length - 1, prev + 1))}
-              className="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium"
+              className="px-6 py-3 bg-[#1b365d] text-white rounded hover:bg-[#234a7a] font-medium"
             >
               Next →
             </button>
@@ -318,7 +318,7 @@ export default function QuizPlayer({ quizId, onComplete }) {
             <button
               onClick={handleSubmit}
               disabled={submitted}
-              className="px-6 py-3 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
+              className="px-6 py-3 bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e] disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
             >
               {submitted ? 'Submitting...' : 'Submit Quiz'}
             </button>
@@ -338,9 +338,9 @@ export default function QuizPlayer({ quizId, onComplete }) {
                 onClick={() => setCurrentQuestionIndex(index)}
                 className={`w-3 h-3 rounded-full transition-all ${
                   index === currentQuestionIndex 
-                    ? 'bg-blue-600 w-8' 
+                    ? 'bg-[#2afeae] w-8' 
                     : isAnswered 
-                      ? 'bg-green-500' 
+                      ? 'bg-[#2afeae]' 
                       : 'bg-gray-300'
                 }`}
                 title={`Question ${index + 1}${isAnswered ? ' (Answered)' : ''}`}

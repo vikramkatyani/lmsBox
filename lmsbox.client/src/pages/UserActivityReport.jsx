@@ -148,16 +148,16 @@ export default function UserActivityReport() {
   };
 
   const getEngagementBadge = (score) => {
-    if (score >= 70) return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">High</span>;
-    if (score >= 40) return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Moderate</span>;
-    return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Low</span>;
+    if (score >= 70) return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-success text-success">High</span>;
+    if (score >= 40) return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-warning text-warning">Moderate</span>;
+    return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-error text-error">Low</span>;
   };
 
   const getStatusBadge = (status) => {
     const colors = {
-      Active: 'bg-blue-100 text-blue-800',
+      Active: 'bg-success text-success',
       Inactive: 'bg-gray-100 text-gray-800',
-      Suspended: 'bg-red-100 text-red-800'
+      Suspended: 'bg-error text-error'
     };
     return <span className={`px-2 py-1 text-xs font-semibold rounded-full ${colors[status] || 'bg-gray-100 text-gray-800'}`}>{status}</span>;
   };
@@ -208,7 +208,7 @@ export default function UserActivityReport() {
           <button
             onClick={fetchReport}
             disabled={loading}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-[#1b365d] bg-[#2afeae] hover:bg-[#25e89e] disabled:opacity-50"
           >
             {loading ? 'Refreshing...' : 'Refresh Report'}
           </button>
@@ -272,7 +272,7 @@ export default function UserActivityReport() {
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+          <div className="bg-error border border-error text-error px-4 py-3 rounded mb-6">
             {error}
           </div>
         )}
@@ -294,7 +294,7 @@ export default function UserActivityReport() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-center">
-                  <UserCircleIcon className="h-10 w-10 text-blue-600" />
+                  <UserCircleIcon className="h-10 w-10 text-[#1b365d]" />
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-500">Total Users</p>
                     <p className="text-2xl font-semibold text-gray-900">{data.summary.totalUsers}</p>
@@ -304,7 +304,7 @@ export default function UserActivityReport() {
 
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-center">
-                  <ClockIcon className="h-10 w-10 text-green-600" />
+                  <ClockIcon className="h-10 w-10 text-[#2afeae]" />
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-500">Active Users</p>
                     <p className="text-2xl font-semibold text-gray-900">{data.summary.activeUsers}</p>
@@ -415,7 +415,7 @@ export default function UserActivityReport() {
                                 Yes
                               </span>
                             ) : (
-                              <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                              <span className="px-2 py-1 text-xs font-semibold rounded-full bg-success text-success">
                                 No
                               </span>
                             )}

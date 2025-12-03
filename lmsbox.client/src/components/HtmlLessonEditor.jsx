@@ -112,7 +112,7 @@ const HtmlLessonEditor = ({ initialContent = '', onContentChange, onUrlChange })
             type="button"
             onClick={() => setIsPreview(false)}
             className={`flex items-center gap-1 px-3 py-1.5 rounded ${
-              !isPreview ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+              !isPreview ? 'bg-[#2afeae] text-[#1b365d]' : 'bg-white text-gray-700 hover:bg-gray-50'
             }`}
           >
             <PencilIcon className="h-4 w-4" />
@@ -122,7 +122,7 @@ const HtmlLessonEditor = ({ initialContent = '', onContentChange, onUrlChange })
             type="button"
             onClick={() => setIsPreview(true)}
             className={`flex items-center gap-1 px-3 py-1.5 rounded ${
-              isPreview ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+              isPreview ? 'bg-[#2afeae] text-[#1b365d]' : 'bg-white text-gray-700 hover:bg-gray-50'
             }`}
           >
             <EyeIcon className="h-4 w-4" />

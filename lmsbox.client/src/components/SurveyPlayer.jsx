@@ -209,7 +209,7 @@ export default function SurveyPlayer({ survey, onSubmit, onCancel, surveyType = 
                     disabled={isReadOnly}
                     className={`w-10 h-10 rounded-full border-2 transition-all ${
                       ratingValue === value
-                        ? 'bg-blue-600 text-white border-blue-600 scale-110'
+                        ? 'bg-[#2afeae] text-[#1b365d] border-[#2afeae] scale-110'
                         : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
                     } ${isReadOnly ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
                   >
@@ -243,7 +243,7 @@ export default function SurveyPlayer({ survey, onSubmit, onCancel, surveyType = 
           </div>
         )}
         {isReadOnly && (
-          <div className="mt-3 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
+          <div className="mt-3 px-3 py-2 bg-success border border-success rounded-lg">
             <p className="text-sm text-green-800">
               <span className="font-medium">✓ Survey completed</span> on {new Date(survey.completedAt).toLocaleDateString()}
             </p>
@@ -270,7 +270,7 @@ export default function SurveyPlayer({ survey, onSubmit, onCancel, surveyType = 
             <button
               onClick={handleSubmit}
               disabled={submitting}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2 bg-[#2afeae] text-[#1b365d] rounded-lg hover:bg-[#25e89e] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? 'Submitting...' : 'Submit Survey'}
             </button>

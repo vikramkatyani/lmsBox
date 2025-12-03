@@ -60,3 +60,85 @@
         font-weight: 800;
         letter-spacing: -0.04em;
     }
+
+    /* Button styles - Primary (Turquoise) */
+    .btn-primary {
+        background-color: var(--color-boxlms-primary-btn);
+        color: var(--color-boxlms-primary-btn-txt);
+    }
+    .btn-primary:hover {
+        background-color: #25e89e;
+    }
+
+    /* Button styles - Secondary (Deep Blue) */
+    .btn-secondary {
+        background-color: var(--color-boxlms-secondary-btn);
+        color: var(--color-boxlms-secondary-btn-txt);
+    }
+    .btn-secondary:hover {
+        background-color: #234a7a;
+    }
+
+    /* Success states (using turquoise) */
+    .bg-success {
+        background-color: #e8fdf6;
+    }
+    .border-success {
+        border-color: #2afeae;
+    }
+    .text-success {
+        color: #1b9d75;
+    }
+
+    /* Error states (keeping red for visibility) */
+    .bg-error {
+        background-color: #fef2f2;
+    }
+    .border-error {
+        border-color: #f87171;
+    }
+    .text-error {
+        color: #dc2626;
+    }
+
+    /* Warning states (using steel grey with turquoise accent) */
+    .bg-warning {
+        background-color: #f8f9fa;
+    }
+    .border-warning {
+        border-color: #2afeae;
+    }
+    .text-warning {
+        color: var(--color-page-txt);
+    }
+
+    /* Info states (using deep blue) */
+    .bg-info {
+        background-color: #eef2f7;
+    }
+    .border-info {
+        border-color: var(--color-boxlms-navbar);
+    }
+    .text-info {
+        color: var(--color-boxlms-navbar);
+    }
+
+    /* Override Tailwind colors with brand colors */
+    .bg-primary {
+        background-color: var(--color-boxlms-primary-btn) !important;
+    }
+    .bg-secondary {
+        background-color: var(--color-boxlms-secondary-btn) !important;
+    }
+    .text-primary {
+        color: var(--color-boxlms-primary-btn-txt) !important;
+    }
+    .text-secondary {
+        color: var(--color-boxlms-secondary-btn-txt) !important;
+    }
+    .border-primary {
+        border-color: var(--color-boxlms-primary-btn) !important;
+    }
+    .border-secondary {
+        border-color: var(--color-boxlms-secondary-btn) !important;
+    }
