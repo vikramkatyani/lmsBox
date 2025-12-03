@@ -281,11 +281,11 @@ export default function AdminCourses() {
                       <td className="px-6 py-4 text-gray-700">{c.updatedAt}</td>
                       <td className="px-6 py-4">
                         <div className="flex justify-end gap-2">
-                          <button onClick={() => onEdit(c.id)} className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100">Edit</button>
+                          <button onClick={() => onEdit(c.id)} className="px-3 py-1.5 text-sm bg-info text-blue-700 rounded hover:bg-blue-100">Edit</button>
                           
                           <button 
                             onClick={() => handleDuplicateCourse(c)} 
-                            className="px-3 py-1.5 text-sm bg-purple-50 text-purple-700 rounded hover:bg-purple-100"
+                            className="px-3 py-1.5 text-sm bg-info text-[#1b365d] rounded hover:bg-[#d9e5f2]"
                             title="Duplicate course with all lessons and quizzes"
                           >
                             Duplicate
@@ -294,7 +294,7 @@ export default function AdminCourses() {
                           {c.status === 'Draft' && (
                             <button 
                               onClick={() => handlePublishToggle(c.id)} 
-                              className="px-3 py-1.5 text-sm bg-green-50 text-green-700 rounded hover:bg-green-100"
+                              className="px-3 py-1.5 text-sm bg-success text-green-700 rounded hover:bg-green-100"
                             >
                               Publish
                             </button>

@@ -197,7 +197,7 @@ export default function SuperAdminOrganisationForm() {
                   value={formData.name}
                   onChange={handleChange}
                   required
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500"
                 />
               </div>
 
@@ -210,7 +210,7 @@ export default function SuperAdminOrganisationForm() {
                   value={formData.description}
                   onChange={handleChange}
                   rows={3}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500"
                 />
               </div>
 
@@ -226,7 +226,7 @@ export default function SuperAdminOrganisationForm() {
                     onChange={handleChange}
                     min="1"
                     required
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500"
                   />
                 </div>
 
@@ -241,7 +241,7 @@ export default function SuperAdminOrganisationForm() {
                     onChange={handleChange}
                     min="1"
                     required
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500"
                   />
                 </div>
               </div>
@@ -256,7 +256,7 @@ export default function SuperAdminOrganisationForm() {
                   value={formData.domain}
                   onChange={handleChange}
                   placeholder="example.com"
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500"
                 />
               </div>
 
@@ -269,7 +269,7 @@ export default function SuperAdminOrganisationForm() {
                   name="renewalDate"
                   value={formData.renewalDate}
                   onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500"
                 />
               </div>
 
@@ -279,7 +279,7 @@ export default function SuperAdminOrganisationForm() {
                   name="isActive"
                   checked={formData.isActive}
                   onChange={handleChange}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-indigo-600 focus:ring-[#2afeae] border-gray-300 rounded"
                 />
                 <label className="ml-2 block text-sm text-gray-900">
                   Active
@@ -347,7 +347,7 @@ export default function SuperAdminOrganisationForm() {
                     onChange={handleChange}
                     rows={4}
                     placeholder='{"primaryColor": "#4F46E5", "secondaryColor": "#7C3AED"}'
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm"
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500 font-mono text-sm"
                   />
                 </div>
               </div>
@@ -367,7 +367,7 @@ export default function SuperAdminOrganisationForm() {
                   name="supportEmail"
                   value={formData.supportEmail}
                   onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500"
                 />
               </div>
 
@@ -381,7 +381,7 @@ export default function SuperAdminOrganisationForm() {
                     name="managerName"
                     value={formData.managerName}
                     onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500"
                   />
                 </div>
 
@@ -394,7 +394,7 @@ export default function SuperAdminOrganisationForm() {
                     name="managerEmail"
                     value={formData.managerEmail}
                     onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500"
                   />
                 </div>
 
@@ -407,7 +407,7 @@ export default function SuperAdminOrganisationForm() {
                     name="managerPhone"
                     value={formData.managerPhone}
                     onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500"
                   />
                 </div>
               </div>
@@ -428,7 +428,7 @@ export default function SuperAdminOrganisationForm() {
                     name="fromEmail"
                     value={formData.fromEmail}
                     onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500"
                   />
                 </div>
 
@@ -441,7 +441,7 @@ export default function SuperAdminOrganisationForm() {
                     name="fromName"
                     value={formData.fromName}
                     onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500"
                   />
                 </div>
               </div>
@@ -456,7 +456,7 @@ export default function SuperAdminOrganisationForm() {
                   value={formData.sendGridApiKey}
                   onChange={handleChange}
                   placeholder="SG.xxxxxxxxxxxxx"
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500"
                 />
               </div>
 
@@ -474,7 +474,7 @@ export default function SuperAdminOrganisationForm() {
                         value={formData.smtpHost}
                         onChange={handleChange}
                         placeholder="smtp.example.com"
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500"
                       />
                     </div>
 
@@ -487,7 +487,7 @@ export default function SuperAdminOrganisationForm() {
                         name="smtpPort"
                         value={formData.smtpPort}
                         onChange={handleChange}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500"
                       />
                     </div>
                   </div>
@@ -502,7 +502,7 @@ export default function SuperAdminOrganisationForm() {
                         name="smtpUsername"
                         value={formData.smtpUsername}
                         onChange={handleChange}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500"
                       />
                     </div>
 
@@ -515,7 +515,7 @@ export default function SuperAdminOrganisationForm() {
                         name="smtpPassword"
                         value={formData.smtpPassword}
                         onChange={handleChange}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500"
                       />
                     </div>
                   </div>
@@ -526,7 +526,7 @@ export default function SuperAdminOrganisationForm() {
                       name="smtpUseSsl"
                       checked={formData.smtpUseSsl}
                       onChange={handleChange}
-                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                      className="h-4 w-4 text-indigo-600 focus:ring-[#2afeae] border-gray-300 rounded"
                     />
                     <label className="ml-2 block text-sm text-gray-900">
                       Use SSL/TLS
@@ -543,14 +543,14 @@ export default function SuperAdminOrganisationForm() {
               type="button"
               onClick={() => navigate('/superadmin/organisations')}
               disabled={saving}
-              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2afeae]"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+              className="inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#2afeae] hover:bg-[#25e89e] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2afeae] disabled:opacity-50"
             >
               {saving ? (
                 <>

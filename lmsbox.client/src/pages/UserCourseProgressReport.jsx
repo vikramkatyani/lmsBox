@@ -436,7 +436,7 @@ export default function UserCourseProgressReport() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Performers (3+ courses)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {reportData.topPerformers.slice(0, 5).map((performer, index) => (
-              <div key={index} className="border border-green-200 bg-green-50 rounded-lg p-4">
+              <div key={index} className="border border-[#2afeae] bg-success rounded-lg p-4">
                 <div className="font-medium text-gray-900 mb-2">{performer.userName}</div>
                 <div className="space-y-1 text-sm text-gray-600">
                   <div>📚 {performer.totalCourses} courses</div>

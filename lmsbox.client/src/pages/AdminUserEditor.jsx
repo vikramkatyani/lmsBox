@@ -360,7 +360,7 @@ export default function AdminUserEditor() {
                             className={`px-3 py-1.5 text-sm rounded ${
                               form.learningPathways.some(p => p.id === g.id)
                                 ? 'bg-red-50 text-red-700 hover:bg-red-100'
-                                : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                                : 'bg-info text-[#1b365d] hover:bg-[#d9e5f2]'
                             }`}
                           >
                             {form.learningPathways.some(p => p.id === g.id) ? 'Remove' : 'Add'}

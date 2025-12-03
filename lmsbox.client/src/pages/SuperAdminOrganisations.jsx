@@ -101,7 +101,7 @@ export default function SuperAdminOrganisations() {
             </div>
             <button
               onClick={() => navigate('/superadmin/organisations/create')}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#2afeae] hover:bg-[#25e89e] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2afeae]"
             >
               <PlusIcon className="h-5 w-5 mr-2" />
               Create Organisation
@@ -122,7 +122,7 @@ export default function SuperAdminOrganisations() {
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-[#2afeae] focus:border-indigo-500 sm:text-sm"
                   placeholder="Search by name, domain, admin email..."
                 />
               </div>
@@ -137,7 +137,7 @@ export default function SuperAdminOrganisations() {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-1 focus:ring-[#2afeae] focus:border-indigo-500 sm:text-sm"
                 >
                   <option value="all">All Status</option>
                   <option value="active">Active Only</option>
@@ -168,7 +168,7 @@ export default function SuperAdminOrganisations() {
                 <div className="mt-6">
                   <button
                     onClick={() => navigate('/superadmin/organisations/create')}
-                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#2afeae] hover:bg-[#25e89e]"
                   >
                     <PlusIcon className="h-5 w-5 mr-2" />
                     New Organisation
@@ -224,7 +224,7 @@ export default function SuperAdminOrganisations() {
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
                           <div 
-                            className="bg-indigo-600 h-1.5 rounded-full" 
+                            className="bg-[#2afeae] h-1.5 rounded-full" 
                             style={{ width: `${Math.min((org.totalUsers / org.maxUsers) * 100, 100)}%` }}
                           ></div>
                         </div>
@@ -322,7 +322,7 @@ export default function SuperAdminOrganisations() {
                                 onClick={() => setCurrentPage(page)}
                                 className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
                                   page === currentPage
-                                    ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
+                                    ? 'z-10 bg-info border-[#2afeae] text-[#1b365d]'
                                     : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                                 }`}
                               >

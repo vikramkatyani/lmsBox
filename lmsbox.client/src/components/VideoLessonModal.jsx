@@ -375,7 +375,7 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
                     onClick={() => handleVideoSourceChange('upload')}
                     className={`p-4 rounded-lg border-2 text-left transition ${
                       videoSource === 'upload'
-                        ? 'border-indigo-600 bg-indigo-50'
+                        ? 'border-[#2afeae] bg-[#e8fdf6]'
                         : 'border-gray-200 hover:border-gray-300 bg-white'
                     }`}
                   >
@@ -403,7 +403,7 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
                     onClick={() => handleVideoSourceChange('library')}
                     className={`p-4 rounded-lg border-2 text-left transition ${
                       videoSource === 'library'
-                        ? 'border-indigo-600 bg-indigo-50'
+                        ? 'border-[#2afeae] bg-[#e8fdf6]'
                         : 'border-gray-200 hover:border-gray-300 bg-white'
                     }`}
                   >
@@ -506,7 +506,7 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
                             onClick={() => handleLibraryVideoSelect(video)}
                             className={`border rounded-lg p-3 cursor-pointer transition ${
                               selectedLibraryVideo?.url === video.url
-                                ? 'border-indigo-600 bg-indigo-50'
+                                ? 'border-[#2afeae] bg-[#e8fdf6]'
                                 : 'border-gray-200 hover:border-indigo-300'
                             }`}
                           >

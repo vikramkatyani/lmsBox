@@ -145,8 +145,8 @@ export default function UserProgressReport() {
   };
 
   const getProgressBarColor = (progress) => {
-    if (progress >= 75) return 'bg-blue-600';
-    if (progress >= 50) return 'bg-green-600';
+    if (progress >= 75) return 'bg-[#2afeae]';
+    if (progress >= 50) return 'bg-[#2afeae]';
     if (progress >= 25) return 'bg-yellow-600';
     return 'bg-red-600';
   };
@@ -197,7 +197,7 @@ export default function UserProgressReport() {
           <button
             onClick={fetchReport}
             disabled={loading}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#2afeae] hover:bg-[#25e89e] disabled:opacity-50"
           >
             {loading ? 'Refreshing...' : 'Refresh Report'}
           </button>
@@ -235,7 +235,7 @@ export default function UserProgressReport() {
             <div className="flex gap-3 mt-4">
               <button
                 onClick={handleApplyFilters}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#2afeae] hover:bg-[#25e89e]"
               >
                 Apply Filters
               </button>

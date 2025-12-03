@@ -260,7 +260,7 @@ export default function AdminSurveys() {
                             className={`px-3 py-1.5 text-sm rounded ${
                               s.status === 'Published' 
                                 ? 'bg-gray-50 text-gray-700 hover:bg-gray-100' 
-                                : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                                : 'bg-info text-blue-700 hover:bg-blue-100'
                             }`}
                           >
                             {s.status === 'Published' ? 'Preview' : 'Edit'}
@@ -268,7 +268,7 @@ export default function AdminSurveys() {
                           
                           <button 
                             onClick={() => handleDuplicateSurvey(s)} 
-                            className="px-3 py-1.5 text-sm bg-purple-50 text-purple-700 rounded hover:bg-purple-100"
+                            className="px-3 py-1.5 text-sm bg-info text-[#1b365d] rounded hover:bg-[#d9e5f2]"
                             title="Duplicate survey with all questions"
                           >
                             Duplicate
@@ -277,7 +277,7 @@ export default function AdminSurveys() {
                           {s.status === 'Draft' && (
                             <button 
                               onClick={() => handlePublishToggle(s.id)} 
-                              className="px-3 py-1.5 text-sm bg-green-50 text-green-700 rounded hover:bg-green-100"
+                              className="px-3 py-1.5 text-sm bg-success text-green-700 rounded hover:bg-green-100"
                               disabled={!s.questionCount || s.questionCount === 0}
                               title={!s.questionCount || s.questionCount === 0 ? 'Add at least one question before publishing' : 'Publish survey'}
                             >

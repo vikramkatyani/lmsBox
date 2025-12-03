@@ -281,7 +281,7 @@ export default function AdminLessonLibrary() {
 
         {/* Selection Summary */}
         {selectedLessons.size > 0 && (
-          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6 flex items-center justify-between">
+          <div className="bg-info border border-[#2afeae] rounded-lg p-4 mb-6 flex items-center justify-between">
             <div>
               <p className="text-indigo-900 font-medium">
                 {selectedLessons.size} lesson{selectedLessons.size > 1 ? 's' : ''} selected

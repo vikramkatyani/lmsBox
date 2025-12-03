@@ -104,7 +104,7 @@ export default function AuthTest() {
               <div className="p-2 bg-gray-50 rounded">
                 <strong>Token Expiration:</strong> {tokenInfo.expirationDate}
               </div>
-              <div className={`p-2 rounded ${typeof tokenInfo.timeUntilExpiry === 'number' && tokenInfo.timeUntilExpiry > 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+              <div className={`p-2 rounded ${typeof tokenInfo.timeUntilExpiry === 'number' && tokenInfo.timeUntilExpiry > 0 ? 'bg-success' : 'bg-red-50'}`}>
                 <strong>Time Until Expiry:</strong> {tokenInfo.timeUntilExpiry} minutes
               </div>
               <div className="p-2 bg-gray-50 rounded">
@@ -130,7 +130,7 @@ export default function AuthTest() {
               <div
                 key={idx}
                 className={`p-2 rounded text-sm font-mono ${
-                  log.type === 'success' ? 'bg-green-50' :
+                  log.type === 'success' ? 'bg-success' :
                   log.type === 'warning' ? 'bg-yellow-50' :
                   log.type === 'error' ? 'bg-red-50' :
                   'bg-gray-50'

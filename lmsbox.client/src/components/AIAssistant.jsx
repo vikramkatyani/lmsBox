@@ -246,7 +246,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                           <div
                             className={`max-w-[80%] p-3 rounded-lg ${
                               msg.role === 'user'
-                                ? 'bg-purple-600 text-white'
+                                ? 'bg-[#2afeae] text-[#1b365d]'
                                 : 'bg-gray-100 text-gray-900'
                             }`}
                           >
@@ -279,7 +279,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                     <button
                       type="submit"
                       disabled={loading || !chatInput.trim()}
-                      className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-6 py-2 bg-[#2afeae] text-[#1b365d] rounded-lg hover:bg-[#25e89e] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Send
                     </button>
@@ -338,7 +338,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                     <button
                       type="submit"
                       disabled={loading || !courseTopic.trim()}
-                      className="w-full px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className="w-full px-6 py-2 bg-[#2afeae] text-[#1b365d] rounded-lg hover:bg-[#25e89e] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       {loading ? (
                         <>
@@ -462,7 +462,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                     <button
                       type="submit"
                       disabled={loading || !lessonTitle.trim()}
-                      className="w-full px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className="w-full px-6 py-2 bg-[#2afeae] text-[#1b365d] rounded-lg hover:bg-[#25e89e] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       {loading ? (
                         <>
@@ -569,7 +569,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                     <button
                       type="submit"
                       disabled={loading || !quizTopic.trim()}
-                      className="w-full px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className="w-full px-6 py-2 bg-[#2afeae] text-[#1b365d] rounded-lg hover:bg-[#25e89e] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       {loading ? (
                         <>
@@ -729,7 +729,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                             <div
                               className={`max-w-[80%] p-3 rounded-lg ${
                                 msg.role === 'user'
-                                  ? 'bg-purple-600 text-white'
+                                  ? 'bg-[#2afeae] text-[#1b365d]'
                                   : 'bg-gray-100 text-gray-900'
                               }`}
                             >
@@ -762,7 +762,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                       <button
                         type="submit"
                         disabled={loading || !chatInput.trim()}
-                        className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-6 py-2 bg-[#2afeae] text-[#1b365d] rounded-lg hover:bg-[#25e89e] disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Send
                       </button>
@@ -821,7 +821,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                       <button
                         type="submit"
                         disabled={loading || !courseTopic.trim()}
-                        className="w-full px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full px-6 py-2 bg-[#2afeae] text-[#1b365d] rounded-lg hover:bg-[#25e89e] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
                         {loading ? (
                           <>
@@ -844,7 +844,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                           {onApplyContent && (
                             <button
                               onClick={() => handleApply(courseOutline)}
-                              className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
+                              className="px-3 py-1 text-sm bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e]"
                             >
                               Apply to Course
                             </button>
@@ -945,7 +945,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                       <button
                         type="submit"
                         disabled={loading || !lessonTitle.trim()}
-                        className="w-full px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full px-6 py-2 bg-[#2afeae] text-[#1b365d] rounded-lg hover:bg-[#25e89e] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
                         {loading ? (
                           <>
@@ -984,7 +984,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                               onClick={() => window.dispatchEvent(new CustomEvent('createHtmlLesson', { 
                                 detail: { title: lessonTitle, htmlContent: lessonContent }
                               }))}
-                              className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-1.5"
+                              className="px-4 py-2 text-sm bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e] flex items-center gap-1.5"
                               title="Create HTML lesson from this content"
                             >
                               <FileText className="w-4 h-4" />
@@ -1052,7 +1052,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                       <button
                         type="submit"
                         disabled={loading || !quizTopic.trim()}
-                        className="w-full px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full px-6 py-2 bg-[#2afeae] text-[#1b365d] rounded-lg hover:bg-[#25e89e] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
                         {loading ? (
                           <>
@@ -1075,7 +1075,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                           {onApplyContent && (
                             <button
                               onClick={() => handleApply(quizQuestions)}
-                              className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
+                              className="px-3 py-1 text-sm bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e]"
                             >
                               Apply
                             </button>

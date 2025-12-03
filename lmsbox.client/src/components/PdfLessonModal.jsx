@@ -224,7 +224,7 @@ export default function PdfLessonModal({ isOpen, onClose, courseId, lesson, onSa
         {/* Modal panel */}
         <div className="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
           {/* Header */}
-          <div className="bg-purple-600 px-6 py-4 flex items-center justify-between">
+          <div className="bg-[#1b365d] px-6 py-4 flex items-center justify-between">
             <div className="flex items-center">
               <DocumentTextIcon className="h-6 w-6 text-white mr-2" />
               <h3 className="text-lg font-semibold text-white">
@@ -253,7 +253,7 @@ export default function PdfLessonModal({ isOpen, onClose, courseId, lesson, onSa
                     name="title"
                     value={formData.title}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1b365d]"
                     placeholder="Enter lesson title"
                     required
                   />
@@ -268,7 +268,7 @@ export default function PdfLessonModal({ isOpen, onClose, courseId, lesson, onSa
                     value={formData.content}
                     onChange={handleInputChange}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1b365d]"
                     placeholder="Add a description or instructions for this PDF lesson"
                   />
                 </div>
@@ -279,7 +279,7 @@ export default function PdfLessonModal({ isOpen, onClose, courseId, lesson, onSa
                     name="isOptional"
                     checked={formData.isOptional}
                     onChange={handleInputChange}
-                    className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-purple-600 focus:ring-[#1b365d] border-gray-300 rounded"
                   />
                   <label className="ml-2 text-sm text-gray-700">
                     This lesson is optional
@@ -300,7 +300,7 @@ export default function PdfLessonModal({ isOpen, onClose, courseId, lesson, onSa
                       <CheckCircleIcon className="h-6 w-6 mr-2" />
                       <span className="text-sm font-medium">PDF added to lesson</span>
                     </div>
-                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <div className="bg-info border border-[#2afeae] rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <p className="text-sm font-medium text-gray-900">Current PDF:</p>
@@ -312,7 +312,7 @@ export default function PdfLessonModal({ isOpen, onClose, courseId, lesson, onSa
                           href={previewUrl || formData.documentUrl} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="ml-3 inline-flex items-center px-3 py-1.5 text-sm font-medium text-purple-600 bg-white border border-purple-300 rounded-md hover:bg-purple-50 transition shrink-0"
+                          className="ml-3 inline-flex items-center px-3 py-1.5 text-sm font-medium text-[#1b365d] bg-white border border-[#2afeae] rounded-md hover:bg-[#e8fdf6] transition shrink-0"
                         >
                           <DocumentTextIcon className="h-4 w-4 mr-1" />
                           Preview
@@ -341,7 +341,7 @@ export default function PdfLessonModal({ isOpen, onClose, courseId, lesson, onSa
                     onClick={() => handlePdfSourceChange('upload')}
                     className={`p-4 rounded-lg border-2 text-left transition ${
                       pdfSource === 'upload'
-                        ? 'border-purple-600 bg-purple-50'
+                        ? 'border-[#2afeae] bg-[#e8fdf6]'
                         : 'border-gray-200 hover:border-gray-300 bg-white'
                     }`}
                   >
@@ -369,7 +369,7 @@ export default function PdfLessonModal({ isOpen, onClose, courseId, lesson, onSa
                     onClick={() => handlePdfSourceChange('library')}
                     className={`p-4 rounded-lg border-2 text-left transition ${
                       pdfSource === 'library'
-                        ? 'border-purple-600 bg-purple-50'
+                        ? 'border-[#2afeae] bg-[#e8fdf6]'
                         : 'border-gray-200 hover:border-gray-300 bg-white'
                     }`}
                   >
@@ -423,7 +423,7 @@ export default function PdfLessonModal({ isOpen, onClose, courseId, lesson, onSa
                         <div className="mt-4">
                           <div className="w-full bg-gray-200 rounded-full h-2">
                             <div
-                              className="bg-purple-600 h-2 rounded-full transition-all"
+                              className="bg-[#1b365d] h-2 rounded-full transition-all"
                               style={{ width: `${uploadProgress}%` }}
                             ></div>
                           </div>
@@ -472,7 +472,7 @@ export default function PdfLessonModal({ isOpen, onClose, courseId, lesson, onSa
                             onClick={() => handleLibraryPdfSelect(pdf)}
                             className={`border rounded-lg p-3 cursor-pointer transition ${
                               selectedLibraryPdf?.url === pdf.url
-                                ? 'border-purple-600 bg-purple-50'
+                                ? 'border-[#2afeae] bg-[#e8fdf6]'
                                 : 'border-gray-200 hover:border-purple-300'
                             }`}
                           >
@@ -508,14 +508,14 @@ export default function PdfLessonModal({ isOpen, onClose, courseId, lesson, onSa
               <button
                 type="button"
                 onClick={handleClose}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1b365d]"
                 disabled={isSaving || isUploading}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#1b365d] hover:bg-[#234a7a] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1b365d] disabled:opacity-50"
                 disabled={isSaving || isUploading || !formData.documentUrl}
               >
                 {isSaving ? 'Saving...' : lesson ? 'Update Lesson' : 'Create Lesson'}

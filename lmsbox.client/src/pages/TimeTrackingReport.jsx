@@ -218,13 +218,13 @@ export default function TimeTrackingReport() {
             <div className="flex items-end gap-2">
               <button
                 onClick={handleExportCSV}
-                className="flex-1 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 text-sm"
+                className="flex-1 bg-[#2afeae] text-[#1b365d] px-4 py-2 rounded-md hover:bg-[#25e89e] text-sm"
               >
                 Export CSV
               </button>
               <button
                 onClick={handleExportJSON}
-                className="flex-1 bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 text-sm"
+                className="flex-1 bg-[#1b365d] text-white px-4 py-2 rounded-md hover:bg-[#234a7a] text-sm"
               >
                 Export JSON
               </button>

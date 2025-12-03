@@ -167,14 +167,14 @@ export default function Login() {
                 <button
                   onClick={() => devLogin('19vaibhav90@gmail.com')}
                   disabled={status === 'loading'}
-                  className="w-full py-2 px-4 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50"
+                  className="w-full py-2 px-4 bg-[#2afeae] text-[#1b365d] text-sm rounded hover:bg-[#25e89e] disabled:opacity-50"
                 >
                   Login as Learner (19vaibhav90@gmail.com)
                 </button>
                 <button
                   onClick={() => devLogin('admin@dev.local')}
                   disabled={status === 'loading'}
-                  className="w-full py-2 px-4 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50"
+                  className="w-full py-2 px-4 bg-[#2afeae] text-[#1b365d] text-sm rounded hover:bg-[#25e89e] disabled:opacity-50"
                 >
                   Login as Admin (admin@dev.local)
                 </button>
