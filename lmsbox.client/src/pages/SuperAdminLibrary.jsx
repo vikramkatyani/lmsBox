@@ -8,6 +8,7 @@ import {
   TrashIcon,
   DocumentIcon,
   VideoCameraIcon,
+  CubeIcon,
   FunnelIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
@@ -18,7 +19,7 @@ export default function SuperAdminLibrary() {
   const navigate = useNavigate();
   const [content, setContent] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all'); // all, pdf, video
+  const [filter, setFilter] = useState('all'); // all, pdf, video, scorm
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, contentId: null, contentTitle: '' });
 
   useEffect(() => {
@@ -107,7 +108,8 @@ export default function SuperAdminLibrary() {
               {[
                 { key: 'all', label: 'All Content', count: content.length },
                 { key: 'pdf', label: 'PDF Documents', icon: DocumentIcon },
-                { key: 'video', label: 'Videos', icon: VideoCameraIcon }
+                { key: 'video', label: 'Videos', icon: VideoCameraIcon },
+                { key: 'scorm', label: 'SCORM Packages', icon: CubeIcon }
               ].map(tab => (
                 <button
                   key={tab.key}
@@ -163,6 +165,9 @@ export default function SuperAdminLibrary() {
                     Type
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Category
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Size
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -183,8 +188,10 @@ export default function SuperAdminLibrary() {
                       <div className="flex items-center">
                         {item.contentType === 'pdf' ? (
                           <DocumentIcon className="h-8 w-8 text-red-500 shrink-0" />
-                        ) : (
+                        ) : item.contentType === 'video' ? (
                           <VideoCameraIcon className="h-8 w-8 text-blue-500 shrink-0" />
+                        ) : (
+                          <CubeIcon className="h-8 w-8 text-purple-500 shrink-0" />
                         )}
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">{item.title}</div>
@@ -201,10 +208,21 @@ export default function SuperAdminLibrary() {
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         item.contentType === 'pdf' 
                           ? 'bg-red-100 text-red-800' 
-                          : 'bg-blue-100 text-blue-800'
+                          : item.contentType === 'video'
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'bg-purple-100 text-purple-800'
                       }`}>
                         {item.contentType.toUpperCase()}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {item.category ? (
+                        <span className="inline-flex px-2 py-1 bg-indigo-100 text-indigo-700 text-xs font-medium rounded">
+                          {item.category}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {formatFileSize(item.fileSizeBytes)}

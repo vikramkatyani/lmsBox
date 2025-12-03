@@ -74,7 +74,7 @@ public class AdminLessonsController : ControllerBase
                 QuizId = l.QuizId,
                 QuizTitle = l.Quiz?.Title,
                 VideoUrl = l.VideoUrl,
-                VideoDurationSeconds = l.VideoDurationSeconds,
+                DurationSeconds = l.DurationSeconds,
                 ScormUrl = l.ScormUrl,
                 ScormEntryUrl = l.ScormEntryUrl,
                 DocumentUrl = l.DocumentUrl,
@@ -159,7 +159,7 @@ public class AdminLessonsController : ControllerBase
                 QuizId = lesson.QuizId,
                 QuizTitle = lesson.Quiz?.Title,
                 VideoUrl = videoUrlWithSas ?? lesson.VideoUrl,
-                VideoDurationSeconds = lesson.VideoDurationSeconds,
+                DurationSeconds = lesson.DurationSeconds,
                 ScormUrl = scormUrlWithSas ?? lesson.ScormUrl,
                 ScormEntryUrl = lesson.ScormEntryUrl,
                 DocumentUrl = documentUrlWithSas ?? lesson.DocumentUrl,
@@ -232,7 +232,7 @@ public class AdminLessonsController : ControllerBase
                 Type = request.Type,
                 QuizId = request.QuizId,
                 VideoUrl = request.VideoUrl,
-                VideoDurationSeconds = request.VideoDurationSeconds,
+                DurationSeconds = request.DurationSeconds,
                 ScormUrl = request.ScormUrl,
                 ScormEntryUrl = request.ScormEntryUrl,
                 DocumentUrl = request.DocumentUrl,
@@ -269,7 +269,7 @@ public class AdminLessonsController : ControllerBase
                 QuizId = createdLesson.QuizId,
                 QuizTitle = createdLesson.Quiz?.Title,
                 VideoUrl = createdLesson.VideoUrl,
-                VideoDurationSeconds = createdLesson.VideoDurationSeconds,
+                DurationSeconds = createdLesson.DurationSeconds,
                 ScormUrl = createdLesson.ScormUrl,
                 ScormEntryUrl = createdLesson.ScormEntryUrl,
                 DocumentUrl = createdLesson.DocumentUrl,
@@ -326,6 +326,12 @@ public class AdminLessonsController : ControllerBase
                 {
                     return Forbid("You can only update lessons from your organization");
                 }
+
+                // Prevent editing lessons from global library
+                if (IsGlobalLibraryLesson(lesson))
+                {
+                    return BadRequest(new { message = "Cannot edit lessons from global library. You can only remove them from draft courses." });
+                }
             }
 
             // Validate lesson type
@@ -342,7 +348,7 @@ public class AdminLessonsController : ControllerBase
             lesson.Type = request.Type;
             lesson.QuizId = request.QuizId;
             lesson.VideoUrl = request.VideoUrl;
-            lesson.VideoDurationSeconds = request.VideoDurationSeconds;
+            lesson.DurationSeconds = request.DurationSeconds;
             lesson.ScormUrl = request.ScormUrl;
             lesson.ScormEntryUrl = request.ScormEntryUrl;
             lesson.DocumentUrl = request.DocumentUrl;
@@ -371,7 +377,7 @@ public class AdminLessonsController : ControllerBase
                 QuizId = lesson.QuizId,
                 QuizTitle = lesson.Quiz?.Title,
                 VideoUrl = lesson.VideoUrl,
-                VideoDurationSeconds = lesson.VideoDurationSeconds,
+                DurationSeconds = lesson.DurationSeconds,
                 ScormUrl = lesson.ScormUrl,
                 ScormEntryUrl = lesson.ScormEntryUrl,
                 DocumentUrl = lesson.DocumentUrl,
@@ -410,12 +416,6 @@ public class AdminLessonsController : ControllerBase
                 return NotFound(new { message = "Lesson not found" });
             }
 
-            // Check if course is published
-            if (lesson.Course?.Status == "Published")
-            {
-                return BadRequest(new { message = "Cannot delete lessons from published courses. Please unpublish the course first." });
-            }
-
             // Check access rights
             if (userRole == "OrgAdmin")
             {
@@ -424,6 +424,24 @@ public class AdminLessonsController : ControllerBase
                 {
                     return Forbid("You can only delete lessons from your organization");
                 }
+
+                // Allow deletion of global library lessons only from draft courses
+                if (IsGlobalLibraryLesson(lesson))
+                {
+                    if (lesson.Course?.Status != "Draft")
+                    {
+                        return BadRequest(new { message = "Global library lessons can only be removed from draft courses." });
+                    }
+                }
+                // For organization's own lessons, check if course is published
+                else if (lesson.Course?.Status == "Published")
+                {
+                    return BadRequest(new { message = "Cannot delete lessons from published courses. Please unpublish the course first." });
+                }
+            }
+            else if (lesson.Course?.Status == "Published")
+            {
+                return BadRequest(new { message = "Cannot delete lessons from published courses. Please unpublish the course first." });
             }
 
             _context.Lessons.Remove(lesson);
@@ -865,11 +883,11 @@ public class AdminLessonsController : ControllerBase
             var htmlBytes = System.Text.Encoding.UTF8.GetBytes(request.HtmlContent);
             using var stream = new MemoryStream(htmlBytes);
 
-            // Upload to blob storage in html-lessons folder
-            var htmlUrl = await _blobService.UploadToCustomPathAsync(
+            // Upload to blob storage in organisation library folder (same as videos and PDFs)
+            var htmlUrl = await _blobService.UploadFileAsync(
                 stream,
                 fileName,
-                $"orgs/{user.OrganisationID}/html-lessons",
+                user.OrganisationID.ToString(),
                 "text/html"
             );
 
@@ -950,6 +968,212 @@ public class AdminLessonsController : ControllerBase
             return StatusCode(500, new { message = "An error occurred while reordering lessons" });
         }
     }
+
+    /// <summary>
+    /// Get all lessons from global library (Byte Learning Library)
+    /// </summary>
+    [HttpGet("/api/admin/global-library/lessons")]
+    public async Task<ActionResult<List<GlobalLibraryLessonDto>>> GetGlobalLibraryLessons(
+        [FromQuery] string? contentType = null,
+        [FromQuery] string? category = null)
+    {
+        try
+        {
+            var query = _context.GlobalLibraryContents.AsQueryable();
+
+            // Filter by content type if provided
+            if (!string.IsNullOrEmpty(contentType) && contentType != "all")
+            {
+                query = query.Where(c => c.ContentType == contentType);
+            }
+
+            // Filter by category if provided
+            if (!string.IsNullOrEmpty(category) && category != "all")
+            {
+                query = query.Where(c => c.Category == category);
+            }
+
+            var lessons = await query
+                .Where(c => c.IsActive)
+                .OrderByDescending(c => c.UploadedOn)
+                .Select(c => new GlobalLibraryLessonDto
+                {
+                    Id = c.Id,
+                    Title = c.Title,
+                    Description = c.Description,
+                    ContentType = c.ContentType,
+                    Category = c.Category,
+                    Tags = c.Tags,
+                    AzureBlobPath = c.AzureBlobPath,
+                    FileSizeBytes = c.FileSizeBytes,
+                    FileName = c.FileName
+                })
+                .ToListAsync();
+
+            return Ok(lessons);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching global library lessons");
+            return StatusCode(500, new { message = "An error occurred while fetching global library lessons" });
+        }
+    }
+
+    /// <summary>
+    /// Get all distinct categories from global library
+    /// </summary>
+    [HttpGet("/api/admin/global-library/categories")]
+    public async Task<ActionResult<List<string>>> GetGlobalLibraryCategories()
+    {
+        try
+        {
+            var categories = await _context.GlobalLibraryContents
+                .Where(c => c.IsActive && !string.IsNullOrEmpty(c.Category))
+                .Select(c => c.Category!)
+                .Distinct()
+                .OrderBy(c => c)
+                .ToListAsync();
+
+            return Ok(categories);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching global library categories");
+            return StatusCode(500, new { message = "An error occurred while fetching categories" });
+        }
+    }
+
+    /// <summary>
+    /// Add lessons from global library to a course
+    /// </summary>
+    [HttpPost("/api/admin/courses/{courseId}/lessons/from-library")]
+    public async Task<ActionResult> AddLessonsFromLibrary(
+        string courseId,
+        [FromBody] AddLessonsFromLibraryRequest request)
+    {
+        try
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userRole = User.FindFirstValue(ClaimTypes.Role);
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { message = "User not authenticated" });
+            }
+
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+            {
+                return Unauthorized(new { message = "User not found" });
+            }
+
+            // Check course exists and user has access
+            var course = await _context.Courses.FindAsync(courseId);
+            if (course == null)
+            {
+                return NotFound(new { message = "Course not found" });
+            }
+
+            // OrgAdmin can only add to their organization's courses
+            if (userRole == "OrgAdmin" && course.OrganisationId != user.OrganisationID)
+            {
+                return Forbid("You can only add lessons to your organization's courses");
+            }
+
+            // Get the global library content items
+            var libraryContent = await _context.GlobalLibraryContents
+                .Where(c => request.LibraryContentIds.Contains(c.Id) && c.IsActive)
+                .ToListAsync();
+
+            if (libraryContent.Count == 0)
+            {
+                return BadRequest(new { message = "No valid library content found" });
+            }
+
+            // Get max ordinal for the course
+            var maxOrdinal = await _context.Lessons
+                .Where(l => l.CourseId == courseId)
+                .MaxAsync(l => (int?)l.Ordinal) ?? 0;
+
+            // Create lessons from library content
+            var newLessons = new List<Lesson>();
+            foreach (var content in libraryContent)
+            {
+                maxOrdinal++;
+                
+                var lesson = new Lesson
+                {
+                    CourseId = courseId,
+                    Title = content.Title,
+                    Content = content.Description,
+                    Ordinal = maxOrdinal,
+                    Type = MapContentTypeToLessonType(content.ContentType),
+                    IsOptional = false,
+                    CreatedByUserId = userId,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                // Set the appropriate URL based on content type
+                switch (content.ContentType.ToLower())
+                {
+                    case "video":
+                        lesson.VideoUrl = content.AzureBlobPath;
+                        break;
+                    case "pdf":
+                        lesson.DocumentUrl = content.AzureBlobPath;
+                        break;
+                    case "scorm":
+                        lesson.ScormUrl = content.AzureBlobPath;
+                        lesson.ScormEntryUrl = content.AzureBlobPath;
+                        break;
+                    case "html":
+                        lesson.HtmlUrl = content.AzureBlobPath;
+                        break;
+                }
+
+                newLessons.Add(lesson);
+            }
+
+            _context.Lessons.AddRange(newLessons);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "User {UserId} added {Count} lessons from global library to course {CourseId}",
+                userId, newLessons.Count, courseId);
+
+            return Ok(new
+            {
+                message = $"{newLessons.Count} lesson(s) added successfully",
+                addedCount = newLessons.Count
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error adding lessons from global library to course {CourseId}", courseId);
+            return StatusCode(500, new { message = "An error occurred while adding lessons" });
+        }
+    }
+
+    private string MapContentTypeToLessonType(string contentType)
+    {
+        return contentType.ToLower() switch
+        {
+            "video" => "video",
+            "pdf" => "pdf",
+            "scorm" => "scorm",
+            "html" => "html",
+            _ => "content"
+        };
+    }
+
+    private bool IsGlobalLibraryLesson(Lesson lesson)
+    {
+        // Check if any of the lesson's URLs point to global library
+        return (!string.IsNullOrEmpty(lesson.VideoUrl) && lesson.VideoUrl.Contains("global-library/")) ||
+               (!string.IsNullOrEmpty(lesson.DocumentUrl) && lesson.DocumentUrl.Contains("global-library/")) ||
+               (!string.IsNullOrEmpty(lesson.ScormUrl) && lesson.ScormUrl.Contains("global-library/")) ||
+               (!string.IsNullOrEmpty(lesson.HtmlUrl) && lesson.HtmlUrl.Contains("global-library/"));
+    }
 }
 
 // DTOs
@@ -964,7 +1188,7 @@ public class LessonDetailDto
     public string? QuizId { get; set; }
     public string? QuizTitle { get; set; }
     public string? VideoUrl { get; set; }
-    public int? VideoDurationSeconds { get; set; }
+    public int? DurationSeconds { get; set; }
     public string? ScormUrl { get; set; }
     public string? ScormEntryUrl { get; set; }
     public string? DocumentUrl { get; set; }
@@ -982,7 +1206,7 @@ public class CreateLessonRequest
     public string Type { get; set; } = "content";
     public string? QuizId { get; set; }
     public string? VideoUrl { get; set; }
-    public int? VideoDurationSeconds { get; set; }
+    public int? DurationSeconds { get; set; }
     public string? ScormUrl { get; set; }
     public string? ScormEntryUrl { get; set; }
     public string? DocumentUrl { get; set; }
@@ -1046,4 +1270,23 @@ public class LessonOrderItem
 {
     public long LessonId { get; set; }
     public int Ordinal { get; set; }
+}
+
+// Global Library DTOs
+public class GlobalLibraryLessonDto
+{
+    public long Id { get; set; }
+    public string Title { get; set; } = null!;
+    public string? Description { get; set; }
+    public string ContentType { get; set; } = null!; // pdf, video, scorm, html
+    public string? Category { get; set; }
+    public string? Tags { get; set; }
+    public string AzureBlobPath { get; set; } = null!;
+    public long FileSizeBytes { get; set; }
+    public string? FileName { get; set; }
+}
+
+public class AddLessonsFromLibraryRequest
+{
+    public List<long> LibraryContentIds { get; set; } = new();
 }

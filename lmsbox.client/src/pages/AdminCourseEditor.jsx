@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
 import AIAssistant from '../components/AIAssistant';
+import ImageCropModal from '../components/ImageCropModal';
 import VideoLessonModal from '../components/VideoLessonModal';
 import PdfLessonModal from '../components/PdfLessonModal';
 import ScormLessonModal from '../components/ScormLessonModal';
@@ -27,6 +28,7 @@ export default function AdminCourseEditor() {
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
+  const [cropModalOpen, setCropModalOpen] = useState(false);
   const [form, setForm] = useState({
     title: '',
     shortDescription: '',
@@ -255,6 +257,14 @@ export default function AdminCourseEditor() {
     toast.success('Quiz selected');
   };
 
+  // Check if a lesson is from global library
+  const isGlobalLibraryLesson = (lesson) => {
+    return (lesson.videoUrl && lesson.videoUrl.includes('global-library/')) ||
+           (lesson.documentUrl && lesson.documentUrl.includes('global-library/')) ||
+           (lesson.scormUrl && lesson.scormUrl.includes('global-library/')) ||
+           (lesson.htmlUrl && lesson.htmlUrl.includes('global-library/'));
+  };
+
   const isValid = useMemo(() => 
     form.title.trim().length > 0 && form.shortDescription.trim().length > 0, 
     [form.title, form.shortDescription]
@@ -264,15 +274,14 @@ export default function AdminCourseEditor() {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleBannerChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
-      return;
-    }
-    const preview = URL.createObjectURL(file);
-    setForm(prev => ({ ...prev, bannerFile: file, bannerPreview: preview }));
+  const openCropModal = () => {
+    setCropModalOpen(true);
+  };
+
+  const handleBannerCrop = async (croppedFile) => {
+    const preview = URL.createObjectURL(croppedFile);
+    setForm(prev => ({ ...prev, bannerFile: croppedFile, bannerPreview: preview }));
+    toast.success('Banner image ready');
   };
 
   const removeBanner = () => {
@@ -733,21 +742,23 @@ export default function AdminCourseEditor() {
                     <div className="border rounded p-2">
                       <img src={form.bannerPreview} alt="Banner preview" className="w-full h-36 object-cover rounded" />
                       <div className="flex gap-2 mt-2">
-                        <button onClick={removeBanner} className="px-3 py-1.5 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300">Remove</button>
-                        <label className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer">
+                        <button type="button" onClick={removeBanner} className="px-3 py-1.5 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300">Remove</button>
+                        <button type="button" onClick={openCropModal} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
                           Change
-                          <input type="file" accept="image/*" onChange={handleBannerChange} className="hidden" />
-                        </label>
+                        </button>
                       </div>
                     </div>
                   ) : (
-                    <label className="w-full border border-dashed border-gray-300 rounded p-4 flex items-center justify-center cursor-pointer hover:bg-gray-50">
+                    <button
+                      type="button"
+                      onClick={openCropModal}
+                      className="w-full border border-dashed border-gray-300 rounded p-4 flex items-center justify-center hover:bg-gray-50"
+                    >
                       <div className="text-center">
                         <div className="text-gray-500">Click to upload image</div>
-                        <div className="text-xs text-gray-400">PNG, JPG, GIF up to ~5MB</div>
+                        <div className="text-xs text-gray-400">Recommended: 1280x720px (16:9 ratio)</div>
                       </div>
-                      <input type="file" accept="image/*" onChange={handleBannerChange} className="hidden" />
-                    </label>
+                    </button>
                   )}
                 </div>
 
@@ -950,7 +961,17 @@ export default function AdminCourseEditor() {
                             </svg>
                           </td>
                           <td className="px-4 py-3">
-                            <div className="font-medium text-gray-900">{l.title || <span className="text-gray-400">Untitled</span>}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="font-medium text-gray-900">{l.title || <span className="text-gray-400">Untitled</span>}</div>
+                              {isGlobalLibraryLesson(l) && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-medium rounded">
+                                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z" />
+                                  </svg>
+                                  Byte Learning Library
+                                </span>
+                              )}
+                            </div>
                             {l.content && (
                               <div className="text-xs text-gray-500 truncate max-w-[420px]">{l.content}</div>
                             )}
@@ -964,7 +985,20 @@ export default function AdminCourseEditor() {
                           <td className="px-4 py-3">{l.isOptional ? 'Yes' : 'No'}</td>
                           <td className="px-4 py-3">
                             <div className="flex justify-end gap-2">
-                              {l.type === 'video' ? (
+                              {isGlobalLibraryLesson(l) ? (
+                                // Global library lessons - only show Remove button
+                                <button 
+                                  onClick={() => handleDeleteLesson(l.id)} 
+                                  disabled={form.status !== 'Draft'}
+                                  className="px-3 py-1.5 text-sm bg-orange-50 text-orange-700 rounded hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                                  title={form.status !== 'Draft' ? 'Can only remove global lessons from draft courses' : 'Remove from course'}
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                  Remove
+                                </button>
+                              ) : l.type === 'video' ? (
                                 <>
                                   <button 
                                     onClick={() => handleOpenVideoLessonModal(l)} 
@@ -1435,6 +1469,14 @@ export default function AdminCourseEditor() {
           onSave={handleQuizLessonSaved}
         />
       )}
+
+      {/* Image Crop Modal for Course Banner */}
+      <ImageCropModal
+        isOpen={cropModalOpen}
+        onClose={() => setCropModalOpen(false)}
+        onCropComplete={handleBannerCrop}
+        aspectRatio={16 / 9}  // 16:9 ratio for course cards (e.g., 1280x720)
+      />
     </div>
   );
 }
@@ -1461,6 +1503,8 @@ function TypeBadge({ type }) {
 
 function AddLessonMenu({ onAdd, disabled = false }) {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
+  const { courseId } = useParams();
   
   const lessonTypes = [
     { value: 'video', label: 'Video Lesson', icon: '🎥' },
@@ -1469,6 +1513,12 @@ function AddLessonMenu({ onAdd, disabled = false }) {
     { value: 'html', label: 'HTML Lesson', icon: '🌐' },
     { value: 'quiz', label: 'Quiz', icon: '📝' }
   ];
+  
+  const handleLibraryClick = () => {
+    setOpen(false);
+    const returnUrl = encodeURIComponent(`/admin/courses/${courseId}/edit`);
+    navigate(`/admin/courses/${courseId}/library?returnUrl=${returnUrl}`);
+  };
   
   return (
     <div className="relative">
@@ -1492,12 +1542,22 @@ function AddLessonMenu({ onAdd, disabled = false }) {
             <button 
               key={t.value} 
               onClick={() => { onAdd(t.value); setOpen(false); }} 
-              className="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 flex items-center gap-3 border-b last:border-b-0"
+              className="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 flex items-center gap-3 border-b"
             >
               <span className="text-lg">{t.icon}</span>
               <span>{t.label}</span>
             </button>
           ))}
+          {/* Separator */}
+          <div className="border-t-2 border-gray-200"></div>
+          {/* Library Option */}
+          <button 
+            onClick={handleLibraryClick}
+            className="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 flex items-center gap-3 text-blue-600 font-medium"
+          >
+            <span className="text-lg">📚</span>
+            <span>Browse Byte Learning Library</span>
+          </button>
         </div>
       )}
     </div>

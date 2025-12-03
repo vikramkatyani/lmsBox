@@ -27,7 +27,9 @@ public class Lesson
 
     // For video lessons
     public string? VideoUrl { get; set; }
-    public int? VideoDurationSeconds { get; set; }
+    
+    // Duration in seconds (applies to all content types)
+    public int? DurationSeconds { get; set; }
 
     // For SCORM lessons
     public string? ScormUrl { get; set; }

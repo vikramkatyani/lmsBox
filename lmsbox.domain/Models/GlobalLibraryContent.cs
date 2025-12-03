@@ -34,6 +34,15 @@ public class GlobalLibraryContent
 
     public string? UpdatedBy { get; set; }
 
-    // Tags or categories for filtering
+    // Category for filtering (e.g., Security, HR, Technical, Management)
+    public string? Category { get; set; }
+
+    // Tags for additional filtering
     public string? Tags { get; set; }
+
+    // Duration in seconds (for video/scorm content)
+    public int? DurationSeconds { get; set; }
+
+    // Thumbnail image URL
+    public string? ThumbnailUrl { get; set; }
 }

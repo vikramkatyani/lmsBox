@@ -7,6 +7,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using System.ComponentModel.DataAnnotations;
+using System.IO.Compression;
 using lmsbox.domain.Models;
 using lmsbox.infrastructure.Data;
 using lmsBox.Server.Services;
@@ -344,6 +345,7 @@ public class SuperAdminController : ControllerBase
                 UploadedOn = c.UploadedOn,
                 UploadedBy = c.UploadedBy,
                 IsActive = c.IsActive,
+                Category = c.Category,
                 Tags = c.Tags
             })
             .ToListAsync();
@@ -357,7 +359,14 @@ public class SuperAdminController : ControllerBase
     [Authorize(Roles = "SuperAdmin")]
     [HttpPost("global-library/upload-video")]
     [RequestSizeLimit(524_288_000)] // 500 MB limit
-    public async Task<ActionResult<GlobalLibraryUploadResponse>> UploadVideo([FromForm] IFormFile video, [FromForm] string title, [FromForm] string description, [FromForm] string tags)
+    public async Task<ActionResult<GlobalLibraryUploadResponse>> UploadVideo(
+        [FromForm] IFormFile video, 
+        [FromForm] string title, 
+        [FromForm] string description, 
+        [FromForm] string? category, 
+        [FromForm] string tags,
+        [FromForm] int? durationSeconds,
+        [FromForm] IFormFile? thumbnail)
     {
         try
         {
@@ -393,6 +402,22 @@ public class SuperAdminController : ControllerBase
                 video.ContentType,
                 "video");
 
+            // Upload thumbnail if provided
+            string? thumbnailUrl = null;
+            if (thumbnail != null && thumbnail.Length > 0)
+            {
+                var thumbnailExtension = Path.GetExtension(thumbnail.FileName).ToLower();
+                var thumbnailFileName = $"{Guid.NewGuid()}{thumbnailExtension}";
+                
+                using var thumbnailStream = thumbnail.OpenReadStream();
+                thumbnailUrl = await _blobService.UploadToCustomPathAsync(
+                    thumbnailStream,
+                    thumbnailFileName,
+                    "global-library",
+                    thumbnail.ContentType,
+                    "thumbnails");
+            }
+
             // Create database record
             var content = new GlobalLibraryContent
             {
@@ -403,7 +428,10 @@ public class SuperAdminController : ControllerBase
                 FileName = uniqueFileName,
                 FileSizeBytes = video.Length,
                 MimeType = video.ContentType,
+                Category = category,
                 Tags = tags,
+                DurationSeconds = durationSeconds,
+                ThumbnailUrl = thumbnailUrl,
                 UploadedOn = DateTime.UtcNow,
                 UploadedBy = superAdminEmail,
                 IsActive = true
@@ -422,6 +450,7 @@ public class SuperAdminController : ControllerBase
                 OriginalFileName = video.FileName,
                 Size = video.Length,
                 ContentType = video.ContentType,
+                ThumbnailUrl = thumbnailUrl,
                 Message = "Video uploaded successfully"
             });
         }
@@ -438,7 +467,13 @@ public class SuperAdminController : ControllerBase
     [Authorize(Roles = "SuperAdmin")]
     [HttpPost("global-library/upload-pdf")]
     [RequestSizeLimit(104_857_600)] // 100 MB limit
-    public async Task<ActionResult<GlobalLibraryUploadResponse>> UploadPdf([FromForm] IFormFile pdf, [FromForm] string title, [FromForm] string description, [FromForm] string tags)
+    public async Task<ActionResult<GlobalLibraryUploadResponse>> UploadPdf(
+        [FromForm] IFormFile pdf, 
+        [FromForm] string title, 
+        [FromForm] string description, 
+        [FromForm] string? category, 
+        [FromForm] string tags,
+        [FromForm] IFormFile? thumbnail)
     {
         try
         {
@@ -480,6 +515,22 @@ public class SuperAdminController : ControllerBase
                 pdf.ContentType,
                 "pdf");
 
+            // Upload thumbnail if provided
+            string? thumbnailUrl = null;
+            if (thumbnail != null && thumbnail.Length > 0)
+            {
+                var thumbnailExtension = Path.GetExtension(thumbnail.FileName).ToLower();
+                var thumbnailFileName = $"{Guid.NewGuid()}{thumbnailExtension}";
+                
+                using var thumbnailStream = thumbnail.OpenReadStream();
+                thumbnailUrl = await _blobService.UploadToCustomPathAsync(
+                    thumbnailStream,
+                    thumbnailFileName,
+                    "global-library",
+                    thumbnail.ContentType,
+                    "thumbnails");
+            }
+
             // Create database record
             var content = new GlobalLibraryContent
             {
@@ -490,7 +541,9 @@ public class SuperAdminController : ControllerBase
                 FileName = uniqueFileName,
                 FileSizeBytes = pdf.Length,
                 MimeType = pdf.ContentType,
+                Category = category,
                 Tags = tags,
+                ThumbnailUrl = thumbnailUrl,
                 UploadedOn = DateTime.UtcNow,
                 UploadedBy = superAdminEmail,
                 IsActive = true
@@ -509,6 +562,7 @@ public class SuperAdminController : ControllerBase
                 OriginalFileName = pdf.FileName,
                 Size = pdf.Length,
                 ContentType = pdf.ContentType,
+                ThumbnailUrl = thumbnailUrl,
                 Message = "PDF uploaded successfully"
             });
         }
@@ -516,6 +570,193 @@ public class SuperAdminController : ControllerBase
         {
             _logger.LogError(ex, "Error uploading PDF to global library");
             return StatusCode(500, new { message = "An error occurred while uploading the PDF" });
+        }
+    }
+
+    /// <summary>
+    /// Upload a SCORM package to global library blob storage
+    /// </summary>
+    [Authorize(Roles = "SuperAdmin")]
+    [HttpPost("global-library/upload-scorm")]
+    [RequestSizeLimit(524_288_000)] // 500 MB limit
+    public async Task<ActionResult<GlobalLibraryUploadResponse>> UploadScorm(
+        [FromForm] IFormFile scormPackage, 
+        [FromForm] string title, 
+        [FromForm] string description, 
+        [FromForm] string? category, 
+        [FromForm] string tags,
+        [FromForm] IFormFile? thumbnail)
+    {
+        try
+        {
+            var superAdminEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? "system";
+
+            if (scormPackage == null || scormPackage.Length == 0)
+            {
+                return BadRequest(new { message = "No SCORM package file provided" });
+            }
+
+            // Validate SCORM file type (must be .zip)
+            var extension = Path.GetExtension(scormPackage.FileName).ToLower();
+            if (extension != ".zip")
+            {
+                return BadRequest(new { message = "Invalid file format. SCORM packages must be ZIP files." });
+            }
+
+            if (!_blobService.IsConfigured())
+            {
+                return StatusCode(501, new { message = "Azure Blob Storage is not configured. Please configure it to upload files." });
+            }
+
+            _logger.LogInformation("Uploading SCORM package to global library: {FileName}", scormPackage.FileName);
+
+            // For global library, we need to manually handle the upload since UploadScormPackageAsync
+            // is designed for organization-specific paths (organisations/{orgId}/scorm/)
+            // We need: global-library/scorm/{packageName}/
+            
+            using var stream = scormPackage.OpenReadStream();
+            
+            // Create a temporary directory to extract the zip
+            var tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+            Directory.CreateDirectory(tempPath);
+
+            try
+            {
+                // Save zip to temp file
+                var tempZipPath = Path.Combine(tempPath, scormPackage.FileName);
+                using (var fileStream = System.IO.File.Create(tempZipPath))
+                {
+                    await stream.CopyToAsync(fileStream);
+                }
+
+                // Extract the zip file
+                System.IO.Compression.ZipFile.ExtractToDirectory(tempZipPath, tempPath);
+
+                // Find and validate imsmanifest.xml
+                var manifestFiles = Directory.GetFiles(tempPath, "imsmanifest.xml", SearchOption.AllDirectories);
+                var manifestPath = manifestFiles.FirstOrDefault();
+                
+                if (manifestPath == null)
+                {
+                    throw new InvalidOperationException("Invalid SCORM package: imsmanifest.xml not found");
+                }
+
+                // Get package name and create folder path
+                var packageName = Path.GetFileNameWithoutExtension(scormPackage.FileName);
+                var sanitizedPackageName = packageName.Replace(" ", "-").Replace(".", "-");
+                var scormFolder = $"global-library/scorm/{sanitizedPackageName}";
+
+                // Upload all files from the extracted directory
+                var manifestDirectory = Path.GetDirectoryName(manifestPath)!;
+                var files = Directory.GetFiles(manifestDirectory, "*", SearchOption.AllDirectories);
+                long totalSize = 0;
+                int fileCount = 0;
+
+                foreach (var file in files)
+                {
+                    var relativePath = Path.GetRelativePath(manifestDirectory, file);
+                    var blobPath = $"{scormFolder}/{relativePath.Replace("\\", "/")}";
+                    
+                    using var fileStreamToUpload = System.IO.File.OpenRead(file);
+                    var contentType = GetContentType(file);
+                    await _blobService.UploadToCustomPathAsync(fileStreamToUpload, Path.GetFileName(file), scormFolder, contentType, Path.GetDirectoryName(relativePath)?.Replace("\\", "/"));
+                    
+                    var fileInfo = new FileInfo(file);
+                    totalSize += fileInfo.Length;
+                    fileCount++;
+                }
+
+                // Parse manifest to get launch file (simplified - just get href from first resource)
+                var manifestContent = await System.IO.File.ReadAllTextAsync(manifestPath);
+                var launchFile = "index.html"; // Default fallback
+                
+                if (manifestContent.Contains("href=\""))
+                {
+                    var hrefMatch = System.Text.RegularExpressions.Regex.Match(manifestContent, @"href=""([^""]+)""");
+                    if (hrefMatch.Success)
+                    {
+                        launchFile = hrefMatch.Groups[1].Value;
+                    }
+                }
+
+                // Construct URLs
+                var connectionString = _configuration["AzureStorage:ConnectionString"];
+                var blobServiceClient = new Azure.Storage.Blobs.BlobServiceClient(connectionString);
+                var containerName = _configuration["AzureStorage:ContainerName"] ?? "lmscontent";
+                var containerClient = blobServiceClient.GetBlobContainerClient(containerName);
+                var baseUrl = $"{containerClient.Uri}/{scormFolder}";
+                var launchUrl = $"{baseUrl}/{launchFile.Replace("\\", "/")}";
+
+                // Upload thumbnail if provided
+                string? thumbnailUrl = null;
+                if (thumbnail != null && thumbnail.Length > 0)
+                {
+                    var thumbnailExtension = Path.GetExtension(thumbnail.FileName).ToLower();
+                    var thumbnailFileName = $"{Guid.NewGuid()}{thumbnailExtension}";
+                    
+                    using var thumbnailStream = thumbnail.OpenReadStream();
+                    thumbnailUrl = await _blobService.UploadToCustomPathAsync(
+                        thumbnailStream,
+                        thumbnailFileName,
+                        "global-library",
+                        thumbnail.ContentType,
+                        "thumbnails");
+                }
+
+                // Create database record
+                var content = new GlobalLibraryContent
+                {
+                    Title = title,
+                    Description = description,
+                    ContentType = "scorm",
+                    AzureBlobPath = launchUrl,
+                    FileName = sanitizedPackageName,
+                    FileSizeBytes = totalSize,
+                    MimeType = "application/zip",
+                    Category = category,
+                    Tags = tags,
+                    ThumbnailUrl = thumbnailUrl,
+                    UploadedOn = DateTime.UtcNow,
+                    UploadedBy = superAdminEmail,
+                    IsActive = true
+                };
+
+                _context.GlobalLibraryContents.Add(content);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("SuperAdmin {Email} uploaded SCORM package to global library: {Title}, Files: {FileCount}", 
+                    superAdminEmail, content.Title, fileCount);
+
+                return Ok(new GlobalLibraryUploadResponse
+                {
+                    Id = content.Id,
+                    ScormUrl = launchUrl,
+                    FileName = sanitizedPackageName,
+                    OriginalFileName = scormPackage.FileName,
+                    Size = totalSize,
+                    ContentType = "application/zip",
+                    ThumbnailUrl = thumbnailUrl,
+                    Message = $"SCORM package uploaded successfully ({fileCount} files)"
+                });
+            }
+            finally
+            {
+                // Clean up temp directory
+                if (Directory.Exists(tempPath))
+                {
+                    Directory.Delete(tempPath, true);
+                }
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Invalid SCORM package uploaded to global library");
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading SCORM package to global library");
+            return StatusCode(500, new { message = "An error occurred while uploading the SCORM package" });
         }
     }
 
@@ -637,6 +878,28 @@ public class SuperAdminController : ControllerBase
         var token = tokenHandler.CreateToken(tokenDescriptor);
         return tokenHandler.WriteToken(token);
     }
+
+    private string GetContentType(string filePath)
+    {
+        var extension = Path.GetExtension(filePath).ToLowerInvariant();
+        return extension switch
+        {
+            ".html" or ".htm" => "text/html",
+            ".css" => "text/css",
+            ".js" => "application/javascript",
+            ".json" => "application/json",
+            ".xml" => "application/xml",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".svg" => "image/svg+xml",
+            ".pdf" => "application/pdf",
+            ".mp4" => "video/mp4",
+            ".webm" => "video/webm",
+            ".zip" => "application/zip",
+            _ => "application/octet-stream"
+        };
+    }
 }
 
 // Additional DTO for global library upload
@@ -667,9 +930,11 @@ public class GlobalLibraryUploadResponse
     public long Id { get; set; }
     public string? VideoUrl { get; set; }
     public string? DocumentUrl { get; set; }
+    public string? ScormUrl { get; set; }
     public string FileName { get; set; } = null!;
     public string OriginalFileName { get; set; } = null!;
     public long Size { get; set; }
     public string ContentType { get; set; } = null!;
+    public string? ThumbnailUrl { get; set; }
     public string Message { get; set; } = null!;
 }

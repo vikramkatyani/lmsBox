@@ -179,13 +179,20 @@ export const uploadFileToAzure = async (uploadUrl, file, onProgress) => {
 };
 
 // Upload video directly to server (server handles Azure upload)
-export const uploadVideo = async (file, title, description, tags, onProgress) => {
+export const uploadVideo = async (file, title, description, category, tags, durationSeconds, thumbnail, onProgress) => {
   return new Promise((resolve, reject) => {
     const formData = new FormData();
     formData.append('video', file);
     formData.append('title', title);
     formData.append('description', description || '');
+    formData.append('category', category || '');
     formData.append('tags', tags || '');
+    if (durationSeconds) {
+      formData.append('durationSeconds', durationSeconds);
+    }
+    if (thumbnail) {
+      formData.append('thumbnail', thumbnail);
+    }
 
     const xhr = new XMLHttpRequest();
     
@@ -226,13 +233,17 @@ export const uploadVideo = async (file, title, description, tags, onProgress) =>
 };
 
 // Upload PDF directly to server (server handles Azure upload)
-export const uploadPdf = async (file, title, description, tags, onProgress) => {
+export const uploadPdf = async (file, title, description, category, tags, thumbnail, onProgress) => {
   return new Promise((resolve, reject) => {
     const formData = new FormData();
     formData.append('pdf', file);
     formData.append('title', title);
     formData.append('description', description || '');
+    formData.append('category', category || '');
     formData.append('tags', tags || '');
+    if (thumbnail) {
+      formData.append('thumbnail', thumbnail);
+    }
 
     const xhr = new XMLHttpRequest();
     
@@ -267,6 +278,57 @@ export const uploadPdf = async (file, title, description, tags, onProgress) => {
     
     const token = localStorage.getItem('token');
     xhr.open('POST', `${API_BASE}/api/SuperAdmin/global-library/upload-pdf`);
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    xhr.send(formData);
+  });
+};
+
+// Upload SCORM package directly to server (server handles Azure upload and extraction)
+export const uploadScorm = async (file, title, description, category, tags, thumbnail, onProgress) => {
+  return new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.append('scormPackage', file);
+    formData.append('title', title);
+    formData.append('description', description || '');
+    formData.append('category', category || '');
+    formData.append('tags', tags || '');
+    if (thumbnail) {
+      formData.append('thumbnail', thumbnail);
+    }
+
+    const xhr = new XMLHttpRequest();
+    
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable && onProgress) {
+        const percentComplete = (e.loaded / e.total) * 100;
+        onProgress(percentComplete);
+      }
+    });
+    
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const response = JSON.parse(xhr.responseText);
+          resolve(response);
+        } catch (_e) {
+          reject(new Error('Invalid response from server'));
+        }
+      } else {
+        try {
+          const error = JSON.parse(xhr.responseText);
+          reject(new Error(error.message || `Upload failed with status ${xhr.status}`));
+        } catch (_e) {
+          reject(new Error(`Upload failed with status ${xhr.status}`));
+        }
+      }
+    });
+    
+    xhr.addEventListener('error', () => {
+      reject(new Error('Upload failed'));
+    });
+    
+    const token = localStorage.getItem('token');
+    xhr.open('POST', `${API_BASE}/api/SuperAdmin/global-library/upload-scorm`);
     xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     xhr.send(formData);
   });

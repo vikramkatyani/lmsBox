@@ -353,9 +353,9 @@ public partial class CoursesController : ControllerBase
                     
                     // Format duration for video lessons
                     string duration = "";
-                    if (lesson.Type.ToLower() == "video" && lesson.VideoDurationSeconds.HasValue)
+                    if (lesson.Type.ToLower() == "video" && lesson.DurationSeconds.HasValue)
                     {
-                        var timeSpan = TimeSpan.FromSeconds(lesson.VideoDurationSeconds.Value);
+                        var timeSpan = TimeSpan.FromSeconds(lesson.DurationSeconds.Value);
                         duration = timeSpan.ToString(@"mm\:ss");
                     }
                     

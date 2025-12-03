@@ -710,7 +710,7 @@ public class AdminReportsController : ControllerBase
                     courseTitle = l.Course?.Title ?? "N/A",
                     courseId = l.CourseId,
                     order = l.Ordinal,
-                    duration = l.VideoDurationSeconds.HasValue ? Math.Round(l.VideoDurationSeconds.Value / 60.0, 1) : (double?)null,
+                    duration = l.DurationSeconds.HasValue ? Math.Round(l.DurationSeconds.Value / 60.0, 1) : (double?)null,
                     totalEnrollments,
                     completions,
                     inProgress,

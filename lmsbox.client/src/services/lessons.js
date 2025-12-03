@@ -137,6 +137,30 @@ const lessonsService = {
     });
     return response.data;
   },
+
+  // Global Library - Get all lessons from Byte Learning Library
+  getGlobalLibraryLessons: async (contentType = null, category = null) => {
+    const params = {};
+    if (contentType && contentType !== 'all') params.contentType = contentType;
+    if (category && category !== 'all') params.category = category;
+    
+    const response = await api.get('/api/admin/global-library/lessons', { params });
+    return response.data;
+  },
+
+  // Global Library - Get all categories
+  getGlobalLibraryCategories: async () => {
+    const response = await api.get('/api/admin/global-library/categories');
+    return response.data;
+  },
+
+  // Global Library - Add lessons to course from library
+  addLessonsFromLibrary: async (courseId, libraryContentIds) => {
+    const response = await api.post(`/api/admin/courses/${courseId}/lessons/from-library`, {
+      libraryContentIds,
+    });
+    return response.data;
+  },
 };
 
 export default lessonsService;

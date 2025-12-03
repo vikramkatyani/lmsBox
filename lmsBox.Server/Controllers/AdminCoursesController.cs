@@ -486,7 +486,7 @@ public class AdminCoursesController : ControllerBase
                             existingLesson.Type = lessonDto.Type;
                             existingLesson.QuizId = lessonDto.QuizId;
                             existingLesson.VideoUrl = lessonDto.VideoUrl;
-                            existingLesson.VideoDurationSeconds = lessonDto.VideoDurationSeconds;
+                            existingLesson.DurationSeconds = lessonDto.DurationSeconds;
                             existingLesson.ScormUrl = lessonDto.ScormUrl;
                             existingLesson.ScormEntryUrl = lessonDto.ScormEntryUrl;
                             existingLesson.DocumentUrl = lessonDto.DocumentUrl;
@@ -505,7 +505,7 @@ public class AdminCoursesController : ControllerBase
                             Type = lessonDto.Type,
                             QuizId = lessonDto.QuizId,
                             VideoUrl = lessonDto.VideoUrl,
-                            VideoDurationSeconds = lessonDto.VideoDurationSeconds,
+                            DurationSeconds = lessonDto.DurationSeconds,
                             ScormUrl = lessonDto.ScormUrl,
                             ScormEntryUrl = lessonDto.ScormEntryUrl,
                             DocumentUrl = lessonDto.DocumentUrl,
@@ -818,7 +818,7 @@ public class AdminCoursesController : ControllerBase
                     Type = originalLesson.Type,
                     Ordinal = originalLesson.Ordinal,
                     VideoUrl = originalLesson.VideoUrl,
-                    VideoDurationSeconds = originalLesson.VideoDurationSeconds,
+                    DurationSeconds = originalLesson.DurationSeconds,
                     DocumentUrl = originalLesson.DocumentUrl,
                     ScormUrl = originalLesson.ScormUrl,
                     ScormEntryUrl = originalLesson.ScormEntryUrl,
@@ -1122,7 +1122,7 @@ public class UpdateLessonDto
     public string Type { get; set; } = "content"; // content, video, quiz, scorm, document
     public string? QuizId { get; set; }
     public string? VideoUrl { get; set; }
-    public int? VideoDurationSeconds { get; set; }
+    public int? DurationSeconds { get; set; }
     public string? ScormUrl { get; set; }
     public string? ScormEntryUrl { get; set; }
     public string? DocumentUrl { get; set; }

@@ -410,10 +410,10 @@ public class AzureBlobService : IAzureBlobService
 
         try
         {
-            // Create folder structure: organisations/{orgId}/scorm/{packageName}/
+            // Create folder structure: organisations/{orgId}/library/scorm/{packageName}/
             var packageName = Path.GetFileNameWithoutExtension(fileName);
             var sanitizedPackageName = SanitizeFileName(packageName);
-            var scormFolder = $"organisations/{organisationId}/scorm/{sanitizedPackageName}";
+            var scormFolder = $"organisations/{organisationId}/library/scorm/{sanitizedPackageName}";
 
             _logger.LogInformation($"Uploading SCORM package to: {scormFolder}");
 

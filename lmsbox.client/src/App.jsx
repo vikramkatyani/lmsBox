@@ -14,6 +14,7 @@ import AdminCourses from './pages/AdminCourses';
 import AdminSurveys from './pages/AdminSurveys';
 import AdminReports from './pages/AdminReports';
 import AdminCourseEditor from './pages/AdminCourseEditor';
+import AdminLessonLibrary from './pages/AdminLessonLibrary';
 import AdminUserGroups from './pages/AdminUserGroups';
 import AdminUserGroupEditor from './pages/AdminUserGroupEditor';
 import AdminUserEditor from './pages/AdminUserEditor';
@@ -189,6 +190,14 @@ function App() {
             element={
               <AdminRoute>
                 <AdminCourseEditor />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/courses/:courseId/library"
+            element={
+              <AdminRoute>
+                <AdminLessonLibrary />
               </AdminRoute>
             }
           />

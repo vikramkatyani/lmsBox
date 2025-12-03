@@ -1,26 +1,35 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SuperAdminLayout from '../components/SuperAdminLayout';
+import ImageCropModal from '../components/ImageCropModal';
 import usePageTitle from '../hooks/usePageTitle';
 import { 
   uploadVideo,
-  uploadPdf
+  uploadPdf,
+  uploadScorm
 } from '../services/superAdminApi';
-import { ArrowLeftIcon, CloudArrowUpIcon, DocumentIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, CloudArrowUpIcon, DocumentIcon, VideoCameraIcon, CubeIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
 export default function SuperAdminLibraryCreate() {
   usePageTitle('Add Content - Global Library');
   const navigate = useNavigate();
   
-  const [contentType, setContentType] = useState('pdf'); // pdf or video
+  const [contentType, setContentType] = useState('pdf'); // pdf, video, or scorm
   const [file, setFile] = useState(null);
+  const [thumbnail, setThumbnail] = useState(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState('');
+  const [cropModalOpen, setCropModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    tags: ''
+    category: '',
+    tags: '',
+    durationHours: '',
+    durationMinutes: '',
+    durationSeconds: ''
   });
 
   const handleFileSelect = (e) => {
@@ -30,14 +39,16 @@ export default function SuperAdminLibraryCreate() {
     // Validate file type
     const validTypes = contentType === 'pdf' 
       ? ['application/pdf']
-      : ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
+      : contentType === 'video'
+      ? ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime']
+      : ['application/zip', 'application/x-zip-compressed']; // SCORM
     
     if (!validTypes.includes(selectedFile.type)) {
-      toast.error(`Invalid file type. Please select a valid ${contentType === 'pdf' ? 'PDF' : 'video'} file.`);
+      toast.error(`Invalid file type. Please select a valid ${contentType === 'pdf' ? 'PDF' : contentType === 'video' ? 'video' : 'ZIP'} file.`);
       return;
     }
 
-    // Check file size (max 500MB for video, 50MB for PDF)
+    // Check file size (max 500MB for video/scorm, 50MB for PDF)
     const maxSize = contentType === 'pdf' ? 50 * 1024 * 1024 : 500 * 1024 * 1024;
     if (selectedFile.size > maxSize) {
       toast.error(`File size exceeds maximum allowed (${contentType === 'pdf' ? '50MB' : '500MB'})`);
@@ -58,6 +69,17 @@ export default function SuperAdminLibraryCreate() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleThumbnailCrop = async (croppedFile) => {
+    setThumbnail(croppedFile);
+    setThumbnailPreview(URL.createObjectURL(croppedFile));
+    toast.success('Thumbnail ready to upload');
+  };
+
+  const removeThumbnail = () => {
+    setThumbnail(null);
+    setThumbnailPreview('');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -75,6 +97,14 @@ export default function SuperAdminLibraryCreate() {
       setUploading(true);
       setUploadProgress(0);
 
+      // Calculate duration in seconds from hours:minutes:seconds (optional for all content types)
+      const hours = parseInt(formData.durationHours || 0);
+      const minutes = parseInt(formData.durationMinutes || 0);
+      const seconds = parseInt(formData.durationSeconds || 0);
+      const durationSeconds = (hours > 0 || minutes > 0 || seconds > 0)
+        ? (hours * 3600) + (minutes * 60) + seconds
+        : null;
+
       // Upload file directly to server (server handles Azure upload)
       let response;
       if (contentType === 'video') {
@@ -82,7 +112,20 @@ export default function SuperAdminLibraryCreate() {
           file,
           formData.title,
           formData.description,
+          formData.category,
           formData.tags,
+          durationSeconds,
+          thumbnail,
+          (progress) => setUploadProgress(Math.round(progress))
+        );
+      } else if (contentType === 'scorm') {
+        response = await uploadScorm(
+          file,
+          formData.title,
+          formData.description,
+          formData.category,
+          formData.tags,
+          thumbnail,
           (progress) => setUploadProgress(Math.round(progress))
         );
       } else {
@@ -90,7 +133,9 @@ export default function SuperAdminLibraryCreate() {
           file,
           formData.title,
           formData.description,
+          formData.category,
           formData.tags,
+          thumbnail,
           (progress) => setUploadProgress(Math.round(progress))
         );
       }
@@ -129,7 +174,7 @@ export default function SuperAdminLibraryCreate() {
           </button>
           <h1 className="text-3xl font-bold text-gray-900">Add Content to Global Library</h1>
           <p className="mt-2 text-sm text-gray-600">
-            Upload PDF documents or video files accessible to all organisations
+            Upload PDF documents, videos, or SCORM packages accessible to all organisations
           </p>
         </div>
 
@@ -140,7 +185,7 @@ export default function SuperAdminLibraryCreate() {
             <label className="block text-sm font-medium text-gray-700 mb-3">
               Content Type
             </label>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <button
                 type="button"
                 onClick={() => {
@@ -182,6 +227,27 @@ export default function SuperAdminLibraryCreate() {
                   <div className="text-xs text-gray-500 mt-1">Max 500MB</div>
                 </div>
               </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setContentType('scorm');
+                  setFile(null);
+                }}
+                className={`p-6 border-2 rounded-lg transition-colors ${
+                  contentType === 'scorm'
+                    ? 'border-indigo-500 bg-indigo-50'
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}
+              >
+                <CubeIcon className={`h-12 w-12 mx-auto mb-3 ${
+                  contentType === 'scorm' ? 'text-indigo-600' : 'text-gray-400'
+                }`} />
+                <div className="text-center">
+                  <div className="font-medium text-gray-900">SCORM Package</div>
+                  <div className="text-xs text-gray-500 mt-1">Max 500MB</div>
+                </div>
+              </button>
             </div>
           </div>
 
@@ -196,7 +262,7 @@ export default function SuperAdminLibraryCreate() {
                 <input
                   type="file"
                   id="fileInput"
-                  accept={contentType === 'pdf' ? '.pdf' : 'video/*'}
+                  accept={contentType === 'pdf' ? '.pdf' : contentType === 'video' ? 'video/*' : '.zip'}
                   onChange={handleFileSelect}
                   disabled={uploading}
                   className="hidden"
@@ -208,7 +274,7 @@ export default function SuperAdminLibraryCreate() {
                     {' '}or drag and drop
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    {contentType === 'pdf' ? 'PDF up to 50MB' : 'Video (MP4, WebM, OGG) up to 500MB'}
+                    {contentType === 'pdf' ? 'PDF up to 50MB' : contentType === 'video' ? 'Video (MP4, WebM, OGG) up to 500MB' : 'ZIP file (SCORM package) up to 500MB'}
                   </p>
                 </label>
               </div>
@@ -218,8 +284,10 @@ export default function SuperAdminLibraryCreate() {
                   <div className="flex items-center space-x-3">
                     {contentType === 'pdf' ? (
                       <DocumentIcon className="h-8 w-8 text-red-500 shrink-0" />
-                    ) : (
+                    ) : contentType === 'video' ? (
                       <VideoCameraIcon className="h-8 w-8 text-blue-500 shrink-0" />
+                    ) : (
+                      <CubeIcon className="h-8 w-8 text-purple-500 shrink-0" />
                     )}
                     <div>
                       <div className="text-sm font-medium text-gray-900">{file.name}</div>
@@ -292,6 +360,24 @@ export default function SuperAdminLibraryCreate() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Category
+                </label>
+                <input
+                  type="text"
+                  name="category"
+                  value={formData.category}
+                  onChange={handleChange}
+                  disabled={uploading}
+                  placeholder="e.g., Security, HR, Technical, Management"
+                  className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Enter a category name. If it doesn't exist, it will be created automatically.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Tags
                 </label>
                 <input
@@ -305,6 +391,101 @@ export default function SuperAdminLibraryCreate() {
                 />
                 <p className="mt-1 text-xs text-gray-500">
                   Add tags to help categorize and search for this content
+                </p>
+              </div>
+
+              {/* Duration (optional for all content types) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Duration (Optional)
+                </label>
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      name="durationHours"
+                      value={formData.durationHours}
+                      onChange={handleChange}
+                      disabled={uploading}
+                      min="0"
+                      placeholder="Hours"
+                      className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      name="durationMinutes"
+                      value={formData.durationMinutes}
+                      onChange={handleChange}
+                      disabled={uploading}
+                      min="0"
+                      max="59"
+                      placeholder="Minutes"
+                      className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      name="durationSeconds"
+                      value={formData.durationSeconds}
+                      onChange={handleChange}
+                      disabled={uploading}
+                      min="0"
+                      max="59"
+                      placeholder="Seconds"
+                      className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100"
+                    />
+                  </div>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Enter content duration in HH:MM:SS format for display purposes
+                </p>
+              </div>
+
+              {/* Thumbnail Upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Thumbnail
+                </label>
+                {!thumbnailPreview ? (
+                  <button
+                    type="button"
+                    onClick={() => setCropModalOpen(true)}
+                    disabled={uploading}
+                    className="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors disabled:opacity-50"
+                  >
+                    <PhotoIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                    <div className="text-sm text-gray-600">
+                      <span className="font-medium text-indigo-600 hover:text-indigo-500">Click to upload thumbnail</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Recommended: 800x600px (4:3 ratio) or similar
+                    </p>
+                  </button>
+                ) : (
+                  <div className="relative">
+                    <img
+                      src={thumbnailPreview}
+                      alt="Thumbnail preview"
+                      className="w-full h-48 object-cover rounded-lg"
+                    />
+                    {!uploading && (
+                      <button
+                        type="button"
+                        onClick={removeThumbnail}
+                        className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-2 hover:bg-red-700"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                )}
+                <p className="mt-1 text-xs text-gray-500">
+                  Upload a thumbnail image to make your content more appealing
                 </p>
               </div>
             </div>
@@ -343,6 +524,14 @@ export default function SuperAdminLibraryCreate() {
           </div>
         </form>
       </div>
+
+      {/* Image Crop Modal for Thumbnail */}
+      <ImageCropModal
+        isOpen={cropModalOpen}
+        onClose={() => setCropModalOpen(false)}
+        onCropComplete={handleThumbnailCrop}
+        aspectRatio={4 / 3}  // 800x600 recommended ratio
+      />
     </SuperAdminLayout>
   );
 }

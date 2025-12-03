@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using lmsbox.infrastructure.Data;
 
@@ -11,9 +12,11 @@ using lmsbox.infrastructure.Data;
 namespace lmsbox.infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251203052223_AddDurationAndThumbnailToGlobalLibraryContent")]
+    partial class AddDurationAndThumbnailToGlobalLibraryContent
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -896,9 +899,6 @@ namespace lmsbox.infrastructure.Migrations
                     b.Property<string>("DocumentUrl")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("DurationSeconds")
-                        .HasColumnType("int");
-
                     b.Property<string>("HtmlContent")
                         .HasColumnType("nvarchar(max)");
 
@@ -928,6 +928,9 @@ namespace lmsbox.infrastructure.Migrations
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("VideoDurationSeconds")
+                        .HasColumnType("int");
 
                     b.Property<string>("VideoUrl")
                         .HasColumnType("nvarchar(max)");

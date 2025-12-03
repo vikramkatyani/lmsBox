@@ -157,7 +157,10 @@ public class GlobalLibraryContentResponse
     public DateTime UploadedOn { get; set; }
     public string UploadedBy { get; set; } = null!;
     public bool IsActive { get; set; }
+    public string? Category { get; set; }
     public string? Tags { get; set; }
+    public int? DurationSeconds { get; set; }
+    public string? ThumbnailUrl { get; set; }
 }
 
 public class UploadGlobalContentRequest
@@ -168,7 +171,11 @@ public class UploadGlobalContentRequest
     public string? Description { get; set; }
 
     [Required]
-    public string ContentType { get; set; } = null!; // "pdf" or "video"
+    public string ContentType { get; set; } = null!; // "pdf", "video", or "scorm"
+
+    public string? Category { get; set; }
 
     public string? Tags { get; set; }
+    
+    public int? DurationSeconds { get; set; }
 }
