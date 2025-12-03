@@ -400,7 +400,7 @@ export default function CustomReportBuilder() {
           <button
             onClick={generateReport}
             disabled={loading || config.metrics.length === 0}
-            className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium"
+            className="inline-flex items-center px-6 py-3 bg-[#2afeae] text-[#1b365d] rounded-md hover:bg-[#25e89e] disabled:opacity-50 disabled:cursor-not-allowed transition font-medium"
           >
             <PlayIcon className="h-5 w-5 mr-2" />
             {loading ? 'Generating...' : 'Generate Report'}

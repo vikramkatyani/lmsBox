@@ -974,7 +974,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                                 btn.innerHTML = '<svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>Copied!';
                                 setTimeout(() => { btn.innerHTML = originalHTML; }, 2000);
                               }}
-                              className="px-4 py-2 text-sm bg-gray-600 text-white rounded hover:bg-gray-700 flex items-center gap-1.5"
+                              className="px-4 py-2 text-sm bg-[#1b365d] text-white rounded hover:bg-[#234a7a] flex items-center gap-1.5"
                               title="Copy HTML and CSS code to clipboard"
                             >
                               <Copy className="w-4 h-4" />

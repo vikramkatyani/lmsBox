@@ -74,7 +74,7 @@ export default function AuthTest() {
             <div className="space-x-2">
               <button
                 onClick={checkAuth}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                className="px-4 py-2 bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e]"
               >
                 Refresh Status
               </button>

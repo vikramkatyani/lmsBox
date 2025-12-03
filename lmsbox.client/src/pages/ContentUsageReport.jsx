@@ -195,7 +195,7 @@ export default function ContentUsageReport() {
           <div className="flex items-end">
             <button
               onClick={handleApplyFilters}
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+              className="w-full px-4 py-2 bg-[#2afeae] text-[#1b365d] rounded-md hover:bg-[#25e89e] transition"
             >
               Apply Filters
             </button>
