@@ -200,7 +200,7 @@ export default function QuizLessonModal({ isOpen, onClose, courseId, lesson, onS
         {/* Modal panel */}
         <div className="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
           {/* Header */}
-          <div className="bg-orange-600 px-6 py-4 flex items-center justify-between">
+          <div className="bg-[#1b365d] px-6 py-4 flex items-center justify-between">
             <div className="flex items-center">
               <DocumentCheckIcon className="h-6 w-6 text-white mr-2" />
               <h3 className="text-lg font-semibold text-white">
@@ -229,7 +229,7 @@ export default function QuizLessonModal({ isOpen, onClose, courseId, lesson, onS
                     name="title"
                     value={formData.title}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
                     placeholder="Enter lesson title"
                     required
                   />
@@ -244,7 +244,7 @@ export default function QuizLessonModal({ isOpen, onClose, courseId, lesson, onS
                     value={formData.content}
                     onChange={handleInputChange}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
                     placeholder="Add a description or instructions for this quiz lesson"
                   />
                 </div>
@@ -255,7 +255,7 @@ export default function QuizLessonModal({ isOpen, onClose, courseId, lesson, onS
                     name="isOptional"
                     checked={formData.isOptional}
                     onChange={handleInputChange}
-                    className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-orange-600 focus:ring-[#2afeae] border-gray-300 rounded"
                   />
                   <label className="ml-2 text-sm text-gray-700">
                     This lesson is optional
@@ -276,7 +276,7 @@ export default function QuizLessonModal({ isOpen, onClose, courseId, lesson, onS
                       <CheckCircleIcon className="h-6 w-6 mr-2" />
                       <span className="text-sm font-medium">Quiz added to lesson</span>
                     </div>
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                    <div className="bg-info border border-[#2afeae] rounded-lg p-4">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <p className="text-sm font-medium text-gray-900">Current Quiz:</p>
@@ -294,7 +294,7 @@ export default function QuizLessonModal({ isOpen, onClose, courseId, lesson, onS
                         <button
                           type="button"
                           onClick={() => navigate(`/admin/quiz/edit/${selectedQuiz.id}`)}
-                          className="ml-3 inline-flex items-center px-3 py-1.5 text-sm font-medium text-orange-600 bg-white border border-orange-300 rounded-md hover:bg-orange-50 transition shrink-0"
+                          className="ml-3 inline-flex items-center px-3 py-1.5 text-sm font-medium text-[#1b365d] bg-white border border-[#2afeae] rounded-md hover:bg-[#e8fdf6] transition shrink-0"
                         >
                           <PencilSquareIcon className="h-4 w-4 mr-1" />
                           Edit Quiz
@@ -356,7 +356,7 @@ export default function QuizLessonModal({ isOpen, onClose, courseId, lesson, onS
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                           placeholder="Search quizzes..."
-                          className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
                         />
                       </div>
                     </div>
@@ -382,8 +382,8 @@ export default function QuizLessonModal({ isOpen, onClose, courseId, lesson, onS
                             onClick={() => handleQuizSelect(quiz)}
                             className={`border rounded-lg p-4 cursor-pointer transition ${
                               selectedQuiz?.id === quiz.id
-                                ? 'border-orange-600 bg-orange-50'
-                                : 'border-gray-200 hover:border-orange-300 hover:bg-gray-50'
+                                ? 'border-[#2afeae] bg-[#e8fdf6]'
+                                : 'border-gray-200 hover:border-[#2afeae] hover:bg-gray-50'
                             }`}
                           >
                             <div className="flex items-start justify-between">
@@ -421,7 +421,7 @@ export default function QuizLessonModal({ isOpen, onClose, courseId, lesson, onS
 
                 {/* Create New Quiz */}
                 {quizSource === 'new' && (
-                  <div className="text-center py-8 bg-orange-50 border-2 border-dashed border-orange-300 rounded-lg">
+                  <div className="text-center py-8 bg-orange-50 border-2 border-dashed border-[#2afeae] rounded-lg">
                     <PlusIcon className="h-12 w-12 mx-auto text-orange-600 mb-3" />
                     <p className="text-sm font-medium text-gray-900 mb-2">
                       Create a new quiz for this course
@@ -433,7 +433,7 @@ export default function QuizLessonModal({ isOpen, onClose, courseId, lesson, onS
                     <button
                       type="button"
                       onClick={handleCreateNewQuiz}
-                      className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition inline-flex items-center gap-2"
+                      className="px-4 py-2 bg-[#1b365d] text-white rounded-md hover:bg-[#234a7a] transition inline-flex items-center gap-2"
                     >
                       <PlusIcon className="h-5 w-5" />
                       Go to Quiz Builder
@@ -450,14 +450,14 @@ export default function QuizLessonModal({ isOpen, onClose, courseId, lesson, onS
               <button
                 type="button"
                 onClick={handleClose}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2afeae]"
                 disabled={isSaving}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50"
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#1b365d] hover:bg-[#234a7a] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2afeae] disabled:opacity-50"
                 disabled={isSaving || !formData.quizId || quizSource === 'new'}
               >
                 {isSaving ? 'Saving...' : lesson ? 'Update Lesson' : 'Create Lesson'}
