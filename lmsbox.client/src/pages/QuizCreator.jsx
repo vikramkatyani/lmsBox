@@ -333,7 +333,7 @@ export default function QuizCreator() {
           
           <button
             onClick={() => setAiAssistantOpen(true)}
-            className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+            className="bg-[#2afeae] text-[#1b365d] px-4 py-2 rounded-lg hover:shadow-lg transition-all duration-200 flex items-center gap-2"
           >
             <Sparkles className="w-5 h-5" />
             AI Assistant

@@ -114,7 +114,7 @@ export default function AdminReports() {
       category: 'admin',
       icon: DocumentChartBarIcon,
       path: '/admin/reports/content-usage',
-      color: 'bg-orange-500'
+      color: 'bg-[#36454F]'
     }
   ];
 

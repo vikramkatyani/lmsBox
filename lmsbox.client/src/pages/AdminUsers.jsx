@@ -307,7 +307,7 @@ export default function AdminUsers() {
                       <td className="px-6 py-4 text-gray-700">{u.email}</td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          u.role === 'Admin' ? 'bg-purple-100 text-purple-800' :
+                          u.role === 'Admin' ? 'bg-info text-[#1b365d]' :
                           'bg-gray-100 text-gray-800'
                         }`}>
                           {u.role}

@@ -990,7 +990,7 @@ export default function AdminCourseEditor() {
                                 <button 
                                   onClick={() => handleDeleteLesson(l.id)} 
                                   disabled={form.status !== 'Draft'}
-                                  className="px-3 py-1.5 text-sm bg-orange-50 text-orange-700 rounded hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                                  className="px-3 py-1.5 text-sm bg-info text-[#1b365d] rounded hover:bg-[#d9e5f2] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                                   title={form.status !== 'Draft' ? 'Can only remove global lessons from draft courses' : 'Remove from course'}
                                 >
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1071,7 +1071,7 @@ export default function AdminCourseEditor() {
                                   <button 
                                     onClick={() => handleOpenQuizLessonModal(l)} 
                                     disabled={form.status === 'Published'}
-                                    className="px-3 py-1.5 text-sm bg-orange-50 text-orange-700 rounded hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-3 py-1.5 text-sm bg-info text-[#1b365d] rounded hover:bg-[#d9e5f2] disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     Edit
                                   </button>
@@ -1234,7 +1234,7 @@ export default function AdminCourseEditor() {
                             {draftLesson.quizId && (
                               <a
                                 href={`/admin/quiz/edit/${encodeURIComponent(draftLesson.quizId)}?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`}
-                                className="px-3 py-2 text-sm bg-orange-100 text-orange-800 rounded hover:bg-orange-200"
+                                className="px-3 py-2 text-sm bg-info text-[#1b365d] rounded hover:bg-[#d9e5f2]"
                               >
                                 Edit This Quiz
                               </a>
@@ -1484,12 +1484,12 @@ export default function AdminCourseEditor() {
 // Small helper components and functions
 function TypeBadge({ type }) {
   const map = {
-    video: 'bg-blue-100 text-[#1b365d]',
-    document: 'bg-purple-100 text-purple-800',
-    pdf: 'bg-purple-100 text-purple-800',
-    scorm: 'bg-green-100 text-green-800',
-    html: 'bg-teal-100 text-teal-800',
-    quiz: 'bg-orange-100 text-orange-800'
+    video: 'bg-info text-[#1b365d]',
+    document: 'bg-info text-[#1b365d]',
+    pdf: 'bg-info text-[#1b365d]',
+    scorm: 'bg-success text-[#1b365d]',
+    html: 'bg-info text-[#1b365d]',
+    quiz: 'bg-warning text-[#1b365d]'
   };
   const labelMap = {
     document: 'PDF',

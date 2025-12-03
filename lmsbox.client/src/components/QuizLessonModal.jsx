@@ -421,7 +421,7 @@ export default function QuizLessonModal({ isOpen, onClose, courseId, lesson, onS
 
                 {/* Create New Quiz */}
                 {quizSource === 'new' && (
-                  <div className="text-center py-8 bg-orange-50 border-2 border-dashed border-[#2afeae] rounded-lg">
+                  <div className="text-center py-8 bg-info border-2 border-dashed border-[#2afeae] rounded-lg">
                     <PlusIcon className="h-12 w-12 mx-auto text-orange-600 mb-3" />
                     <p className="text-sm font-medium text-gray-900 mb-2">
                       Create a new quiz for this course
