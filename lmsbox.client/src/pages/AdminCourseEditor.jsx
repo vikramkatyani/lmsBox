@@ -645,7 +645,7 @@ export default function AdminCourseEditor() {
           
           <button
             onClick={() => setAiAssistantOpen(true)}
-            className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+            className="bg-[#2afeae] text-[#1b365d] px-4 py-2 rounded-lg hover:bg-[#25e89e] hover:shadow-lg transition-all duration-200 flex items-center gap-2 font-medium"
           >
             <Sparkles className="w-5 h-5" />
             AI Assistant
@@ -665,19 +665,19 @@ export default function AdminCourseEditor() {
             <div className="px-6 pt-4 border-b">
               <div className="flex gap-6">
                 <button
-                className={`pb-3 text-sm font-medium border-b-2 ${activeTab==='details' ? 'border-(--tenant-primary) text-(--tenant-primary)' : 'border-transparent text-gray-600 hover:text-gray-900'}`}
+                className={`pb-3 text-sm font-medium border-b-2 ${activeTab==='details' ? 'border-[#2afeae] text-[#1b365d]' : 'border-transparent text-gray-600 hover:text-gray-900'}`}
                 onClick={() => setActiveTab('details')}
               >
                 Details
               </button>
               <button
-                className={`pb-3 text-sm font-medium border-b-2 ${activeTab==='lessons' ? 'border-(--tenant-primary) text-(--tenant-primary)' : 'border-transparent text-gray-600 hover:text-gray-900'}`}
+                className={`pb-3 text-sm font-medium border-b-2 ${activeTab==='lessons' ? 'border-[#2afeae] text-[#1b365d]' : 'border-transparent text-gray-600 hover:text-gray-900'}`}
                 onClick={() => setActiveTab('lessons')}
               >
                 Lessons
               </button>
               <button
-                className={`pb-3 text-sm font-medium border-b-2 ${activeTab==='quizzes' ? 'border-(--tenant-primary) text-(--tenant-primary)' : 'border-transparent text-gray-600 hover:text-gray-900'}`}
+                className={`pb-3 text-sm font-medium border-b-2 ${activeTab==='quizzes' ? 'border-[#2afeae] text-[#1b365d]' : 'border-transparent text-gray-600 hover:text-gray-900'}`}
                 onClick={() => setActiveTab('quizzes')}
               >
                 Quizzes

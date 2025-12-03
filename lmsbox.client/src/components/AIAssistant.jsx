@@ -142,7 +142,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
       {mode === 'floating' && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 bg-gradient-to-r from-purple-600 to-blue-600 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 z-50 flex items-center gap-2 group"
+          className="fixed bottom-6 right-6 bg-[#2afeae] text-[#1b365d] p-4 rounded-full shadow-lg hover:shadow-xl hover:bg-[#25e89e] transition-all duration-200 z-50 flex items-center gap-2 group font-medium"
           title="AI Assistant"
         >
           <Sparkles className="w-6 h-6" />
@@ -159,7 +159,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-t-lg">
+                <div className="flex items-center justify-between p-4 border-b bg-[#1b365d] text-white rounded-t-lg">
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-5 h-5" />
                     <h2 className="text-xl font-semibold">AI Assistant</h2>
@@ -178,7 +178,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                 onClick={() => setActiveTab('chat')}
                 className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${
                   activeTab === 'chat'
-                    ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
+                    ? 'border-b-2 border-[#2afeae] text-[#1b365d] bg-white'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
@@ -189,7 +189,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                 onClick={() => setActiveTab('course')}
                 className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${
                   activeTab === 'course'
-                    ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
+                    ? 'border-b-2 border-[#2afeae] text-[#1b365d] bg-white'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
@@ -200,7 +200,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                 onClick={() => setActiveTab('lesson')}
                 className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${
                   activeTab === 'lesson'
-                    ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
+                    ? 'border-b-2 border-[#2afeae] text-[#1b365d] bg-white'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
@@ -211,7 +211,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                 onClick={() => setActiveTab('quiz')}
                 className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${
                   activeTab === 'quiz'
-                    ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
+                    ? 'border-b-2 border-[#2afeae] text-[#1b365d] bg-white'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
@@ -273,7 +273,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                       value={chatInput}
                       onChange={(e) => setChatInput(e.target.value)}
                       placeholder="Type your message..."
-                      className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                      className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
                       disabled={loading}
                     />
                     <button
@@ -300,7 +300,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                         value={courseTopic}
                         onChange={(e) => setCourseTopic(e.target.value)}
                         placeholder="e.g., Fire Safety Training"
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
                         disabled={loading}
                       />
                     </div>
@@ -312,7 +312,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                         <select
                           value={courseLevel}
                           onChange={(e) => setCourseLevel(e.target.value)}
-                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
                           disabled={loading}
                         >
                           <option value="">Select level</option>
@@ -330,7 +330,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                           value={courseDuration}
                           onChange={(e) => setCourseDuration(e.target.value)}
                           placeholder="e.g., 4 weeks"
-                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
                           disabled={loading}
                         />
                       </div>
@@ -442,7 +442,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                         value={lessonTitle}
                         onChange={(e) => setLessonTitle(e.target.value)}
                         placeholder="e.g., Variables and Data Types"
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
                         disabled={loading}
                       />
                     </div>
@@ -455,7 +455,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                         onChange={(e) => setLessonContext(e.target.value)}
                         placeholder="Provide any additional context or requirements..."
                         rows={3}
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
                         disabled={loading}
                       />
                     </div>
@@ -531,7 +531,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                         value={quizTopic}
                         onChange={(e) => setQuizTopic(e.target.value)}
                         placeholder="e.g., Fire safety basics, GDPR compliance"
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
                         disabled={loading}
                       />
                     </div>
@@ -546,7 +546,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                           onChange={(e) => setQuestionCount(parseInt(e.target.value) || 5)}
                           min="1"
                           max="20"
-                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
                           disabled={loading}
                         />
                       </div>
@@ -557,7 +557,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                         <select
                           value={difficulty}
                           onChange={(e) => setDifficulty(e.target.value)}
-                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
                           disabled={loading}
                         >
                           <option value="Easy">Easy</option>
@@ -612,7 +612,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
             /* Slide-in Panel */
             <div className="fixed inset-y-0 right-0 w-full md:w-2/5 bg-white shadow-2xl z-50 flex flex-col transform transition-transform duration-300">
               {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-purple-600 to-blue-600 text-white">
+              <div className="flex items-center justify-between p-4 border-b bg-[#1b365d] text-white">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-5 h-5" />
                   <h2 className="text-xl font-semibold">AI Assistant</h2>
@@ -632,7 +632,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                     onClick={() => setActiveTab('chat')}
                     className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${
                       activeTab === 'chat'
-                        ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
+                        ? 'border-b-2 border-[#2afeae] text-[#1b365d] bg-white'
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
@@ -643,7 +643,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                     onClick={() => setActiveTab('course')}
                     className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${
                       activeTab === 'course'
-                        ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
+                        ? 'border-b-2 border-[#2afeae] text-[#1b365d] bg-white'
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
@@ -654,7 +654,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                     onClick={() => setActiveTab('lesson')}
                     className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${
                       activeTab === 'lesson'
-                        ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
+                        ? 'border-b-2 border-[#2afeae] text-[#1b365d] bg-white'
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
@@ -665,7 +665,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                     onClick={() => setActiveTab('quiz')}
                     className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${
                       activeTab === 'quiz'
-                        ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
+                        ? 'border-b-2 border-[#2afeae] text-[#1b365d] bg-white'
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
@@ -682,7 +682,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                     onClick={() => setActiveTab('course')}
                     className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${
                       activeTab === 'course'
-                        ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
+                        ? 'border-b-2 border-[#2afeae] text-[#1b365d] bg-white'
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
@@ -693,7 +693,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                     onClick={() => setActiveTab('lesson')}
                     className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${
                       activeTab === 'lesson'
-                        ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
+                        ? 'border-b-2 border-[#2afeae] text-[#1b365d] bg-white'
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
@@ -756,7 +756,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         placeholder="Type your message..."
-                        className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                        className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
                         disabled={loading}
                       />
                       <button
@@ -783,7 +783,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                           value={courseTopic}
                           onChange={(e) => setCourseTopic(e.target.value)}
                           placeholder="e.g., Fire Safety Training"
-                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
                           disabled={loading}
                         />
                       </div>
@@ -795,7 +795,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                           <select
                             value={courseLevel}
                             onChange={(e) => setCourseLevel(e.target.value)}
-                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
                             disabled={loading}
                           >
                             <option value="">Select level</option>
@@ -813,7 +813,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                             value={courseDuration}
                             onChange={(e) => setCourseDuration(e.target.value)}
                             placeholder="e.g., 4 weeks"
-                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
                             disabled={loading}
                           />
                         </div>
@@ -925,7 +925,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                           value={lessonTitle}
                           onChange={(e) => setLessonTitle(e.target.value)}
                           placeholder="e.g., Variables and Data Types"
-                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
                           disabled={loading}
                         />
                       </div>
@@ -938,7 +938,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                           onChange={(e) => setLessonContext(e.target.value)}
                           placeholder="Provide any additional context or requirements..."
                           rows={3}
-                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
                           disabled={loading}
                         />
                       </div>
@@ -1014,7 +1014,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                           value={quizTopic}
                           onChange={(e) => setQuizTopic(e.target.value)}
                         placeholder="e.g., Fire safety basics, GDPR compliance"
-                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
                           disabled={loading}
                         />
                       </div>
@@ -1029,7 +1029,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                             onChange={(e) => setQuestionCount(parseInt(e.target.value) || 5)}
                             min="1"
                             max="20"
-                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
                             disabled={loading}
                           />
                         </div>
@@ -1040,7 +1040,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                           <select
                             value={difficulty}
                             onChange={(e) => setDifficulty(e.target.value)}
-                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
                             disabled={loading}
                           >
                             <option value="Easy">Easy</option>
