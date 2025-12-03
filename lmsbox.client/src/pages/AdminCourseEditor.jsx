@@ -1003,7 +1003,7 @@ export default function AdminCourseEditor() {
                                   <button 
                                     onClick={() => handleOpenVideoLessonModal(l)} 
                                     disabled={form.status === 'Published'}
-                                    className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-3 py-1.5 text-sm bg-info text-[#1b365d] rounded hover:bg-[#d9e5f2] disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     Edit
                                   </button>
@@ -1087,7 +1087,7 @@ export default function AdminCourseEditor() {
                                 <>
                                   <button onClick={() => moveLesson(idx, 'up')} disabled={idx===0 || form.status === 'Published'} className="px-2 py-1 text-sm bg-gray-100 text-gray-700 rounded disabled:opacity-40 disabled:cursor-not-allowed">↑</button>
                                   <button onClick={() => moveLesson(idx, 'down')} disabled={idx===lessons.length-1 || form.status === 'Published'} className="px-2 py-1 text-sm bg-gray-100 text-gray-700 rounded disabled:opacity-40 disabled:cursor-not-allowed">↓</button>
-                                  <button onClick={() => editLesson(idx)} disabled={form.status === 'Published'} className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed">Edit</button>
+                                  <button onClick={() => editLesson(idx)} disabled={form.status === 'Published'} className="px-3 py-1.5 text-sm bg-info text-[#1b365d] rounded hover:bg-[#d9e5f2] disabled:opacity-50 disabled:cursor-not-allowed">Edit</button>
                                   <button onClick={() => deleteLesson(idx)} disabled={form.status === 'Published'} className="px-3 py-1.5 text-sm bg-error text-error rounded hover:bg-[#fee2e2] disabled:opacity-50 disabled:cursor-not-allowed">Delete</button>
                                 </>
                               )}
@@ -1266,7 +1266,7 @@ export default function AdminCourseEditor() {
                                         <div className="text-sm text-gray-900">{q.title}</div>
                                         <div className="text-xs text-gray-500">{q.id}</div>
                                       </div>
-                                      <button type="button" onClick={()=>selectQuiz(q)} className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100">Select</button>
+                                      <button type="button" onClick={()=>selectQuiz(q)} className="px-3 py-1.5 text-sm bg-info text-[#1b365d] rounded hover:bg-[#d9e5f2]">Select</button>
                                     </li>
                                   ))}
                                 </ul>
@@ -1313,7 +1313,7 @@ export default function AdminCourseEditor() {
               )}
               
               {form.status === 'Published' && !isNew && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 mb-6">
+                <div className="bg-info border border-[#2afeae] rounded-lg p-4 text-sm text-[#1b365d] mb-6">
                   <strong>Note:</strong> This course is published. Quizzes cannot be modified while the course is published. Published courses cannot be unpublished, but they can be archived or deleted.
                 </div>
               )}
@@ -1370,7 +1370,7 @@ export default function AdminCourseEditor() {
                           <button
                             onClick={() => navigate(`/admin/quiz/edit/${quiz.id}`)}
                             disabled={form.status === 'Published'}
-                            className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-3 py-1.5 text-sm bg-info text-[#1b365d] rounded hover:bg-[#d9e5f2] disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Edit
                           </button>
@@ -1484,7 +1484,7 @@ export default function AdminCourseEditor() {
 // Small helper components and functions
 function TypeBadge({ type }) {
   const map = {
-    video: 'bg-blue-100 text-blue-800',
+    video: 'bg-blue-100 text-[#1b365d]',
     document: 'bg-purple-100 text-purple-800',
     pdf: 'bg-purple-100 text-purple-800',
     scorm: 'bg-green-100 text-green-800',
@@ -1553,7 +1553,7 @@ function AddLessonMenu({ onAdd, disabled = false }) {
           {/* Library Option */}
           <button 
             onClick={handleLibraryClick}
-            className="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 flex items-center gap-3 text-blue-600 font-medium"
+            className="w-full text-left px-4 py-3 text-sm hover:bg-[#e8fdf6] flex items-center gap-3 text-[#1b365d] font-medium"
           >
             <span className="text-lg">📚</span>
             <span>Browse Byte Learning Library</span>

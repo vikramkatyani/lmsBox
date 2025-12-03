@@ -201,7 +201,7 @@ export default function HtmlLessonModal({ isOpen, onClose, courseId, lesson, onS
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
             {/* Loading State */}
             {isLoadingLesson && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
+              <div className="bg-info border border-[#2afeae] rounded-lg p-4 flex items-center gap-3">
                 <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
                 <p className="text-sm text-blue-800">Loading lesson content...</p>
               </div>

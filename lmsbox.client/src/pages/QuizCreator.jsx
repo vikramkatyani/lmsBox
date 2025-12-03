@@ -605,7 +605,7 @@ export default function QuizCreator() {
                 <div className="flex space-x-2">
                   <button
                     onClick={saveQuestion}
-                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                    className="px-4 py-2 bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e]"
                   >
                     {editingIndex !== null ? 'Update Question' : 'Save Question'}
                   </button>

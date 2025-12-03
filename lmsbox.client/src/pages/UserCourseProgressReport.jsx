@@ -214,13 +214,13 @@ export default function UserCourseProgressReport() {
           <div className="flex gap-2">
             <button
               onClick={handleExportCSV}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition text-sm"
+              className="px-4 py-2 bg-[#2afeae] text-[#1b365d] rounded-md hover:bg-[#25e89e] transition text-sm"
             >
               Export CSV
             </button>
             <button
               onClick={handleExportJSON}
-              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition text-sm"
+              className="px-4 py-2 bg-[#1b365d] text-white rounded-md hover:bg-[#234a7a] transition text-sm"
             >
               Export JSON
             </button>
@@ -545,8 +545,8 @@ export default function UserCourseProgressReport() {
                       <div className="w-24 bg-gray-200 rounded-full h-2">
                         <div 
                           className={`h-2 rounded-full ${
-                            item.completed ? 'bg-green-600' : 
-                            item.progressPercent > 0 ? 'bg-blue-600' : 'bg-gray-400'
+                            item.completed ? 'bg-[#2afeae]' : 
+                            item.progressPercent > 0 ? 'bg-[#2afeae]' : 'bg-gray-400'
                           }`}
                           style={{ width: `${item.progressPercent}%` }}
                         ></div>

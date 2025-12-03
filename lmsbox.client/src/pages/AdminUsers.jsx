@@ -345,7 +345,7 @@ export default function AdminUsers() {
                         <div className="flex justify-end gap-2">
                           <button 
                             onClick={() => onEdit(u.id)} 
-                            className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100"
+                            className="px-3 py-1.5 text-sm bg-info text-[#1b365d] rounded hover:bg-[#d9e5f2]"
                           >
                             Edit
                           </button>

@@ -230,7 +230,7 @@ export default function AdminLessonLibrary() {
                 onClick={() => setSelectedCategory('all')}
                 className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                   selectedCategory === 'all'
-                    ? 'bg-indigo-600 text-white'
+                    ? 'bg-[#2afeae] text-[#1b365d]'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -242,7 +242,7 @@ export default function AdminLessonLibrary() {
                   onClick={() => setSelectedCategory(category)}
                   className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                     selectedCategory === category
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-[#2afeae] text-[#1b365d]'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
@@ -290,14 +290,14 @@ export default function AdminLessonLibrary() {
             <div className="flex gap-2">
               <button
                 onClick={() => setSelectedLessons(new Set())}
-                className="px-4 py-2 text-indigo-700 bg-white border border-indigo-300 rounded hover:bg-indigo-50"
+                className="px-4 py-2 text-[#1b365d] bg-white border border-[#2afeae] rounded hover:bg-[#e8fdf6]"
               >
                 Clear Selection
               </button>
               <button
                 onClick={handleAddLessons}
                 disabled={adding}
-                className="px-6 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2 bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {adding ? 'Adding...' : 'Add to Course'}
               </button>
@@ -334,7 +334,7 @@ export default function AdminLessonLibrary() {
                     {getLessonIcon(lesson.contentType)}
                   </div>
                   {selectedLessons.has(lesson.id) && (
-                    <div className="absolute top-3 right-3 bg-indigo-600 text-white rounded-full p-2">
+                    <div className="absolute top-3 right-3 bg-[#2afeae] text-[#1b365d] rounded-full p-2">
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
@@ -383,7 +383,7 @@ export default function AdminLessonLibrary() {
                       {lesson.tags.split(',').slice(0, 3).map((tag, index) => (
                         <span
                           key={index}
-                          className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs rounded"
+                          className="px-2 py-0.5 bg-[#e8fdf6] text-[#1b365d] text-xs rounded"
                         >
                           {tag.trim()}
                         </span>
@@ -418,7 +418,7 @@ export default function AdminLessonLibrary() {
                 <button
                   onClick={handleAddLessons}
                   disabled={adding}
-                  className="px-4 py-2 text-sm bg-indigo-600 text-white rounded disabled:opacity-50"
+                  className="px-4 py-2 text-sm bg-[#2afeae] text-[#1b365d] rounded disabled:opacity-50"
                 >
                   {adding ? 'Adding...' : 'Add to Course'}
                 </button>

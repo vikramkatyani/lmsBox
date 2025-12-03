@@ -210,7 +210,7 @@ export default function TimeTrackingReport() {
             <div className="flex items-end">
               <button
                 onClick={handleApplyFilters}
-                className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+                className="w-full bg-[#2afeae] text-[#1b365d] px-4 py-2 rounded-md hover:bg-[#25e89e]"
               >
                 Apply Filters
               </button>
@@ -329,7 +329,7 @@ export default function TimeTrackingReport() {
           <div className="p-6">
             {activeTab === 'summary' && (
               <div className="space-y-4">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="bg-info border border-[#2afeae] rounded-lg p-4">
                   <h4 className="font-semibold text-blue-900 mb-2">📊 Key Insights</h4>
                   <ul className="list-disc list-inside text-blue-800 space-y-1">
                     <li>Most Active Day: <strong>{summary.mostActiveDay}</strong> ({summary.peakActivityHours}h)</li>

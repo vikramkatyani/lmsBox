@@ -194,7 +194,7 @@ export default function SuperAdminLibraryCreate() {
                 }}
                 className={`p-6 border-2 rounded-lg transition-colors ${
                   contentType === 'pdf'
-                    ? 'border-indigo-500 bg-indigo-50'
+                    ? 'border-[#2afeae] bg-[#e8fdf6]'
                     : 'border-gray-300 hover:border-gray-400'
                 }`}
               >
@@ -215,7 +215,7 @@ export default function SuperAdminLibraryCreate() {
                 }}
                 className={`p-6 border-2 rounded-lg transition-colors ${
                   contentType === 'video'
-                    ? 'border-indigo-500 bg-indigo-50'
+                    ? 'border-[#2afeae] bg-[#e8fdf6]'
                     : 'border-gray-300 hover:border-gray-400'
                 }`}
               >
@@ -236,7 +236,7 @@ export default function SuperAdminLibraryCreate() {
                 }}
                 className={`p-6 border-2 rounded-lg transition-colors ${
                   contentType === 'scorm'
-                    ? 'border-indigo-500 bg-indigo-50'
+                    ? 'border-[#2afeae] bg-[#e8fdf6]'
                     : 'border-gray-300 hover:border-gray-400'
                 }`}
               >
@@ -313,7 +313,7 @@ export default function SuperAdminLibraryCreate() {
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
-                        className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+                        className="bg-[#2afeae] h-2 rounded-full transition-all duration-300"
                         style={{ width: `${uploadProgress}%` }}
                       ></div>
                     </div>
@@ -339,7 +339,7 @@ export default function SuperAdminLibraryCreate() {
                   required
                   disabled={uploading}
                   placeholder="Enter content title"
-                  className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100"
+                  className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500 disabled:bg-gray-100"
                 />
               </div>
 
@@ -354,7 +354,7 @@ export default function SuperAdminLibraryCreate() {
                   disabled={uploading}
                   rows={3}
                   placeholder="Optional description of the content"
-                  className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100"
+                  className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500 disabled:bg-gray-100"
                 />
               </div>
 
@@ -369,7 +369,7 @@ export default function SuperAdminLibraryCreate() {
                   onChange={handleChange}
                   disabled={uploading}
                   placeholder="e.g., Security, HR, Technical, Management"
-                  className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100"
+                  className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500 disabled:bg-gray-100"
                 />
                 <p className="mt-1 text-xs text-gray-500">
                   Enter a category name. If it doesn't exist, it will be created automatically.
@@ -387,7 +387,7 @@ export default function SuperAdminLibraryCreate() {
                   onChange={handleChange}
                   disabled={uploading}
                   placeholder="e.g., compliance, safety, training (comma-separated)"
-                  className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100"
+                  className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500 disabled:bg-gray-100"
                 />
                 <p className="mt-1 text-xs text-gray-500">
                   Add tags to help categorize and search for this content
@@ -409,7 +409,7 @@ export default function SuperAdminLibraryCreate() {
                       disabled={uploading}
                       min="0"
                       placeholder="Hours"
-                      className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100"
+                      className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500 disabled:bg-gray-100"
                     />
                   </div>
                   <div className="flex-1">
@@ -422,7 +422,7 @@ export default function SuperAdminLibraryCreate() {
                       min="0"
                       max="59"
                       placeholder="Minutes"
-                      className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100"
+                      className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500 disabled:bg-gray-100"
                     />
                   </div>
                   <div className="flex-1">
@@ -435,7 +435,7 @@ export default function SuperAdminLibraryCreate() {
                       min="0"
                       max="59"
                       placeholder="Seconds"
-                      className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100"
+                      className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500 disabled:bg-gray-100"
                     />
                   </div>
                 </div>
@@ -497,14 +497,14 @@ export default function SuperAdminLibraryCreate() {
               type="button"
               onClick={() => navigate('/superadmin/library')}
               disabled={uploading}
-              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2afeae] disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={uploading || !file}
-              className="inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+              className="inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#2afeae] hover:bg-[#25e89e] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2afeae] disabled:opacity-50"
             >
               {uploading ? (
                 <>

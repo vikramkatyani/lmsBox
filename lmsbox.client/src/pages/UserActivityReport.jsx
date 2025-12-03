@@ -256,7 +256,7 @@ export default function UserActivityReport() {
             <div className="flex gap-3 mt-4">
               <button
                 onClick={handleApplyFilters}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#2afeae] hover:bg-[#25e89e]"
               >
                 Apply Filters
               </button>

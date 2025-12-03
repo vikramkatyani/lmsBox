@@ -346,7 +346,7 @@ export default function AdminUserGroupEditor() {
                             className={`px-3 py-1.5 text-sm rounded ${
                               form.courseIds.includes(c.id)
                                 ? 'bg-red-50 text-red-700 hover:bg-red-100'
-                                : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                                : 'bg-info text-[#1b365d] hover:bg-[#d9e5f2]'
                             }`}
                           >
                             {form.courseIds.includes(c.id) ? 'Remove' : 'Add'}
@@ -437,7 +437,7 @@ export default function AdminUserGroupEditor() {
                               className={`px-3 py-1.5 text-sm rounded ${
                                 form.userIds.includes(u.id)
                                   ? 'bg-red-50 text-red-700 hover:bg-red-100'
-                                  : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                                  : 'bg-info text-[#1b365d] hover:bg-[#d9e5f2]'
                               }`}
                             >
                               {form.userIds.includes(u.id) ? 'Remove' : 'Add'}

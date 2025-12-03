@@ -354,7 +354,7 @@ export default function AdminDashboard() {
               ) : (
                 stats.recentActivities.map((act, idx) => (
                   <li key={idx} className="py-2 flex items-center gap-2">
-                    <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
+                    <span className="inline-block w-2 h-2 rounded-full bg-[#2afeae] mr-2"></span>
                     <span className="text-sm text-gray-700">{act.text}</span>
                     <span className="ml-auto text-xs text-gray-400">{act.date}</span>
                   </li>

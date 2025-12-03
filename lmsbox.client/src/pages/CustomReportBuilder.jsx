@@ -283,7 +283,7 @@ export default function CustomReportBuilder() {
                 }}
                 className={`p-4 rounded-lg border-2 transition ${
                   config.entityType === type.value
-                    ? 'border-blue-600 bg-blue-50 text-blue-900'
+                    ? 'border-[#2afeae] bg-info text-[#1b365d]'
                     : 'border-gray-300 hover:border-gray-400'
                 }`}
               >
@@ -305,7 +305,7 @@ export default function CustomReportBuilder() {
                 key={metric.value}
                 className={`flex items-center p-3 rounded-lg border cursor-pointer transition ${
                   config.metrics.includes(metric.value)
-                    ? 'border-blue-600 bg-blue-50'
+                    ? 'border-[#2afeae] bg-info'
                     : 'border-gray-300 hover:border-gray-400'
                 }`}
               >
@@ -409,14 +409,14 @@ export default function CustomReportBuilder() {
             <>
               <button
                 onClick={handleExportCSV}
-                className="inline-flex items-center px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition font-medium"
+                className="inline-flex items-center px-6 py-3 bg-[#2afeae] text-[#1b365d] rounded-md hover:bg-[#25e89e] transition font-medium"
               >
                 <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
                 Export CSV
               </button>
               <button
                 onClick={handleExportJSON}
-                className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition font-medium"
+                className="inline-flex items-center px-6 py-3 bg-[#1b365d] text-white rounded-md hover:bg-[#234a7a] transition font-medium"
               >
                 <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
                 Export JSON
@@ -430,11 +430,11 @@ export default function CustomReportBuilder() {
       {reportData && (
         <>
           {/* Metadata */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="bg-info border border-[#2afeae] rounded-lg p-4 mb-6">
             <div className="flex items-start">
               <ChartBarIcon className="h-6 w-6 text-blue-600 mr-3 mt-1" />
               <div className="flex-1">
-                <h3 className="font-semibold text-blue-900 mb-2">Report Generated</h3>
+                <h3 className="font-semibold text-[#1b365d] mb-2">Report Generated</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-blue-800">
                   <div>
                     <span className="font-medium">Entity:</span> {reportData.entityType}

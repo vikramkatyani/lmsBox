@@ -223,13 +223,13 @@ export default function LessonAnalyticsReport() {
           <div className="flex items-end gap-2">
             <button
               onClick={handleExportCSV}
-              className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition text-sm"
+              className="flex-1 px-4 py-2 bg-[#2afeae] text-[#1b365d] rounded-md hover:bg-[#25e89e] transition text-sm"
             >
               Export CSV
             </button>
             <button
               onClick={handleExportJSON}
-              className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition text-sm"
+              className="flex-1 px-4 py-2 bg-[#1b365d] text-white rounded-md hover:bg-[#234a7a] transition text-sm"
             >
               Export JSON
             </button>
@@ -491,7 +491,7 @@ export default function LessonAnalyticsReport() {
                     <div className="flex items-center">
                       <div className="w-full bg-gray-200 rounded-full h-2 mr-2">
                         <div
-                          className="bg-green-600 h-2 rounded-full"
+                          className="bg-[#2afeae] h-2 rounded-full"
                           style={{ width: `${Math.min(lesson.completionRate, 100)}%` }}
                         ></div>
                       </div>

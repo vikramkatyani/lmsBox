@@ -135,7 +135,7 @@ export default function AdminUserGroups() {
                       <td className="px-6 py-4 text-right text-gray-700">{g.userCount || 0}</td>
                       <td className="px-6 py-4">
                         <div className="flex justify-end gap-2">
-                          <button onClick={() => onEdit(g.id)} className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100">Edit</button>
+                          <button onClick={() => onEdit(g.id)} className="px-3 py-1.5 text-sm bg-info text-[#1b365d] rounded hover:bg-[#d9e5f2]">Edit</button>
                           <button onClick={() => onDelete(g.id)} className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100">Delete</button>
                         </div>
                       </td>

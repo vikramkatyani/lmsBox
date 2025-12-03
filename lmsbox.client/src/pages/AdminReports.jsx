@@ -33,7 +33,7 @@ export default function AdminReports() {
       category: 'users',
       icon: ClockIcon,
       path: '/admin/reports/user-activity',
-      color: 'bg-blue-500'
+      color: 'bg-[#2afeae]'
     },
     {
       id: 'user-progress',
@@ -42,7 +42,7 @@ export default function AdminReports() {
       category: 'users',
       icon: ArrowTrendingUpIcon,
       path: '/admin/reports/user-progress',
-      color: 'bg-indigo-500'
+      color: 'bg-[#1b365d]'
     },
     {
       id: 'course-enrollment',
@@ -51,7 +51,7 @@ export default function AdminReports() {
       category: 'courses',
       icon: AcademicCapIcon,
       path: '/admin/reports/course-enrollment',
-      color: 'bg-purple-500'
+      color: 'bg-[#36454F]'
     },
     {
       id: 'course-completion',
@@ -60,7 +60,7 @@ export default function AdminReports() {
       category: 'courses',
       icon: ChartBarIcon,
       path: '/admin/reports/course-completion',
-      color: 'bg-green-500'
+      color: 'bg-[#2afeae]'
     },
     {
       id: 'lesson-analytics',
@@ -105,7 +105,7 @@ export default function AdminReports() {
       category: 'admin',
       icon: DocumentChartBarIcon,
       path: '/admin/reports/user-course-progress',
-      color: 'bg-purple-500'
+      color: 'bg-[#36454F]'
     },
     {
       id: 'content-usage',

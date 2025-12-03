@@ -298,7 +298,7 @@ export default function AdminSurveyEditor() {
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleEditQuestion(q)}
-                                className="px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100"
+                                className="px-3 py-1 text-sm bg-info text-[#1b365d] rounded hover:bg-[#d9e5f2]"
                               >
                                 Edit
                               </button>
@@ -318,7 +318,7 @@ export default function AdminSurveyEditor() {
 
                 {/* Add/Edit Question Form */}
                 {surveyStatus !== 'Published' && !isPreviewMode && (
-                  <div className="border rounded p-4 bg-blue-50">
+                  <div className="border rounded p-4 bg-info">
                   <h3 className="font-medium text-gray-900 mb-4">{editingQuestion ? 'Edit Question' : 'Add New Question'}</h3>
                   <div className="space-y-4">
                     <div>
