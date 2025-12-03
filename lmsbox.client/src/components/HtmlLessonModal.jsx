@@ -175,25 +175,18 @@ export default function HtmlLessonModal({ isOpen, onClose, courseId, lesson, onS
         {/* Modal */}
         <div className="relative w-full max-w-5xl bg-white rounded-lg shadow-xl">
           {/* Header */}
-          <div className="flex items-center justify-between border-b px-6 py-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-teal-100 rounded-lg">
-                <CodeBracketIcon className="h-6 w-6 text-teal-600" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {lesson ? 'Edit HTML Lesson' : 'Add HTML Lesson'}
-                </h2>
-                <p className="text-sm text-gray-500">
-                  Create interactive HTML content for your course
-                </p>
-              </div>
+          <div className="bg-[#1b365d] px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center">
+              <CodeBracketIcon className="h-6 w-6 text-white mr-2" />
+              <h3 className="text-lg font-semibold text-white">
+                {lesson ? 'Edit HTML Lesson' : 'Add HTML Lesson'}
+              </h3>
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="text-white hover:text-gray-200 transition"
             >
-              <XMarkIcon className="h-6 w-6 text-gray-500" />
+              <XMarkIcon className="h-6 w-6" />
             </button>
           </div>
 
@@ -285,7 +278,7 @@ export default function HtmlLessonModal({ isOpen, onClose, courseId, lesson, onS
               <button
                 type="submit"
                 disabled={isSaving || !formData.title.trim() || !formData.htmlContent.trim()}
-                className="px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2 bg-[#2afeae] text-[#1b365d] rounded-lg hover:bg-[#25e89e] transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
                 {isSaving ? (
                   <span className="flex items-center gap-2">
