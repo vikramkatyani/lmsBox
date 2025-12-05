@@ -217,7 +217,7 @@ export default function AdminHeader({ hideNavigation = false }) {
                   <hr className="border-b-0 my-4 border-gray-300" />
                   <button
                     onClick={initiateLogout}
-                    className="w-full bg-red-500 text-white rounded-md px-4 py-2.5 text-sm font-medium cursor-pointer hover:bg-red-600 transition-all"
+                    className="w-full bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded-md px-4 py-2.5 text-sm font-medium cursor-pointer hover:brightness-90 transition-all"
                   >
                     Logout
                   </button>
