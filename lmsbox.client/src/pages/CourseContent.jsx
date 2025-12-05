@@ -66,6 +66,10 @@ function LessonItem({ lesson, isActive, onClick }) {
     }
   };
 
+  // Determine if lesson is in progress (accessed but not completed)
+  // A lesson is "in progress" if it has been accessed (progress >= 0 and lastAccessedAt exists) but not completed
+  const isInProgress = !lesson.isCompleted && (lesson.progress >= 0 && lesson.lastAccessedAt);
+
   return (
     <div
       onClick={onClick}
@@ -73,10 +77,14 @@ function LessonItem({ lesson, isActive, onClick }) {
         isActive ? 'bg-[#e8fdf6] border-l-4 border-[#2afeae]' : 'hover:bg-gray-50'
       }`}
     >
-      <div className={`${lesson.isCompleted ? 'text-green-600' : 'text-gray-400'}`}>
+      <div className={`${lesson.isCompleted ? 'text-green-600' : isInProgress ? 'text-yellow-500' : 'text-gray-400'}`}>
         {lesson.isCompleted ? (
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+        ) : isInProgress ? (
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <circle cx="10" cy="10" r="8" />
           </svg>
         ) : (
           <div className="w-5 h-5 border-2 border-gray-300 rounded-full" />
@@ -997,24 +1005,35 @@ export default function CourseContent() {
         {/* Panel 1: Lessons Sidebar */}
         <div className={`
           fixed lg:relative inset-y-0 left-0
-          w-80 bg-white border-r overflow-y-auto
+          w-80 bg-white border-r overflow-y-auto z-50
           transform transition-transform duration-300 ease-in-out
           ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           lg:translate-x-0
         `}>
           <div className="p-4 border-b">
-            <button
-              onClick={() => {
-                navigate('/courses/all');
-                setIsMobileSidebarOpen(false);
-              }}
-              className="flex items-center text-sm text-gray-600 hover:text-gray-900 mb-3"
-            >
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Back to courses
-            </button>
+            <div className="flex items-center justify-between mb-3">
+              <button
+                onClick={() => {
+                  navigate('/courses/all');
+                  setIsMobileSidebarOpen(false);
+                }}
+                className="flex items-center text-sm text-gray-600 hover:text-gray-900"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to courses
+              </button>
+              <button
+                onClick={() => setIsMobileSidebarOpen(false)}
+                className="lg:hidden text-gray-600 hover:text-gray-900 p-1"
+                aria-label="Close menu"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             <h2 className="text-lg font-semibold text-gray-900">{course.title}</h2>
             <p className="text-sm text-gray-500 mt-1">
               {course.lessons.filter(l => l.isCompleted).length + surveyItems.filter(s => s.isCompleted).length} of {course.lessons.length + surveyItems.length} completed

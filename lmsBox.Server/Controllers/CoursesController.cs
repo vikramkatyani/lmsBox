@@ -84,7 +84,9 @@ public partial class CoursesController : ControllerBase
                     UserProgress = _context.LearnerProgresses
                         .Where(lp => lp.UserId == userId && lp.CourseId == c.Id && lp.LessonId == null)
                         .Select(lp => new { lp.ProgressPercent, lp.Completed })
-                        .FirstOrDefault()
+                        .FirstOrDefault(),
+                    HasAnyLessonAccessed = _context.LearnerProgresses
+                        .Any(lp => lp.UserId == userId && lp.CourseId == c.Id && lp.LessonId != null && lp.LastAccessedAt != null)
                 })
                 .ToListAsync();
 
@@ -108,14 +110,15 @@ public partial class CoursesController : ControllerBase
                 EnrolledDate = r.UserProgress != null ? r.Course.CreatedAt : null,
                 LastAccessedDate = null, // TODO: Add LastAccessedDate to LearnerProgress model
                 IsCompleted = r.UserProgress?.Completed ?? false,
-                CertificateEligible = r.UserProgress?.Completed ?? false // TODO: Add certificate logic
+                CertificateEligible = r.UserProgress?.Completed ?? false, // TODO: Add certificate logic
+                HasAccessedLessons = r.HasAnyLessonAccessed
             }).ToList();
 
             // Apply progress filter
             courseDtos = progress switch
             {
-                "not_started" => courseDtos.Where(c => c.Progress == 0).ToList(),
-                "in_progress" => courseDtos.Where(c => c.Progress > 0 && c.Progress < 100).ToList(),
+                "not_started" => courseDtos.Where(c => c.Progress == 0 && !c.HasAccessedLessons).ToList(),
+                "in_progress" => courseDtos.Where(c => (c.Progress > 0 && c.Progress < 100) || (c.HasAccessedLessons && !c.IsCompleted)).ToList(),
                 "completed" => courseDtos.Where(c => c.Progress >= 100).ToList(),
                 _ => courseDtos
             };
@@ -376,6 +379,7 @@ public partial class CoursesController : ControllerBase
                         Progress = lessonProgress?.ProgressPercent ?? 0,
                         IsCompleted = lessonProgress?.Completed ?? false,
                         CompletedAt = lessonProgress?.CompletedAt,
+                        LastAccessedAt = lessonProgress?.LastAccessedAt,
                         Url = url,
                         QuizId = lesson.QuizId,
                         VideoTimestamp = lessonProgress?.VideoTimestamp,
@@ -1101,6 +1105,7 @@ public class CourseItemDto
     public bool CertificateEligible { get; set; }
     public DateTime? CertificateIssuedDate { get; set; }
     public string? CertificateUrl { get; set; }
+    public bool HasAccessedLessons { get; set; }
 }
 
 public class CourseDetailDto
@@ -1136,6 +1141,7 @@ public class LessonDto
     public int Progress { get; set; }
     public bool IsCompleted { get; set; }
     public DateTime? CompletedAt { get; set; }
+    public DateTime? LastAccessedAt { get; set; } // When lesson was last accessed
     public string Url { get; set; } = string.Empty;
     public string? QuizId { get; set; }
     public int? VideoTimestamp { get; set; } // Video bookmark in seconds
