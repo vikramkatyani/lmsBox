@@ -49,6 +49,23 @@ export default function ImageCropModal({ isOpen, onClose, onCropComplete: onCrop
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Helper function to determine aspect ratio display text
+  const getAspectRatioText = () => {
+    const ratio = Math.round(aspectRatio * 100) / 100;
+    const fourThirds = Math.round((4/3) * 100) / 100;
+    const thirtySevenNinths = Math.round((37/9) * 100) / 100;
+    
+    if (Math.abs(ratio - fourThirds) < 0.01) {
+      return '4:3 (800x600px)';
+    } else if (Math.abs(ratio - thirtySevenNinths) < 0.01) {
+      return '37:9';
+    } else if (Math.abs(ratio - 16/9) < 0.01) {
+      return '16:9';
+    } else {
+      return `${aspectRatio.toFixed(2)}:1`;
+    }
+  };
+
   const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
     setCroppedAreaPixels(croppedAreaPixels);
   }, []);
@@ -102,6 +119,17 @@ export default function ImageCropModal({ isOpen, onClose, onCropComplete: onCrop
     setZoom((prev) => Math.max(prev - 0.1, 1));
   };
 
+  // Helper function to determine image type for header
+  const getImageType = () => {
+    const ratio = Math.round(aspectRatio * 100) / 100;
+    const fourThirds = Math.round((4/3) * 100) / 100;
+    
+    if (Math.abs(ratio - fourThirds) < 0.01) {
+      return 'Thumbnail';
+    }
+    return 'Banner';
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -119,7 +147,7 @@ export default function ImageCropModal({ isOpen, onClose, onCropComplete: onCrop
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900">
-              {imageSrc ? 'Adjust Your Banner' : 'Upload Banner Image'}
+              {imageSrc ? `Adjust Your ${getImageType()}` : `Upload ${getImageType()} Image`}
             </h2>
             <button
               onClick={handleClose}
@@ -146,7 +174,7 @@ export default function ImageCropModal({ isOpen, onClose, onCropComplete: onCrop
                         PNG, JPG, GIF up to 10MB
                       </p>
                       <p className="text-xs text-gray-400 mt-1">
-                        Recommended ratio: 37:9
+                        Recommended ratio: {getAspectRatioText()}
                       </p>
                     </div>
                     <input
