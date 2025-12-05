@@ -369,7 +369,7 @@ public class AzureBlobService : IAzureBlobService
         {
             var uri = new Uri(blobUrl);
             
-            // Extract blob name from the URI path
+            // Extract blob name from the URI path and URL-decode it
             // Expected format: https://storage.blob.core.windows.net/container/path/to/blob
             var pathSegments = uri.AbsolutePath.TrimStart('/').Split('/');
             
@@ -381,35 +381,51 @@ public class AzureBlobService : IAzureBlobService
             }
 
             // Skip the container name (first segment) and get the rest as blob name
-            var blobName = string.Join("/", pathSegments.Skip(1));
-
+            // URL decode each segment to handle spaces and special characters
+            var blobName = string.Join("/", pathSegments.Skip(1).Select(System.Net.WebUtility.UrlDecode));
+            
+            _logger.LogInformation("Parsed blob name from URL: {BlobName}", blobName);
+            
             var blobClient = _containerClient.GetBlobClient(blobName);
 
-            // Check if the blob client can generate SAS tokens
-            if (!blobClient.CanGenerateSasUri)
+            // Check if using connection string authentication (which doesn't support SAS generation)
+            // Do this check WITHOUT accessing the blob to avoid BlobNotFound errors
+            try
             {
-                _logger.LogWarning("Cannot generate SAS URI for blob: {BlobName}", blobName);
+                // Try to generate SAS - if it fails, we're using connection string auth
+                var sasBuilder = new BlobSasBuilder
+                {
+                    BlobContainerName = _containerName,
+                    BlobName = blobName,
+                    Resource = "b",
+                    StartsOn = DateTimeOffset.UtcNow.AddMinutes(-5),
+                    ExpiresOn = DateTimeOffset.UtcNow.AddHours(expiryHours)
+                };
+
+                sasBuilder.SetPermissions(BlobSasPermissions.Read);
+
+                var sasUri = blobClient.GenerateSasUri(sasBuilder);
+                
+                // If we got here, SAS generation worked
+                _logger.LogInformation("Successfully generated SAS URL for blob: {BlobName}", blobName);
+                return sasUri.ToString();
+            }
+            catch (InvalidOperationException)
+            {
+                // CanGenerateSasUri is false - using connection string auth
+                _logger.LogInformation("Connection string authentication detected, returning original URL for blob: {BlobName}", blobName);
                 return blobUrl;
             }
-
-            var sasBuilder = new BlobSasBuilder
+            catch (Azure.RequestFailedException azEx)
             {
-                BlobContainerName = _containerName,
-                BlobName = blobName,
-                Resource = "b",
-                StartsOn = DateTimeOffset.UtcNow.AddMinutes(-5),
-                ExpiresOn = DateTimeOffset.UtcNow.AddHours(expiryHours)
-            };
-
-            sasBuilder.SetPermissions(BlobSasPermissions.Read);
-
-            var sasUri = blobClient.GenerateSasUri(sasBuilder);
-            _logger.LogInformation("Generated SAS URL for blob: {BlobName}, expires at {ExpiresOn}", blobName, sasBuilder.ExpiresOn);
-            return sasUri.ToString();
+                // Some Azure error occurred (like BlobNotFound)
+                _logger.LogWarning(azEx, "Azure error during SAS generation for blob: {BlobName}, Error: {ErrorCode}. Returning original URL.", blobName, azEx.ErrorCode);
+                return blobUrl;
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error generating SAS URL for: {BlobUrl}", blobUrl);
+            _logger.LogWarning(ex, "Error generating SAS URL for: {BlobUrl}. Returning original URL.", blobUrl);
             return blobUrl; // Return original URL as fallback
         }
     }
@@ -663,5 +679,64 @@ public class AzureBlobService : IAzureBlobService
         var invalid = Path.GetInvalidFileNameChars();
         var sanitized = string.Join("_", fileName.Split(invalid, StringSplitOptions.RemoveEmptyEntries));
         return sanitized.Trim();
+    }
+
+    public async Task<string?> CopyBlobAsync(string sourceBlobUrl, string destinationBlobPath)
+    {
+        if (_containerClient == null)
+        {
+            _logger.LogWarning("Azure Blob Storage is not configured");
+            return null;
+        }
+
+        if (string.IsNullOrEmpty(sourceBlobUrl))
+        {
+            _logger.LogWarning("Source blob URL is null or empty");
+            return null;
+        }
+
+        try
+        {
+            var sourceUri = new Uri(sourceBlobUrl);
+            
+            // Extract blob name from the source URI path
+            var pathSegments = sourceUri.AbsolutePath.TrimStart('/').Split('/');
+            
+            if (pathSegments.Length < 2)
+            {
+                _logger.LogWarning("Invalid source blob URL format: {SourceUrl}", sourceBlobUrl);
+                return null;
+            }
+
+            // Skip the container name and get the blob name
+            var sourceBlobName = string.Join("/", pathSegments.Skip(1));
+            
+            var sourceBlobClient = _containerClient.GetBlobClient(sourceBlobName);
+            var destinationBlobClient = _containerClient.GetBlobClient(destinationBlobPath);
+
+            // Check if source blob exists
+            if (!await sourceBlobClient.ExistsAsync())
+            {
+                _logger.LogWarning("Source blob does not exist: {SourceBlobName}", sourceBlobName);
+                return null;
+            }
+
+            // Start the copy operation
+            var copyOperation = await destinationBlobClient.StartCopyFromUriAsync(sourceBlobClient.Uri);
+            
+            // Wait for the copy to complete
+            await copyOperation.WaitForCompletionAsync();
+
+            _logger.LogInformation("Successfully copied blob from {Source} to {Destination}", 
+                sourceBlobName, destinationBlobPath);
+
+            return destinationBlobClient.Uri.ToString();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error copying blob from {Source} to {Destination}", 
+                sourceBlobUrl, destinationBlobPath);
+            return null;
+        }
     }
 }

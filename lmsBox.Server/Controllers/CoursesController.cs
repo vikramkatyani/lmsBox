@@ -334,12 +334,17 @@ public partial class CoursesController : ControllerBase
                         "scorm" => lesson.ScormUrl ?? "",
                         "document" => lesson.DocumentUrl ?? "",
                         "pdf" => lesson.DocumentUrl ?? "",
+                        "html" => lesson.HtmlUrl ?? "",
                         "quiz" => "", // Quiz doesn't need a URL
                         _ => ""
                     };
 
                     // Generate SAS URL for Azure Blob Storage content if configured
-                    if (!string.IsNullOrEmpty(url) && _blobService.IsConfigured() && url.Contains("blob.core.windows.net"))
+                    // Skip HTML lessons as they are proxied through the backend
+                    if (!string.IsNullOrEmpty(url) && 
+                        _blobService.IsConfigured() && 
+                        url.Contains("blob.core.windows.net") &&
+                        lesson.Type.ToLower() != "html")
                     {
                         try
                         {
@@ -347,7 +352,8 @@ public partial class CoursesController : ControllerBase
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogWarning(ex, "Failed to generate SAS URL for lesson {LessonId}, using original URL", lesson.Id);
+                            _logger.LogWarning(ex, "Failed to generate SAS URL for lesson {LessonId} (type: {Type}), URL: {Url}. Using original URL", lesson.Id, lesson.Type, url);
+                            // Keep the original URL as fallback
                         }
                     }
                     

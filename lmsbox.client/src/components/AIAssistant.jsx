@@ -1089,6 +1089,13 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                   </div>
                 )}
               </div>
+              
+              {/* AI Disclaimer */}
+              <div className="mt-4 px-4 py-2 bg-yellow-50 border-l-4 border-yellow-400">
+                <p className="text-xs text-yellow-800">
+                  ⚠️ <strong>Disclaimer:</strong> AI-generated content may contain errors or inaccuracies. Please review and verify all content before using it in your courses.
+                </p>
+              </div>
             </div>
           )}
         </>

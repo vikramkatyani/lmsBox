@@ -46,6 +46,11 @@ public interface IAzureBlobService
     /// Upload and extract a SCORM package to Azure Blob Storage
     /// </summary>
     Task<ScormPackageInfo> UploadScormPackageAsync(Stream zipStream, string fileName, string organisationId);
+
+    /// <summary>
+    /// Copy a blob from one location to another within the same container
+    /// </summary>
+    Task<string?> CopyBlobAsync(string sourceBlobUrl, string destinationBlobPath);
 }
 
 public class BlobFileInfo

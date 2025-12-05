@@ -280,4 +280,52 @@ public class ScormProxyController : ControllerBase
             return StatusCode(500, new { message = "An error occurred while loading SCORM content" });
         }
     }
+
+    /// <summary>
+    /// Proxy HTML lesson content from Azure Blob Storage to avoid CORS/auth issues.
+    /// </summary>
+    [HttpGet("html")]
+    public async Task<IActionResult> ProxyHtmlContent([FromQuery] string url)
+    {
+        if (string.IsNullOrEmpty(url))
+        {
+            return BadRequest(new { message = "URL parameter is required" });
+        }
+
+        try
+        {
+            _logger.LogInformation("Proxying HTML content from: {Url}", url);
+
+            // Generate SAS URL if it's a blob storage URL
+            string targetUrl = url;
+            if (_blobService.IsConfigured() && url.Contains("blob.core.windows.net"))
+            {
+                targetUrl = await _blobService.GetSasUrlAsync(url, 24);
+                _logger.LogInformation("Generated SAS URL for HTML content: {TargetUrl}", targetUrl);
+            }
+
+            // Create Uri object to prevent double-encoding
+            var requestUri = new Uri(targetUrl, UriKind.Absolute);
+            using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+            var response = await _httpClient.SendAsync(request);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Failed to fetch HTML content. Status: {StatusCode}, RequestUri: {RequestUri}", response.StatusCode, request.RequestUri);
+                return StatusCode((int)response.StatusCode, new { message = "Failed to load HTML content" });
+            }
+
+            var content = await response.Content.ReadAsByteArrayAsync();
+            var contentType = response.Content.Headers.ContentType?.ToString() ?? "text/html";
+
+            _logger.LogInformation("Successfully proxied HTML content, size: {Size} bytes", content.Length);
+
+            return File(content, contentType);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error proxying HTML content from {Url}", url);
+            return StatusCode(500, new { message = "An error occurred while loading HTML content" });
+        }
+    }
 }

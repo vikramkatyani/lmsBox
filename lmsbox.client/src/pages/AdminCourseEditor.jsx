@@ -22,12 +22,15 @@ export default function AdminCourseEditor() {
   const { courseId } = useParams();
   const [searchParams] = useSearchParams();
   const isNew = !courseId;
+  
+  // Check if AI assistant should be opened automatically
+  const openAIParam = searchParams.get('openAI');
 
   usePageTitle(isNew ? 'Add Course' : 'Edit Course');
 
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
-  const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
+  const [aiAssistantOpen, setAiAssistantOpen] = useState(openAIParam === 'true');
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [form, setForm] = useState({
     title: '',

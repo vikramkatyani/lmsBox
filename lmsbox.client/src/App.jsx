@@ -33,6 +33,7 @@ import UserCourseProgressReport from './pages/UserCourseProgressReport';
 import CustomReportBuilder from './pages/CustomReportBuilder';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
+import GlobalAIButton from './components/GlobalAIButton';
 import { ThemeProvider } from './theme/ThemeContext';
 import CompleteProfile from './pages/CompleteProfile';
 import SuperAdminLogin from './pages/SuperAdminLogin';
@@ -362,6 +363,7 @@ function App() {
             }
           />
         </Routes>
+        <GlobalAIButton />
         <Toaster
           position="top-right"
           toastOptions={{

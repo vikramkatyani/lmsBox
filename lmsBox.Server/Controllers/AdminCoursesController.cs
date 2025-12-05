@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using System.Text.Json;
 using lmsbox.domain.Utils;
+using lmsBox.Server.Services;
 
 namespace lmsBox.Server.Controllers;
 
@@ -16,11 +17,16 @@ public class AdminCoursesController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<AdminCoursesController> _logger;
+    private readonly IAzureBlobService _blobService;
 
-    public AdminCoursesController(ApplicationDbContext context, ILogger<AdminCoursesController> logger)
+    public AdminCoursesController(
+        ApplicationDbContext context, 
+        ILogger<AdminCoursesController> logger,
+        IAzureBlobService blobService)
     {
         _context = context;
         _logger = logger;
+        _blobService = blobService;
     }
 
     /// <summary>
@@ -810,18 +816,86 @@ public class AdminCoursesController : ControllerBase
                     }
                 }
 
-                // Create new lesson
+                // Copy lesson content files to new locations if they exist
+                string? newVideoUrl = null;
+                string? newDocumentUrl = null;
+                string? newScormUrl = null;
+                string? newScormEntryUrl = null;
+
+                // Get organization storage key
+                var organisation = await _context.Organisations
+                    .FirstOrDefaultAsync(o => o.Id == originalCourse.OrganisationId);
+                
+                if (organisation != null && _blobService.IsConfigured())
+                {
+                    var storageKey = organisation.StorageKey;
+
+                    // Copy video file
+                    if (!string.IsNullOrEmpty(originalLesson.VideoUrl))
+                    {
+                        var videoFileName = Path.GetFileName(new Uri(originalLesson.VideoUrl).AbsolutePath);
+                        var uniqueVideoFileName = $"{Guid.NewGuid()}{Path.GetExtension(videoFileName)}";
+                        var newVideoPath = $"organisations/{storageKey}/library/{uniqueVideoFileName}";
+                        newVideoUrl = await _blobService.CopyBlobAsync(originalLesson.VideoUrl, newVideoPath);
+                        
+                        if (newVideoUrl != null)
+                        {
+                            _logger.LogInformation("Copied video from {OldUrl} to {NewUrl}", 
+                                originalLesson.VideoUrl, newVideoUrl);
+                        }
+                    }
+
+                    // Copy document file (PDF, HTML, etc.)
+                    if (!string.IsNullOrEmpty(originalLesson.DocumentUrl))
+                    {
+                        var docFileName = Path.GetFileName(new Uri(originalLesson.DocumentUrl).AbsolutePath);
+                        var uniqueDocFileName = $"{Guid.NewGuid()}{Path.GetExtension(docFileName)}";
+                        var newDocPath = $"organisations/{storageKey}/library/{uniqueDocFileName}";
+                        newDocumentUrl = await _blobService.CopyBlobAsync(originalLesson.DocumentUrl, newDocPath);
+                        
+                        if (newDocumentUrl != null)
+                        {
+                            _logger.LogInformation("Copied document from {OldUrl} to {NewUrl}", 
+                                originalLesson.DocumentUrl, newDocumentUrl);
+                        }
+                    }
+
+                    // Copy SCORM package
+                    if (!string.IsNullOrEmpty(originalLesson.ScormUrl))
+                    {
+                        // SCORM packages are stored in folders, we need to copy the entire folder
+                        // For now, we'll just reference the same SCORM package
+                        // TODO: Implement full SCORM package folder copy if needed
+                        newScormUrl = originalLesson.ScormUrl;
+                        newScormEntryUrl = originalLesson.ScormEntryUrl;
+                        
+                        _logger.LogInformation("SCORM package will be shared: {ScormUrl}", 
+                            originalLesson.ScormUrl);
+                    }
+                }
+                else
+                {
+                    // If blob service is not configured, just copy the URLs as-is
+                    newVideoUrl = originalLesson.VideoUrl;
+                    newDocumentUrl = originalLesson.DocumentUrl;
+                    newScormUrl = originalLesson.ScormUrl;
+                    newScormEntryUrl = originalLesson.ScormEntryUrl;
+                    
+                    _logger.LogWarning("Blob storage not configured, lesson content URLs will be shared between courses");
+                }
+
+                // Create new lesson with copied content URLs
                 var newLesson = new Lesson
                 {
                     Title = originalLesson.Title,
                     Content = originalLesson.Content,
                     Type = originalLesson.Type,
                     Ordinal = originalLesson.Ordinal,
-                    VideoUrl = originalLesson.VideoUrl,
+                    VideoUrl = newVideoUrl ?? originalLesson.VideoUrl,
                     DurationSeconds = originalLesson.DurationSeconds,
-                    DocumentUrl = originalLesson.DocumentUrl,
-                    ScormUrl = originalLesson.ScormUrl,
-                    ScormEntryUrl = originalLesson.ScormEntryUrl,
+                    DocumentUrl = newDocumentUrl ?? originalLesson.DocumentUrl,
+                    ScormUrl = newScormUrl ?? originalLesson.ScormUrl,
+                    ScormEntryUrl = newScormEntryUrl ?? originalLesson.ScormEntryUrl,
                     QuizId = newQuizId,
                     IsOptional = originalLesson.IsOptional,
                     CourseId = newCourse.Id,

@@ -97,25 +97,43 @@ export default function AdminHeader({ hideNavigation = false }) {
 
           {!hideNavigation && (
             <>
+              {/* Mobile menu overlay backdrop */}
+              {isMobileMenuOpen && (
+                <div 
+                  className="lg:hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-40"
+                  onClick={() => setIsMobileMenuOpen(false)} 
+                />
+              )}
+
               <div 
                 ref={menuRef}
-                className={`${isMobileMenuOpen ? 'block' : 'hidden'} lg:block fixed lg:relative inset-0 lg:inset-auto z-50`}>
-                <div className={`${isMobileMenuOpen ? 'block' : 'hidden'} lg:hidden fixed inset-0 bg-page-dark-bg bg-opacity-40`} onClick={() => setIsMobileMenuOpen(false)} />
-                <button
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="lg:hidden fixed top-2 right-4 z-50 rounded-full bg-white w-9 h-9 flex items-center justify-center border border-gray-200">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 fill-boxlms-profile" viewBox="0 0 320.591 320.591">
-                    <path d="M30.391 318.583a30.37 30.37 0 0 1-21.56-7.288c-11.774-11.844-11.774-30.973 0-42.817L266.643 10.665c12.246-11.459 31.462-10.822 42.921 1.424 10.362 11.074 10.966 28.095 1.414 39.875L51.647 311.295a30.366 30.366 0 0 1-21.256 7.288z" />
-                    <path d="M287.9 318.583a30.37 30.37 0 0 1-21.257-8.806L8.83 51.963C-2.078 39.225-.595 20.055 12.143 9.146c11.369-9.736 28.136-9.736 39.504 0l259.331 257.813c12.243 11.462 12.876 30.679 1.414 42.922-.456.487-.927.958-1.414 1.414a30.368 30.368 0 0 1-23.078 7.288z" />
-                  </svg>
-                </button>
+                className="lg:block">
+                {/* Close button for mobile */}
+                {isMobileMenuOpen && (
+                  <button
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="lg:hidden fixed top-3 right-3 z-[60] rounded-full bg-white w-10 h-10 flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 fill-gray-700" viewBox="0 0 320.591 320.591">
+                      <path d="M30.391 318.583a30.37 30.37 0 0 1-21.56-7.288c-11.774-11.844-11.774-30.973 0-42.817L266.643 10.665c12.246-11.459 31.462-10.822 42.921 1.424 10.362 11.074 10.966 28.095 1.414 39.875L51.647 311.295a30.366 30.366 0 0 1-21.256 7.288z" />
+                      <path d="M287.9 318.583a30.37 30.37 0 0 1-21.257-8.806L8.83 51.963C-2.078 39.225-.595 20.055 12.143 9.146c11.369-9.736 28.136-9.736 39.504 0l259.331 257.813c12.243 11.462 12.876 30.679 1.414 42.922-.456.487-.927.958-1.414 1.414a30.368 30.368 0 0 1-23.078 7.288z" />
+                    </svg>
+                  </button>
+                )}
 
-                <ul className="lg:flex lg:gap-x-10 max-lg:space-y-3 fixed lg:relative bg-white lg:bg-transparent w-2/3 lg:w-auto min-w-[300px] lg:min-w-0 top-0 left-0 h-full lg:h-auto p-4 lg:p-0 shadow-md lg:shadow-none overflow-auto lg:overflow-visible z-50">
-                  <li className="mb-6 hidden max-lg:block">
-                    <NavLink to="/admin/dashboard">
+                <ul className={`
+                  lg:flex lg:gap-x-10 
+                  max-lg:fixed max-lg:top-0 max-lg:left-0 max-lg:h-full max-lg:w-72 max-lg:bg-boxlms-navbar 
+                  max-lg:shadow-xl max-lg:overflow-y-auto max-lg:z-50 max-lg:p-6 max-lg:space-y-1
+                  max-lg:transform max-lg:transition-transform max-lg:duration-300 max-lg:ease-in-out
+                  ${isMobileMenuOpen ? 'max-lg:translate-x-0' : 'max-lg:-translate-x-full'}
+                `}>
+                  {/* Mobile menu header with logo */}
+                  <li className="mb-8 pb-4 border-b border-boxlms-navbar-txt border-opacity-20 lg:hidden">
+                    <NavLink to="/admin/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
                       <img src={theme.logo} alt="Logo" className="h-8 w-auto" />
                     </NavLink>
                   </li>
+                  
                   {[
                     { to: '/admin/dashboard', label: 'Dashboard' },
                     { to: '/admin/users', label: 'Users' },
@@ -128,11 +146,13 @@ export default function AdminHeader({ hideNavigation = false }) {
                       <NavLink
                         to={link.to}
                         className={({ isActive }) =>
-                          `block text-[15px] font-medium relative py-2 px-1 transition-colors duration-200
+                          `block text-[15px] font-medium relative transition-all duration-200
                           ${isActive 
                             ? 'text-boxlms-navbar-active' 
                             : 'text-boxlms-navbar-txt hover:text-boxlms-navbar-active'
                           }
+                          max-lg:py-3 max-lg:px-3
+                          lg:py-2 lg:px-1
                           lg:after:content-[""] lg:after:block lg:after:absolute lg:after:h-0.5 
                           lg:after:bg-boxlms-navbar-active lg:after:w-full lg:after:scale-x-0 lg:hover:after:scale-x-100 
                           lg:after:transition-transform lg:after:duration-300 lg:after:origin-left
@@ -140,22 +160,22 @@ export default function AdminHeader({ hideNavigation = false }) {
                         }
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
-                    {link.label}
-                  </NavLink>
-                  <span className="lg:hidden absolute left-0 w-1 h-full bg-[#2afeae] transform scale-y-0 group-hover:scale-y-100 transition-transform duration-200" />
-                </li>
-              ))}
-            </ul>
-          </div>
+                        {link.label}
+                      </NavLink>
+                      <span className={`lg:hidden absolute left-0 top-0 w-1 h-full bg-boxlms-navbar-active rounded-r transition-transform duration-200 ${link.to === window.location.pathname ? 'scale-y-100' : 'scale-y-0 group-hover:scale-y-100'}`} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
 
-          <button
-            id="toggleOpen"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="lg:hidden">
-            <svg className="w-7 h-7 fill-boxlms-navbar-txt" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-              <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-            </svg>
-          </button>
+              <button
+                id="toggleOpen"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="lg:hidden p-1 hover:bg-gray-100 hover:bg-opacity-10 rounded transition-colors">
+                <svg className="w-7 h-7 fill-boxlms-navbar-txt" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                  <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                </svg>
+              </button>
             </>
           )}
 
@@ -178,7 +198,7 @@ export default function AdminHeader({ hideNavigation = false }) {
               {showProfileMenu && (
                 <div 
                   ref={profileDropdownRef}
-                  className="absolute right-0 top-10 bg-white shadow-lg py-6 px-6 rounded-sm sm:min-w-[320px] max-sm:min-w-[250px] z-50">
+                  className="absolute right-0 top-12 bg-white shadow-xl rounded-lg py-6 px-6 sm:min-w-[320px] max-sm:min-w-[280px] max-sm:max-w-[calc(100vw-2rem)] z-[100] border border-gray-100">
                   <h6 className="font-semibold text-[15px]">Admin Account</h6>
                   <p className="text-sm text-gray-500 mt-1">Manage your admin settings</p>
                   <hr className="border-b-0 my-4 border-gray-300" />
@@ -190,14 +210,14 @@ export default function AdminHeader({ hideNavigation = false }) {
                   <hr className="border-b-0 my-4 border-gray-300" />
                   <button
                     onClick={handleSwitchRole}
-                    className="w-full bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded-sm px-4 py-2 text-sm font-medium cursor-pointer hover:brightness-80 mb-2"
+                    className="w-full bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded-md px-4 py-2.5 text-sm font-medium cursor-pointer hover:brightness-90 transition-all mb-2"
                   >
                     Switch to Learner View
                   </button>
                   <hr className="border-b-0 my-4 border-gray-300" />
                   <button
                     onClick={initiateLogout}
-                    className="w-full bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded-sm px-4 py-2 text-sm font-medium cursor-pointer hover:brightness-80"
+                    className="w-full bg-red-500 text-white rounded-md px-4 py-2.5 text-sm font-medium cursor-pointer hover:bg-red-600 transition-all"
                   >
                     Logout
                   </button>

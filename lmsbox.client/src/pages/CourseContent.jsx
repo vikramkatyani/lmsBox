@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import LearnerHeader from '../components/LearnerHeader';
 import QuizPlayer from '../components/QuizPlayer';
 import SurveyPlayer from '../components/SurveyPlayer';
+import LearnerAIAssistant from '../components/LearnerAIAssistant';
 import { getCourseDetails } from '../services/courseDetails';
 import { learnerSurveyService } from '../services/surveys';
 import toast from 'react-hot-toast';
@@ -554,13 +555,68 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate }) {
                 </svg>
               </button>
             </div>
-            {lesson.htmlUrl ? (
-              <iframe
-                src={lesson.htmlUrl}
-                className="w-full h-full border-0"
-                title="HTML Content"
-                sandbox="allow-scripts allow-same-origin"
-              />
+            {lesson.url ? (
+              <>
+                {console.log('HTML Lesson URL:', lesson.url)}
+                <iframe
+                  src={`http://localhost:5132/api/scorm-proxy/html?url=${encodeURIComponent(lesson.url)}`}
+                  className="w-full h-full border-0"
+                  title="HTML Content"
+                  sandbox="allow-scripts allow-same-origin"
+                  onError={(e) => {
+                    console.error('Failed to load HTML content from URL:', lesson.url);
+                    toast.error('Failed to load HTML content');
+                  }}
+                />
+                {!lesson.isCompleted && (
+                  <div className="absolute bottom-4 right-4 z-10">
+                    <button
+                      onClick={() => {
+                        onProgressUpdate?.(lesson.id, {
+                          progressPercent: 100,
+                          videoTimestamp: null,
+                          completed: true
+                        });
+                        toast.success('Lesson marked as complete!');
+                      }}
+                      className="bg-[#2afeae] hover:bg-[#25e89e] text-[#1b365d] px-6 py-3 rounded-lg shadow-lg font-medium transition-colors flex items-center space-x-2"
+                    >
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <span>Mark as Complete</span>
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : lesson.content ? (
+              // Fallback to inline HTML content if URL is not available
+              <>
+                <div 
+                  className="w-full h-full overflow-auto p-8"
+                  dangerouslySetInnerHTML={{ __html: lesson.content }}
+                />
+                {!lesson.isCompleted && (
+                  <div className="absolute bottom-4 right-4 z-10">
+                    <button
+                      onClick={() => {
+                        onProgressUpdate?.(lesson.id, {
+                          progressPercent: 100,
+                          videoTimestamp: null,
+                          completed: true
+                        });
+                        toast.success('Lesson marked as complete!');
+                      }}
+                      className="bg-[#2afeae] hover:bg-[#25e89e] text-[#1b365d] px-6 py-3 rounded-lg shadow-lg font-medium transition-colors flex items-center space-x-2"
+                    >
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <span>Mark as Complete</span>
+                    </button>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center text-gray-500">
@@ -636,6 +692,9 @@ export default function CourseContent() {
   const [surveyItems, setSurveyItems] = useState([]);
   const [activeSurvey, setActiveSurvey] = useState(null);
   const [surveyLoading, setSurveyLoading] = useState(false);
+  
+  // AI Assistant state
+  const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
 
   usePageTitle(course ? `${course.title} - Course Content` : 'Course Content');
 
@@ -961,8 +1020,7 @@ export default function CourseContent() {
               {course.lessons.filter(l => l.isCompleted).length + surveyItems.filter(s => s.isCompleted).length} of {course.lessons.length + surveyItems.length} completed
             </p>
           </div>
-          <div className="p-4 space-y-2">
-            {/* Combine lessons and surveys, sorted by order */}
+          <div className="p-4 space-y-2">{/* Combine lessons and surveys, sorted by order */}
             {[...surveyItems, ...course.lessons.map((l, idx) => ({ ...l, order: idx }))]
               .sort((a, b) => a.order - b.order)
               .map((item) => {
@@ -1109,6 +1167,31 @@ export default function CourseContent() {
           </div>
         </div>
       </div>
+
+      {/* Floating AI Assistant Button */}
+      <button
+        onClick={() => setIsAIAssistantOpen(true)}
+        className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:shadow-xl hover:bg-blue-700 transition-all duration-200 z-50 flex items-center gap-2 group"
+        title="Ask AI Assistant"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+        </svg>
+        <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 whitespace-nowrap">
+          AI Assistant
+        </span>
+      </button>
+
+      {/* AI Assistant Modal */}
+      {course && (
+        <LearnerAIAssistant
+          courseTitle={course.title}
+          currentLessonTitle={activeLesson?.title}
+          currentLessonContent={activeLesson?.htmlContent || activeLesson?.description || course.description}
+          isOpen={isAIAssistantOpen}
+          onClose={() => setIsAIAssistantOpen(false)}
+        />
+      )}
     </div>
   );
 }

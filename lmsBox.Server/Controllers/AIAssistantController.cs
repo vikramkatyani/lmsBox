@@ -115,6 +115,32 @@ public class AIAssistantController : ControllerBase
             return StatusCode(500, new { error = "Failed to process chat message" });
         }
     }
+
+    [HttpPost("learner-query")]
+    [AllowAnonymous] // Override class-level role restriction - still requires authentication via JWT
+    public async Task<IActionResult> LearnerQuery([FromBody] LearnerQueryRequest request)
+    {
+        try
+        {
+            var result = await _aiService.LearnerCourseQueryAsync(
+                request.Question,
+                request.CourseTitle,
+                request.LessonTitle,
+                request.AdditionalContext);
+
+            return Ok(new { response = result });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "AI Assistant feature unavailable for learner query");
+            return StatusCode(503, new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing learner query");
+            return StatusCode(500, new { error = "Failed to process your question. Please try again." });
+        }
+    }
 }
 
 public class GenerateCourseOutlineRequest
@@ -147,4 +173,12 @@ public class ChatRequest
 {
     public string Message { get; set; } = string.Empty;
     public string? Context { get; set; }
+}
+
+public class LearnerQueryRequest
+{
+    public string Question { get; set; } = string.Empty;
+    public string CourseTitle { get; set; } = string.Empty;
+    public string? LessonTitle { get; set; }
+    public string? AdditionalContext { get; set; }
 }

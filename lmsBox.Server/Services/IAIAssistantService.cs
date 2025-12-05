@@ -9,4 +9,5 @@ public interface IAIAssistantService
     Task<string> GenerateQuizQuestionsAsync(string topic, int questionCount, string? difficulty);
     Task<string> ImproveContentAsync(string content, string improvementType);
     Task<string> ChatAsync(string message, string? context);
+    Task<string> LearnerCourseQueryAsync(string question, string courseTitle, string? lessonTitle, string? additionalContext);
 }
