@@ -883,13 +883,22 @@ public class AdminLessonsController : ControllerBase
             var htmlBytes = System.Text.Encoding.UTF8.GetBytes(request.HtmlContent);
             using var stream = new MemoryStream(htmlBytes);
 
-            // Upload to blob storage in organisation library folder (same as videos and PDFs)
-            var htmlUrl = await _blobService.UploadFileAsync(
-                stream,
-                fileName,
-                user.OrganisationID.ToString(),
-                "text/html"
-            );
+            string htmlUrl;
+            try
+            {
+                // Upload to blob storage in organisation library folder (same as videos and PDFs)
+                htmlUrl = await _blobService.UploadFileAsync(
+                    stream,
+                    fileName,
+                    user.OrganisationID.ToString(),
+                    "text/html"
+                );
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("Storage quota exceeded"))
+            {
+                _logger.LogWarning("Storage quota exceeded for organisation {OrgId}", user.OrganisationID);
+                return BadRequest(new { message = ex.Message });
+            }
 
             var response = new HtmlUploadResponse
             {

@@ -18,15 +18,18 @@ public class AdminCoursesController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly ILogger<AdminCoursesController> _logger;
     private readonly IAzureBlobService _blobService;
+    private readonly IStorageQuotaService _storageQuotaService;
 
     public AdminCoursesController(
         ApplicationDbContext context, 
         ILogger<AdminCoursesController> logger,
-        IAzureBlobService blobService)
+        IAzureBlobService blobService,
+        IStorageQuotaService storageQuotaService)
     {
         _context = context;
         _logger = logger;
         _blobService = blobService;
+        _storageQuotaService = storageQuotaService;
     }
 
     /// <summary>
@@ -1177,12 +1180,21 @@ public class AdminCoursesController : ControllerBase
             string imageUrl;
             using (var stream = image.OpenReadStream())
             {
-                imageUrl = await _blobService.UploadToBrandingContainerAsync(
-                    stream, 
-                    fileName, 
-                    folderPath, 
-                    image.ContentType
-                );
+                try
+                {
+                    imageUrl = await _blobService.UploadToBrandingContainerAsync(
+                        stream, 
+                        fileName, 
+                        folderPath, 
+                        image.ContentType,
+                        organisation.Id
+                    );
+                }
+                catch (InvalidOperationException ex) when (ex.Message.Contains("Storage quota exceeded"))
+                {
+                    _logger.LogWarning("Storage quota exceeded for organisation {OrgId}", organisation.Id);
+                    return BadRequest(new { message = ex.Message });
+                }
             }
 
             _logger.LogInformation("Course banner uploaded for organisation {OrgId} by user {UserId}", organisation.Id, userId);
@@ -1193,6 +1205,33 @@ public class AdminCoursesController : ControllerBase
         {
             _logger.LogError(ex, "Error uploading course banner image");
             return StatusCode(500, new { message = "An error occurred while uploading the course banner" });
+        }
+    }
+
+    /// <summary>
+    /// Get storage usage for the organisation
+    /// </summary>
+    [HttpGet("storage-usage")]
+    public async Task<ActionResult<StorageUsageInfo>> GetStorageUsage()
+    {
+        try
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = await _context.Users.FindAsync(userId);
+
+            if (user == null || user.OrganisationID == null)
+            {
+                return BadRequest(new { message = "User organisation not found" });
+            }
+
+            var storageInfo = await _storageQuotaService.GetStorageUsageAsync(user.OrganisationID.Value);
+
+            return Ok(storageInfo);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching storage usage");
+            return StatusCode(500, new { message = "An error occurred while fetching storage usage" });
         }
     }
 }

@@ -203,6 +203,9 @@ builder.Services.AddScoped<lmsBox.Server.Services.IEmailService, lmsBox.Server.S
 // Azure Blob Storage service registration
 builder.Services.AddScoped<lmsBox.Server.Services.IAzureBlobService, lmsBox.Server.Services.AzureBlobService>();
 
+// Storage Quota service registration
+builder.Services.AddScoped<lmsBox.Server.Services.IStorageQuotaService, lmsBox.Server.Services.StorageQuotaService>();
+
 // Audit Log service registration
 builder.Services.AddScoped<lmsBox.Server.Services.IAuditLogService, lmsBox.Server.Services.AuditLogService>();
 

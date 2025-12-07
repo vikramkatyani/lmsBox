@@ -10,12 +10,12 @@ public interface IAzureBlobService
     /// <summary>
     /// Upload a file to Azure Blob Storage with custom folder path
     /// </summary>
-    Task<string> UploadToCustomPathAsync(Stream fileStream, string fileName, string folderPath, string contentType, string? subFolder = null);
+    Task<string> UploadToCustomPathAsync(Stream fileStream, string fileName, string folderPath, string contentType, string? subFolder = null, long? organisationId = null);
 
     /// <summary>
     /// Upload a file to the branding container (lms-content-brandui)
     /// </summary>
-    Task<string> UploadToBrandingContainerAsync(Stream fileStream, string fileName, string folderPath, string contentType);
+    Task<string> UploadToBrandingContainerAsync(Stream fileStream, string fileName, string folderPath, string contentType, long? organisationId = null);
 
     /// <summary>
     /// List all files in an organization's library folder

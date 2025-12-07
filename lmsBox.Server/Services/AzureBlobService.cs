@@ -15,16 +15,19 @@ public class AzureBlobService : IAzureBlobService
     private readonly ILogger<AzureBlobService> _logger;
     private readonly BlobContainerClient? _containerClient;
     private readonly ApplicationDbContext _context;
+    private readonly IStorageQuotaService _storageQuotaService;
 
     public AzureBlobService(
         IConfiguration configuration, 
         ILogger<AzureBlobService> logger,
-        ApplicationDbContext context)
+        ApplicationDbContext context,
+        IStorageQuotaService storageQuotaService)
     {
         _connectionString = configuration["AzureStorage:ConnectionString"];
         _containerName = configuration["AzureStorage:ContainerName"] ?? "lms-content";
         _logger = logger;
         _context = context;
+        _storageQuotaService = storageQuotaService;
 
         if (!string.IsNullOrEmpty(_connectionString))
         {
@@ -82,6 +85,18 @@ public class AzureBlobService : IAzureBlobService
             // Get the storage key instead of using numeric ID
             var storageKey = await GetStorageKeyAsync(organisationId);
             
+            // Get numeric organisation ID for quota checking
+            var orgId = long.Parse(organisationId);
+            
+            // Check quota before upload
+            var fileSize = fileStream.Length;
+            var (hasQuota, message, _) = await _storageQuotaService.CheckQuotaAsync(orgId, fileSize, "content");
+            
+            if (!hasQuota)
+            {
+                throw new InvalidOperationException(message);
+            }
+            
             // Create organization folder path: organisations/{storageKey}/library/{fileName}
             var blobPath = $"organisations/{storageKey}/library/{fileName}";
             var blobClient = _containerClient.GetBlobClient(blobPath);
@@ -98,6 +113,9 @@ public class AzureBlobService : IAzureBlobService
                 HttpHeaders = blobHttpHeaders
             });
 
+            // Track storage usage
+            await _storageQuotaService.TrackUploadAsync(orgId, fileSize, "content");
+
             _logger.LogInformation("File uploaded successfully: {BlobPath}", blobPath);
 
             return blobClient.Uri.ToString();
@@ -109,7 +127,7 @@ public class AzureBlobService : IAzureBlobService
         }
     }
 
-    public async Task<string> UploadToCustomPathAsync(Stream fileStream, string fileName, string folderPath, string contentType, string? subFolder = null)
+    public async Task<string> UploadToCustomPathAsync(Stream fileStream, string fileName, string folderPath, string contentType, string? subFolder = null, long? organisationId = null)
     {
         if (_containerClient == null)
         {
@@ -118,6 +136,18 @@ public class AzureBlobService : IAzureBlobService
 
         try
         {
+            // Check quota before upload if organisationId is provided
+            if (organisationId.HasValue)
+            {
+                var fileSize = fileStream.Length;
+                var (hasQuota, message, _) = await _storageQuotaService.CheckQuotaAsync(organisationId.Value, fileSize, "content");
+                
+                if (!hasQuota)
+                {
+                    throw new InvalidOperationException(message);
+                }
+            }
+
             // Create custom folder path: folderPath/subFolder/fileName (if subFolder provided)
             var blobPath = subFolder != null 
                 ? $"{folderPath}/{subFolder}/{fileName}"
@@ -131,11 +161,20 @@ public class AzureBlobService : IAzureBlobService
                 ContentType = contentType
             };
 
+            // Get file size before upload
+            var uploadedSize = fileStream.Length;
+
             // Upload with overwrite
             await blobClient.UploadAsync(fileStream, new BlobUploadOptions
             {
                 HttpHeaders = blobHttpHeaders
             });
+
+            // Track storage usage
+            if (organisationId.HasValue)
+            {
+                await _storageQuotaService.TrackUploadAsync(organisationId.Value, uploadedSize, "content");
+            }
 
             _logger.LogInformation("File uploaded successfully: {BlobPath}", blobPath);
 
@@ -149,7 +188,7 @@ public class AzureBlobService : IAzureBlobService
     }
 
     // Upload to branding container specifically
-    public async Task<string> UploadToBrandingContainerAsync(Stream fileStream, string fileName, string folderPath, string contentType)
+    public async Task<string> UploadToBrandingContainerAsync(Stream fileStream, string fileName, string folderPath, string contentType, long? organisationId = null)
     {
         if (string.IsNullOrEmpty(_connectionString))
         {
@@ -158,6 +197,18 @@ public class AzureBlobService : IAzureBlobService
 
         try
         {
+            // Check quota before upload if organisationId is provided
+            if (organisationId.HasValue)
+            {
+                var fileSize = fileStream.Length;
+                var (hasQuota, message, _) = await _storageQuotaService.CheckQuotaAsync(organisationId.Value, fileSize, "branding");
+                
+                if (!hasQuota)
+                {
+                    throw new InvalidOperationException(message);
+                }
+            }
+
             var containerName = "lms-content-brandui";
             
             // Create container client for branding container
@@ -174,11 +225,20 @@ public class AzureBlobService : IAzureBlobService
                 ContentType = contentType
             };
 
+            // Get file size before upload
+            var uploadedSize = fileStream.Length;
+
             // Upload with overwrite
             await blobClient.UploadAsync(fileStream, new BlobUploadOptions
             {
                 HttpHeaders = blobHttpHeaders
             });
+
+            // Track storage usage
+            if (organisationId.HasValue)
+            {
+                await _storageQuotaService.TrackUploadAsync(organisationId.Value, uploadedSize, "branding");
+            }
 
             _logger.LogInformation("File uploaded successfully to branding container: {BlobPath}", blobPath);
 

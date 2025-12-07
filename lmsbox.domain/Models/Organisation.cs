@@ -21,6 +21,15 @@ public class Organisation
     
     public long AllocatedStorageGB { get; set; } = 10;
     
+    // Storage usage tracking (in bytes)
+    public long StorageUsedBytes { get; set; } = 0;
+    
+    public long BrandingStorageUsedBytes { get; set; } = 0;
+    
+    public long ContentStorageUsedBytes { get; set; } = 0;
+    
+    public DateTime? StorageLastCalculated { get; set; }
+    
     public string? Domain { get; set; }
     
     // Azure Storage paths
