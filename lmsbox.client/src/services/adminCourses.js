@@ -62,6 +62,19 @@ export const adminCourseService = {
   async duplicateCourse(courseId) {
     const response = await api.post(`/api/admin/courses/${courseId}/duplicate`);
     return response.data;
+  },
+
+  // Upload course banner
+  async uploadCourseBanner(file) {
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    const response = await api.post('/api/admin/courses/upload-banner', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    return response.data;
   }
 };
 

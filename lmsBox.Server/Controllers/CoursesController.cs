@@ -105,7 +105,7 @@ public partial class CoursesController : ControllerBase
             {
                 Id = r.Course.Id.ToString(),
                 Title = r.Course.Title,
-                Banner = "/assets/default-course-banner.png", // TODO: Add banner field to Course model
+                Banner = r.Course.BannerUrl ?? "/assets/default-course-banner.png",
                 Progress = r.UserProgress?.ProgressPercent ?? 0,
                 EnrolledDate = r.UserProgress != null ? r.Course.CreatedAt : null,
                 LastAccessedDate = null, // TODO: Add LastAccessedDate to LearnerProgress model
@@ -165,7 +165,7 @@ public partial class CoursesController : ControllerBase
             {
                 Id = lp.Course!.Id.ToString(),
                 Title = lp.Course.Title,
-                Banner = "/assets/default-course-banner.png",
+                Banner = lp.Course.BannerUrl ?? "/assets/default-course-banner.png",
                 Progress = 100,
                 EnrolledDate = lp.Course.CreatedAt,
                 LastAccessedDate = null,
@@ -314,7 +314,7 @@ public partial class CoursesController : ControllerBase
                 Id = course.Id.ToString(),
                 Title = course.Title,
                 Description = course.Description ?? "",
-                Banner = "/assets/default-course-banner.png",
+                Banner = course.BannerUrl ?? "/assets/default-course-banner.png",
                 Progress = courseProgress?.ProgressPercent ?? 0,
                 IsCompleted = courseProgress?.Completed ?? false,
                 CompletedAt = courseProgress?.CompletedAt,

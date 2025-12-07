@@ -282,13 +282,27 @@ export default function AdminCourseEditor() {
   };
 
   const handleBannerCrop = async (croppedFile) => {
-    const preview = URL.createObjectURL(croppedFile);
-    setForm(prev => ({ ...prev, bannerFile: croppedFile, bannerPreview: preview }));
-    toast.success('Banner image ready');
+    try {
+      const preview = URL.createObjectURL(croppedFile);
+      setForm(prev => ({ ...prev, bannerFile: croppedFile, bannerPreview: preview }));
+      
+      // Upload the banner immediately
+      toast.loading('Uploading banner...', { id: 'banner-upload' });
+      const result = await adminCourseService.uploadCourseBanner(croppedFile);
+      
+      // Update form with the uploaded URL
+      setForm(prev => ({ ...prev, bannerPreview: result.url }));
+      toast.success('Banner uploaded successfully', { id: 'banner-upload' });
+    } catch (error) {
+      console.error('Error uploading banner:', error);
+      toast.error('Failed to upload banner', { id: 'banner-upload' });
+    }
   };
 
   const removeBanner = () => {
-    if (form.bannerPreview) URL.revokeObjectURL(form.bannerPreview);
+    if (form.bannerPreview && form.bannerPreview.startsWith('blob:')) {
+      URL.revokeObjectURL(form.bannerPreview);
+    }
     setForm(prev => ({ ...prev, bannerFile: null, bannerPreview: '' }));
   };
 

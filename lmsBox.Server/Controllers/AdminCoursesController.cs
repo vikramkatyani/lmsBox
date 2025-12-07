@@ -1109,6 +1109,92 @@ public class AdminCoursesController : ControllerBase
             return StatusCode(500, new { message = "An error occurred while deleting the course" });
         }
     }
+
+    /// <summary>
+    /// Upload course banner image
+    /// </summary>
+    [HttpPost("upload-banner")]
+    [RequestSizeLimit(10_485_760)] // 10 MB limit
+    public async Task<IActionResult> UploadCourseBanner([FromForm] IFormFile image)
+    {
+        try
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { message = "User not authenticated" });
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
+
+            if (!user.OrganisationID.HasValue)
+            {
+                return BadRequest(new { message = "User must belong to an organisation" });
+            }
+
+            if (image == null || image.Length == 0)
+            {
+                return BadRequest(new { message = "No image file provided" });
+            }
+
+            // Validate image file type
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+            var extension = Path.GetExtension(image.FileName).ToLower();
+            if (!allowedExtensions.Contains(extension))
+            {
+                return BadRequest(new { message = $"Invalid image format. Allowed: {string.Join(", ", allowedExtensions)}" });
+            }
+
+            // Validate file size (max 10 MB)
+            if (image.Length > 10_485_760)
+            {
+                return BadRequest(new { message = "Image file size must be less than 10 MB" });
+            }
+
+            if (!_blobService.IsConfigured())
+            {
+                return StatusCode(500, new { message = "File storage is not configured" });
+            }
+
+            // Get organisation details to get StorageKey
+            var organisation = await _context.Organisations
+                .FirstOrDefaultAsync(o => o.Id == user.OrganisationID.Value);
+
+            if (organisation == null)
+            {
+                return NotFound(new { message = "Organisation not found" });
+            }
+
+            // Upload to Azure Blob Storage with path: {StorageKey}/course-banner/filename.ext
+            var bannerId = Guid.NewGuid();
+            var fileName = $"course_banner_{bannerId}{extension}";
+            var folderPath = $"{organisation.StorageKey}/course-banner";
+
+            string imageUrl;
+            using (var stream = image.OpenReadStream())
+            {
+                imageUrl = await _blobService.UploadToBrandingContainerAsync(
+                    stream, 
+                    fileName, 
+                    folderPath, 
+                    image.ContentType
+                );
+            }
+
+            _logger.LogInformation("Course banner uploaded for organisation {OrgId} by user {UserId}", organisation.Id, userId);
+
+            return Ok(new { url = imageUrl, message = "Course banner uploaded successfully" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading course banner image");
+            return StatusCode(500, new { message = "An error occurred while uploading the course banner" });
+        }
+    }
 }
 
 // DTOs for API responses
