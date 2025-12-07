@@ -112,7 +112,8 @@ export default function AdminCourseEditor() {
         toast.success('HTML lesson created successfully!', { id: 'html-lesson' });
         setActiveTab('lessons'); // Switch to lessons tab
         loadLessons(); // Reload lessons to get fresh data
-        setAiAssistantOpen(false); // Close AI Assistant
+        // Dispatch event to reset AI Assistant Lesson Content tab
+        window.dispatchEvent(new CustomEvent('resetLessonContentTab'));
       } catch (error) {
         console.error('Error creating HTML lesson:', error);
         toast.error('Failed to create HTML lesson', { id: 'html-lesson' });

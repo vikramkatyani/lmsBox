@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sparkles, X, MessageSquare, FileText, HelpCircle, Wand2, Eye, Code, Copy } from 'lucide-react';
 import { aiAssistant } from '../services/aiAssistant';
 
-const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', isOpen: externalIsOpen = false, onClose = null, defaultTab = 'chat' }) => {
+const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = null, mode = 'floating', isOpen: externalIsOpen = false, onClose = null, defaultTab = 'chat' }) => {
   const [isOpen, setIsOpen] = useState(false);
   
   // Use external control if provided (for slide-in mode)
@@ -39,6 +39,18 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
   const [questionCount, setQuestionCount] = useState(5);
   const [difficulty, setDifficulty] = useState('Medium');
   const [quizQuestions, setQuizQuestions] = useState('');
+
+  // Listen for reset event after lesson creation
+  useEffect(() => {
+    const handleResetLessonContent = () => {
+      setLessonTitle('');
+      setLessonContext('');
+      setLessonContent('');
+    };
+
+    window.addEventListener('resetLessonContentTab', handleResetLessonContent);
+    return () => window.removeEventListener('resetLessonContentTab', handleResetLessonContent);
+  }, []);
 
   const handleChat = async (e) => {
     e.preventDefault();
@@ -393,7 +405,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                                     <div className="space-y-2">
                                       {outline.lessons.map((lesson, idx) => (
                                         <div key={idx} className="bg-white p-3 rounded border">
-                                          <div className="flex items-start justify-between">
+                                          <div className="flex items-start justify-between gap-3">
                                             <div className="flex-1">
                                               <p className="font-medium text-gray-900">
                                                 {idx + 1}. {lesson.title}
@@ -402,11 +414,23 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                                                 <p className="text-sm text-gray-600 mt-1">{lesson.description}</p>
                                               )}
                                             </div>
-                                            {lesson.duration && (
-                                              <span className="text-xs text-gray-500 ml-2 whitespace-nowrap">
-                                                {lesson.duration}
-                                              </span>
-                                            )}
+                                            <div className="flex items-center gap-2">
+                                              {lesson.duration && (
+                                                <span className="text-xs text-gray-500 whitespace-nowrap">
+                                                  {lesson.duration}
+                                                </span>
+                                              )}
+                                              <button
+                                                onClick={() => {
+                                                  setActiveTab('lesson');
+                                                  setLessonTitle(lesson.title);
+                                                  setLessonContext(lesson.description || '');
+                                                }}
+                                                className="px-3 py-1 text-sm bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e] whitespace-nowrap"
+                                              >
+                                                Create
+                                              </button>
+                                            </div>
                                           </div>
                                         </div>
                                       ))}
@@ -876,7 +900,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                                       <div className="space-y-2">
                                         {outline.lessons.map((lesson, idx) => (
                                           <div key={idx} className="bg-white p-3 rounded border">
-                                            <div className="flex items-start justify-between">
+                                            <div className="flex items-start justify-between gap-3">
                                               <div className="flex-1">
                                                 <p className="font-medium text-gray-900">
                                                   {idx + 1}. {lesson.title}
@@ -885,11 +909,23 @@ const AIAssistant = ({ context = '', onApplyContent = null, mode = 'floating', i
                                                   <p className="text-sm text-gray-600 mt-1">{lesson.description}</p>
                                                 )}
                                               </div>
-                                              {lesson.duration && (
-                                                <span className="text-xs text-gray-500 ml-2 whitespace-nowrap">
-                                                  {lesson.duration}
-                                                </span>
-                                              )}
+                                              <div className="flex items-center gap-2">
+                                                {lesson.duration && (
+                                                  <span className="text-xs text-gray-500 whitespace-nowrap">
+                                                    {lesson.duration}
+                                                  </span>
+                                                )}
+                                                <button
+                                                  onClick={() => {
+                                                    setActiveTab('lesson');
+                                                    setLessonTitle(lesson.title);
+                                                    setLessonContext(lesson.description || '');
+                                                  }}
+                                                  className="px-3 py-1 text-sm bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e] whitespace-nowrap"
+                                                >
+                                                  Create
+                                                </button>
+                                              </div>
                                             </div>
                                           </div>
                                         ))}

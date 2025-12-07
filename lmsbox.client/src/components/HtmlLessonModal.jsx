@@ -39,7 +39,7 @@ export default function HtmlLessonModal({ isOpen, onClose, courseId, lesson, onS
           // Fallback to lesson prop data
           setFormData({
             title: lesson.title || '',
-            content: lesson.content || '',
+            content: lesson.content || lesson.description || '',
             ordinal: lesson.ordinal || 1,
             type: 'html',
             htmlContent: lesson.htmlContent || '',
@@ -49,6 +49,17 @@ export default function HtmlLessonModal({ isOpen, onClose, courseId, lesson, onS
         } finally {
           setIsLoadingLesson(false);
         }
+      } else if (lesson && !lesson.id) {
+        // New lesson with pre-filled data (from AI)
+        setFormData({
+          title: lesson.title || '',
+          content: lesson.content || lesson.description || '',
+          ordinal: lesson.ordinal || 1,
+          type: 'html',
+          htmlContent: lesson.htmlContent || '',
+          htmlUrl: lesson.htmlUrl || '',
+          isOptional: lesson.isOptional || false,
+        });
       } else if (!lesson) {
         // Reset for new lesson
         setFormData({
