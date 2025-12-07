@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
+import StorageUsageWidget from '../components/StorageUsageWidget';
 import usePageTitle from '../hooks/usePageTitle';
 import { getDashboardStats } from '../services/dashboard';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
@@ -196,23 +197,9 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="shrink-0">
-                <svg className="h-12 w-12 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Total Lessons</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {loading ? <span className="animate-pulse text-gray-300">...</span> : (stats?.totalEnrollments ?? '--')}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {stats?.completedEnrollments ?? '--'} completed, {stats?.inProgressEnrollments ?? '--'} in progress
-                </p>
-              </div>
-            </div>
+          {/* Storage Usage Card */}
+          <div className="h-full">
+            <StorageUsageWidget />
           </div>
         </div>
 
