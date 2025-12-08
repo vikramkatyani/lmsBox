@@ -310,9 +310,17 @@ public class AdminLearningPathwaysController : ControllerBase
         pathway.Description = request.Description;
         pathway.ShortDescription = request.Description;
 
+        // Track new courses for notification
+        List<string>? newCourseIds = null;
+        List<string>? newCourseNames = null;
+
         // Update courses
         if (request.CourseIds != null)
         {
+            // Get existing course IDs to detect new additions
+            var existingCourseIds = pathway.PathwayCourses.Select(pc => pc.CourseId).ToList();
+            newCourseIds = request.CourseIds.Except(existingCourseIds).ToList();
+
             // Remove existing courses
             _context.PathwayCourses.RemoveRange(pathway.PathwayCourses);
 
@@ -328,6 +336,15 @@ public class AdminLearningPathwaysController : ControllerBase
             }).ToList();
 
             _context.PathwayCourses.AddRange(pathwayCourses);
+
+            // If there are new courses and existing learners, prepare to notify them
+            if (newCourseIds.Any() && pathway.LearnerProgresses.Any())
+            {
+                var newCourses = await _context.Courses
+                    .Where(c => newCourseIds.Contains(c.Id))
+                    .ToListAsync();
+                newCourseNames = newCourses.Select(c => c.Title).ToList();
+            }
         }
 
         // Update users
@@ -410,6 +427,48 @@ public class AdminLearningPathwaysController : ControllerBase
         else
         {
             await _context.SaveChangesAsync();
+        }
+
+        // Notify existing learners about new courses added to pathway
+        if (newCourseNames?.Any() == true && pathway.LearnerProgresses.Any())
+        {
+            try
+            {
+                var organisation = await _context.Organisations.FirstOrDefaultAsync();
+                var portalUrl = $"{Request.Scheme}://{Request.Host}";
+
+                // Get all users assigned to this pathway
+                var assignedUserIds = pathway.LearnerProgresses.Select(lp => lp.UserId).ToList();
+                var assignedUsers = await _context.Users
+                    .Where(u => assignedUserIds.Contains(u.Id))
+                    .ToListAsync();
+
+                foreach (var user in assignedUsers)
+                {
+                    try
+                    {
+                        await _emailService.SendNewCourseAccessEmailAsync(
+                            user.Email!,
+                            organisation!.Id.ToString(),
+                            portalUrl,
+                            newCourseNames,
+                            pathway.Title,
+                            user.FirstName
+                        );
+
+                        _logger.LogInformation("New course notification sent to {Email} for {CourseCount} new course(s) in pathway {PathwayId}", 
+                            user.Email, newCourseNames.Count, pathway.Id);
+                    }
+                    catch (Exception emailEx)
+                    {
+                        _logger.LogError(emailEx, "Failed to send new course notification to {Email}", user.Email);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending new course notifications for pathway {PathwayId}", pathway.Id);
+            }
         }
 
         return NoContent();

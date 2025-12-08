@@ -198,9 +198,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* Storage Usage Card */}
-          <div className="h-full">
-            <StorageUsageWidget />
-          </div>
+          <StorageUsageWidget compact={true} />
         </div>
 
         {/* Secondary Stats Cards */}

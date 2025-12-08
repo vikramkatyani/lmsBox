@@ -352,30 +352,21 @@ namespace lmsBox.Server.Controllers
                         var baseUrl = _config["AppSettings:BaseUrl"] ?? Request.Scheme + "://" + Request.Host;
                         var portalUrl = $"{baseUrl}/login";
                         
-                        _logger.LogInformation("Email service available, sending to {Email}", user.Email);
+                        _logger.LogInformation("Email service available, preparing email for {Email}", user.Email);
                         
-                        // For learners, send the new learner registration email
-                        if (roleToAssign == "Learner" && user.OrganisationID.HasValue)
+                        // For non-learners (admins), send immediately
+                        if (roleToAssign != "Learner")
                         {
-                            await _emailService.SendLearnerRegistrationEmailAsync(
-                                user.Email,
-                                portalUrl,
-                                user.OrganisationID.Value.ToString(),
-                                user.FirstName,
-                                request.GroupIds != null && request.GroupIds.Any());
-                        }
-                        else
-                        {
-                            // For admins, send the old notification email
                             await _emailService.SendUserRegistrationNotificationAsync(
                                 user.Email,
                                 user.FirstName,
                                 user.LastName,
                                 roleToAssign,
                                 portalUrl);
+                                
+                            _logger.LogInformation("Registration email sent successfully to {Email}", user.Email);
                         }
-                            
-                        _logger.LogInformation("Registration email sent successfully to {Email}", user.Email);
+                        // For learners, we'll send after pathway assignment to include course list
                     }
                 }
                 catch (Exception emailEx)
@@ -388,6 +379,7 @@ namespace lmsBox.Server.Controllers
                 _logger.LogInformation("User {UserId} created successfully by {AdminUser}", user.Id, User.Identity?.Name);
 
                 // Assign to learning pathways if provided
+                List<string>? assignedCourseNames = null;
                 if (request.GroupIds != null && request.GroupIds.Any())
                 {
                     _logger.LogInformation("Assigning user {UserId} to {Count} learning pathways", user.Id, request.GroupIds.Count);
@@ -407,45 +399,41 @@ namespace lmsBox.Server.Controllers
                     await _context.SaveChangesAsync();
                     _logger.LogInformation("Learning pathway assignments saved for user {UserId}", user.Id);
 
-                    // Send pathway assignment email
+                    // Get course names for email
+                    var pathways = await _context.LearningPathways
+                        .Where(p => request.GroupIds.Contains(p.Id))
+                        .Include(p => p.PathwayCourses)
+                            .ThenInclude(pc => pc.Course)
+                        .ToListAsync();
+
+                    assignedCourseNames = pathways
+                        .SelectMany(p => p.PathwayCourses.Select(pc => pc.Course!.Title))
+                        .Distinct()
+                        .ToList();
+                }
+
+                // Send learner registration email after pathway assignment
+                if (roleToAssign == "Learner" && user.OrganisationID.HasValue && _emailService != null)
+                {
                     try
                     {
-                        if (organisation == null)
-                        {
-                            _logger.LogWarning("Organisation not found, skipping pathway assignment email");
-                        }
-                        else if (_emailService != null)
-                        {
-                            var pathways = await _context.LearningPathways
-                                .Where(p => request.GroupIds.Contains(p.Id))
-                                .Include(p => p.PathwayCourses)
-                                    .ThenInclude(pc => pc.Course)
-                                .ToListAsync();
+                        var baseUrl = _config["AppSettings:BaseUrl"] ?? Request.Scheme + "://" + Request.Host;
+                        var portalUrl = $"{baseUrl}/login";
 
-                            var pathwayNames = pathways.Select(p => p.Title).ToList();
-                            var courseNames = pathways
-                                .SelectMany(p => p.PathwayCourses.Select(pc => pc.Course!.Title))
-                                .Distinct()
-                                .ToList();
-
-                            var portalUrl = $"{Request.Scheme}://{Request.Host}";
-
-                            await _emailService.SendPathwayAssignmentEmailAsync(
-                                user.Email!,
-                                organisation.Id.ToString(),
-                                portalUrl,
-                                pathwayNames,
-                                courseNames,
-                                user.FirstName
-                            );
-
-                            _logger.LogInformation("Pathway assignment notification sent to {Email} for {PathwayCount} pathways", 
-                                user.Email, request.GroupIds.Count);
-                        }
+                        await _emailService.SendLearnerRegistrationEmailAsync(
+                            user.Email,
+                            portalUrl,
+                            user.OrganisationID.Value.ToString(),
+                            user.FirstName,
+                            assignedCourseNames);
+                            
+                        _logger.LogInformation("Learner registration email sent successfully to {Email} with {CourseCount} courses", 
+                            user.Email, assignedCourseNames?.Count ?? 0);
                     }
                     catch (Exception emailEx)
                     {
-                        _logger.LogError(emailEx, "Failed to send pathway assignment notification to {Email}", user.Email);
+                        _logger.LogError(emailEx, "Failed to send learner registration email to {Email}", user.Email);
+                        emailStatus = "failed";
                     }
                 }
 
@@ -565,7 +553,8 @@ namespace lmsBox.Server.Controllers
                         var roleResult = await _userManager.AddToRoleAsync(user, roleToAssign);
                         var roleAssigned = roleResult.Succeeded;
 
-                        // Assign to learning pathways if provided
+                        // Assign to learning pathways if provided and get course list
+                        List<string>? assignedCourseNames = null;
                         if (request.GroupIds != null && request.GroupIds.Any())
                         {
                             foreach (var pathwayId in request.GroupIds)
@@ -583,39 +572,38 @@ namespace lmsBox.Server.Controllers
                             }
                             await _context.SaveChangesAsync();
 
-                            // Send pathway assignment email
-                            try
-                            {
-                                var pathways = await _context.LearningPathways
-                                    .Where(p => request.GroupIds.Contains(p.Id))
-                                    .Include(p => p.PathwayCourses)
-                                        .ThenInclude(pc => pc.Course)
-                                    .ToListAsync();
+                            // Get course names for email
+                            var pathways = await _context.LearningPathways
+                                .Where(p => request.GroupIds.Contains(p.Id))
+                                .Include(p => p.PathwayCourses)
+                                    .ThenInclude(pc => pc.Course)
+                                .ToListAsync();
 
-                                var pathwayNames = pathways.Select(p => p.Title).ToList();
-                                var courseNames = pathways
-                                    .SelectMany(p => p.PathwayCourses.Select(pc => pc.Course!.Title))
-                                    .Distinct()
-                                    .ToList();
+                            assignedCourseNames = pathways
+                                .SelectMany(p => p.PathwayCourses.Select(pc => pc.Course!.Title))
+                                .Distinct()
+                                .ToList();
+                        }
 
-                                var portalUrl = $"{Request.Scheme}://{Request.Host}";
+                        // Send learner registration email (with courses if assigned)
+                        try
+                        {
+                            var portalUrl = $"{Request.Scheme}://{Request.Host}/login";
 
-                                await _emailService.SendPathwayAssignmentEmailAsync(
-                                    user.Email!,
-                                    organisation.Id.ToString(),
-                                    portalUrl,
-                                    pathwayNames,
-                                    courseNames,
-                                    user.FirstName
-                                );
+                            await _emailService.SendLearnerRegistrationEmailAsync(
+                                user.Email!,
+                                portalUrl,
+                                organisation.Id.ToString(),
+                                user.FirstName,
+                                assignedCourseNames
+                            );
 
-                                _logger.LogInformation("Pathway assignment notification sent to {Email} for {PathwayCount} pathways", 
-                                    user.Email, request.GroupIds.Count);
-                            }
-                            catch (Exception emailEx)
-                            {
-                                _logger.LogError(emailEx, "Failed to send pathway assignment notification to {Email}", user.Email);
-                            }
+                            _logger.LogInformation("Learner registration email sent to {Email} with {CourseCount} courses", 
+                                user.Email, assignedCourseNames?.Count ?? 0);
+                        }
+                        catch (Exception emailEx)
+                        {
+                            _logger.LogError(emailEx, "Failed to send learner registration email to {Email}", user.Email);
                         }
 
                         results.Add(new { email, status = "created", userId = user.Id, roleAssigned });

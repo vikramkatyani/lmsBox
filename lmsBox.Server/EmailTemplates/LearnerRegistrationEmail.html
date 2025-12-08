@@ -83,6 +83,19 @@
                 <a href="{{PortalUrl}}" class="button">Access LMS Portal</a>
             </div>
             
+            {{#if HasCourses}}
+            <div class="info-box">
+                <strong>When you log in for the first time:</strong>
+                <ul>
+                    <li>You'll be asked to enter your name to complete your profile.</li>
+                </ul>
+                <strong>You have been assigned the following courses:</strong>
+                <ul>
+                    {{CourseListHtml}}
+                </ul>
+                <p style="margin: 10px 0 0 0; color: #666; font-size: 14px;">Login to start learning and track your progress!</p>
+            </div>
+            {{else}}
             <div class="info-box">
                 <strong>When you log in for the first time:</strong>
                 <ul>
@@ -90,6 +103,7 @@
                     <li>Courses may or may not be assigned to you yet. If you don't see any courses, please contact your company administrator.</li>
                 </ul>
             </div>
+            {{/if}}
             
             <p>If you have any questions or need help, reach out to your company admin or the support team.</p>
             

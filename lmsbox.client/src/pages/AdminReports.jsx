@@ -12,6 +12,7 @@ import {
   BookOpenIcon,
   MapIcon
 } from '@heroicons/react/24/outline';
+import { HardDrive } from 'lucide-react';
 
 export default function AdminReports() {
   usePageTitle('Reports & Analytics');
@@ -115,6 +116,15 @@ export default function AdminReports() {
       icon: DocumentChartBarIcon,
       path: '/admin/reports/content-usage',
       color: 'bg-[#36454F]'
+    },
+    {
+      id: 'storage-usage',
+      name: 'Storage Usage Report',
+      description: 'Monitor Azure storage consumption and manage your storage quota',
+      category: 'admin',
+      icon: HardDrive,
+      path: '/admin/reports/storage',
+      color: 'bg-indigo-600'
     }
   ];
 

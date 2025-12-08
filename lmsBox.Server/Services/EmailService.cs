@@ -10,8 +10,9 @@ namespace lmsBox.Server.Services
     {
         Task SendUserRegistrationNotificationAsync(string userEmail, string firstName, string lastName, string role, string loginUrl);
         Task SendLoginLinkEmailAsync(string userEmail, string loginUrl, int expiryMinutes, string organisationId, string? firstName = null);
-        Task SendLearnerRegistrationEmailAsync(string userEmail, string portalUrl, string organisationId, string? firstName = null, bool hasCourses = false);
+        Task SendLearnerRegistrationEmailAsync(string userEmail, string portalUrl, string organisationId, string? firstName = null, List<string>? courseNames = null);
         Task SendPathwayAssignmentEmailAsync(string userEmail, string organisationId, string portalUrl, List<string> pathwayNames, List<string> courseNames, string? firstName = null);
+        Task SendNewCourseAccessEmailAsync(string userEmail, string organisationId, string portalUrl, List<string> courseNames, string? pathwayName = null, string? firstName = null);
         Task SendEmailAsync(string to, string subject, string htmlBody, string? textBody = null);
     }
 
@@ -243,7 +244,7 @@ namespace lmsBox.Server.Services
             }
         }
 
-        public async Task SendLearnerRegistrationEmailAsync(string userEmail, string portalUrl, string organisationId, string? firstName = null, bool hasCourses = false)
+        public async Task SendLearnerRegistrationEmailAsync(string userEmail, string portalUrl, string organisationId, string? firstName = null, List<string>? courseNames = null)
         {
             try
             {
@@ -255,6 +256,10 @@ namespace lmsBox.Server.Services
                 var brandName = organisation?.BrandName ?? _config["AppSettings:AppName"] ?? "LMS Box";
                 var supportEmail = organisation?.SupportEmail ?? _config["AppSettings:SupportEmail"] ?? "support@example.com";
 
+                // Generate course list HTML if courses are provided
+                var hasCourses = courseNames != null && courseNames.Any();
+                var courseListHtml = hasCourses ? string.Join("", courseNames!.Select(c => $"<li>{c}</li>")) : "";
+
                 var templateData = new Dictionary<string, object>
                 {
                     {"BrandName", brandName},
@@ -262,6 +267,8 @@ namespace lmsBox.Server.Services
                     {"Email", userEmail},
                     {"PortalUrl", portalUrl},
                     {"HasCourses", hasCourses},
+                    {"CourseListHtml", courseListHtml},
+                    {"CourseCount", hasCourses ? courseNames!.Count : 0},
                     {"SupportEmail", supportEmail},
                     {"Year", DateTime.Now.Year}
                 };
@@ -319,6 +326,51 @@ namespace lmsBox.Server.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to send pathway assignment email to {Email}", userEmail);
+                throw;
+            }
+        }
+
+        public async Task SendNewCourseAccessEmailAsync(string userEmail, string organisationId, string portalUrl, List<string> courseNames, string? pathwayName = null, string? firstName = null)
+        {
+            try
+            {
+                // Fetch organization details from database
+                var orgId = long.Parse(organisationId);
+                var organisation = await _context.Organisations
+                    .FirstOrDefaultAsync(o => o.Id == orgId);
+
+                var brandName = organisation?.BrandName ?? _config["AppSettings:AppName"] ?? "LMS Box";
+                var supportEmail = organisation?.SupportEmail ?? _config["AppSettings:SupportEmail"] ?? "support@example.com";
+
+                // Generate course list HTML
+                var courseListHtml = string.Join("", courseNames.Select(c => $"<li>{c}</li>"));
+                var isMultipleCourses = courseNames.Count > 1;
+
+                var templateData = new Dictionary<string, object>
+                {
+                    {"BrandName", brandName},
+                    {"FirstName", firstName ?? ""},
+                    {"PortalUrl", portalUrl},
+                    {"PathwayName", pathwayName ?? ""},
+                    {"CourseListHtml", courseListHtml},
+                    {"CourseCount", courseNames.Count},
+                    {"IsMultipleCourses", isMultipleCourses},
+                    {"SupportEmail", supportEmail},
+                    {"Year", DateTime.Now.Year}
+                };
+
+                var htmlBody = await LoadAndProcessTemplate("NewCourseAccessEmail.html", templateData);
+                var subject = isMultipleCourses 
+                    ? $"New Courses Available - {brandName}" 
+                    : $"New Course Available - {brandName}";
+
+                await SendEmailAsync(userEmail, subject, htmlBody);
+
+                _logger.LogInformation("New course access email sent to {Email} for {CourseCount} course(s)", userEmail, courseNames.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send new course access email to {Email}", userEmail);
                 throw;
             }
         }

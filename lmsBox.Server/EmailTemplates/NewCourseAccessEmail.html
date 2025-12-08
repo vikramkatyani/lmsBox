@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>New Learning Pathway Assigned</title>
+    <title>New Course Access</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -77,17 +77,17 @@
             <p style="margin-top: 0;">Hello,</p>
             {{/if}}
             
-            <p>You've been assigned to <strong>{{PathwayNames}}</strong> on the <strong>{{BrandName}} Learning Portal</strong>.</p>
+            <p>{{#if PathwayName}}New courses have been added to your learning pathway <strong>{{PathwayName}}</strong>{{else}}You now have access to new courses{{/if}} on the <strong>{{BrandName}} Learning Portal</strong>.</p>
             
             <div class="info-box">
-                <strong>You now have access to {{CourseCount}} course(s):</strong>
+                <strong>{{#if IsMultipleCourses}}{{CourseCount}} new courses are now available:{{else}}New course available:{{/if}}</strong>
                 <ul>
                     {{CourseListHtml}}
                 </ul>
-                <p style="margin: 10px 0 0 0; color: #666; font-size: 14px;">Complete them at your own pace and track your progress along the way.</p>
+                <p style="margin: 10px 0 0 0; color: #666; font-size: 14px;">Log in to start learning and track your progress!</p>
             </div>
             
-            <p>To get started with your learning journey, click the button below:</p>
+            <p>To access your new courses, click the button below:</p>
             
             <div style="text-align: center; margin: 30px 0;">
                 <a href="{{PortalUrl}}" class="button">Access Learning Portal</a>
