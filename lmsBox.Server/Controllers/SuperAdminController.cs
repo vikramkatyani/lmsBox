@@ -279,41 +279,87 @@ public class SuperAdminController : ControllerBase
         return Ok(new { message = "Organisation admin created successfully", email = admin.Email });
     }
 
-    // Get Azure Storage SAS token for uploading org assets
+    // Upload banner or favicon for organisation (server-side with storage tracking)
     [Authorize(Roles = "SuperAdmin")]
-    [HttpPost("organisations/{orgId}/upload-token")]
-    public IActionResult GetUploadToken(long orgId, [FromQuery] string fileType)
+    [HttpPost("organisations/{orgId}/upload-asset")]
+    [RequestSizeLimit(10_485_760)] // 10 MB limit
+    public async Task<IActionResult> UploadOrganisationAsset(long orgId, [FromForm] IFormFile file, [FromQuery] string assetType)
     {
-        var connectionString = _configuration["AzureStorage:ConnectionString"];
-        if (string.IsNullOrEmpty(connectionString))
-            return BadRequest(new { error = "Azure Storage not configured" });
-
-        var blobServiceClient = new BlobServiceClient(connectionString);
-        var containerName = _configuration["AzureStorage:ContainerName"] ?? "lms-content";
-        var containerClient = blobServiceClient.GetBlobContainerClient(containerName);
-
-        // Generate unique blob name
-        var blobPath = $"organisation/{orgId:D10}/uicontent/{Guid.NewGuid()}{Path.GetExtension(fileType)}";
-        var blobClient = containerClient.GetBlobClient(blobPath);
-
-        // Generate SAS token (write only, 1 hour expiry)
-        var sasBuilder = new BlobSasBuilder
+        try
         {
-            BlobContainerName = containerName,
-            BlobName = blobPath,
-            Resource = "b",
-            ExpiresOn = DateTimeOffset.UtcNow.AddHours(1)
-        };
-        sasBuilder.SetPermissions(BlobSasPermissions.Write | BlobSasPermissions.Create);
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(new { message = "No file provided" });
+            }
 
-        var sasToken = blobClient.GenerateSasUri(sasBuilder);
+            if (assetType != "banner" && assetType != "favicon")
+            {
+                return BadRequest(new { message = "Asset type must be 'banner' or 'favicon'" });
+            }
 
-        return Ok(new
+            // Validate file type
+            var allowedExtensions = assetType == "banner"
+                ? new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" }
+                : new[] { ".ico", ".png" };
+            var extension = Path.GetExtension(file.FileName).ToLower();
+            if (!allowedExtensions.Contains(extension))
+            {
+                return BadRequest(new { message = $"Invalid file type. Allowed: {string.Join(", ", allowedExtensions)}" });
+            }
+
+            // Validate file size (max 10 MB)
+            if (file.Length > 10_485_760)
+            {
+                return BadRequest(new { message = "File size must be less than 10 MB" });
+            }
+
+            if (!_blobService.IsConfigured())
+            {
+                return StatusCode(500, new { message = "File storage is not configured" });
+            }
+
+            // Get organisation
+            var organisation = await _context.Organisations.FindAsync(orgId);
+            if (organisation == null)
+            {
+                return NotFound(new { message = "Organisation not found" });
+            }
+
+            // Upload to branding container with storage tracking
+            var assetId = Guid.NewGuid();
+            var fileName = $"{assetType}_{assetId}{extension}";
+            var companyName = organisation.Name.Replace(" ", "").ToLower();
+            var folderPath = $"{companyName}";
+
+            string assetUrl;
+            using (var stream = file.OpenReadStream())
+            {
+                try
+                {
+                    assetUrl = await _blobService.UploadToBrandingContainerAsync(
+                        stream,
+                        fileName,
+                        folderPath,
+                        file.ContentType,
+                        organisation.Id
+                    );
+                }
+                catch (InvalidOperationException ex) when (ex.Message.Contains("Storage quota exceeded"))
+                {
+                    _logger.LogWarning("Storage quota exceeded for organisation {OrgId}", organisation.Id);
+                    return BadRequest(new { message = ex.Message });
+                }
+            }
+
+            _logger.LogInformation("SuperAdmin uploaded {AssetType} for organisation {OrgId}", assetType, organisation.Id);
+
+            return Ok(new { url = assetUrl, message = $"{assetType} uploaded successfully" });
+        }
+        catch (Exception ex)
         {
-            uploadUrl = sasToken.ToString(),
-            blobPath = blobPath,
-            expiresAt = sasBuilder.ExpiresOn
-        });
+            _logger.LogError(ex, "Error uploading organisation asset for org {OrgId}", orgId);
+            return StatusCode(500, new { message = "An error occurred while uploading the file" });
+        }
     }
 
     // Global Library Content Management

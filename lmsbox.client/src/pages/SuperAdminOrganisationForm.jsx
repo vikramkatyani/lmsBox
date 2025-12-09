@@ -6,8 +6,8 @@ import {
   getOrganisation, 
   createOrganisation, 
   updateOrganisation,
-  getOrgUploadToken,
-  uploadFileToAzure
+  createOrgAdmin,
+  uploadOrgAsset
 } from '../services/superAdminApi';
 import { ArrowLeftIcon, CloudArrowUpIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
@@ -44,7 +44,12 @@ export default function SuperAdminOrganisationForm() {
     managerEmail: '',
     managerPhone: '',
     renewalDate: '',
-    isActive: true
+    isActive: true,
+    // Admin user fields (only for create mode)
+    createAdmin: true,
+    adminFirstName: '',
+    adminLastName: '',
+    adminEmail: ''
   });
 
   useEffect(() => {
@@ -96,21 +101,17 @@ export default function SuperAdminOrganisationForm() {
     try {
       setUploading(prev => ({ ...prev, [fileType]: true }));
       
-      // Get SAS token
-      const extension = `.${file.name.split('.').pop()}`;
-      const { uploadUrl, blobPath } = await getOrgUploadToken(id || 0, extension);
+      // Upload file to server (with storage tracking)
+      const result = await uploadOrgAsset(id || 0, file, fileType);
       
-      // Upload file
-      await uploadFileToAzure(uploadUrl, file);
-      
-      // Update form with blob path
+      // Update form with returned URL
       const urlField = fileType === 'banner' ? 'bannerUrl' : 'faviconUrl';
-      setFormData(prev => ({ ...prev, [urlField]: blobPath }));
+      setFormData(prev => ({ ...prev, [urlField]: result.url }));
       
       toast.success(`${fileType === 'banner' ? 'Banner' : 'Favicon'} uploaded successfully`);
     } catch (error) {
       console.error('Upload error:', error);
-      toast.error(`Failed to upload ${fileType}`);
+      toast.error(error.message || `Failed to upload ${fileType}`);
     } finally {
       setUploading(prev => ({ ...prev, [fileType]: false }));
     }
@@ -124,6 +125,24 @@ export default function SuperAdminOrganisationForm() {
       return;
     }
 
+    // Validate admin fields (mandatory in create mode)
+    if (!isEdit) {
+      if (!formData.adminEmail.trim()) {
+        toast.error('Organisation admin email is required');
+        return;
+      }
+      if (!formData.adminFirstName.trim()) {
+        toast.error('Organisation admin first name is required');
+        return;
+      }
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.adminEmail)) {
+        toast.error('Please enter a valid email address for organisation admin');
+        return;
+      }
+    }
+
     try {
       setSaving(true);
       
@@ -135,15 +154,40 @@ export default function SuperAdminOrganisationForm() {
       if (isEdit) {
         await updateOrganisation(id, dataToSend);
         toast.success('Organisation updated successfully');
+        navigate('/superadmin/organisations');
       } else {
-        await createOrganisation(dataToSend);
-        toast.success('Organisation created successfully');
+        // Create organisation first
+        let newOrg;
+        try {
+          newOrg = await createOrganisation(dataToSend);
+        } catch (orgError) {
+          console.error('Error creating organisation:', orgError);
+          throw new Error(`Failed to create organisation: ${orgError.message || 'Please check all required fields and try again'}`);
+        }
+        
+        const orgId = newOrg.id;
+        
+        // Create admin (mandatory)
+        try {
+          await createOrgAdmin(orgId, {
+            organisationId: orgId,
+            email: formData.adminEmail,
+            firstName: formData.adminFirstName,
+            lastName: formData.adminLastName,
+            password: 'TempPass@123' // Temporary password since login doesn't require it
+          });
+          toast.success('Organisation and admin created successfully');
+          navigate('/superadmin/organisations');
+        } catch (adminError) {
+          console.error('Error creating admin:', adminError);
+          toast.error(`Organisation created, but failed to create admin: ${adminError.message || 'The admin email may already exist in the system'}`);
+          // Don't navigate away so user can see the error
+          return;
+        }
       }
-      
-      navigate('/superadmin/organisations');
     } catch (error) {
       console.error('Error saving organisation:', error);
-      toast.error(error.message || 'Failed to save organisation');
+      toast.error(error.message || 'Failed to save organisation. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -349,6 +393,69 @@ export default function SuperAdminOrganisationForm() {
                     placeholder='{"primaryColor": "#4F46E5", "secondaryColor": "#7C3AED"}'
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500 font-mono text-sm"
                   />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Organisation Admin Account (mandatory in create mode) */}
+          {!isEdit && (
+            <div className="bg-white shadow rounded-lg p-6 border-2 border-indigo-200">
+              <div className="mb-4">
+                <h2 className="text-lg font-medium text-gray-900">Organisation Admin Account *</h2>
+                <p className="text-sm text-gray-500 mt-1">Create the first admin user for this organisation. They will receive a login link via email.</p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      First Name *
+                    </label>
+                    <input
+                      type="text"
+                      name="adminFirstName"
+                      value={formData.adminFirstName}
+                      onChange={handleChange}
+                      required
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Last Name
+                    </label>
+                    <input
+                      type="text"
+                      name="adminLastName"
+                      value={formData.adminLastName}
+                      onChange={handleChange}
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Email Address *
+                  </label>
+                  <input
+                    type="email"
+                    name="adminEmail"
+                    value={formData.adminEmail}
+                    onChange={handleChange}
+                    required
+                    placeholder="admin@example.com"
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">This email will be used to send a login link to access the admin portal</p>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                  <p className="text-sm text-blue-800">
+                    <strong>Note:</strong> The admin will receive a login link via email and will be able to manage users, courses, and content for this organisation immediately.
+                  </p>
                 </div>
               </div>
             </div>

@@ -276,11 +276,31 @@ public class AzureBlobService : IAzureBlobService
                 ContentType = contentType
             };
 
+            // Get file size before upload
+            var fileSize = fileStream.Length;
+
             // Upload with overwrite
             await blobClient.UploadAsync(fileStream, new BlobUploadOptions
             {
                 HttpHeaders = blobHttpHeaders
             });
+
+            // Try to extract organisation ID from folderPath and track storage
+            // Expected format: "organisations/{storageKey}/library" or similar
+            if (folderPath.StartsWith("organisations/", StringComparison.OrdinalIgnoreCase))
+            {
+                // Try to get organisation by storage key from path
+                var pathParts = folderPath.Split('/');
+                if (pathParts.Length >= 2)
+                {
+                    var storageKey = pathParts[1];
+                    var organisation = await _context.Organisations.FirstOrDefaultAsync(o => o.StorageKey == storageKey);
+                    if (organisation != null)
+                    {
+                        await _storageQuotaService.TrackUploadAsync(organisation.Id, fileSize, "content");
+                    }
+                }
+            }
 
             _logger.LogInformation("File uploaded successfully: {BlobPath}", blobPath);
 
@@ -339,6 +359,154 @@ public class AzureBlobService : IAzureBlobService
             _logger.LogError(ex, "Error listing files from blob storage");
             throw;
         }
+    }
+
+    public async Task<List<BlobFileInfo>> GetOrganisationStorageFilesAsync(long organisationId)
+    {
+        if (_containerClient == null || string.IsNullOrEmpty(_connectionString))
+        {
+            throw new InvalidOperationException("Azure Blob Storage is not configured");
+        }
+
+        try
+        {
+            // Get the storage key
+            var organisation = await _context.Organisations.FindAsync(organisationId);
+            if (organisation == null || string.IsNullOrEmpty(organisation.StorageKey))
+            {
+                throw new InvalidOperationException($"Organisation with ID {organisationId} not found or has no storage key");
+            }
+
+            var storageKey = organisation.StorageKey;
+            var companyName = organisation.Name.Replace(" ", "").ToLower();
+            var files = new List<BlobFileInfo>();
+            var scormPackages = new Dictionary<string, (string name, DateTimeOffset? lastModified, long totalSize)>(); // Track SCORM package folders
+
+            // 1. List all content files under organisations/{storageKey}/ in main container
+            var orgPrefix = $"organisations/{storageKey}/";
+
+            await foreach (var blobItem in _containerClient.GetBlobsAsync(prefix: orgPrefix))
+            {
+                // Check if this is a SCORM package file
+                if (blobItem.Name.Contains("/scorm/", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Extract SCORM package folder name
+                    // Path format: organisations/{storageKey}/library/scorm/{packageName}/files...
+                    var scormIndex = blobItem.Name.IndexOf("/scorm/", StringComparison.OrdinalIgnoreCase);
+                    var afterScorm = blobItem.Name.Substring(scormIndex + 7); // +7 for "/scorm/"
+                    var packageName = afterScorm.Split('/')[0];
+                    var packagePath = blobItem.Name.Substring(0, scormIndex + 7 + packageName.Length);
+
+                    // Aggregate package size and track latest modification date
+                    if (!scormPackages.ContainsKey(packagePath))
+                    {
+                        scormPackages[packagePath] = (packageName, blobItem.Properties.LastModified, blobItem.Properties.ContentLength ?? 0);
+                    }
+                    else
+                    {
+                        var existing = scormPackages[packagePath];
+                        var newSize = existing.totalSize + (blobItem.Properties.ContentLength ?? 0);
+                        var latestDate = blobItem.Properties.LastModified > existing.lastModified 
+                            ? blobItem.Properties.LastModified 
+                            : existing.lastModified;
+                        scormPackages[packagePath] = (existing.name, latestDate, newSize);
+                    }
+                    continue; // Skip individual SCORM files
+                }
+
+                // Regular files (videos, PDFs, HTML)
+                var blobClient2 = _containerClient.GetBlobClient(blobItem.Name);
+                var properties2 = await blobClient2.GetPropertiesAsync();
+
+                var detectedFileType = GetFileType(blobItem.Name, properties2.Value.ContentType);
+                var category = DetermineCategory(blobItem.Name);
+
+                files.Add(new BlobFileInfo
+                {
+                    Name = Path.GetFileName(blobItem.Name),
+                    Url = blobClient2.Uri.ToString(),
+                    ContentType = properties2.Value.ContentType,
+                    Size = blobItem.Properties.ContentLength ?? 0,
+                    LastModified = blobItem.Properties.LastModified,
+                    FileType = detectedFileType,
+                    Category = category,
+                    Path = blobItem.Name
+                });
+            }
+
+            // Add aggregated SCORM packages to files list
+            foreach (var (packagePath, (name, lastModified, totalSize)) in scormPackages)
+            {
+                files.Add(new BlobFileInfo
+                {
+                    Name = name,
+                    Url = $"{_containerClient.Uri}/{packagePath}",
+                    ContentType = "application/zip",
+                    Size = totalSize,
+                    LastModified = lastModified,
+                    FileType = "scorm",
+                    Category = "scorm",
+                    Path = packagePath
+                });
+            }
+
+            // 2. List branding files from branding container
+            var blobServiceClient = new BlobServiceClient(_connectionString);
+            var brandingContainerClient = blobServiceClient.GetBlobContainerClient("lms-content-brandui");
+            
+            if (await brandingContainerClient.ExistsAsync())
+            {
+                // Check both company name folder and storage key folder for course banners
+                var brandingPrefixes = new[] 
+                { 
+                    $"{companyName}/",
+                    $"{storageKey}/course-banner/"
+                };
+
+                foreach (var prefix in brandingPrefixes)
+                {
+                    await foreach (var blobItem in brandingContainerClient.GetBlobsAsync(prefix: prefix))
+                    {
+                        var blobClient = brandingContainerClient.GetBlobClient(blobItem.Name);
+                        var properties = await blobClient.GetPropertiesAsync();
+
+                        var detectedFileType = GetFileType(blobItem.Name, properties.Value.ContentType);
+
+                        files.Add(new BlobFileInfo
+                        {
+                            Name = Path.GetFileName(blobItem.Name),
+                            Url = blobClient.Uri.ToString(),
+                            ContentType = properties.Value.ContentType,
+                            Size = blobItem.Properties.ContentLength ?? 0,
+                            LastModified = blobItem.Properties.LastModified,
+                            FileType = detectedFileType,
+                            Category = "branding",
+                            Path = blobItem.Name
+                        });
+                    }
+                }
+            }
+
+            return files.OrderByDescending(f => f.LastModified).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error listing organisation storage files for org {OrgId}", organisationId);
+            throw;
+        }
+    }
+
+    private static string DetermineCategory(string blobPath)
+    {
+        if (blobPath.Contains("/scorm/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "scorm";
+        }
+        if (blobPath.Contains("/uicontent/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "branding";
+        }
+        return "content";
     }
 
     public async Task<List<BlobFileInfo>> ListSharedLibraryFilesAsync(string? fileType = null)
@@ -570,6 +738,10 @@ public class AzureBlobService : IAzureBlobService
                 var uploadStats = await UploadDirectoryRecursive(manifestDirectory, scormFolder);
 
                 _logger.LogInformation($"Uploaded {uploadStats.FileCount} files, total size: {uploadStats.TotalSize} bytes");
+
+                // Track storage usage
+                var orgId = long.Parse(organisationId);
+                await _storageQuotaService.TrackUploadAsync(orgId, uploadStats.TotalSize, "content");
 
                 // Construct the launch URL
                 var baseUrl = $"{_containerClient.Uri}/{scormFolder}";

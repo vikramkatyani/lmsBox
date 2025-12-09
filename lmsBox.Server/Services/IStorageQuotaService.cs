@@ -39,4 +39,9 @@ public class StorageUsageInfo
     public string AllocatedFormatted { get; set; } = string.Empty;
     public string UsedFormatted { get; set; } = string.Empty;
     public string AvailableFormatted { get; set; } = string.Empty;
+    public double AllocatedGB { get; set; }
+    public double UsedGB { get; set; }
+    public double AvailableGB { get; set; }
+    public double BrandingUsedGB { get; set; }
+    public double ContentUsedGB { get; set; }
 }

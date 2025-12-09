@@ -153,7 +153,12 @@ public class AdminDashboardController : ControllerBase
             // Get recent lesson completions (last 15) - only where LessonId is not null
             var recentLessonCompletionsQuery = _context.LearnerProgresses
                 .AsNoTracking()
-                .Where(lp => lp.Completed && lp.CompletedAt.HasValue && lp.LessonId != null)
+                .Where(lp => lp.Completed && lp.CompletedAt.HasValue && lp.LessonId != null);
+            
+            if (orgId.HasValue)
+                recentLessonCompletionsQuery = recentLessonCompletionsQuery.Where(lp => lp.User != null && lp.User.OrganisationID == orgId.Value);
+            
+            recentLessonCompletionsQuery = recentLessonCompletionsQuery
                 .OrderByDescending(lp => lp.CompletedAt)
                 .Take(15);
                 
@@ -171,7 +176,12 @@ public class AdminDashboardController : ControllerBase
             // Get recent course completions (last 15) - only where LessonId is null (course-level)
             var recentCourseCompletionsQuery = _context.LearnerProgresses
                 .AsNoTracking()
-                .Where(lp => lp.Completed && lp.CompletedAt.HasValue && lp.LessonId == null)
+                .Where(lp => lp.Completed && lp.CompletedAt.HasValue && lp.LessonId == null);
+            
+            if (orgId.HasValue)
+                recentCourseCompletionsQuery = recentCourseCompletionsQuery.Where(lp => lp.User != null && lp.User.OrganisationID == orgId.Value);
+            
+            recentCourseCompletionsQuery = recentCourseCompletionsQuery
                 .OrderByDescending(lp => lp.CompletedAt)
                 .Take(15);
                 
@@ -188,7 +198,12 @@ public class AdminDashboardController : ControllerBase
             // Get recent certificate issuances (last 15)
             var recentCertificatesQuery = _context.LearnerProgresses
                 .AsNoTracking()
-                .Where(lp => lp.CertificateIssuedAt.HasValue && !string.IsNullOrEmpty(lp.CertificateId))
+                .Where(lp => lp.CertificateIssuedAt.HasValue && !string.IsNullOrEmpty(lp.CertificateId));
+            
+            if (orgId.HasValue)
+                recentCertificatesQuery = recentCertificatesQuery.Where(lp => lp.User != null && lp.User.OrganisationID == orgId.Value);
+            
+            recentCertificatesQuery = recentCertificatesQuery
                 .OrderByDescending(lp => lp.CertificateIssuedAt)
                 .Take(15);
                 

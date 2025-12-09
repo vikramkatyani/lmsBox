@@ -6,6 +6,7 @@ using lmsbox.domain.Models;
 using lmsbox.infrastructure.Data;
 using lmsBox.Server.Services;
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 
 namespace lmsBox.Server.Controllers
 {
@@ -53,6 +54,16 @@ namespace lmsBox.Server.Controllers
                 if (pageSize > 100) pageSize = 100; // Max page size limit
 
                 var query = _context.Users.AsQueryable();
+
+                // Organization filtering: OrgAdmin can only see their org's users
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var currentUser = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
+                
+                if (User.IsInRole("OrgAdmin") && currentUser != null)
+                {
+                    query = query.Where(u => u.OrganisationID == currentUser.OrganisationID);
+                }
+                // SuperAdmin and Admin can see all users (no additional filter)
 
                 // Apply search filter
                 if (!string.IsNullOrWhiteSpace(search))
@@ -188,6 +199,18 @@ namespace lmsBox.Server.Controllers
                     return NotFound(new { message = "User not found" });
                 }
 
+                // Check organization access for OrgAdmin
+                var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var currentUser = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == currentUserId);
+                
+                if (User.IsInRole("OrgAdmin") && currentUser != null)
+                {
+                    if (user.OrganisationID != currentUser.OrganisationID)
+                    {
+                        return Forbid("You can only access users from your organization");
+                    }
+                }
+
                 var roles = await _userManager.GetRolesAsync(user);
                 var primaryRole = roles.FirstOrDefault() ?? "Learner";
 
@@ -248,16 +271,33 @@ namespace lmsBox.Server.Controllers
 
                 // Get the current admin user to set proper references
                 var currentAdminUser = await _userManager.GetUserAsync(User);
+
+                // Determine organization for the new user
+                long orgId;
+                if (User.IsInRole("OrgAdmin") && currentAdminUser != null)
+                {
+                    if (currentAdminUser.OrganisationID == null)
+                    {
+                        _logger.LogWarning("OrgAdmin {UserId} has no OrganisationID", currentAdminUser.Id);
+                        return BadRequest(new { message = "Admin user must belong to an organization" });
+                    }
+                    // Force the new user to be in the same organization
+                    orgId = currentAdminUser.OrganisationID.Value;
+                }
+                else
+                {
+                    // Get the organisation (assuming there's one organisation for now or first one)
+                    var organisation = await _context.Organisations.FirstOrDefaultAsync();
+                    if (organisation == null)
+                    {
+                        _logger.LogError("No organisation found in the system");
+                        return StatusCode(500, new { message = "System configuration error: No organisation found" });
+                    }
+                    orgId = organisation.Id;
+                }
+                
                 var currentAdminId = currentAdminUser?.Id ?? "system";
                 var currentAdminName = User.Identity?.Name ?? "admin";
-
-                // Get the organisation (assuming there's one organisation for now)
-                var organisation = await _context.Organisations.FirstOrDefaultAsync();
-                if (organisation == null)
-                {
-                    _logger.LogError("No organisation found in the system");
-                    return StatusCode(500, new { message = "System configuration error: No organisation found" });
-                }
 
                 // Create new user
                 var user = new ApplicationUser
@@ -267,7 +307,7 @@ namespace lmsBox.Server.Controllers
                     FirstName = request.FirstName,
                     LastName = request.LastName,
                     EmailConfirmed = true, // Auto-confirm for admin-created users
-                    OrganisationID = organisation.Id,
+                    OrganisationID = orgId,
                     CreatedOn = DateTime.UtcNow,
                     CreatedBy = currentAdminId,
                     // Set required activation fields
@@ -500,10 +540,26 @@ namespace lmsBox.Server.Controllers
                 // Gather context info
                 var currentAdminUser = await _userManager.GetUserAsync(User);
                 var currentAdminId = currentAdminUser?.Id ?? "system";
-                var organisation = await _context.Organisations.FirstOrDefaultAsync();
-                if (organisation == null)
+                
+                // OrgAdmin can only create users for their own organization
+                long orgId;
+                if (User.IsInRole("OrgAdmin") && currentAdminUser != null)
                 {
-                    return StatusCode(500, new { message = "System configuration error: No organisation found" });
+                    if (currentAdminUser.OrganisationID == null)
+                    {
+                        return BadRequest(new { message = "Admin user must belong to an organization" });
+                    }
+                    orgId = currentAdminUser.OrganisationID.Value;
+                }
+                else
+                {
+                    // SuperAdmin can specify organization or default to first
+                    var organisation = await _context.Organisations.FirstOrDefaultAsync();
+                    if (organisation == null)
+                    {
+                        return StatusCode(500, new { message = "System configuration error: No organisation found" });
+                    }
+                    orgId = organisation.Id;
                 }
 
                 var roleToAssign = "Learner"; // fixed role per requirements
@@ -528,7 +584,7 @@ namespace lmsBox.Server.Controllers
                             FirstName = string.Empty,
                             LastName = string.Empty,
                             EmailConfirmed = true, // Active
-                            OrganisationID = organisation.Id,
+                            OrganisationID = orgId,
                             CreatedOn = DateTime.UtcNow,
                             CreatedBy = currentAdminId,
                             ActiveStatus = 1,
@@ -593,7 +649,7 @@ namespace lmsBox.Server.Controllers
                             await _emailService.SendLearnerRegistrationEmailAsync(
                                 user.Email!,
                                 portalUrl,
-                                organisation.Id.ToString(),
+                                orgId.ToString(),
                                 user.FirstName,
                                 assignedCourseNames
                             );
@@ -647,6 +703,18 @@ namespace lmsBox.Server.Controllers
                 if (user == null)
                 {
                     return NotFound(new { message = "User not found" });
+                }
+
+                // Check organization access for OrgAdmin
+                var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var currentUser = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == currentUserId);
+                
+                if (User.IsInRole("OrgAdmin") && currentUser != null)
+                {
+                    if (user.OrganisationID != currentUser.OrganisationID)
+                    {
+                        return Forbid("You can only update users from your organization");
+                    }
                 }
 
                 // Update user properties
@@ -775,6 +843,18 @@ namespace lmsBox.Server.Controllers
                 if (user == null)
                 {
                     return NotFound(new { message = "User not found" });
+                }
+
+                // Check organization access for OrgAdmin
+                var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var currentUser = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == currentUserId);
+                
+                if (User.IsInRole("OrgAdmin") && currentUser != null)
+                {
+                    if (user.OrganisationID != currentUser.OrganisationID)
+                    {
+                        return Forbid("You can only delete users from your organization");
+                    }
                 }
 
                 // Prevent deletion of the current admin user

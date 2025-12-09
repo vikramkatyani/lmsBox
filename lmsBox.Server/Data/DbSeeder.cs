@@ -412,5 +412,38 @@ public static class DbSeeder
 
         await db.SaveChangesAsync();
         logger.LogInformation("Created progress data for {CourseCount} courses", learnerCourses.Count);
+
+        // Seed default course categories
+        if (!db.CourseCategories.Any())
+        {
+            var defaultCategories = new[]
+            {
+                "Security",
+                "Soft Skills",
+                "HR",
+                "Compliance",
+                "Technical",
+                "Management",
+                "Leadership",
+                "Sales & Marketing",
+                "Finance",
+                "IT & Software",
+                "Design",
+                "Health & Safety"
+            };
+
+            foreach (var categoryName in defaultCategories)
+            {
+                db.CourseCategories.Add(new CourseCategory
+                {
+                    Name = categoryName,
+                    CreatedByUserId = "system",
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            await db.SaveChangesAsync();
+            logger.LogInformation("Seeded {Count} default course categories", defaultCategories.Length);
+        }
     }
 }

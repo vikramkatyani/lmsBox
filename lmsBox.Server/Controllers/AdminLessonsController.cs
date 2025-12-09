@@ -15,15 +15,18 @@ public class AdminLessonsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly IAzureBlobService _blobService;
+    private readonly IStorageQuotaService _storageQuotaService;
     private readonly ILogger<AdminLessonsController> _logger;
 
     public AdminLessonsController(
         ApplicationDbContext context,
         IAzureBlobService blobService,
+        IStorageQuotaService storageQuotaService,
         ILogger<AdminLessonsController> logger)
     {
         _context = context;
         _blobService = blobService;
+        _storageQuotaService = storageQuotaService;
         _logger = logger;
     }
 
@@ -797,15 +800,23 @@ public class AdminLessonsController : ControllerBase
 
             // Get user's organisation
             var user = await _context.Users.FindAsync(userId);
-            if (user == null || user.OrganisationID == 0)
+            if (user == null || !user.OrganisationID.HasValue)
             {
                 return BadRequest(new { message = "User organisation not found" });
+            }
+
+            // Check storage quota before upload
+            var (hasQuota, quotaMessage, _) = await _storageQuotaService.CheckQuotaAsync(user.OrganisationID.Value, file.Length, "content");
+            if (!hasQuota)
+            {
+                _logger.LogWarning("SCORM upload blocked due to quota: {Message}", quotaMessage);
+                return BadRequest(new { message = quotaMessage });
             }
 
             _logger.LogInformation("Uploading SCORM package {FileName} for course {CourseId}", file.FileName, courseId);
 
             using var stream = file.OpenReadStream();
-            var scormInfo = await _blobService.UploadScormPackageAsync(stream, file.FileName, user.OrganisationID.ToString());
+            var scormInfo = await _blobService.UploadScormPackageAsync(stream, file.FileName, user.OrganisationID.Value.ToString());
 
             var response = new ScormUploadResponse
             {
@@ -821,6 +832,11 @@ public class AdminLessonsController : ControllerBase
                 scormInfo.PackageName, scormInfo.FileCount);
 
             return Ok(response);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Storage quota exceeded"))
+        {
+            _logger.LogWarning("Storage quota exceeded for course {CourseId}: {Message}", courseId, ex.Message);
+            return BadRequest(new { message = ex.Message });
         }
         catch (InvalidOperationException ex)
         {
@@ -868,9 +884,18 @@ public class AdminLessonsController : ControllerBase
 
             // Get user's organisation
             var user = await _context.Users.FindAsync(userId);
-            if (user == null || user.OrganisationID == 0)
+            if (user == null || !user.OrganisationID.HasValue)
             {
                 return BadRequest(new { message = "User organisation not found" });
+            }
+
+            // Check storage quota before upload
+            var htmlBytes = System.Text.Encoding.UTF8.GetBytes(request.HtmlContent);
+            var (hasQuota, quotaMessage, _) = await _storageQuotaService.CheckQuotaAsync(user.OrganisationID.Value, htmlBytes.Length, "content");
+            if (!hasQuota)
+            {
+                _logger.LogWarning("HTML upload blocked due to quota: {Message}", quotaMessage);
+                return BadRequest(new { message = quotaMessage });
             }
 
             _logger.LogInformation("Uploading HTML content for course {CourseId}", courseId);
@@ -880,7 +905,6 @@ public class AdminLessonsController : ControllerBase
             var fileName = $"{sanitizedTitle}_{Guid.NewGuid()}.html";
 
             // Convert HTML string to stream
-            var htmlBytes = System.Text.Encoding.UTF8.GetBytes(request.HtmlContent);
             using var stream = new MemoryStream(htmlBytes);
 
             string htmlUrl;
@@ -890,13 +914,13 @@ public class AdminLessonsController : ControllerBase
                 htmlUrl = await _blobService.UploadFileAsync(
                     stream,
                     fileName,
-                    user.OrganisationID.ToString(),
+                    user.OrganisationID.Value.ToString(),
                     "text/html"
                 );
             }
             catch (InvalidOperationException ex) when (ex.Message.Contains("Storage quota exceeded"))
             {
-                _logger.LogWarning("Storage quota exceeded for organisation {OrgId}", user.OrganisationID);
+                _logger.LogWarning("Storage quota exceeded for organisation {OrgId}", user.OrganisationID.Value);
                 return BadRequest(new { message = ex.Message });
             }
 

@@ -141,7 +141,12 @@ public class StorageQuotaService : IStorageQuotaService
             UsagePercentage = Math.Round(usagePercentage, 2),
             AllocatedFormatted = FormatBytes(allocatedBytes),
             UsedFormatted = FormatBytes(usedBytes),
-            AvailableFormatted = FormatBytes(availableBytes)
+            AvailableFormatted = FormatBytes(availableBytes),
+            AllocatedGB = Math.Round((double)organisation.AllocatedStorageGB, 2),
+            UsedGB = Math.Round(usedBytes / (1024.0 * 1024.0 * 1024.0), 2),
+            AvailableGB = Math.Round(availableBytes / (1024.0 * 1024.0 * 1024.0), 2),
+            BrandingUsedGB = Math.Round(organisation.BrandingStorageUsedBytes / (1024.0 * 1024.0 * 1024.0), 2),
+            ContentUsedGB = Math.Round(organisation.ContentStorageUsedBytes / (1024.0 * 1024.0 * 1024.0), 2)
         };
     }
 

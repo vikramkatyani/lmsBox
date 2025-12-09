@@ -317,6 +317,26 @@ public class AdminCoursesController : ControllerBase
                 return BadRequest(new { message = "Title is required" });
             }
 
+            // Auto-create category if it doesn't exist
+            if (!string.IsNullOrWhiteSpace(request.Category))
+            {
+                var categoryName = request.Category.Trim();
+                var existingCategory = await _context.CourseCategories
+                    .FirstOrDefaultAsync(c => c.Name.ToLower() == categoryName.ToLower());
+                
+                if (existingCategory == null)
+                {
+                    _context.CourseCategories.Add(new CourseCategory
+                    {
+                        Name = categoryName,
+                        CreatedByUserId = userId,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation("New category '{Category}' created by user {UserId}", categoryName, userId);
+                }
+            }
+
             // Create new course
             var course = new Course
             {
@@ -426,6 +446,29 @@ public class AdminCoursesController : ControllerBase
             if (string.IsNullOrWhiteSpace(request.Title))
             {
                 return BadRequest(new { message = "Title is required" });
+            }
+
+            // Auto-create category if it doesn't exist and is being changed
+            if (!string.IsNullOrWhiteSpace(request.Category))
+            {
+                var categoryName = request.Category.Trim();
+                if (course.Category != categoryName)
+                {
+                    var existingCategory = await _context.CourseCategories
+                        .FirstOrDefaultAsync(c => c.Name.ToLower() == categoryName.ToLower());
+                    
+                    if (existingCategory == null)
+                    {
+                        _context.CourseCategories.Add(new CourseCategory
+                        {
+                            Name = categoryName,
+                            CreatedByUserId = userId,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                        await _context.SaveChangesAsync();
+                        _logger.LogInformation("New category '{Category}' created by user {UserId}", categoryName, userId);
+                    }
+                }
             }
 
             // Update course fields
@@ -1232,6 +1275,33 @@ public class AdminCoursesController : ControllerBase
         {
             _logger.LogError(ex, "Error fetching storage usage");
             return StatusCode(500, new { message = "An error occurred while fetching storage usage" });
+        }
+    }
+
+    /// <summary>
+    /// Get list of all files in organisation storage
+    /// </summary>
+    [HttpGet("storage-files")]
+    public async Task<ActionResult<List<BlobFileInfo>>> GetStorageFiles()
+    {
+        try
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = await _context.Users.FindAsync(userId);
+
+            if (user == null || user.OrganisationID == null)
+            {
+                return BadRequest(new { message = "User organisation not found" });
+            }
+
+            var files = await _blobService.GetOrganisationStorageFilesAsync(user.OrganisationID.Value);
+
+            return Ok(files);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching storage files");
+            return StatusCode(500, new { message = "An error occurred while fetching storage files" });
         }
     }
 }

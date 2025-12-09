@@ -8,6 +8,13 @@ const getAuthHeaders = () => {
   };
 };
 
+const getAuthHeadersWithoutContentType = () => {
+  const token = localStorage.getItem('token');
+  return {
+    'Authorization': `Bearer ${token}`
+  };
+};
+
 // Authentication
 export const superAdminLogin = async (email, password) => {
   const response = await fetch(`${API_BASE}/api/SuperAdmin/login`, {
@@ -88,14 +95,21 @@ export const createOrgAdmin = async (orgId, adminData) => {
   return response.json();
 };
 
-// Upload tokens for organisation assets (banner, favicon)
-export const getOrgUploadToken = async (orgId, fileType) => {
-  const response = await fetch(`${API_BASE}/api/SuperAdmin/organisations/${orgId}/upload-token?fileType=${fileType}`, {
+// Upload organisation assets (banner, favicon) - server-side upload
+export const uploadOrgAsset = async (orgId, file, assetType) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const response = await fetch(`${API_BASE}/api/SuperAdmin/organisations/${orgId}/upload-asset?assetType=${assetType}`, {
     method: 'POST',
-    headers: getAuthHeaders()
+    headers: getAuthHeadersWithoutContentType(),
+    body: formData
   });
   
-  if (!response.ok) throw new Error('Failed to get upload token');
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to upload asset');
+  }
   return response.json();
 };
 

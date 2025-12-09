@@ -23,6 +23,11 @@ public interface IAzureBlobService
     Task<List<BlobFileInfo>> ListOrganisationFilesAsync(string organisationId, string? fileType = null);
 
     /// <summary>
+    /// Get all files stored in organization's storage (branding + content)
+    /// </summary>
+    Task<List<BlobFileInfo>> GetOrganisationStorageFilesAsync(long organisationId);
+
+    /// <summary>
     /// List all files in the shared LMS library (accessible to all organizations)
     /// </summary>
     Task<List<BlobFileInfo>> ListSharedLibraryFilesAsync(string? fileType = null);
@@ -61,6 +66,8 @@ public class BlobFileInfo
     public long Size { get; set; }
     public DateTimeOffset? LastModified { get; set; }
     public string FileType { get; set; } = null!; // video, document, scorm, other
+    public string Category { get; set; } = "content"; // branding or content
+    public string Path { get; set; } = null!; // Full blob path for reference
 }
 
 public class ScormPackageInfo

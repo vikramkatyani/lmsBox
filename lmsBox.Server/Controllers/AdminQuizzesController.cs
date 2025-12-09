@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace lmsBox.Server.Controllers
@@ -35,6 +36,17 @@ namespace lmsBox.Server.Controllers
                 .Include(q => q.Course)
                 .Include(q => q.CreatedByUser)
                 .AsQueryable();
+
+            // Organization filtering for OrgAdmin
+            if (User.IsInRole("OrgAdmin"))
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var currentUser = await _context.Users.FindAsync(userId);
+                if (currentUser != null && currentUser.OrganisationID.HasValue)
+                {
+                    query = query.Where(q => q.Course!.OrganisationId == currentUser.OrganisationID.Value);
+                }
+            }
 
             if (!string.IsNullOrWhiteSpace(search))
             {
@@ -91,6 +103,17 @@ namespace lmsBox.Server.Controllers
             if (quiz == null)
             {
                 return NotFound(new { message = "Quiz not found" });
+            }
+
+            // Organization access check for OrgAdmin
+            if (User.IsInRole("OrgAdmin"))
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var currentUser = await _context.Users.FindAsync(userId);
+                if (currentUser != null && quiz.Course != null && quiz.Course.OrganisationId != currentUser.OrganisationID)
+                {
+                    return Forbid("You can only access quizzes from your organization");
+                }
             }
 
             var result = new
@@ -154,6 +177,17 @@ namespace lmsBox.Server.Controllers
             if (course == null)
             {
                 return BadRequest(new { message = "Course not found" });
+            }
+
+            // Organization access check for OrgAdmin
+            if (User.IsInRole("OrgAdmin"))
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var currentUser = await _context.Users.FindAsync(userId);
+                if (currentUser != null && course.OrganisationId != currentUser.OrganisationID)
+                {
+                    return Forbid("You can only create quizzes for courses in your organization");
+                }
             }
 
             // Check if course is published
@@ -275,6 +309,17 @@ namespace lmsBox.Server.Controllers
                 return NotFound(new { message = "Quiz not found" });
             }
 
+            // Organization access check for OrgAdmin
+            if (User.IsInRole("OrgAdmin"))
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var currentUser = await _context.Users.FindAsync(userId);
+                if (currentUser != null && quiz.Course != null && quiz.Course.OrganisationId != currentUser.OrganisationID)
+                {
+                    return Forbid("You can only update quizzes from your organization");
+                }
+            }
+
             // Check if course is published
             if (quiz.Course?.Status == "Published")
             {
@@ -380,6 +425,17 @@ namespace lmsBox.Server.Controllers
             if (quiz == null)
             {
                 return NotFound(new { message = "Quiz not found" });
+            }
+
+            // Organization access check for OrgAdmin
+            if (User.IsInRole("OrgAdmin"))
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var currentUser = await _context.Users.FindAsync(userId);
+                if (currentUser != null && quiz.Course != null && quiz.Course.OrganisationId != currentUser.OrganisationID)
+                {
+                    return Forbid("You can only delete quizzes from your organization");
+                }
             }
 
             // Check if course is published

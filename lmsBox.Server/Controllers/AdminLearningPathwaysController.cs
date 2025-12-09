@@ -41,6 +41,13 @@ public class AdminLearningPathwaysController : ControllerBase
             return Unauthorized();
         }
 
+        // Get current user for organization filtering
+        var currentUser = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
+        if (currentUser == null)
+        {
+            return Unauthorized();
+        }
+
         // Validate pagination parameters
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 10;
@@ -53,6 +60,13 @@ public class AdminLearningPathwaysController : ControllerBase
             .Include(lp => lp.PathwayCourses)
                 .ThenInclude(pc => pc.Course)
             .AsQueryable();
+
+        // Organization filtering: OrgAdmin can only see their org's pathways
+        if (User.IsInRole("OrgAdmin") && currentUser.OrganisationID.HasValue)
+        {
+            query = query.Where(lp => lp.OrganisationId == currentUser.OrganisationID.Value);
+        }
+        // SuperAdmin and Admin can see all pathways (no additional filter)
 
         // Search filter
         if (!string.IsNullOrEmpty(search))
@@ -141,6 +155,18 @@ public class AdminLearningPathwaysController : ControllerBase
         if (pathway == null)
         {
             return NotFound();
+        }
+
+        // Check organization access for OrgAdmin
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var currentUser = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
+        
+        if (User.IsInRole("OrgAdmin") && currentUser != null)
+        {
+            if (pathway.OrganisationId != currentUser.OrganisationID)
+            {
+                return Forbid("You can only access pathways from your organization");
+            }
         }
 
         return Ok(new
@@ -303,6 +329,18 @@ public class AdminLearningPathwaysController : ControllerBase
         if (pathway == null)
         {
             return NotFound();
+        }
+
+        // Check organization access for OrgAdmin
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var currentUser = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
+        
+        if (User.IsInRole("OrgAdmin") && currentUser != null)
+        {
+            if (pathway.OrganisationId != currentUser.OrganisationID)
+            {
+                return Forbid("You can only update pathways from your organization");
+            }
         }
 
         // Update basic properties
@@ -482,6 +520,18 @@ public class AdminLearningPathwaysController : ControllerBase
         if (pathway == null)
         {
             return NotFound();
+        }
+
+        // Check organization access for OrgAdmin
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var currentUser = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
+        
+        if (User.IsInRole("OrgAdmin") && currentUser != null)
+        {
+            if (pathway.OrganisationId != currentUser.OrganisationID)
+            {
+                return Forbid("You can only delete pathways from your organization");
+            }
         }
 
         _context.LearningPathways.Remove(pathway);

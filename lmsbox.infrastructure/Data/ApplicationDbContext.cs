@@ -21,6 +21,7 @@ namespace lmsbox.infrastructure.Data
 
         // Course Management
         public DbSet<Course> Courses { get; set; } = null!;
+        public DbSet<CourseCategory> CourseCategories { get; set; } = null!;
         public DbSet<Lesson> Lessons { get; set; } = null!;
         public DbSet<Quiz> Quizzes { get; set; } = null!;
         public DbSet<QuizQuestion> QuizQuestions { get; set; } = null!;
@@ -94,6 +95,11 @@ namespace lmsbox.infrastructure.Data
             // Index for certificate ID lookups
             builder.Entity<LearnerProgress>()
                    .HasIndex(lp => lp.CertificateId);
+            
+            // Unique constraint for course category names (case-insensitive)
+            builder.Entity<CourseCategory>()
+                   .HasIndex(cc => cc.Name)
+                   .IsUnique();
         }
     }
 }

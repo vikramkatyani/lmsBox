@@ -273,7 +273,8 @@ public class OrganisationSettingsController : ControllerBase
                     stream, 
                     fileName, 
                     folderPath, 
-                    image.ContentType
+                    image.ContentType,
+                    organisation.Id
                 );
             }
 

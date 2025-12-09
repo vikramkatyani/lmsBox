@@ -59,6 +59,11 @@ export default function AdminCourseEditor() {
   // Lessons state
   const [lessons, setLessons] = useState([]);
 
+  // Categories state
+  const [categories, setCategories] = useState([]);
+  const [categoryInput, setCategoryInput] = useState('');
+  const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
+
   // Set active tab from query parameter
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -130,6 +135,7 @@ export default function AdminCourseEditor() {
       const courseData = await adminCourseService.getCourse(courseId);
       const formData = courseHelpers.transformCourseResponseToForm(courseData);
       setForm(formData);
+      setCategoryInput(formData.category || '');
       setLessons(courseData.lessons || []);
       // Load quizzes for this course
       await loadCourseQuizzes();
@@ -175,6 +181,20 @@ export default function AdminCourseEditor() {
       setSurveysLoading(false);
     }
   };
+
+  const loadCategories = async () => {
+    try {
+      const response = await adminCourseService.getCategories();
+      setCategories(response.categories || []);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  };
+
+  // Load categories on mount
+  useEffect(() => {
+    loadCategories();
+  }, []);
 
   const [isEditingLesson, setIsEditingLesson] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
@@ -327,6 +347,34 @@ export default function AdminCourseEditor() {
   };
 
   const removeTag = (tag) => setForm(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tag) }));
+
+  // ---------- Category handlers ----------
+  const filteredCategories = useMemo(() => {
+    if (!categoryInput.trim()) return categories;
+    return categories.filter(cat => 
+      cat.toLowerCase().includes(categoryInput.toLowerCase())
+    );
+  }, [categories, categoryInput]);
+
+  const handleCategoryInputChange = (e) => {
+    const value = e.target.value;
+    setCategoryInput(value);
+    setForm(prev => ({ ...prev, category: value }));
+    setShowCategorySuggestions(true);
+  };
+
+  const handleCategorySelect = (category) => {
+    setCategoryInput(category);
+    setForm(prev => ({ ...prev, category }));
+    setShowCategorySuggestions(false);
+  };
+
+  const handleCategoryBlur = () => {
+    // Delay to allow click on suggestion
+    setTimeout(() => {
+      setShowCategorySuggestions(false);
+    }, 200);
+  };
 
   // ---------- Lessons handlers ----------
   
@@ -856,18 +904,33 @@ export default function AdminCourseEditor() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                  <select
-                    value={form.category}
-                    onChange={(e) => handleChange('category', e.target.value)}
-                    className="w-full border border-gray-300 rounded px-4 py-2"
-                  >
-                    <option value="">Select a category</option>
-                    {courseHelpers.getCategoryOptions().map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={categoryInput || form.category}
+                      onChange={handleCategoryInputChange}
+                      onFocus={() => setShowCategorySuggestions(true)}
+                      onBlur={handleCategoryBlur}
+                      placeholder="Select or type a category"
+                      className="w-full border border-gray-300 rounded px-4 py-2"
+                    />
+                    {showCategorySuggestions && filteredCategories.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+                        {filteredCategories.map((category, idx) => (
+                          <div
+                            key={idx}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              handleCategorySelect(category);
+                            }}
+                            className="px-4 py-2 hover:bg-blue-50 cursor-pointer text-sm"
+                          >
+                            {category}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div>

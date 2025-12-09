@@ -73,7 +73,7 @@ const StorageUsageWidget = ({ compact = false }) => {
               ></div>
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              {storageInfo.usedFormatted} of {storageInfo.allocatedFormatted}
+              {storageInfo.usedGB} GB of {storageInfo.allocatedGB} GB
             </p>
           </div>
         </div>
@@ -97,8 +97,8 @@ const StorageUsageWidget = ({ compact = false }) => {
       {/* Progress Bar */}
       <div className="mb-4">
         <div className="flex justify-between text-sm text-gray-600 mb-1">
-          <span>{storageInfo.usedFormatted} used</span>
-          <span>{storageInfo.allocatedFormatted} total</span>
+          <span>{storageInfo.usedGB} GB used</span>
+          <span>{storageInfo.allocatedGB} GB total</span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
           <div
@@ -122,19 +122,19 @@ const StorageUsageWidget = ({ compact = false }) => {
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Course Content:</span>
           <span className="font-medium text-gray-900">
-            {formatBytes(storageInfo.contentUsedBytes)}
+            {storageInfo.contentUsedGB} GB
           </span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Branding & Media:</span>
           <span className="font-medium text-gray-900">
-            {formatBytes(storageInfo.brandingUsedBytes)}
+            {storageInfo.brandingUsedGB} GB
           </span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Available:</span>
           <span className="font-medium text-green-600">
-            {storageInfo.availableFormatted}
+            {storageInfo.availableGB} GB
           </span>
         </div>
       </div>

@@ -75,6 +75,18 @@ export const adminCourseService = {
       }
     });
     return response.data;
+  },
+
+  // Get all course categories
+  async getCategories() {
+    const response = await api.get('/api/course-categories');
+    return response.data;
+  },
+
+  // Add a new category
+  async addCategory(categoryName) {
+    const response = await api.post('/api/course-categories', { name: categoryName });
+    return response.data;
   }
 };
 
