@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Sparkles } from 'lucide-react';
 import LearnerHeader from '../components/LearnerHeader';
 import QuizPlayer from '../components/QuizPlayer';
 import SurveyPlayer from '../components/SurveyPlayer';
@@ -1188,20 +1189,16 @@ export default function CourseContent() {
       </div>
 
       {/* Floating AI Assistant Button */}
-      <button
-        onClick={() => setIsAIAssistantOpen(true)}
-        className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:shadow-xl hover:bg-blue-700 transition-all duration-200 z-50 flex items-center gap-2 group"
-        title="Ask AI Assistant"
-      >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-        </svg>
-        <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 whitespace-nowrap">
-          AI Assistant
-        </span>
-      </button>
-
-      {/* AI Assistant Modal */}
+        <button
+          onClick={() => setIsAIAssistantOpen(true)}
+          className="fixed bottom-6 right-6 bg-[#1b365d] text-[#2afeae] p-4 rounded-full shadow-lg hover:shadow-xl hover:bg-[#152d4d] transition-all duration-200 z-50 flex items-center gap-2 group font-medium"
+          title="AI Assistant"
+        >
+          <Sparkles className="w-6 h-6" />
+          <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 whitespace-nowrap">
+            AI Assistant
+          </span>
+        </button>      {/* AI Assistant Modal */}
       {course && (
         <LearnerAIAssistant
           courseTitle={course.title}

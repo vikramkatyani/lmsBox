@@ -329,176 +329,58 @@ export default function PdfLessonModal({ isOpen, onClose, courseId, lesson, onSa
                   </div>
                 )}
 
-                {/* Show source selector for new lessons or when changing */}
+                {/* Show upload interface for new lessons or when changing */}
                 {showSourceSelector && (
-                  <>
-                    <p className="text-xs text-gray-500 mb-3">Select how you want to add the PDF to this lesson</p>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    <DocumentTextIcon className="h-12 w-12 mx-auto text-gray-400 mb-3" />
+                    
+                    {!formData.documentUrl && !isUploading && (
+                      <>
+                        <label className="cursor-pointer">
+                          <span className="mt-2 block text-sm font-medium text-gray-900">
+                            Click to upload PDF
+                          </span>
+                          <span className="mt-1 block text-xs text-gray-500">
+                            PDF files only (Max 100MB)
+                          </span>
+                          <input
+                            type="file"
+                            accept="application/pdf"
+                            onChange={handleFileUpload}
+                            className="hidden"
+                          />
+                        </label>
+                      </>
+                    )}
 
-                    {/* Source cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <button
-                    type="button"
-                    onClick={() => handlePdfSourceChange('upload')}
-                    className={`p-4 rounded-lg border-2 text-left transition ${
-                      pdfSource === 'upload'
-                        ? 'border-[#2afeae] bg-[#e8fdf6]'
-                        : 'border-gray-200 hover:border-gray-300 bg-white'
-                    }`}
-                  >
-                    <div className="flex items-start">
-                      <CloudArrowUpIcon className={`h-6 w-6 mr-3 shrink-0 ${
-                        pdfSource === 'upload' ? 'text-purple-600' : 'text-gray-400'
-                      }`} />
-                      <div className="flex-1">
-                        <div className={`font-medium ${
-                          pdfSource === 'upload' ? 'text-purple-900' : 'text-gray-900'
-                        }`}>
-                          Upload New File
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          Upload a PDF from your computer
-                        </div>
-                      </div>
-                      {pdfSource === 'upload' && (
-                        <CheckCircleIcon className="h-5 w-5 text-purple-600 ml-2 shrink-0" />
-                      )}
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handlePdfSourceChange('library')}
-                    className={`p-4 rounded-lg border-2 text-left transition ${
-                      pdfSource === 'library'
-                        ? 'border-[#2afeae] bg-[#e8fdf6]'
-                        : 'border-gray-200 hover:border-gray-300 bg-white'
-                    }`}
-                  >
-                    <div className="flex items-start">
-                      <FolderIcon className={`h-6 w-6 mr-3 shrink-0 ${
-                        pdfSource === 'library' ? 'text-purple-600' : 'text-gray-400'
-                      }`} />
-                      <div className="flex-1">
-                        <div className={`font-medium ${
-                          pdfSource === 'library' ? 'text-purple-900' : 'text-gray-900'
-                        }`}>
-                          LMS Library
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          Choose from previously uploaded PDFs
-                        </div>
-                      </div>
-                      {pdfSource === 'library' && (
-                        <CheckCircleIcon className="h-5 w-5 text-purple-600 ml-2 shrink-0" />
-                      )}
-                    </div>
-                  </button>
-                </div>
-
-                {/* Upload File */}
-                {pdfSource === 'upload' && (
-                  <div>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                      <DocumentTextIcon className="h-12 w-12 mx-auto text-gray-400 mb-3" />
-                      
-                      {!formData.documentUrl && !isUploading && (
-                        <>
-                          <label className="cursor-pointer">
-                            <span className="mt-2 block text-sm font-medium text-gray-900">
-                              Click to upload or drag and drop
-                            </span>
-                            <span className="mt-1 block text-xs text-gray-500">
-                              PDF files only (Max 100MB)
-                            </span>
-                            <input
-                              type="file"
-                              accept="application/pdf"
-                              onChange={handleFileUpload}
-                              className="hidden"
-                            />
-                          </label>
-                        </>
-                      )}
-
-                      {isUploading && (
-                        <div className="mt-4">
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-[#1b365d] h-2 rounded-full transition-all"
-                              style={{ width: `${uploadProgress}%` }}
-                            ></div>
-                          </div>
-                          <p className="text-sm text-gray-600 mt-2">
-                            Uploading... {uploadProgress}%
-                          </p>
-                        </div>
-                      )}
-
-                      {formData.documentUrl && !isUploading && (
-                        <div className="flex items-center justify-center text-green-600 mt-4">
-                          <CheckCircleIcon className="h-6 w-6 mr-2" />
-                          <span className="text-sm font-medium">PDF uploaded successfully</span>
-                        </div>
-                      )}
-
-                      {uploadError && (
-                        <div className="flex items-center justify-center text-red-600 mt-4">
-                          <ExclamationCircleIcon className="h-6 w-6 mr-2" />
-                          <span className="text-sm">{uploadError}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Library */}
-                {pdfSource === 'library' && (
-                  <div>
-                    {isLoadingLibrary ? (
-                      <div className="text-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
-                        <p className="text-sm text-gray-600 mt-2">Loading library...</p>
-                      </div>
-                    ) : libraryPdfs.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500">
-                        <FolderIcon className="h-12 w-12 mx-auto text-gray-300 mb-2" />
-                        <p className="text-sm">No PDFs in the LMS shared library yet.</p>
-                        <p className="text-xs mt-1">Contact your administrator to add PDFs to the shared library.</p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto">
-                        {libraryPdfs.map((pdf, index) => (
+                    {isUploading && (
+                      <div className="mt-4">
+                        <div className="w-full bg-gray-200 rounded-full h-2">
                           <div
-                            key={index}
-                            onClick={() => handleLibraryPdfSelect(pdf)}
-                            className={`border rounded-lg p-3 cursor-pointer transition ${
-                              selectedLibraryPdf?.url === pdf.url
-                                ? 'border-[#2afeae] bg-[#e8fdf6]'
-                                : 'border-gray-200 hover:border-purple-300'
-                            }`}
-                          >
-                            <div className="flex items-start">
-                              <DocumentTextIcon className="h-5 w-5 text-gray-400 mr-2 shrink-0 mt-0.5" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900 truncate">
-                                  {pdf.name}
-                                </p>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {formatFileSize(pdf.size)}
-                                </p>
-                                {pdf.lastModified && (
-                                  <p className="text-xs text-gray-400 mt-0.5">
-                                    {new Date(pdf.lastModified).toLocaleDateString()}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                            className="bg-[#2afeae] h-2 rounded-full transition-all"
+                            style={{ width: `${uploadProgress}%` }}
+                          ></div>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-2">
+                          Uploading... {uploadProgress}%
+                        </p>
+                      </div>
+                    )}
+
+                    {formData.documentUrl && !isUploading && (
+                      <div className="flex items-center justify-center text-green-600 mt-4">
+                        <CheckCircleIcon className="h-6 w-6 mr-2" />
+                        <span className="text-sm font-medium">PDF uploaded successfully</span>
+                      </div>
+                    )}
+
+                    {uploadError && (
+                      <div className="flex items-center justify-center text-red-600 mt-4">
+                        <ExclamationCircleIcon className="h-6 w-6 mr-2" />
+                        <span className="text-sm">{uploadError}</span>
                       </div>
                     )}
                   </div>
-                )}
-                  </>
                 )}
               </div>
             </div>
