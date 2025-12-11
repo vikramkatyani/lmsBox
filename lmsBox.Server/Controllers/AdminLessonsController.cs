@@ -17,17 +17,20 @@ public class AdminLessonsController : ControllerBase
     private readonly IAzureBlobService _blobService;
     private readonly IStorageQuotaService _storageQuotaService;
     private readonly ILogger<AdminLessonsController> _logger;
+    private readonly IEngagementTrackingService _engagementService;
 
     public AdminLessonsController(
         ApplicationDbContext context,
         IAzureBlobService blobService,
         IStorageQuotaService storageQuotaService,
-        ILogger<AdminLessonsController> logger)
+        ILogger<AdminLessonsController> logger,
+        IEngagementTrackingService engagementService)
     {
         _context = context;
         _blobService = blobService;
         _storageQuotaService = storageQuotaService;
         _logger = logger;
+        _engagementService = engagementService;
     }
 
     /// <summary>
@@ -255,6 +258,21 @@ public class AdminLessonsController : ControllerBase
 
             _logger.LogInformation("Lesson {LessonId} created for course {CourseId} by user {UserId}", 
                 lesson.Id, courseId, userId);
+
+            // Track lesson creation engagement
+            var creatorUser = await _context.Users.FindAsync(userId);
+            if (creatorUser?.OrganisationID.HasValue == true)
+            {
+                _logger.LogInformation("📊 Tracking lesson creation: User={UserId}, Org={OrgId}, Lesson={LessonId}", userId, creatorUser.OrganisationID.Value, lesson.Id);
+                await _engagementService.TrackAsync(
+                    userId,
+                    creatorUser.OrganisationID.Value,
+                    EngagementTrackingService.EVENT_LESSON_CREATED,
+                    courseId: courseId,
+                    lessonId: lesson.Id,
+                    metadata: new { title = lesson.Title, type = lesson.Type }
+                );
+            }
 
             // Fetch the created lesson with related data
             var createdLesson = await _context.Lessons
@@ -532,6 +550,20 @@ public class AdminLessonsController : ControllerBase
 
             _logger.LogInformation("Video uploaded to blob storage: {BlobUrl}", blobUrl);
 
+            // Track video upload engagement
+            var uploaderUser = await _context.Users.FindAsync(userId);
+            if (uploaderUser?.OrganisationID.HasValue == true)
+            {
+                _logger.LogInformation("📊 Tracking video upload: User={UserId}, Org={OrgId}, Course={CourseId}", userId, uploaderUser.OrganisationID.Value, courseId);
+                await _engagementService.TrackAsync(
+                    userId,
+                    uploaderUser.OrganisationID.Value,
+                    EngagementTrackingService.EVENT_VIDEO_UPLOAD,
+                    courseId: courseId,
+                    metadata: new { fileName = video.FileName, size = video.Length }
+                );
+            }
+
             return Ok(new VideoUploadResponse
             {
                 VideoUrl = blobUrl,
@@ -700,6 +732,20 @@ public class AdminLessonsController : ControllerBase
 
             _logger.LogInformation("PDF uploaded to blob storage: {BlobUrl}", blobUrl);
 
+            // Track PDF upload engagement
+            var uploaderUser = await _context.Users.FindAsync(userId);
+            if (uploaderUser?.OrganisationID.HasValue == true)
+            {
+                _logger.LogInformation("📊 Tracking PDF upload: User={UserId}, Org={OrgId}, Course={CourseId}", userId, uploaderUser.OrganisationID.Value, courseId);
+                await _engagementService.TrackAsync(
+                    userId,
+                    uploaderUser.OrganisationID.Value,
+                    EngagementTrackingService.EVENT_PDF_UPLOAD,
+                    courseId: courseId,
+                    metadata: new { fileName = pdf.FileName, size = pdf.Length }
+                );
+            }
+
             return Ok(new DocumentUploadResponse
             {
                 DocumentUrl = blobUrl,
@@ -831,6 +877,20 @@ public class AdminLessonsController : ControllerBase
             _logger.LogInformation("SCORM package uploaded successfully: {PackageName}, Files: {FileCount}", 
                 scormInfo.PackageName, scormInfo.FileCount);
 
+            // Track SCORM upload engagement
+            var uploaderUser = await _context.Users.FindAsync(userId);
+            if (uploaderUser?.OrganisationID.HasValue == true)
+            {
+                _logger.LogInformation("📊 Tracking SCORM upload: User={UserId}, Org={OrgId}, Course={CourseId}", userId, uploaderUser.OrganisationID.Value, courseId);
+                await _engagementService.TrackAsync(
+                    userId,
+                    uploaderUser.OrganisationID.Value,
+                    EngagementTrackingService.EVENT_SCORM_UPLOAD,
+                    courseId: courseId,
+                    metadata: new { packageName = scormInfo.PackageName, fileCount = scormInfo.FileCount, size = scormInfo.TotalSize }
+                );
+            }
+
             return Ok(response);
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("Storage quota exceeded"))
@@ -933,6 +993,19 @@ public class AdminLessonsController : ControllerBase
             };
 
             _logger.LogInformation("HTML content uploaded successfully: {FileName}", fileName);
+
+            // Track HTML upload engagement (user already fetched above)
+            if (user.OrganisationID.HasValue)
+            {
+                _logger.LogInformation("📊 Tracking HTML upload: User={UserId}, Org={OrgId}, Course={CourseId}", userId, user.OrganisationID.Value, courseId);
+                await _engagementService.TrackAsync(
+                    userId,
+                    user.OrganisationID.Value,
+                    EngagementTrackingService.EVENT_HTML_UPLOAD,
+                    courseId: courseId,
+                    metadata: new { title = request.Title, size = htmlBytes.Length }
+                );
+            }
 
             return Ok(response);
         }

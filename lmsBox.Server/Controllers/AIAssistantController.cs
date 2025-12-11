@@ -1,6 +1,8 @@
 using lmsBox.Server.Services;
+using lmsbox.infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace lmsBox.Server.Controllers;
@@ -12,11 +14,19 @@ public class AIAssistantController : ControllerBase
 {
     private readonly IAIAssistantService _aiService;
     private readonly ILogger<AIAssistantController> _logger;
+    private readonly IEngagementTrackingService _engagementService;
+    private readonly ApplicationDbContext _context;
 
-    public AIAssistantController(IAIAssistantService aiService, ILogger<AIAssistantController> logger)
+    public AIAssistantController(
+        IAIAssistantService aiService, 
+        ILogger<AIAssistantController> logger,
+        IEngagementTrackingService engagementService,
+        ApplicationDbContext context)
     {
         _aiService = aiService;
         _logger = logger;
+        _engagementService = engagementService;
+        _context = context;
     }
 
     [HttpPost("generate-course-outline")]
@@ -29,6 +39,8 @@ public class AIAssistantController : ControllerBase
                 request.Level, 
                 request.Duration);
 
+            await TrackAIQuery("generate-course-outline", new { request.Topic, request.Level, request.Duration });
+            
             return Ok(new { content = result });
         }
         catch (InvalidOperationException ex)
@@ -52,6 +64,8 @@ public class AIAssistantController : ControllerBase
                 request.LessonTitle, 
                 request.Context);
 
+            await TrackAIQuery("generate-lesson-content", new { request.LessonTitle });
+
             return Ok(new { content = result });
         }
         catch (Exception ex)
@@ -71,6 +85,8 @@ public class AIAssistantController : ControllerBase
                 request.QuestionCount, 
                 request.Difficulty);
 
+            await TrackAIQuery("generate-quiz-questions", new { request.Topic, request.QuestionCount, request.Difficulty });
+
             return Ok(new { content = result });
         }
         catch (Exception ex)
@@ -89,6 +105,8 @@ public class AIAssistantController : ControllerBase
                 request.Content, 
                 request.ImprovementType);
 
+            await TrackAIQuery("improve-content", new { request.ImprovementType });
+
             return Ok(new { content = result });
         }
         catch (Exception ex)
@@ -106,6 +124,8 @@ public class AIAssistantController : ControllerBase
             var result = await _aiService.ChatAsync(
                 request.Message, 
                 request.Context);
+
+            await TrackAIQuery("chat", new { hasContext = !string.IsNullOrEmpty(request.Context) });
 
             return Ok(new { response = result });
         }
@@ -128,6 +148,8 @@ public class AIAssistantController : ControllerBase
                 request.LessonTitle,
                 request.AdditionalContext);
 
+            await TrackAIQuery("learner-query", new { request.CourseTitle, request.LessonTitle });
+
             return Ok(new { response = result });
         }
         catch (InvalidOperationException ex)
@@ -139,6 +161,35 @@ public class AIAssistantController : ControllerBase
         {
             _logger.LogError(ex, "Error processing learner query");
             return StatusCode(500, new { error = "Failed to process your question. Please try again." });
+        }
+    }
+
+    private async Task TrackAIQuery(string queryType, object metadata)
+    {
+        try
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return;
+
+            var orgId = await _context.Users
+                .Where(u => u.Id == userId)
+                .Select(u => u.OrganisationID)
+                .FirstOrDefaultAsync();
+
+            if (orgId.HasValue)
+            {
+                _logger.LogInformation("📊 Tracking AI query: User={UserId}, Org={OrgId}, Type={QueryType}", userId, orgId.Value, queryType);
+                await _engagementService.TrackAsync(
+                    userId,
+                    orgId.Value,
+                    EngagementTrackingService.EVENT_AI_QUERY,
+                    metadata: new { queryType, details = metadata }
+                );
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to track AI query");
         }
     }
 }

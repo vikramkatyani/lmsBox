@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
 import StorageUsageWidget from '../components/StorageUsageWidget';
 import usePageTitle from '../hooks/usePageTitle';
 import { getDashboardStats } from '../services/dashboard';
+import { engagementAnalyticsService } from '../services/engagementAnalytics';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -38,6 +39,8 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [engagementData, setEngagementData] = useState(null);
+  const [engagementLoading, setEngagementLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
@@ -52,6 +55,55 @@ export default function AdminDashboard() {
         setStats(null);
       })
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    // Load last 12 months of engagement data
+    const loadEngagementData = async () => {
+      setEngagementLoading(true);
+      try {
+        const toDate = new Date();
+        const fromDate = new Date();
+        fromDate.setMonth(fromDate.getMonth() - 11); // -11 to get exactly 12 months including current
+        
+        // Initialize all 12 months with zero data
+        const monthlyData = {};
+        for (let i = 0; i < 12; i++) {
+          const monthDate = new Date(fromDate);
+          monthDate.setMonth(fromDate.getMonth() + i);
+          const monthKey = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
+          monthlyData[monthKey] = {
+            totalScore: 0,
+            learnerScore: 0,
+            adminScore: 0,
+            count: 0
+          };
+        }
+        
+        const data = await engagementAnalyticsService.getDailyScores(fromDate, toDate);
+        
+        // Add actual data to the initialized months
+        data.forEach(item => {
+          const date = new Date(item.date);
+          const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          
+          if (monthlyData[monthKey]) {
+            monthlyData[monthKey].totalScore += item.engagementScore || 0;
+            monthlyData[monthKey].learnerScore += item.learnerScore || 0;
+            monthlyData[monthKey].adminScore += item.adminScore || 0;
+            monthlyData[monthKey].count += 1;
+          }
+        });
+        
+        setEngagementData(monthlyData);
+      } catch (err) {
+        console.error('Failed to load engagement data:', err);
+      } finally {
+        setEngagementLoading(false);
+      }
+    };
+    
+    loadEngagementData();
   }, []);
 
   // Prepare chart data
@@ -111,6 +163,51 @@ export default function AdminDashboard() {
       borderWidth: 1
     }]
   } : null;
+
+  // Monthly Engagement Score Chart
+  const monthlyEngagementData = engagementData ? (() => {
+    const sortedMonths = Object.keys(engagementData).sort();
+    const labels = sortedMonths.map(key => {
+      const [year, month] = key.split('-');
+      return new Date(year, month - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    });
+    
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Total Engagement',
+          data: sortedMonths.map(key => engagementData[key].totalScore),
+          borderColor: '#2afeae',
+          backgroundColor: 'rgba(42, 254, 174, 0.2)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 4,
+          pointHoverRadius: 6
+        },
+        {
+          label: 'Learner Activity',
+          data: sortedMonths.map(key => engagementData[key].learnerScore),
+          borderColor: '#1b365d',
+          backgroundColor: 'rgba(27, 54, 93, 0.2)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 5
+        },
+        {
+          label: 'Admin Activity',
+          data: sortedMonths.map(key => engagementData[key].adminScore),
+          borderColor: '#a855f7',
+          backgroundColor: 'rgba(168, 85, 247, 0.2)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 5
+        }
+      ]
+    };
+  })() : null;
 
   const chartOptions = {
     responsive: true,
@@ -248,6 +345,35 @@ export default function AdminDashboard() {
               </svg>
             </div>
           </div> */}
+        </div>
+
+        {/* Monthly Engagement Score Breakdown */}
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Monthly Engagement (Last 12 Months)</h2>
+            <Link
+              to="/admin/analytics/engagement"
+              className="text-sm text-[#2afeae] hover:text-[#25e89e] font-medium flex items-center gap-1"
+            >
+              View Details
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
+          <div style={{ height: '300px' }}>
+            {engagementLoading ? (
+              <div className="flex items-center justify-center h-full">
+                <span className="text-gray-400 animate-pulse">Loading engagement data...</span>
+              </div>
+            ) : monthlyEngagementData ? (
+              <Line data={monthlyEngagementData} options={chartOptions} />
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-400">
+                No engagement data available
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Charts Section */}
