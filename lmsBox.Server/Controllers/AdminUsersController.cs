@@ -20,19 +20,22 @@ namespace lmsBox.Server.Controllers
         private readonly IEmailService _emailService;
         private readonly IConfiguration _config;
         private readonly ILogger<AdminUsersController> _logger;
+        private readonly IEngagementTrackingService _engagementService;
 
         public AdminUsersController(
             ApplicationDbContext context,
             UserManager<ApplicationUser> userManager,
             IEmailService emailService,
             IConfiguration config,
-            ILogger<AdminUsersController> logger)
+            ILogger<AdminUsersController> logger,
+            IEngagementTrackingService engagementService)
         {
             _context = context;
             _userManager = userManager;
             _emailService = emailService;
             _config = config;
             _logger = logger;
+            _engagementService = engagementService;
         }
 
         // GET /api/admin/users
@@ -480,6 +483,18 @@ namespace lmsBox.Server.Controllers
                 var message = emailStatus == "sent" 
                     ? "User created successfully and registration email sent" 
                     : "User created successfully but registration email failed to send";
+
+                // Track user creation engagement
+                if (currentAdminUser?.OrganisationID.HasValue == true)
+                {
+                    _logger.LogInformation("📊 Tracking user creation: Admin={AdminId}, Org={OrgId}, NewUser={UserId}", currentAdminUser.Id, currentAdminUser.OrganisationID.Value, user.Id);
+                    await _engagementService.TrackAsync(
+                        currentAdminUser.Id,
+                        currentAdminUser.OrganisationID.Value,
+                        EngagementTrackingService.EVENT_USER_ADDED,
+                        metadata: new { newUserEmail = user.Email, role = roleToAssign, pathwaysAssigned = request.GroupIds?.Count ?? 0 }
+                    );
+                }
 
                 return Ok(new { id = user.Id, message = message, emailStatus = emailStatus });
             }

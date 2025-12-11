@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using lmsbox.infrastructure.Data;
 using lmsbox.domain.Models;
+using lmsBox.Server.Services;
 
 namespace lmsBox.Server.Controllers;
 
@@ -14,11 +15,16 @@ public class QuizzesController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<QuizzesController> _logger;
+    private readonly IEngagementTrackingService _engagementService;
 
-    public QuizzesController(ApplicationDbContext context, ILogger<QuizzesController> logger)
+    public QuizzesController(
+        ApplicationDbContext context, 
+        ILogger<QuizzesController> logger,
+        IEngagementTrackingService engagementService)
     {
         _context = context;
         _logger = logger;
+        _engagementService = engagementService;
     }
 
     /// <summary>
@@ -164,6 +170,24 @@ public class QuizzesController : ControllerBase
 
             int scorePercent = totalPoints > 0 ? (int)((double)earnedPoints / totalPoints * 100) : 0;
             bool passed = scorePercent >= quiz.PassingScore;
+
+            // Track quiz attempt engagement
+            var orgId = await _context.Users
+                .Where(u => u.Id == userId)
+                .Select(u => u.OrganisationID)
+                .FirstOrDefaultAsync();
+
+            if (orgId.HasValue)
+            {
+                _logger.LogInformation("📊 Tracking quiz attempt: User={UserId}, Org={OrgId}, Quiz={QuizId}, Score={Score}", userId, orgId.Value, quizId, scorePercent);
+                await _engagementService.TrackAsync(
+                    userId,
+                    orgId.Value,
+                    EngagementTrackingService.EVENT_QUIZ_ATTEMPT,
+                    quizId: long.TryParse(quizId, out var qId) ? qId : null,
+                    metadata: new { score = scorePercent, passed }
+                );
+            }
 
             var result = new
             {

@@ -19,17 +19,20 @@ public class AdminCoursesController : ControllerBase
     private readonly ILogger<AdminCoursesController> _logger;
     private readonly IAzureBlobService _blobService;
     private readonly IStorageQuotaService _storageQuotaService;
+    private readonly IEngagementTrackingService _engagementService;
 
     public AdminCoursesController(
         ApplicationDbContext context, 
         ILogger<AdminCoursesController> logger,
         IAzureBlobService blobService,
-        IStorageQuotaService storageQuotaService)
+        IStorageQuotaService storageQuotaService,
+        IEngagementTrackingService engagementService)
     {
         _context = context;
         _logger = logger;
         _blobService = blobService;
         _storageQuotaService = storageQuotaService;
+        _engagementService = engagementService;
     }
 
     /// <summary>
@@ -363,6 +366,19 @@ public class AdminCoursesController : ControllerBase
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Course {CourseId} created by user {UserId}", course.Id, userId);
+
+            // Track course creation engagement
+            if (user.OrganisationID.HasValue)
+            {
+                _logger.LogInformation("📊 Tracking course creation: User={UserId}, Org={OrgId}, Course={CourseId}", userId, user.OrganisationID.Value, course.Id);
+                await _engagementService.TrackAsync(
+                    userId,
+                    user.OrganisationID.Value,
+                    EngagementTrackingService.EVENT_COURSE_CREATED,
+                    courseId: course.Id,
+                    metadata: new { title = course.Title, category = course.Category }
+                );
+            }
 
             // Return the created course with details
             var createdCourse = await _context.Courses

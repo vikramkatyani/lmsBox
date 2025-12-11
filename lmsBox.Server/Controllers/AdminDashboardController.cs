@@ -132,104 +132,70 @@ public class AdminDashboardController : ControllerBase
                 registrationHistory.Add(new { date = dt.ToString("MMM yyyy"), count });
             }
 
-            // Recent activities - combine registrations, lesson completions, course completions, and certificates
-            var recentActivitiesList = new System.Collections.Generic.List<object>();
-            
-            // Get recent user registrations (last 10)
-            var recentUsersQuery = _context.Users.AsNoTracking()
-                .OrderByDescending(u => u.CreatedOn)
-                .Take(10);
-            if (orgId.HasValue)
-                recentUsersQuery = recentUsersQuery.Where(u => u.OrganisationID == orgId.Value).OrderByDescending(u => u.CreatedOn).Take(10);
-                
-            var recentUsers = await recentUsersQuery
-                .Select(u => new { 
-                    text = $"New user registered: {u.FirstName} {u.LastName}", 
-                    date = u.CreatedOn.ToString("MMM dd, HH:mm"),
-                    timestamp = u.CreatedOn
-                })
-                .ToListAsync();
-            
-            // Get recent lesson completions (last 15) - only where LessonId is not null
-            var recentLessonCompletionsQuery = _context.LearnerProgresses
+            // Recent activities from UserEngagements table
+            var recentActivitiesQuery = _context.UserEngagements
                 .AsNoTracking()
-                .Where(lp => lp.Completed && lp.CompletedAt.HasValue && lp.LessonId != null);
+                .Where(ue => ue.OrganisationId == (orgId ?? ue.OrganisationId));
             
             if (orgId.HasValue)
-                recentLessonCompletionsQuery = recentLessonCompletionsQuery.Where(lp => lp.User != null && lp.User.OrganisationID == orgId.Value);
-            
-            recentLessonCompletionsQuery = recentLessonCompletionsQuery
-                .OrderByDescending(lp => lp.CompletedAt)
-                .Take(15);
-                
-            var recentLessonCompletions = await recentLessonCompletionsQuery
-                .Include(lp => lp.User)
-                .Include(lp => lp.Lesson)
-                .Include(lp => lp.Course)
-                .Select(lp => new { 
-                    text = $"{lp.User!.FirstName} {lp.User.LastName} completed lesson '{lp.Lesson!.Title}' in {lp.Course!.Title}", 
-                    date = lp.CompletedAt!.Value.ToString("MMM dd, HH:mm"),
-                    timestamp = lp.CompletedAt.Value
-                })
+                recentActivitiesQuery = recentActivitiesQuery.Where(ue => ue.OrganisationId == orgId.Value);
+
+            var engagementData = await recentActivitiesQuery
+                .OrderByDescending(ue => ue.CreatedAt)
+                .Take(30)
+                .Include(ue => ue.User)
+                .Include(ue => ue.Course)
                 .ToListAsync();
-            
-            // Get recent course completions (last 15) - only where LessonId is null (course-level)
-            var recentCourseCompletionsQuery = _context.LearnerProgresses
-                .AsNoTracking()
-                .Where(lp => lp.Completed && lp.CompletedAt.HasValue && lp.LessonId == null);
-            
-            if (orgId.HasValue)
-                recentCourseCompletionsQuery = recentCourseCompletionsQuery.Where(lp => lp.User != null && lp.User.OrganisationID == orgId.Value);
-            
-            recentCourseCompletionsQuery = recentCourseCompletionsQuery
-                .OrderByDescending(lp => lp.CompletedAt)
-                .Take(15);
-                
-            var recentCourseCompletions = await recentCourseCompletionsQuery
-                .Include(lp => lp.User)
-                .Include(lp => lp.Course)
-                .Select(lp => new { 
-                    text = $"{lp.User!.FirstName} {lp.User.LastName} completed course '{lp.Course!.Title}'", 
-                    date = lp.CompletedAt!.Value.ToString("MMM dd, HH:mm"),
-                    timestamp = lp.CompletedAt.Value
-                })
-                .ToListAsync();
-            
-            // Get recent certificate issuances (last 15)
-            var recentCertificatesQuery = _context.LearnerProgresses
-                .AsNoTracking()
-                .Where(lp => lp.CertificateIssuedAt.HasValue && !string.IsNullOrEmpty(lp.CertificateId));
-            
-            if (orgId.HasValue)
-                recentCertificatesQuery = recentCertificatesQuery.Where(lp => lp.User != null && lp.User.OrganisationID == orgId.Value);
-            
-            recentCertificatesQuery = recentCertificatesQuery
-                .OrderByDescending(lp => lp.CertificateIssuedAt)
-                .Take(15);
-                
-            var recentCertificates = await recentCertificatesQuery
-                .Include(lp => lp.User)
-                .Include(lp => lp.Course)
-                .Select(lp => new { 
-                    text = $"Certificate issued to {lp.User!.FirstName} {lp.User.LastName} for {lp.Course!.Title}", 
-                    date = lp.CertificateIssuedAt!.Value.ToString("MMM dd, HH:mm"),
-                    timestamp = lp.CertificateIssuedAt.Value
-                })
-                .ToListAsync();
-            
-            // Combine and sort by timestamp, take most recent 25 activities
-            recentActivitiesList.AddRange(recentUsers.Cast<object>());
-            recentActivitiesList.AddRange(recentLessonCompletions.Cast<object>());
-            recentActivitiesList.AddRange(recentCourseCompletions.Cast<object>());
-            recentActivitiesList.AddRange(recentCertificates.Cast<object>());
-            var recentActivities = recentActivitiesList
-                .OrderByDescending(a => ((dynamic)a).timestamp)
-                .Take(25)
-                .Select(a => new { 
-                    text = ((dynamic)a).text, 
-                    date = ((dynamic)a).date 
-                })
+
+            // Get lesson IDs from engagements
+            var lessonIds = engagementData
+                .Where(ue => ue.LessonId.HasValue)
+                .Select(ue => ue.LessonId.Value)
+                .Distinct()
                 .ToList();
+
+            // Load lessons separately
+            var lessons = await _context.Lessons
+                .Where(l => lessonIds.Contains(l.Id))
+                .ToDictionaryAsync(l => l.Id, l => l.Title);
+
+            // Format activity text after query execution
+            var recentActivities = engagementData.Select(ue =>
+            {
+                var userName = ue.User != null ? $"{ue.User.FirstName} {ue.User.LastName}" : "User";
+                
+                // Get lesson title from dictionary
+                string? lessonTitle = null;
+                if (ue.LessonId.HasValue && lessons.ContainsKey(ue.LessonId.Value))
+                {
+                    lessonTitle = lessons[ue.LessonId.Value];
+                }
+                
+                var text = ue.EventType switch
+                {
+                    "Login" => $"{userName} logged in",
+                    "CourseView" => $"{userName} viewed course '{ue.Course?.Title ?? "Unknown"}'",
+                    "LessonStart" => $"{userName} started lesson '{lessonTitle ?? "Unknown"}'",
+                    "LessonComplete" => $"{userName} completed lesson '{lessonTitle ?? "Unknown"}'",
+                    "QuizAttempt" => $"{userName} attempted a quiz",
+                    "AIAssistantQuery" => $"{userName} used AI Assistant",
+                    "CourseCreated" => $"{userName} created course '{ue.Course?.Title ?? "New Course"}'",
+                    "LessonCreated" => $"{userName} created lesson '{lessonTitle ?? "New Lesson"}'",
+                    "UserAdded" => $"{userName} added a new user",
+                    "VideoUpload" => $"{userName} uploaded a video",
+                    "PDFUpload" => $"{userName} uploaded a PDF",
+                    "SCORMUpload" => $"{userName} uploaded SCORM content",
+                    "HTMLUpload" => $"{userName} uploaded HTML content",
+                    _ => $"{userName} performed {ue.EventType}"
+                };
+
+                return new
+                {
+                    text = text,
+                    date = ue.CreatedAt.ToString("MMM dd, HH:mm")
+                };
+            }).ToList();
+
 
             return Ok(new
             {

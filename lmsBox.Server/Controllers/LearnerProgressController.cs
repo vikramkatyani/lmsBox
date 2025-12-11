@@ -1,5 +1,6 @@
 using lmsbox.domain.Models;
 using lmsbox.infrastructure.Data;
+using lmsBox.Server.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,11 +15,16 @@ public class LearnerProgressController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<LearnerProgressController> _logger;
+    private readonly IEngagementTrackingService _engagementService;
 
-    public LearnerProgressController(ApplicationDbContext context, ILogger<LearnerProgressController> logger)
+    public LearnerProgressController(
+        ApplicationDbContext context, 
+        ILogger<LearnerProgressController> logger,
+        IEngagementTrackingService engagementService)
     {
         _context = context;
         _logger = logger;
+        _engagementService = engagementService;
     }
 
     /// <summary>
@@ -195,13 +201,40 @@ public class LearnerProgressController : ControllerBase
             // Update lesson progress
             lessonProgress.ProgressPercent = Math.Clamp(request.ProgressPercent, 0, 100);
             
-            if (request.ProgressPercent >= 100 && !lessonProgress.Completed)
+            var shouldTrackCompletion = request.ProgressPercent >= 100 && !lessonProgress.Completed;
+            
+            if (shouldTrackCompletion)
             {
                 lessonProgress.Completed = true;
                 lessonProgress.CompletedAt = DateTime.UtcNow;
             }
 
             await _context.SaveChangesAsync();
+
+            // Track lesson completion AFTER SaveChanges to avoid transaction conflicts
+            if (shouldTrackCompletion)
+            {
+                var orgId = await _context.Users
+                    .Where(u => u.Id == userId)
+                    .Select(u => u.OrganisationID)
+                    .FirstOrDefaultAsync();
+                
+                if (orgId.HasValue)
+                {
+                    _logger.LogInformation("📊 Tracking lesson completion: User={UserId}, Org={OrgId}, Lesson={LessonId}", userId, orgId.Value, lessonId);
+                    await _engagementService.TrackAsync(
+                        userId,
+                        orgId.Value,
+                        EngagementTrackingService.EVENT_LESSON_COMPLETE,
+                        courseId: lesson.CourseId,
+                        lessonId: lessonId
+                    );
+                }
+                else
+                {
+                    _logger.LogWarning("📊 Cannot track lesson completion - user {UserId} has no OrganisationID", userId);
+                }
+            }
 
             // Recalculate course progress
             await UpdateCourseProgress(userId, lesson.CourseId);
@@ -289,7 +322,35 @@ public class LearnerProgressController : ControllerBase
                 lessonProgress.CompletedAt = DateTime.UtcNow;
             }
 
+            var wasJustCompleted = lessonProgress.Completed && lessonProgress.CompletedAt.HasValue && 
+                                  (DateTime.UtcNow - lessonProgress.CompletedAt.Value).TotalSeconds < 5;
+
             await _context.SaveChangesAsync();
+
+            // Track lesson completion AFTER SaveChanges
+            if (wasJustCompleted)
+            {
+                var orgId = await _context.Users
+                    .Where(u => u.Id == userId)
+                    .Select(u => u.OrganisationID)
+                    .FirstOrDefaultAsync();
+                
+                if (orgId.HasValue)
+                {
+                    _logger.LogInformation("📊 Tracking lesson completion (CompleteLesson): User={UserId}, Org={OrgId}, Lesson={LessonId}", userId, orgId.Value, lessonId);
+                    await _engagementService.TrackAsync(
+                        userId,
+                        orgId.Value,
+                        EngagementTrackingService.EVENT_LESSON_COMPLETE,
+                        courseId: lesson.CourseId,
+                        lessonId: lessonId
+                    );
+                }
+                else
+                {
+                    _logger.LogWarning("📊 Cannot track lesson completion - user {UserId} has no OrganisationID", userId);
+                }
+            }
 
             // Recalculate course progress
             await UpdateCourseProgress(userId, lesson.CourseId);

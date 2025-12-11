@@ -31,19 +31,22 @@ namespace lmsBox.Server.Controllers
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _config;
         private readonly ILogger<LoginLinkController> _logger;
+        private readonly IEngagementTrackingService _engagementService;
 
         public LoginLinkController(
             ILoginLinkService loginLinkService,
             UserManager<ApplicationUser> userManager,
             IHttpClientFactory httpClientFactory,
             IConfiguration config,
-            ILogger<LoginLinkController> logger)
+            ILogger<LoginLinkController> logger,
+            IEngagementTrackingService engagementService)
         {
             _loginLinkService = loginLinkService;
             _userManager = userManager;
             _httpClientFactory = httpClientFactory;
             _config = config;
             _logger = logger;
+            _engagementService = engagementService;
         }
 
         // POST /auth/login
@@ -172,6 +175,16 @@ namespace lmsBox.Server.Controllers
                     var tokenString = new JwtSecurityTokenHandler().WriteToken(jwt);
 
                     _logger.LogInformation("User {UserId} authenticated via login link. Roles={Roles}", user.Id, string.Join(',', roles));
+
+                    // Track login engagement
+                    if (user.OrganisationID.HasValue)
+                    {
+                        await _engagementService.TrackAsync(
+                            user.Id,
+                            user.OrganisationID.Value,
+                            EngagementTrackingService.EVENT_LOGIN
+                        );
+                    }
 
                     return Ok(new
                     {
@@ -331,6 +344,16 @@ namespace lmsBox.Server.Controllers
                 var tokenString = new JwtSecurityTokenHandler().WriteToken(jwt);
 
                 _logger.LogInformation("User {UserId} authenticated via dev-login. Roles={Roles}", user.Id, string.Join(',', roles));
+
+                // Track login engagement
+                if (user.OrganisationID.HasValue)
+                {
+                    await _engagementService.TrackAsync(
+                        user.Id,
+                        user.OrganisationID.Value,
+                        EngagementTrackingService.EVENT_LOGIN
+                    );
+                }
 
                 return Ok(new
                 {

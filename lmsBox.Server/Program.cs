@@ -215,6 +215,9 @@ builder.Services.AddScoped<lmsBox.Server.Services.ICertificateService, lmsBox.Se
 // AI Assistant service registration
 builder.Services.AddScoped<lmsBox.Server.Services.IAIAssistantService, lmsBox.Server.Services.AIAssistantService>();
 
+// Engagement Tracking service registration
+builder.Services.AddScoped<lmsBox.Server.Services.IEngagementTrackingService, lmsBox.Server.Services.EngagementTrackingService>();
+
 var app = builder.Build();
 
 // Serilog request logging - logs HTTP requests and responses

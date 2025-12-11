@@ -10,7 +10,8 @@ import {
   ClockIcon,
   ArrowTrendingUpIcon,
   BookOpenIcon,
-  MapIcon
+  MapIcon,
+  ChartPieIcon
 } from '@heroicons/react/24/outline';
 import { HardDrive } from 'lucide-react';
 
@@ -80,6 +81,15 @@ export default function AdminReports() {
       icon: ClockIcon,
       path: '/admin/reports/time-tracking',
       color: 'bg-rose-500'
+    },
+    {
+      id: 'engagement-analytics',
+      name: 'Engagement Analytics',
+      description: 'Real-time engagement tracking with daily scores, top users, and activity breakdown',
+      category: 'users',
+      icon: ChartPieIcon,
+      path: '/admin/analytics/engagement',
+      color: 'bg-purple-600'
     },
     {
       id: 'pathway-progress',

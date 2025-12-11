@@ -118,6 +118,7 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate }) {
   const [hasStarted, setHasStarted] = React.useState(false);
   const sessionStartTimeRef = React.useRef(null);
   const timeTrackingIntervalRef = React.useRef(null);
+  const hasTrackedAccessRef = React.useRef(false);
 
   // Handle fullscreen state changes for PDF and HTML content
   React.useEffect(() => {
@@ -151,24 +152,24 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate }) {
     };
   }, []);
 
-  // Track session time for the current lesson
+  // Track session time for video lessons only (PDF/HTML don't need continuous tracking)
   React.useEffect(() => {
-    if (!lesson) return;
+    if (!lesson || lesson.type !== 'video') return;
 
     // Start tracking time for this lesson
     sessionStartTimeRef.current = Date.now();
 
-    // Send time update every 30 seconds
+    // Send time update every 30 seconds for video lessons only
     timeTrackingIntervalRef.current = setInterval(() => {
       if (sessionStartTimeRef.current) {
         const timeSpentSeconds = Math.floor((Date.now() - sessionStartTimeRef.current) / 1000);
         
         if (timeSpentSeconds > 0) {
-          // Send time update
+          // Send time update - DON'T send completion status, only time
           onProgressUpdate?.(lesson.id, {
             progressPercent: lesson.progress || 0,
             videoTimestamp: lesson.videoTimestamp,
-            completed: lesson.isCompleted,
+            completed: false, // Never auto-complete
             timeSpentSeconds: timeSpentSeconds
           });
           
@@ -191,7 +192,7 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate }) {
           onProgressUpdate?.(lesson.id, {
             progressPercent: lesson.progress || 0,
             videoTimestamp: lesson.videoTimestamp,
-            completed: lesson.isCompleted,
+            completed: false, // Never auto-complete
             timeSpentSeconds: timeSpentSeconds
           });
         }
@@ -231,6 +232,43 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate }) {
     window.addEventListener('message', handleScormMessage);
     return () => window.removeEventListener('message', handleScormMessage);
   }, [lesson, onProgressUpdate]);
+
+  // Track PDF and HTML lesson access when loaded
+  React.useEffect(() => {
+    if (!lesson) return;
+    
+    // Track access for PDF, HTML, and document type lessons when they're loaded
+    const shouldTrack = (lesson.type === 'pdf' || lesson.type === 'document' || 
+                        lesson.type === 'html' || lesson.type === 'content');
+    
+    if (shouldTrack && !hasTrackedAccessRef.current) {
+      hasTrackedAccessRef.current = true;
+      
+      // Call trackLessonAccess from parent component
+      const trackAccess = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const courseId = _courseId;
+          await fetch(`${API_BASE}/api/learner/courses/${courseId}/lessons/${lesson.id}/access`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            }
+          });
+        } catch (error) {
+          console.error('Error tracking lesson access:', error);
+        }
+      };
+      
+      trackAccess();
+    }
+    
+    // Reset tracking flag when lesson changes
+    return () => {
+      hasTrackedAccessRef.current = false;
+    };
+  }, [lesson, _courseId]);
 
   // Save progress periodically
   const handleTimeUpdate = React.useCallback((e) => {
@@ -754,10 +792,17 @@ export default function CourseContent() {
           
           // Check if all lessons are now completed
           const allLessonsComplete = updatedCourse.lessons.every(l => l.isCompleted);
-          if (allLessonsComplete && updatedCourse.hasPostSurvey && !updatedCourse.postSurveyCompleted) {
-            // Load post-survey if not already loaded
-            if (!surveyItems.find(s => s.surveyType === 'post')) {
-              loadPostSurvey();
+          if (allLessonsComplete) {
+            // Reload course details to get updated completion status
+            loadCourseDetails().then(() => {
+              toast.success('🎉 Congratulations! You\'ve completed all lessons!');
+            });
+            
+            // Load post-survey if not already loaded and exists
+            if (updatedCourse.hasPostSurvey && !updatedCourse.postSurveyCompleted) {
+              if (!surveyItems.find(s => s.surveyType === 'post')) {
+                loadPostSurvey();
+              }
             }
           }
           
@@ -785,6 +830,25 @@ export default function CourseContent() {
           'Authorization': `Bearer ${token}`
         }
       });
+      
+      // Update local lesson state to mark as accessed (in-progress)
+      setCourse(prevCourse => {
+        if (!prevCourse) return prevCourse;
+        
+        return {
+          ...prevCourse,
+          lessons: prevCourse.lessons.map(lesson => 
+            lesson.id === lessonId 
+              ? { ...lesson, lastAccessedAt: new Date().toISOString() }
+              : lesson
+          )
+        };
+      });
+      
+      // Also update active lesson if it's the one being tracked
+      if (activeLesson?.id === lessonId) {
+        setActiveLesson(prev => prev ? { ...prev, lastAccessedAt: new Date().toISOString() } : prev);
+      }
     } catch (error) {
       console.error('Error tracking lesson access:', error);
     }
@@ -929,6 +993,9 @@ export default function CourseContent() {
           
           setActiveLesson(lessonToShow);
           setActiveSurvey(null);
+          
+          // Track lesson access when automatically loaded
+          trackLessonAccess(lessonToShow.id);
         }
       }
     } catch (error) {
@@ -1123,7 +1190,7 @@ export default function CourseContent() {
                     <div className="mb-4 pb-4 border-b">
                       <h4 className="text-base font-semibold text-gray-900 mb-2">Certificates</h4>
                       <p className="text-sm text-gray-600 mb-3">Get certificate by completing entire course</p>
-                      {course.isCompleted ? (
+                      {course.isCompleted && course.lessons?.every(l => l.isCompleted) ? (
                         <button
                           onClick={async () => {
                             try {

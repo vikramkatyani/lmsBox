@@ -18,19 +18,22 @@ public partial class CoursesController : ControllerBase
     private readonly IAzureBlobService _blobService;
     private readonly ICertificateService _certificateService;
     private readonly IAuditLogService _auditLogService;
+    private readonly IEngagementTrackingService _engagementService;
 
     public CoursesController(
         ApplicationDbContext context, 
         ILogger<CoursesController> logger, 
         IAzureBlobService blobService,
         ICertificateService certificateService,
-        IAuditLogService auditLogService)
+        IAuditLogService auditLogService,
+        IEngagementTrackingService engagementService)
     {
         _context = context;
         _logger = logger;
         _blobService = blobService;
         _certificateService = certificateService;
         _auditLogService = auditLogService;
+        _engagementService = engagementService;
     }
 
     /// <summary>
@@ -86,7 +89,8 @@ public partial class CoursesController : ControllerBase
                         .Select(lp => new { lp.ProgressPercent, lp.Completed })
                         .FirstOrDefault(),
                     HasAnyLessonAccessed = _context.LearnerProgresses
-                        .Any(lp => lp.UserId == userId && lp.CourseId == c.Id && lp.LessonId != null && lp.LastAccessedAt != null)
+                        .Any(lp => lp.UserId == userId && lp.CourseId == c.Id && lp.LessonId != null && 
+                            (lp.LastAccessedAt != null || lp.StartedAt != null))
                 })
                 .ToListAsync();
 
@@ -388,6 +392,29 @@ public partial class CoursesController : ControllerBase
                 }).ToList()
             };
 
+            // Track course view engagement (fire and forget - don't block response)
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var user = await _context.Users.FindAsync(userId);
+                    if (user?.OrganisationID.HasValue == true)
+                    {
+                        _logger.LogInformation("📊 Tracking course view: User={UserId}, Org={OrgId}, Course={CourseId}", userId, user.OrganisationID.Value, courseId);
+                        await _engagementService.TrackAsync(
+                            userId,
+                            user.OrganisationID.Value,
+                            EngagementTrackingService.EVENT_COURSE_VIEW,
+                            courseId: courseId
+                        );
+                    }
+                }
+                catch (Exception trackEx)
+                {
+                    _logger.LogError(trackEx, "Failed to track course view for {CourseId}", courseId);
+                }
+            });
+
             return Ok(courseDetail);
         }
         catch (Exception ex)
@@ -415,6 +442,9 @@ public partial class CoursesController : ControllerBase
             var progress = await _context.LearnerProgresses
                 .FirstOrDefaultAsync(lp => lp.UserId == userId && lp.LessonId == lessonId);
 
+            var isNewLesson = progress == null;
+            var isLessonStarting = progress?.StartedAt == null;
+
             if (progress == null)
             {
                 progress = new LearnerProgress
@@ -423,9 +453,15 @@ public partial class CoursesController : ControllerBase
                     CourseId = courseId,
                     LessonId = lessonId,
                     ProgressPercent = 0,
-                    Completed = false
+                    Completed = false,
+                    StartedAt = DateTime.UtcNow // Set StartedAt for new lessons
                 };
                 _context.LearnerProgresses.Add(progress);
+            }
+            else if (progress.StartedAt == null)
+            {
+                // Set StartedAt if not already set (lesson is starting)
+                progress.StartedAt = DateTime.UtcNow;
             }
 
             // Update progress
@@ -439,10 +475,12 @@ public partial class CoursesController : ControllerBase
                 progress.TotalTimeSpentSeconds += request.TimeSpentSeconds.Value;
             }
             
+            var wasJustCompleted = false;
             if (request.Completed && !progress.Completed)
             {
                 progress.Completed = true;
                 progress.CompletedAt = DateTime.UtcNow;
+                wasJustCompleted = true;
                 
                 // Log lesson completion to audit log
                 var user = await _context.Users.FindAsync(userId);
@@ -462,6 +500,48 @@ public partial class CoursesController : ControllerBase
             }
 
             await _context.SaveChangesAsync();
+
+            // Track lesson start engagement AFTER SaveChanges (for new lessons or first start)
+            if (isNewLesson || isLessonStarting)
+            {
+                var user = await _context.Users.FindAsync(userId);
+                if (user?.OrganisationID.HasValue == true)
+                {
+                    _logger.LogInformation("📊 Tracking lesson start: User={UserId}, Org={OrgId}, Lesson={LessonId}", userId, user.OrganisationID.Value, lessonId);
+                    await _engagementService.TrackAsync(
+                        userId,
+                        user.OrganisationID.Value,
+                        EngagementTrackingService.EVENT_LESSON_START,
+                        courseId: courseId,
+                        lessonId: lessonId
+                    );
+                }
+                else
+                {
+                    _logger.LogWarning("📊 Cannot track lesson start - user {UserId} has no OrganisationID", userId);
+                }
+            }
+
+            // Track lesson completion engagement AFTER SaveChanges
+            if (wasJustCompleted)
+            {
+                var user = await _context.Users.FindAsync(userId);
+                if (user?.OrganisationID.HasValue == true)
+                {
+                    _logger.LogInformation("📊 Tracking lesson completion: User={UserId}, Org={OrgId}, Lesson={LessonId}", userId, user.OrganisationID.Value, lessonId);
+                    await _engagementService.TrackAsync(
+                        userId,
+                        user.OrganisationID.Value,
+                        EngagementTrackingService.EVENT_LESSON_COMPLETE,
+                        courseId: courseId,
+                        lessonId: lessonId
+                    );
+                }
+                else
+                {
+                    _logger.LogWarning("📊 Cannot track lesson completion - user {UserId} has no OrganisationID", userId);
+                }
+            }
 
             // Update course-level progress
             await UpdateCourseProgress(userId, courseId);
@@ -493,6 +573,9 @@ public partial class CoursesController : ControllerBase
             var progress = await _context.LearnerProgresses
                 .FirstOrDefaultAsync(lp => lp.UserId == userId && lp.LessonId == lessonId);
 
+            var isNewAccess = progress == null;
+            var isLessonStarting = progress?.StartedAt == null;
+
             if (progress == null)
             {
                 progress = new LearnerProgress
@@ -502,6 +585,7 @@ public partial class CoursesController : ControllerBase
                     LessonId = lessonId,
                     ProgressPercent = 0,
                     Completed = false,
+                    StartedAt = DateTime.UtcNow,
                     LastAccessedAt = DateTime.UtcNow,
                     SessionStartTime = DateTime.UtcNow // Start new session
                 };
@@ -509,6 +593,12 @@ public partial class CoursesController : ControllerBase
             }
             else
             {
+                // Set StartedAt if not already set (lesson now in-progress)
+                if (progress.StartedAt == null)
+                {
+                    progress.StartedAt = DateTime.UtcNow;
+                }
+                
                 // Update last accessed time and start new session if needed
                 progress.LastAccessedAt = DateTime.UtcNow;
                 
@@ -521,6 +611,27 @@ public partial class CoursesController : ControllerBase
             }
 
             await _context.SaveChangesAsync();
+
+            // Track lesson start engagement (for new lessons or when StartedAt is first set)
+            if (isNewAccess || isLessonStarting)
+            {
+                var orgId = await _context.Users
+                    .Where(u => u.Id == userId)
+                    .Select(u => u.OrganisationID)
+                    .FirstOrDefaultAsync();
+
+                if (orgId.HasValue)
+                {
+                    _logger.LogInformation("📊 Tracking lesson start: User={UserId}, Org={OrgId}, Lesson={LessonId}", userId, orgId.Value, lessonId);
+                    await _engagementService.TrackAsync(
+                        userId,
+                        orgId.Value,
+                        EngagementTrackingService.EVENT_LESSON_START,
+                        courseId: courseId,
+                        lessonId: lessonId
+                    );
+                }
+            }
 
             return Ok(new { message = "Lesson access tracked" });
         }
@@ -562,6 +673,13 @@ public partial class CoursesController : ControllerBase
                 Completed = false
             };
             _context.LearnerProgresses.Add(courseProgress);
+        }
+
+        // Mark course as started if any lesson has been accessed
+        var anyLessonStarted = lessonProgresses.Any(lp => lp.StartedAt != null || lp.LastAccessedAt != null);
+        if (anyLessonStarted && courseProgress.StartedAt == null)
+        {
+            courseProgress.StartedAt = DateTime.UtcNow;
         }
 
         // Calculate progress based on total lessons in course
@@ -610,6 +728,31 @@ public partial class CoursesController : ControllerBase
                 
                 // Update pathway progress if this course is part of any pathways
                 await UpdatePathwayProgress(userId, courseId);
+                
+                // Store user and course for tracking after SaveChanges
+                var userForTracking = user;
+                var canTrack = user?.OrganisationID.HasValue == true;
+                
+                // Save changes first
+                await _context.SaveChangesAsync();
+                
+                // Track course completion engagement AFTER SaveChanges
+                if (canTrack && userForTracking != null)
+                {
+                    _logger.LogInformation("📊 Tracking course completion: User={UserId}, Org={OrgId}, Course={CourseId}", userId, userForTracking.OrganisationID!.Value, courseId);
+                    await _engagementService.TrackAsync(
+                        userId,
+                        userForTracking.OrganisationID.Value,
+                        EngagementTrackingService.EVENT_LESSON_COMPLETE, // Course completion tracked as final lesson
+                        courseId: courseId
+                    );
+                }
+                else
+                {
+                    _logger.LogWarning("📊 Cannot track course completion - user {UserId} has no OrganisationID", userId);
+                }
+                
+                return; // Exit early since we already saved
             }
         }
         else if (!allCompleted && courseProgress.Completed)

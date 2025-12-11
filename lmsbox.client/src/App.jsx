@@ -32,6 +32,7 @@ import PathwayAssignmentsReport from './pages/PathwayAssignmentsReport';
 import UserCourseProgressReport from './pages/UserCourseProgressReport';
 import CustomReportBuilder from './pages/CustomReportBuilder';
 import StorageReport from './pages/StorageReport';
+import EngagementAnalytics from './pages/EngagementAnalytics';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
 import GlobalAIButton from './components/GlobalAIButton';
@@ -328,6 +329,14 @@ function App() {
             element={
               <AdminRoute>
                 <StorageReport />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/analytics/engagement"
+            element={
+              <AdminRoute>
+                <EngagementAnalytics />
               </AdminRoute>
             }
           />

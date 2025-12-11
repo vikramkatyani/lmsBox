@@ -63,6 +63,9 @@ namespace lmsbox.infrastructure.Data
         public DbSet<SurveyResponse> SurveyResponses { get; set; } = null!;
         public DbSet<SurveyQuestionResponse> SurveyQuestionResponses { get; set; } = null!;
 
+        // Engagement Tracking
+        public DbSet<UserEngagement> UserEngagements { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
@@ -78,6 +81,7 @@ namespace lmsbox.infrastructure.Data
             builder.ApplyConfiguration(new SurveyResponseConfiguration());
             builder.ApplyConfiguration(new SurveyQuestionConfiguration());
             builder.ApplyConfiguration(new SurveyQuestionResponseConfiguration());
+            builder.ApplyConfiguration(new UserEngagementConfiguration());
 
             // Optional: keep revoked tokens short-lived and index expiry for cleanup queries
             builder.Entity<RevokedToken>()

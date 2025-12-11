@@ -329,7 +329,7 @@ export default function AdminLessonLibrary() {
                 }`}
               >
                 {/* Thumbnail */}
-                <div className="relative bg-gradient-to-br from-indigo-500 to-purple-600 h-48 flex items-center justify-center">
+                <div className="relative bg-boxlms-navbar h-48 flex items-center justify-center">
                   <div className="text-white text-6xl opacity-80">
                     {getLessonIcon(lesson.contentType)}
                   </div>
