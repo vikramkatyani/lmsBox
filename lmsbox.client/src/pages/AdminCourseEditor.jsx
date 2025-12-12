@@ -16,6 +16,7 @@ import { adminCourseService, courseHelpers } from '../services/adminCourses';
 import lessonsService from '../services/lessons';
 import { adminSurveyService } from '../services/surveys';
 import { Sparkles } from 'lucide-react';
+import { getUserRole } from '../utils/auth';
 
 export default function AdminCourseEditor() {
   const navigate = useNavigate();
@@ -25,6 +26,9 @@ export default function AdminCourseEditor() {
   
   // Check if AI assistant should be opened automatically
   const openAIParam = searchParams.get('openAI');
+  
+  // Get user role to conditionally show/hide features
+  const userRole = getUserRole();
 
   usePageTitle(isNew ? 'Add Course' : 'Edit Course');
 
@@ -841,66 +845,69 @@ export default function AdminCourseEditor() {
                   </label>
                 </div>
 
-                <div className="border-t pt-4">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Survey Settings</h3>
-                  <p className="text-xs text-gray-600 mb-3">Configure pre and post-course surveys. Create and publish surveys from the Surveys menu to assign them here.</p>
-                  
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Pre-Course Survey (Optional)</label>
-                      <select
-                        value={form.preCourseSurveyId || ''}
-                        onChange={(e) => handleChange('preCourseSurveyId', e.target.value ? parseInt(e.target.value) : null)}
-                        className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm"
-                        disabled={form.status === 'Published'}
-                      >
-                        <option value="">No pre-course survey</option>
-                        {availableSurveys.map(s => (
-                          <option key={s.id} value={s.id}>{s.title}</option>
-                        ))}
-                      </select>
-                      {form.preCourseSurveyId && (
-                        <label className="inline-flex items-center gap-2 mt-2">
-                          <input
-                            type="checkbox"
-                            checked={form.isPreSurveyMandatory}
-                            onChange={(e) => handleChange('isPreSurveyMandatory', e.target.checked)}
-                            className="rounded text-[#2afeae] focus:ring-[#2afeae]"
-                            disabled={form.status === 'Published'}
-                          />
-                          <span className="text-xs text-gray-700">Mandatory (must complete before accessing lessons)</span>
-                        </label>
-                      )}
-                    </div>
+                {/* Survey Settings - Hidden for OrgAdmin */}
+                {userRole === 'SuperAdmin' && (
+                  <div className="border-t pt-4">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Survey Settings</h3>
+                    <p className="text-xs text-gray-600 mb-3">Configure pre and post-course surveys. Create and publish surveys from the Surveys menu to assign them here.</p>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Pre-Course Survey (Optional)</label>
+                        <select
+                          value={form.preCourseSurveyId || ''}
+                          onChange={(e) => handleChange('preCourseSurveyId', e.target.value ? parseInt(e.target.value) : null)}
+                          className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm"
+                          disabled={form.status === 'Published'}
+                        >
+                          <option value="">No pre-course survey</option>
+                          {availableSurveys.map(s => (
+                            <option key={s.id} value={s.id}>{s.title}</option>
+                          ))}
+                        </select>
+                        {form.preCourseSurveyId && (
+                          <label className="inline-flex items-center gap-2 mt-2">
+                            <input
+                              type="checkbox"
+                              checked={form.isPreSurveyMandatory}
+                              onChange={(e) => handleChange('isPreSurveyMandatory', e.target.checked)}
+                              className="rounded text-[#2afeae] focus:ring-[#2afeae]"
+                              disabled={form.status === 'Published'}
+                            />
+                            <span className="text-xs text-gray-700">Mandatory (must complete before accessing lessons)</span>
+                          </label>
+                        )}
+                      </div>
 
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Post-Course Survey (Optional)</label>
-                      <select
-                        value={form.postCourseSurveyId || ''}
-                        onChange={(e) => handleChange('postCourseSurveyId', e.target.value ? parseInt(e.target.value) : null)}
-                        className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm"
-                        disabled={form.status === 'Published'}
-                      >
-                        <option value="">No post-course survey</option>
-                        {availableSurveys.map(s => (
-                          <option key={s.id} value={s.id}>{s.title}</option>
-                        ))}
-                      </select>
-                      {form.postCourseSurveyId && (
-                        <label className="inline-flex items-center gap-2 mt-2">
-                          <input
-                            type="checkbox"
-                            checked={form.isPostSurveyMandatory}
-                            onChange={(e) => handleChange('isPostSurveyMandatory', e.target.checked)}
-                            className="rounded text-[#2afeae] focus:ring-[#2afeae]"
-                            disabled={form.status === 'Published'}
-                          />
-                          <span className="text-xs text-gray-700">Mandatory (must complete for course completion & certificate)</span>
-                        </label>
-                      )}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Post-Course Survey (Optional)</label>
+                        <select
+                          value={form.postCourseSurveyId || ''}
+                          onChange={(e) => handleChange('postCourseSurveyId', e.target.value ? parseInt(e.target.value) : null)}
+                          className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm"
+                          disabled={form.status === 'Published'}
+                        >
+                          <option value="">No post-course survey</option>
+                          {availableSurveys.map(s => (
+                            <option key={s.id} value={s.id}>{s.title}</option>
+                          ))}
+                        </select>
+                        {form.postCourseSurveyId && (
+                          <label className="inline-flex items-center gap-2 mt-2">
+                            <input
+                              type="checkbox"
+                              checked={form.isPostSurveyMandatory}
+                              onChange={(e) => handleChange('isPostSurveyMandatory', e.target.checked)}
+                              className="rounded text-[#2afeae] focus:ring-[#2afeae]"
+                              disabled={form.status === 'Published'}
+                            />
+                            <span className="text-xs text-gray-700">Mandatory (must complete for course completion & certificate)</span>
+                          </label>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>

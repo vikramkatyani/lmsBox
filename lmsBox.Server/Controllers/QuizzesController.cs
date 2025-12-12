@@ -8,7 +8,7 @@ using lmsBox.Server.Services;
 
 namespace lmsBox.Server.Controllers;
 
-[Authorize(Roles = "Learner")]
+[Authorize] // Any authenticated user can access quizzes in their courses
 [ApiController]
 [Route("api/learner/quizzes")]
 public class QuizzesController : ControllerBase
