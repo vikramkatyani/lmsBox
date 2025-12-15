@@ -387,7 +387,8 @@ public partial class CoursesController : ControllerBase
                         Url = url,
                         QuizId = lesson.QuizId,
                         VideoTimestamp = lessonProgress?.VideoTimestamp,
-                        TotalTimeSpentSeconds = lessonProgress?.TotalTimeSpentSeconds ?? 0
+                        TotalTimeSpentSeconds = lessonProgress?.TotalTimeSpentSeconds ?? 0,
+                        GlobalLibraryContentId = lesson.GlobalLibraryContentId
                     };
                 }).ToList()
             };
@@ -1289,6 +1290,7 @@ public class LessonDto
     public string? QuizId { get; set; }
     public int? VideoTimestamp { get; set; } // Video bookmark in seconds
     public int TotalTimeSpentSeconds { get; set; } // Total time spent on this lesson
+    public long? GlobalLibraryContentId { get; set; } // Reference to global library content if imported from library
 }
 
 public class SubmitSurveyRequest

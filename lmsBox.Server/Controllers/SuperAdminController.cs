@@ -366,23 +366,53 @@ public class SuperAdminController : ControllerBase
 
     [Authorize(Roles = "SuperAdmin")]
     [HttpGet("global-library")]
-    public async Task<IActionResult> GetGlobalLibrary([FromQuery] string? contentType)
+    public async Task<IActionResult> GetGlobalLibrary(
+        [FromQuery] string? contentType,
+        [FromQuery] string? search,
+        [FromQuery] string? category,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
     {
-        var query = _context.GlobalLibraryContents.AsQueryable();
+        var query = _context.GlobalLibraryContents.Where(c => c.IsActive);
 
+        // Filter by content type
         if (!string.IsNullOrEmpty(contentType))
         {
             query = query.Where(c => c.ContentType == contentType);
         }
 
+        // Filter by category
+        if (!string.IsNullOrEmpty(category))
+        {
+            query = query.Where(c => c.Category != null && c.Category.ToLower() == category.ToLower());
+        }
+
+        // Search across multiple fields
+        if (!string.IsNullOrEmpty(search))
+        {
+            var searchLower = search.ToLower();
+            query = query.Where(c => 
+                (c.Title != null && c.Title.ToLower().Contains(searchLower)) ||
+                (c.Description != null && c.Description.ToLower().Contains(searchLower)) ||
+                (c.Code != null && c.Code.ToLower().Contains(searchLower)) ||
+                (c.Tags != null && c.Tags.ToLower().Contains(searchLower))
+            );
+        }
+
+        // Get total count before pagination
+        var totalCount = await query.CountAsync();
+
+        // Apply pagination
         var contents = await query
-            .Where(c => c.IsActive)
             .OrderByDescending(c => c.UploadedOn)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(c => new GlobalLibraryContentResponse
             {
                 Id = c.Id,
                 Title = c.Title,
                 Description = c.Description,
+                Code = c.Code,
                 ContentType = c.ContentType,
                 AzureBlobPath = c.AzureBlobPath,
                 FileName = c.FileName,
@@ -392,11 +422,125 @@ public class SuperAdminController : ControllerBase
                 UploadedBy = c.UploadedBy,
                 IsActive = c.IsActive,
                 Category = c.Category,
-                Tags = c.Tags
+                Tags = c.Tags,
+                ThumbnailUrl = c.ThumbnailUrl
             })
             .ToListAsync();
 
-        return Ok(contents);
+        return Ok(new
+        {
+            items = contents,
+            totalCount = totalCount,
+            page = page,
+            pageSize = pageSize,
+            totalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+        });
+    }
+
+    [Authorize(Roles = "SuperAdmin")]
+    [HttpGet("global-library/categories")]
+    public async Task<IActionResult> GetGlobalLibraryCategories()
+    {
+        var categories = await _context.GlobalLibraryContents
+            .Where(c => c.IsActive && !string.IsNullOrEmpty(c.Category))
+            .Select(c => c.Category)
+            .Distinct()
+            .OrderBy(c => c)
+            .ToListAsync();
+
+        return Ok(categories);
+    }
+
+    [Authorize(Roles = "SuperAdmin")]
+    [HttpGet("global-library/{id}")]
+    public async Task<IActionResult> GetGlobalLibraryContent(long id)
+    {
+        var content = await _context.GlobalLibraryContents
+            .Where(c => c.Id == id && c.IsActive)
+            .Select(c => new GlobalLibraryContentResponse
+            {
+                Id = c.Id,
+                Title = c.Title,
+                Description = c.Description,
+                Code = c.Code,
+                ContentType = c.ContentType,
+                AzureBlobPath = c.AzureBlobPath,
+                FileName = c.FileName,
+                FileSizeBytes = c.FileSizeBytes,
+                MimeType = c.MimeType,
+                UploadedOn = c.UploadedOn,
+                UploadedBy = c.UploadedBy,
+                IsActive = c.IsActive,
+                Category = c.Category,
+                Tags = c.Tags,
+                DurationSeconds = c.DurationSeconds,
+                ThumbnailUrl = c.ThumbnailUrl
+            })
+            .FirstOrDefaultAsync();
+
+        if (content == null)
+            return NotFound(new { error = "Content not found" });
+
+        return Ok(content);
+    }
+
+    [Authorize(Roles = "SuperAdmin")]
+    [HttpPut("global-library/{id}")]
+    public async Task<IActionResult> UpdateGlobalLibraryContent(
+        long id,
+        [FromForm] string title,
+        [FromForm] string? description,
+        [FromForm] string code,
+        [FromForm] string? category,
+        [FromForm] string? tags,
+        [FromForm] IFormFile? thumbnail)
+    {
+        var content = await _context.GlobalLibraryContents.FindAsync(id);
+        if (content == null || !content.IsActive)
+            return NotFound(new { error = "Content not found" });
+
+        var superAdminEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? "system";
+
+        // Update editable fields
+        content.Title = title;
+        content.Description = description;
+        content.Code = code;
+        content.Category = category;
+        content.Tags = tags;
+        content.UpdatedOn = DateTime.UtcNow;
+        content.UpdatedBy = superAdminEmail;
+
+        // Handle thumbnail upload if provided
+        if (thumbnail != null && thumbnail.Length > 0)
+        {
+            if (_blobService.IsConfigured())
+            {
+                // Upload new thumbnail
+                var thumbnailExtension = Path.GetExtension(thumbnail.FileName).ToLower();
+                var thumbnailFileName = $"{Guid.NewGuid()}{thumbnailExtension}";
+                
+                using var thumbnailStream = thumbnail.OpenReadStream();
+                var thumbnailUrl = await _blobService.UploadToCustomPathAsync(
+                    thumbnailStream,
+                    thumbnailFileName,
+                    "global-library",
+                    thumbnail.ContentType,
+                    "thumbnails");
+
+                content.ThumbnailUrl = thumbnailUrl;
+                _logger.LogInformation("Updated thumbnail for content {Id}", id);
+            }
+            else
+            {
+                _logger.LogWarning("Azure Blob Storage not configured, skipping thumbnail upload");
+            }
+        }
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("SuperAdmin {Email} updated global library content: {Title}", superAdminEmail, content.Title);
+
+        return Ok(new { message = "Content updated successfully", thumbnailUrl = content.ThumbnailUrl });
     }
 
     /// <summary>
@@ -409,6 +553,7 @@ public class SuperAdminController : ControllerBase
         [FromForm] IFormFile video, 
         [FromForm] string title, 
         [FromForm] string description, 
+        [FromForm] string code,
         [FromForm] string? category, 
         [FromForm] string tags,
         [FromForm] int? durationSeconds,
@@ -469,6 +614,7 @@ public class SuperAdminController : ControllerBase
             {
                 Title = title,
                 Description = description,
+                Code = code,
                 ContentType = "video",
                 AzureBlobPath = blobUrl,
                 FileName = uniqueFileName,
@@ -517,6 +663,7 @@ public class SuperAdminController : ControllerBase
         [FromForm] IFormFile pdf, 
         [FromForm] string title, 
         [FromForm] string description, 
+        [FromForm] string code,
         [FromForm] string? category, 
         [FromForm] string tags,
         [FromForm] IFormFile? thumbnail)
@@ -582,6 +729,7 @@ public class SuperAdminController : ControllerBase
             {
                 Title = title,
                 Description = description,
+                Code = code,
                 ContentType = "pdf",
                 AzureBlobPath = blobUrl,
                 FileName = uniqueFileName,
@@ -629,6 +777,7 @@ public class SuperAdminController : ControllerBase
         [FromForm] IFormFile scormPackage, 
         [FromForm] string title, 
         [FromForm] string description, 
+        [FromForm] string code,
         [FromForm] string? category, 
         [FromForm] string tags,
         [FromForm] IFormFile? thumbnail)
@@ -687,10 +836,9 @@ public class SuperAdminController : ControllerBase
                     throw new InvalidOperationException("Invalid SCORM package: imsmanifest.xml not found");
                 }
 
-                // Get package name and create folder path
-                var packageName = Path.GetFileNameWithoutExtension(scormPackage.FileName);
-                var sanitizedPackageName = packageName.Replace(" ", "-").Replace(".", "-");
-                var scormFolder = $"global-library/scorm/{sanitizedPackageName}";
+                // Use provided code for folder naming
+                var sanitizedCode = code.Replace(" ", "-").Replace(".", "-").ToLowerInvariant();
+                var scormFolder = $"global-library/scorm/{sanitizedCode}";
 
                 // Upload all files from the extracted directory
                 var manifestDirectory = Path.GetDirectoryName(manifestPath)!;
@@ -754,9 +902,10 @@ public class SuperAdminController : ControllerBase
                 {
                     Title = title,
                     Description = description,
+                    Code = code,
                     ContentType = "scorm",
                     AzureBlobPath = launchUrl,
-                    FileName = sanitizedPackageName,
+                    FileName = sanitizedCode,
                     FileSizeBytes = totalSize,
                     MimeType = "application/zip",
                     Category = category,
@@ -777,7 +926,7 @@ public class SuperAdminController : ControllerBase
                 {
                     Id = content.Id,
                     ScormUrl = launchUrl,
-                    FileName = sanitizedPackageName,
+                    FileName = sanitizedCode,
                     OriginalFileName = scormPackage.FileName,
                     Size = totalSize,
                     ContentType = "application/zip",

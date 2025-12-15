@@ -2,33 +2,34 @@
 
 ## Sheet Structure
 
-### Required Columns (A-F)
+### Required Columns (A-G)
 
 | Column | Header | Type | Required | Description | Example |
 |--------|--------|------|----------|-------------|---------|
-| A | Title | Text | ✅ Yes | Package title (will be sanitized for folder name) | "Ladder Safety Training" |
+| A | Title | Text | ✅ Yes | Package display title | "Ladder Safety Training" |
 | B | Description | Text | ❌ No | Detailed description of the content | "Comprehensive training on safe ladder selection, setup, inspection, and usage to prevent falls and injuries." |
-| C | Category | Text | ❌ No | Category for filtering/grouping | "Workplace Safety" |
-| D | Tags | Text | ❌ No | Comma-separated tags for search | "ladder, fall prevention, PPE, inspection, setup, maintenance" |
-| E | Thumbnail URL | URL | ❌ No | Link to thumbnail image | "https://example.com/thumbnails/ladder-safety.jpg" |
-| F | Content File URL | URL | ✅ Yes | Google Drive link to SCORM `.zip` | "https://drive.google.com/file/d/1ABC...XYZ/view" |
+| C | Code | Text | ✅ Yes | Unique code for Azure folder naming (lowercase, no spaces) | "ladder-safety-2024" |
+| D | Category | Text | ❌ No | Category for filtering/grouping | "Workplace Safety" |
+| E | Tags | Text | ❌ No | Comma-separated tags for search | "ladder, fall prevention, PPE, inspection, setup, maintenance" |
+| F | Thumbnail URL | URL | ❌ No | Link to thumbnail image | "https://example.com/thumbnails/ladder-safety.jpg" |
+| G | Content File URL | URL | ✅ Yes | Google Drive link to SCORM `.zip` | "https://drive.google.com/file/d/1ABC...XYZ/view" |
 
-### Output Columns (G-H) - Auto-Updated by Function
+### Output Columns (H-I) - Auto-Updated by Function
 
 | Column | Header | Description |
 |--------|--------|-------------|
-| G | Status | Current processing status: "Pending" / "Processing" / "Success" / "Failed" |
-| H | Error Message | Error details if Status = "Failed", success details if Status = "Success" |
+| H | Status | Current processing status: "Pending" / "Processing" / "Success" / "Failed" |
+| I | Error Message | Error details if Status = "Failed", success details if Status = "Success" |
 
 ## Sample Data
 
 ```csv
-Title,Description,Category,Tags,Thumbnail URL,Content File URL,Status,Error Message
-Ladder Safety,Training on safe ladder selection and usage,Workplace Safety,"ladder, fall prevention, PPE",https://example.com/thumb1.jpg,https://drive.google.com/file/d/1ABC123/view,,
-Fire Safety at Workplace,Covers fire prevention and emergency response,Emergency Preparedness,"fire safety, evacuation",https://example.com/thumb2.jpg,https://drive.google.com/file/d/2DEF456/view,,
-Electrical Safety Awareness,Safe practices around electrical equipment,Technical Safety,"electrical hazards, PPE",https://example.com/thumb3.jpg,https://drive.google.com/file/d/3GHI789/view,,
-DSE Awareness,Ergonomic workstation setup and posture,Ergonomics & Wellness,"DSE, ergonomics, posture",https://example.com/thumb4.jpg,https://drive.google.com/file/d/4JKL012/view,,
-COSHH Awareness,Handling hazardous substances safely,Chemical Safety,"COSHH, hazardous substances",https://example.com/thumb5.jpg,https://drive.google.com/file/d/5MNO345/view,,
+Title,Description,Code,Category,Tags,Thumbnail URL,Content File URL,Status,Error Message
+Ladder Safety,Training on safe ladder selection and usage,ladder-safety-2024,Workplace Safety,"ladder, fall prevention, PPE",https://example.com/thumb1.jpg,https://drive.google.com/file/d/1ABC123/view,,
+Fire Safety at Workplace,Covers fire prevention and emergency response,fire-safety-workplace,Emergency Preparedness,"fire safety, evacuation",https://example.com/thumb2.jpg,https://drive.google.com/file/d/2DEF456/view,,
+Electrical Safety Awareness,Safe practices around electrical equipment,electrical-safety,Technical Safety,"electrical hazards, PPE",https://example.com/thumb3.jpg,https://drive.google.com/file/d/3GHI789/view,,
+DSE Awareness,Ergonomic workstation setup and posture,dse-awareness,Ergonomics & Wellness,"DSE, ergonomics, posture",https://example.com/thumb4.jpg,https://drive.google.com/file/d/4JKL012/view,,
+COSHH Awareness,Handling hazardous substances safely,coshh-awareness,Chemical Safety,"COSHH, hazardous substances",https://example.com/thumb5.jpg,https://drive.google.com/file/d/5MNO345/view,,
 ```
 
 ## Creating Your Sheet
@@ -36,7 +37,7 @@ COSHH Awareness,Handling hazardous substances safely,Chemical Safety,"COSHH, haz
 ### Option 1: Manual Creation
 
 1. Create new Google Sheet
-2. Add headers in row 1 (columns A-H)
+2. Add headers in row 1 (columns A-I)
 3. Format header row:
    - Bold text
    - Background color (e.g., light blue)
@@ -44,14 +45,15 @@ COSHH Awareness,Handling hazardous substances safely,Chemical Safety,"COSHH, haz
 4. Enter your data starting from row 2
 5. Apply data validation:
    - Column A (Title): Required, text
-   - Column F (Content File URL): Required, valid URL
+   - Column C (Code): Required, text, lowercase with hyphens
+   - Column G (Content File URL): Required, valid URL
 
 ### Option 2: Import Template
 
 Use this Google Sheets formula to create headers:
 
 ```
-=ARRAYFORMULA({"Title","Description","Category","Tags","Thumbnail URL","Content File URL","Status","Error Message"})
+=ARRAYFORMULA({"Title","Description","Code","Category","Tags","Thumbnail URL","Content File URL","Status","Error Message"})
 ```
 
 ### Option 3: Use Provided Template

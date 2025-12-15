@@ -12,6 +12,9 @@ public class GlobalLibraryContent
 
     public string? Description { get; set; }
 
+    // Unique code used for folder naming in Azure Storage
+    public string? Code { get; set; }
+
     [Required]
     public string ContentType { get; set; } = null!; // "pdf" or "video"
 

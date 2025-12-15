@@ -44,6 +44,7 @@ import SuperAdminOrganisations from './pages/SuperAdminOrganisations';
 import SuperAdminOrganisationForm from './pages/SuperAdminOrganisationForm';
 import SuperAdminLibrary from './pages/SuperAdminLibrary';
 import SuperAdminLibraryCreate from './pages/SuperAdminLibraryCreate';
+import SuperAdminLibraryEdit from './pages/SuperAdminLibraryEdit';
 import OrganisationSettings from './pages/OrganisationSettings';
 
 function App() {
@@ -59,6 +60,7 @@ function App() {
           <Route path="/superadmin/organisations/:id/edit" element={<SuperAdminOrganisationForm />} />
           <Route path="/superadmin/library" element={<SuperAdminLibrary />} />
           <Route path="/superadmin/library/create" element={<SuperAdminLibraryCreate />} />
+          <Route path="/superadmin/library/edit/:id" element={<SuperAdminLibraryEdit />} />
           
           {/* Public routes */}
           <Route 

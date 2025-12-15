@@ -33,12 +33,12 @@ public class AzureBlobStorageService : IAzureBlobStorageService
         _containerClient = blobServiceClient.GetBlobContainerClient(containerName);
     }
 
-    public async Task<ScormPackageInfo> UploadScormToGlobalLibraryAsync(string extractedPath, string packageName, string launchFile)
+    public async Task<ScormPackageInfo> UploadScormToGlobalLibraryAsync(string extractedPath, string code, string launchFile)
     {
         try
         {
-            var sanitizedName = SanitizeFileName(packageName);
-            var scormFolder = $"global-library/scorm/{sanitizedName}";
+            var sanitizedCode = SanitizeFileName(code);
+            var scormFolder = $"global-library/scorm/{sanitizedCode}";
 
             _logger.LogInformation("Uploading SCORM package to: {Folder}", scormFolder);
 
@@ -52,7 +52,7 @@ public class AzureBlobStorageService : IAzureBlobStorageService
 
             return new ScormPackageInfo
             {
-                PackageName = sanitizedName,
+                PackageName = sanitizedCode,
                 LaunchUrl = launchUrl,
                 BaseUrl = baseUrl,
                 ManifestPath = $"{scormFolder}/imsmanifest.xml",

@@ -5,6 +5,7 @@ public class GlobalLibraryContent
     public long Id { get; set; }
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public string? Code { get; set; }
     public string ContentType { get; set; } = string.Empty;
     public string AzureBlobPath { get; set; } = string.Empty;
     public string FileName { get; set; } = string.Empty;

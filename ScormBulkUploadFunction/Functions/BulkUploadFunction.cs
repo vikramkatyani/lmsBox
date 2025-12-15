@@ -167,7 +167,7 @@ public class BulkUploadFunction
                     var manifestDirectory = Path.GetDirectoryName(scormInfo.ManifestPath)!;
                     var uploadedScorm = await _blobService.UploadScormToGlobalLibraryAsync(
                         manifestDirectory,
-                        package.Title,
+                        package.Code,
                         scormInfo.LaunchUrl);
 
                     // Upload thumbnail if provided
@@ -182,6 +182,7 @@ public class BulkUploadFunction
                     {
                         Title = package.Title,
                         Description = package.Description,
+                        Code = package.Code,
                         ContentType = "scorm",
                         AzureBlobPath = uploadedScorm.LaunchUrl,
                         FileName = uploadedScorm.PackageName,

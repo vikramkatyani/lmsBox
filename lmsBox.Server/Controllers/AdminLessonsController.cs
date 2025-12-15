@@ -85,7 +85,8 @@ public class AdminLessonsController : ControllerBase
                 ScormEntryUrl = l.ScormEntryUrl,
                 DocumentUrl = l.DocumentUrl,
                 IsOptional = l.IsOptional,
-                CreatedAt = l.CreatedAt
+                CreatedAt = l.CreatedAt,
+                GlobalLibraryContentId = l.GlobalLibraryContentId
             }).ToList();
 
             return Ok(lessons);
@@ -172,7 +173,8 @@ public class AdminLessonsController : ControllerBase
                 HtmlContent = lesson.HtmlContent,
                 HtmlUrl = htmlUrlWithSas ?? lesson.HtmlUrl,
                 IsOptional = lesson.IsOptional,
-                CreatedAt = lesson.CreatedAt
+                CreatedAt = lesson.CreatedAt,
+                GlobalLibraryContentId = lesson.GlobalLibraryContentId
             };
 
             return Ok(lessonDto);
@@ -297,7 +299,8 @@ public class AdminLessonsController : ControllerBase
                 HtmlContent = createdLesson.HtmlContent,
                 HtmlUrl = createdLesson.HtmlUrl,
                 IsOptional = createdLesson.IsOptional,
-                CreatedAt = createdLesson.CreatedAt
+                CreatedAt = createdLesson.CreatedAt,
+                GlobalLibraryContentId = createdLesson.GlobalLibraryContentId
             };
 
             return CreatedAtAction(nameof(GetLesson), new { courseId, lessonId = lesson.Id }, lessonDto);
@@ -405,7 +408,8 @@ public class AdminLessonsController : ControllerBase
                 HtmlContent = lesson.HtmlContent,
                 HtmlUrl = lesson.HtmlUrl,
                 IsOptional = lesson.IsOptional,
-                CreatedAt = lesson.CreatedAt
+                CreatedAt = lesson.CreatedAt,
+                GlobalLibraryContentId = lesson.GlobalLibraryContentId
             };
 
             return Ok(lessonDto);
@@ -995,7 +999,7 @@ public class AdminLessonsController : ControllerBase
             _logger.LogInformation("HTML content uploaded successfully: {FileName}", fileName);
 
             // Track HTML upload engagement (user already fetched above)
-            if (user.OrganisationID.HasValue)
+            if (!string.IsNullOrEmpty(userId) && user.OrganisationID.HasValue)
             {
                 _logger.LogInformation("📊 Tracking HTML upload: User={UserId}, Org={OrgId}, Course={CourseId}", userId, user.OrganisationID.Value, courseId);
                 await _engagementService.TrackAsync(
@@ -1077,15 +1081,36 @@ public class AdminLessonsController : ControllerBase
 
     /// <summary>
     /// Get all lessons from global library (Byte Learning Library)
+    /// Excludes lessons already added to the specified course
     /// </summary>
     [HttpGet("/api/admin/global-library/lessons")]
     public async Task<ActionResult<List<GlobalLibraryLessonDto>>> GetGlobalLibraryLessons(
         [FromQuery] string? contentType = null,
-        [FromQuery] string? category = null)
+        [FromQuery] string? category = null,
+        [FromQuery] string? courseId = null)
     {
         try
         {
+            // Get list of global library content IDs already added to this course (if courseId provided)
+            var excludedLibraryIds = new List<long>();
+            if (!string.IsNullOrEmpty(courseId))
+            {
+                excludedLibraryIds = await _context.Lessons
+                    .Where(l => l.CourseId == courseId && l.GlobalLibraryContentId != null)
+                    .Select(l => l.GlobalLibraryContentId!.Value)
+                    .ToListAsync();
+                
+                _logger.LogInformation("Excluding {Count} global library lessons already in course {CourseId}", 
+                    excludedLibraryIds.Count, courseId);
+            }
+
             var query = _context.GlobalLibraryContents.AsQueryable();
+
+            // Exclude lessons already added to the course
+            if (excludedLibraryIds.Any())
+            {
+                query = query.Where(c => !excludedLibraryIds.Contains(c.Id));
+            }
 
             // Filter by content type if provided
             if (!string.IsNullOrEmpty(contentType) && contentType != "all")
@@ -1102,21 +1127,44 @@ public class AdminLessonsController : ControllerBase
             var lessons = await query
                 .Where(c => c.IsActive)
                 .OrderByDescending(c => c.UploadedOn)
-                .Select(c => new GlobalLibraryLessonDto
-                {
-                    Id = c.Id,
-                    Title = c.Title,
-                    Description = c.Description,
-                    ContentType = c.ContentType,
-                    Category = c.Category,
-                    Tags = c.Tags,
-                    AzureBlobPath = c.AzureBlobPath,
-                    FileSizeBytes = c.FileSizeBytes,
-                    FileName = c.FileName
-                })
                 .ToListAsync();
 
-            return Ok(lessons);
+            // Map to DTO with SAS URLs
+            var lessonDtos = new List<GlobalLibraryLessonDto>();
+            foreach (var lesson in lessons)
+            {
+                var azureBlobPath = lesson.AzureBlobPath;
+                
+                // Generate SAS URL for Azure Blob Storage content if configured
+                if (!string.IsNullOrEmpty(azureBlobPath) && _blobService.IsConfigured() && azureBlobPath.Contains("blob.core.windows.net"))
+                {
+                    try
+                    {
+                        azureBlobPath = await _blobService.GetSasUrlAsync(azureBlobPath, 24);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to generate SAS URL for global library content {ContentId}, using original path", lesson.Id);
+                        // Keep the original path as fallback
+                    }
+                }
+
+                lessonDtos.Add(new GlobalLibraryLessonDto
+                {
+                    Id = lesson.Id,
+                    Title = lesson.Title,
+                    Description = lesson.Description,
+                    Code = lesson.Code,
+                    ContentType = lesson.ContentType,
+                    Category = lesson.Category,
+                    Tags = lesson.Tags,
+                    AzureBlobPath = azureBlobPath,
+                    FileSizeBytes = lesson.FileSizeBytes,
+                    FileName = lesson.FileName
+                });
+            }
+
+            return Ok(lessonDtos);
         }
         catch (Exception ex)
         {
@@ -1216,7 +1264,8 @@ public class AdminLessonsController : ControllerBase
                     Type = MapContentTypeToLessonType(content.ContentType),
                     IsOptional = false,
                     CreatedByUserId = userId,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    GlobalLibraryContentId = content.Id  // Store reference to global library content
                 };
 
                 // Set the appropriate URL based on content type
@@ -1302,6 +1351,7 @@ public class LessonDetailDto
     public string? HtmlUrl { get; set; }
     public bool IsOptional { get; set; }
     public DateTime CreatedAt { get; set; }
+    public long? GlobalLibraryContentId { get; set; }
 }
 
 public class CreateLessonRequest
@@ -1384,6 +1434,7 @@ public class GlobalLibraryLessonDto
     public long Id { get; set; }
     public string Title { get; set; } = null!;
     public string? Description { get; set; }
+    public string? Code { get; set; }
     public string ContentType { get; set; } = null!; // pdf, video, scorm, html
     public string? Category { get; set; }
     public string? Tags { get; set; }

@@ -114,16 +114,57 @@ export const uploadOrgAsset = async (orgId, file, assetType) => {
 };
 
 // Global Library
-export const getGlobalLibrary = async (contentType = null) => {
-  const url = contentType 
-    ? `${API_BASE}/api/SuperAdmin/global-library?contentType=${contentType}`
-    : `${API_BASE}/api/SuperAdmin/global-library`;
+export const getGlobalLibrary = async (contentType = null, search = null, category = null, page = 1, pageSize = 10) => {
+  const params = new URLSearchParams();
+  if (contentType) params.append('contentType', contentType);
+  if (search) params.append('search', search);
+  if (category) params.append('category', category);
+  params.append('page', page.toString());
+  params.append('pageSize', pageSize.toString());
+  
+  const url = `${API_BASE}/api/SuperAdmin/global-library?${params.toString()}`;
     
   const response = await fetch(url, {
     headers: getAuthHeaders()
   });
   
   if (!response.ok) throw new Error('Failed to fetch global library');
+  return response.json();
+};
+
+export const getGlobalLibraryContent = async (id) => {
+  const response = await fetch(`${API_BASE}/api/SuperAdmin/global-library/${id}`, {
+    headers: getAuthHeaders()
+  });
+  
+  if (!response.ok) throw new Error('Failed to fetch content');
+  return response.json();
+};
+
+export const updateGlobalLibraryContent = async (id, data, thumbnail) => {
+  const formData = new FormData();
+  formData.append('title', data.title);
+  formData.append('description', data.description || '');
+  formData.append('code', data.code);
+  formData.append('category', data.category || '');
+  formData.append('tags', data.tags || '');
+  if (thumbnail) {
+    formData.append('thumbnail', thumbnail);
+  }
+
+  const token = localStorage.getItem('token');
+  const response = await fetch(`${API_BASE}/api/SuperAdmin/global-library/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+    body: formData
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to update content');
+  }
   return response.json();
 };
 
@@ -193,12 +234,13 @@ export const uploadFileToAzure = async (uploadUrl, file, onProgress) => {
 };
 
 // Upload video directly to server (server handles Azure upload)
-export const uploadVideo = async (file, title, description, category, tags, durationSeconds, thumbnail, onProgress) => {
+export const uploadVideo = async (file, title, description, code, category, tags, durationSeconds, thumbnail, onProgress) => {
   return new Promise((resolve, reject) => {
     const formData = new FormData();
     formData.append('video', file);
     formData.append('title', title);
     formData.append('description', description || '');
+    formData.append('code', code);
     formData.append('category', category || '');
     formData.append('tags', tags || '');
     if (durationSeconds) {
@@ -247,12 +289,13 @@ export const uploadVideo = async (file, title, description, category, tags, dura
 };
 
 // Upload PDF directly to server (server handles Azure upload)
-export const uploadPdf = async (file, title, description, category, tags, thumbnail, onProgress) => {
+export const uploadPdf = async (file, title, description, code, category, tags, thumbnail, onProgress) => {
   return new Promise((resolve, reject) => {
     const formData = new FormData();
     formData.append('pdf', file);
     formData.append('title', title);
     formData.append('description', description || '');
+    formData.append('code', code);
     formData.append('category', category || '');
     formData.append('tags', tags || '');
     if (thumbnail) {
@@ -298,12 +341,13 @@ export const uploadPdf = async (file, title, description, category, tags, thumbn
 };
 
 // Upload SCORM package directly to server (server handles Azure upload and extraction)
-export const uploadScorm = async (file, title, description, category, tags, thumbnail, onProgress) => {
+export const uploadScorm = async (file, title, description, code, category, tags, thumbnail, onProgress) => {
   return new Promise((resolve, reject) => {
     const formData = new FormData();
     formData.append('scormPackage', file);
     formData.append('title', title);
     formData.append('description', description || '');
+    formData.append('code', code);
     formData.append('category', category || '');
     formData.append('tags', tags || '');
     if (thumbnail) {

@@ -17,6 +17,7 @@ namespace lmsBox.Server.Services
         public const string EVENT_LESSON_COMPLETE = "LessonComplete";
         public const string EVENT_QUIZ_ATTEMPT = "QuizAttempt";
         public const string EVENT_AI_QUERY = "AIAssistantQuery";
+        public const string EVENT_PREVIEW_CONTENT = "PreviewContent";
         
         // Admin events
         public const string EVENT_COURSE_CREATED = "CourseCreated";

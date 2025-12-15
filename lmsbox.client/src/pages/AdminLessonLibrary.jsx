@@ -28,7 +28,8 @@ import toast from 'react-hot-toast';
 import usePageTitle from '../hooks/usePageTitle';
 import lessonsService from '../services/lessons';
 import { adminCourseService } from '../services/adminCourses';
-import { FunnelIcon } from '@heroicons/react/24/outline';
+import api from '../utils/api';
+import { FunnelIcon, EyeIcon } from '@heroicons/react/24/outline';
 
 export default function AdminLessonLibrary() {
   usePageTitle('Lesson Library - Byte Learning');
@@ -47,9 +48,13 @@ export default function AdminLessonLibrary() {
   const [selectedLessons, setSelectedLessons] = useState(new Set());
   const [adding, setAdding] = useState(false);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [previewingId, setPreviewingId] = useState(null);
 
   // Available categories from global library (will be fetched from API)
   const [availableCategories, setAvailableCategories] = useState([]);
+  
+  // Track which library lessons are already added to the course by their global library content IDs
+  const [courseLessonLibraryIds, setCourseLessonLibraryIds] = useState(new Set());
 
   // Fetch course details on mount
   useEffect(() => {
@@ -57,6 +62,20 @@ export default function AdminLessonLibrary() {
       try {
         const courseData = await adminCourseService.getCourse(courseId);
         setCourse(courseData);
+        
+        // Extract global library content IDs from course lessons
+        // When lessons are added from global library, they have a globalLibraryContentId reference
+        if (courseData && courseData.lessons && Array.isArray(courseData.lessons)) {
+          const libraryIds = new Set();
+          courseData.lessons.forEach(lesson => {
+            // Check if this lesson was imported from the global library
+            if (lesson.globalLibraryContentId) {
+              libraryIds.add(lesson.globalLibraryContentId);
+            }
+          });
+          setCourseLessonLibraryIds(libraryIds);
+          console.log('Course global library content IDs:', Array.from(libraryIds));
+        }
       } catch (error) {
         console.error('Error fetching course:', error);
         toast.error('Failed to load course details');
@@ -77,10 +96,11 @@ export default function AdminLessonLibrary() {
       const categoriesData = await lessonsService.getGlobalLibraryCategories();
       setAvailableCategories(Array.isArray(categoriesData) ? categoriesData : []);
       
-      // Fetch lessons with filters
+      // Fetch lessons with filters, excluding ones already in this course
       const lessonsData = await lessonsService.getGlobalLibraryLessons(
         selectedContentType,
-        selectedCategory
+        selectedCategory,
+        courseId  // Pass courseId to exclude already-added lessons
       );
       setLessons(Array.isArray(lessonsData) ? lessonsData : []);
     } catch (error) {
@@ -125,15 +145,109 @@ export default function AdminLessonLibrary() {
       console.log('Adding lessons to course:', { courseId, lessonIds });
       
       await lessonsService.addLessonsFromLibrary(courseId, lessonIds);
-      toast.success(`Added ${selectedLessons.size} lesson(s) to your course`);
-      navigate(returnUrl);
+      
+      // Refetch the course to get the updated GlobalLibraryContentId mappings from the backend
+      const updatedCourseData = await adminCourseService.getCourse(courseId);
+      if (updatedCourseData && updatedCourseData.lessons && Array.isArray(updatedCourseData.lessons)) {
+        const libraryContentIds = new Set();
+        updatedCourseData.lessons.forEach(lesson => {
+          // Store the GlobalLibraryContentId from the backend
+          if (lesson.globalLibraryContentId) {
+            libraryContentIds.add(lesson.globalLibraryContentId);
+          }
+        });
+        setCourseLessonLibraryIds(libraryContentIds);
+        console.log('Updated course library IDs:', Array.from(libraryContentIds));
+      }
+      
+      const addedLessonCount = selectedLessons.size;
+      
+      // Clear selection
+      setSelectedLessons(new Set());
+      
+      // Reload library data to remove newly added lessons from the list
+      // Backend will now filter them out since they're in the course
+      await loadLibraryData();
+      
+      toast.success(`Added ${addedLessonCount} lesson(s) to your course`);
+      
+      // Stay on library page - user can click "Back to course" when ready
     } catch (error) {
       console.error('Error adding lessons:', error);
-      console.error('Error details:', error.response?.data);
-      toast.error(error.response?.data?.message || 'Failed to add lessons to course');
+      toast.error('Failed to add lessons to course');
     } finally {
       setAdding(false);
     }
+  };
+
+  const handlePreviewContent = async (lesson) => {
+    try {
+      setPreviewingId(lesson.id);
+      
+      // Track preview activity
+      await api.post('/api/engagement/track-preview', {
+        contentId: lesson.id,
+        contentTitle: lesson.title,
+        contentType: lesson.contentType,
+        isLibraryContent: true
+      }).catch(err => {
+        // Log but don't fail if tracking fails
+        console.warn('Failed to track preview activity:', err);
+      });
+
+      // Open preview in new tab based on content type
+      const previewUrl = getPreviewUrl(lesson);
+      if (previewUrl) {
+        window.open(previewUrl, '_blank', 'width=1200,height=800');
+      } else {
+        toast.error('Preview not available for this content type');
+      }
+    } catch (error) {
+      console.error('Error opening preview:', error);
+      toast.error('Failed to open preview');
+    } finally {
+      setPreviewingId(null);
+    }
+  };
+
+  const getPreviewUrl = (lesson) => {
+    // GlobalLibraryLessonDto uses azureBlobPath property
+    if (!lesson.azureBlobPath) {
+      return null;
+    }
+
+    const blobPath = lesson.azureBlobPath;
+    const contentType = lesson.contentType.toLowerCase();
+
+    // Construct the full Azure Blob URL if not already absolute
+    let fullUrl = blobPath;
+    if (!fullUrl.startsWith('http')) {
+      // Build the Azure Blob Storage URL
+      fullUrl = `https://elgdocstorage.blob.core.windows.net/lms-content/${blobPath}`;
+    }
+
+    switch (contentType) {
+      case 'scorm':
+        // SCORM packages need to be served through the proxy to handle CORS and script injection
+        return `/api/scorm-proxy?url=${encodeURIComponent(fullUrl)}`;
+      case 'video':
+        // Videos can be served directly from Azure Blob
+        return fullUrl;
+      case 'pdf':
+      case 'document':
+        // PDFs can be served directly from Azure Blob
+        return fullUrl;
+      case 'html':
+        // HTML content served directly
+        return fullUrl;
+      default:
+        return fullUrl;
+    }
+  };
+
+  const isLessonAlreadyAdded = (libraryLesson) => {
+    // Check if this library lesson is already in the course using the global library content ID
+    return courseLessonLibraryIds.has(libraryLesson.id);
   };
 
   const getLessonIcon = (contentType) => {
@@ -379,7 +493,7 @@ export default function AdminLessonLibrary() {
 
                   {/* Tags */}
                   {lesson.tags && (
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-1 mb-4">
                       {lesson.tags.split(',').slice(0, 3).map((tag, index) => (
                         <span
                           key={index}
@@ -395,6 +509,82 @@ export default function AdminLessonLibrary() {
                       )}
                     </div>
                   )}
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 border-t border-gray-200 pt-4 mt-4">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePreviewContent(lesson);
+                      }}
+                      disabled={previewingId === lesson.id}
+                      className="flex items-center justify-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-300 text-gray-700 rounded text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      title="Preview this content in a new tab"
+                    >
+                      {previewingId === lesson.id ? (
+                        <>
+                          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span className="hidden sm:inline">Opening...</span>
+                        </>
+                      ) : (
+                        <>
+                          <EyeIcon className="w-4 h-4" />
+                          <span className="hidden sm:inline">Preview</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Don't toggle if already added to course
+                        if (!isLessonAlreadyAdded(lesson)) {
+                          const newSelected = new Set(selectedLessons);
+                          if (newSelected.has(lesson.id)) {
+                            newSelected.delete(lesson.id);
+                          } else {
+                            newSelected.add(lesson.id);
+                          }
+                          setSelectedLessons(newSelected);
+                        }
+                      }}
+                      disabled={isLessonAlreadyAdded(lesson)}
+                      className={`flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded text-sm font-medium transition-colors ${
+                        isLessonAlreadyAdded(lesson)
+                          ? 'bg-green-100 text-green-700 border border-green-300 cursor-not-allowed'
+                          : selectedLessons.has(lesson.id)
+                          ? 'bg-boxlms-primary-btn text-boxlms-primary-btn-txt hover:brightness-90 border border-boxlms-primary-btn'
+                          : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                      title={isLessonAlreadyAdded(lesson) ? 'Already added to course' : selectedLessons.has(lesson.id) ? 'Remove from selection' : 'Add to course'}
+                    >
+                      {isLessonAlreadyAdded(lesson) ? (
+                        <>
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                          <span className="hidden sm:inline">In Course</span>
+                        </>
+                      ) : selectedLessons.has(lesson.id) ? (
+                        <>
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                          <span className="hidden sm:inline">Selected</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                          <span className="hidden sm:inline">Add</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
