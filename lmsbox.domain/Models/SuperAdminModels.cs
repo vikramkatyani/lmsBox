@@ -149,6 +149,7 @@ public class GlobalLibraryContentResponse
     public long Id { get; set; }
     public string Title { get; set; } = null!;
     public string? Description { get; set; }
+    public string? Code { get; set; }
     public string ContentType { get; set; } = null!;
     public string AzureBlobPath { get; set; } = null!;
     public string? FileName { get; set; }
@@ -162,7 +163,20 @@ public class GlobalLibraryContentResponse
     public int? DurationSeconds { get; set; }
     public string? ThumbnailUrl { get; set; }
 }
+public class UpdateGlobalLibraryContentRequest
+{
+    [Required]
+    public string Title { get; set; } = null!;
 
+    public string? Description { get; set; }
+
+    [Required]
+    public string Code { get; set; } = null!;
+
+    public string? Category { get; set; }
+
+    public string? Tags { get; set; }
+}
 public class UploadGlobalContentRequest
 {
     [Required]

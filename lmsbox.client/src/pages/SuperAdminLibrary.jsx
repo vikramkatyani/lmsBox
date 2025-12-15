@@ -9,34 +9,83 @@ import {
   DocumentIcon,
   VideoCameraIcon,
   CubeIcon,
-  FunnelIcon
+  FunnelIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import ConfirmDialog from '../components/ConfirmDialog';
+import SearchableDropdown from '../components/SearchableDropdown';
+import Pagination from '../components/Pagination';
 
 export default function SuperAdminLibrary() {
   usePageTitle('Global Library - Super Admin');
   const navigate = useNavigate();
   const [content, setContent] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, pdf, video, scorm
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, contentId: null, contentTitle: '' });
 
   useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
     fetchContent();
-  }, [filter]);
+  }, [filter, searchQuery, selectedCategory, page]);
 
   const fetchContent = async () => {
     try {
       setLoading(true);
       const filterType = filter === 'all' ? null : filter;
-      const data = await getGlobalLibrary(filterType);
-      setContent(data);
+      const categoryFilter = selectedCategory || null;
+      const response = await getGlobalLibrary(filterType, searchQuery || null, categoryFilter, page, pageSize);
+      setContent(response.items || []);
+      setTotalCount(response.totalCount || 0);
+      setTotalPages(response.totalPages || 0);
     } catch (error) {
       console.error('Error fetching content:', error);
       toast.error('Failed to load content');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSearch = () => {
+    setSearchQuery(searchInput);
+    setPage(1); // Reset to first page on new search
+  };
+
+  const handleCategoryChange = (category) => {
+    setSelectedCategory(category);
+    setPage(1); // Reset to first page on category change
+  };
+
+  const handleFilterChange = (newFilter) => {
+    setFilter(newFilter);
+    setPage(1); // Reset to first page on filter change
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const data = await fetch('/api/SuperAdmin/global-library/categories', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (data.ok) {
+        const cats = await data.json();
+        setCategories(cats);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
     }
   };
 
@@ -95,25 +144,70 @@ export default function SuperAdminLibrary() {
             </div>
             <button
               onClick={() => navigate('/superadmin/library/create')}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#2afeae] hover:bg-[#25e89e] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2afeae]"
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium bg-boxlms-primary-btn text-boxlms-primary-btn-txt hover:brightness-90 focus:outline-none focus:ring-2 focus:ring-offset-2"
             >
               <PlusIcon className="h-5 w-5 mr-2" />
               Add Content
             </button>
           </div>
 
+          {/* Search and Category Filters */}
+          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {/* Search Input */}
+            <div className="sm:col-span-2">
+              <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
+                Search Content
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    id="search"
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                    placeholder="Search by title, description, code, or tags..."
+                    className="w-full border border-gray-300 rounded-md shadow-sm py-2 pl-10 pr-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                  </div>
+                </div>
+                <button
+                  onClick={handleSearch}
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  <MagnifyingGlassIcon className="h-5 w-5 mr-2" />
+                  Search
+                </button>
+              </div>
+            </div>
+
+            {/* Category Filter */}
+            <div>
+              <SearchableDropdown
+                options={categories}
+                value={selectedCategory}
+                onChange={handleCategoryChange}
+                placeholder="Select or type category..."
+                label="Filter by Category"
+                id="category"
+              />
+            </div>
+          </div>
+
           {/* Filter tabs */}
           <div className="mt-6 border-b border-gray-200">
             <nav className="-mb-px flex space-x-8">
               {[
-                { key: 'all', label: 'All Content', count: content.length },
+                { key: 'all', label: 'All Content', count: totalCount },
                 { key: 'pdf', label: 'PDF Documents', icon: DocumentIcon },
                 { key: 'video', label: 'Videos', icon: VideoCameraIcon },
                 { key: 'scorm', label: 'SCORM Packages', icon: CubeIcon }
               ].map(tab => (
                 <button
                   key={tab.key}
-                  onClick={() => setFilter(tab.key)}
+                  onClick={() => handleFilterChange(tab.key)}
                   className={`${
                     filter === tab.key
                       ? 'border-indigo-500 text-indigo-600'
@@ -122,7 +216,7 @@ export default function SuperAdminLibrary() {
                 >
                   {tab.icon && <tab.icon className="h-5 w-5 mr-2" />}
                   {tab.label}
-                  {tab.count !== undefined && (
+                  {filter === 'all' && tab.key === 'all' && (
                     <span className={`ml-2 py-0.5 px-2.5 rounded-full text-xs font-medium ${
                       filter === tab.key ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-900'
                     }`}>
@@ -146,7 +240,7 @@ export default function SuperAdminLibrary() {
             <div className="mt-6">
               <button
                 onClick={() => navigate('/superadmin/library/create')}
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#2afeae] hover:bg-[#25e89e]"
+                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md bg-boxlms-primary-btn text-boxlms-primary-btn-txt hover:brightness-90"
               >
                 <PlusIcon className="h-5 w-5 mr-2" />
                 Add Content
@@ -234,18 +328,47 @@ export default function SuperAdminLibrary() {
                       {item.uploadedBy}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => handleDeleteClick(item)}
-                        className="text-red-600 hover:text-red-900"
-                        title="Delete content"
-                      >
-                        <TrashIcon className="h-5 w-5" />
-                      </button>
+                      <div className="flex space-x-3">
+                        <button
+                          onClick={() => navigate(`/superadmin/library/edit/${item.id}`)}
+                          className="text-indigo-600 hover:text-indigo-900"
+                          title="Edit content"
+                        >
+                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(item)}
+                          className="text-red-600 hover:text-red-900"
+                          title="Delete content"
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="px-6 py-4 border-t border-gray-200">
+                <Pagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  onPageChange={setPage}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Results summary */}
+        {content.length > 0 && (
+          <div className="mt-4 text-sm text-gray-600 text-center">
+            Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount} results
           </div>
         )}
       </div>

@@ -25,6 +25,7 @@ export default function SuperAdminLibraryCreate() {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
+    code: '',
     category: '',
     tags: '',
     durationHours: '',
@@ -93,6 +94,11 @@ export default function SuperAdminLibraryCreate() {
       return;
     }
 
+    if (!formData.code.trim()) {
+      toast.error('Please enter a unique code');
+      return;
+    }
+
     try {
       setUploading(true);
       setUploadProgress(0);
@@ -112,6 +118,7 @@ export default function SuperAdminLibraryCreate() {
           file,
           formData.title,
           formData.description,
+          formData.code,
           formData.category,
           formData.tags,
           durationSeconds,
@@ -123,6 +130,7 @@ export default function SuperAdminLibraryCreate() {
           file,
           formData.title,
           formData.description,
+          formData.code,
           formData.category,
           formData.tags,
           thumbnail,
@@ -133,6 +141,7 @@ export default function SuperAdminLibraryCreate() {
           file,
           formData.title,
           formData.description,
+          formData.code,
           formData.category,
           formData.tags,
           thumbnail,
@@ -360,6 +369,26 @@ export default function SuperAdminLibraryCreate() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Code *
+                </label>
+                <input
+                  type="text"
+                  name="code"
+                  value={formData.code}
+                  onChange={handleChange}
+                  required
+                  disabled={uploading}
+                  placeholder="e.g., ladder-safety-2024 (lowercase with hyphens)"
+                  pattern="[a-z0-9-]+"
+                  className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#2afeae] focus:border-indigo-500 disabled:bg-gray-100"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Unique identifier used for Azure folder naming (lowercase letters, numbers, and hyphens only)
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Category
                 </label>
                 <input
@@ -504,11 +533,11 @@ export default function SuperAdminLibraryCreate() {
             <button
               type="submit"
               disabled={uploading || !file}
-              className="inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#2afeae] hover:bg-[#25e89e] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2afeae] disabled:opacity-50"
+              className="inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium bg-boxlms-primary-btn text-boxlms-primary-btn-txt hover:brightness-90 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50"
             >
               {uploading ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>

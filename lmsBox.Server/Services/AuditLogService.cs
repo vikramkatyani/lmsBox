@@ -343,4 +343,19 @@ public class AuditLogService : IAuditLogService
         await _context.SaveChangesAsync();
         _logger.LogInformation("Logged survey deletion: {SurveyId} by {UserId}", surveyId, userId);
     }
+
+    public async Task LogContentPreview(string userId, string userName, string contentId, string contentTitle, string contentType)
+    {
+        var auditLog = new AuditLog
+        {
+            Action = $"Content Preview: {contentTitle} ({contentType})",
+            PerformedBy = userName,
+            PerformedAt = DateTime.UtcNow,
+            Details = $"Content ID: {contentId}, Title: {contentTitle}, Type: {contentType}, Previewed By User ID: {userId}"
+        };
+        
+        _context.AuditLogs.Add(auditLog);
+        await _context.SaveChangesAsync();
+        _logger.LogInformation("Logged content preview: {ContentId} ({ContentType}) by {UserId}", contentId, contentType, userId);
+    }
 }

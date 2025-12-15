@@ -42,6 +42,9 @@ public class Lesson
     public string? HtmlContent { get; set; }
     public string? HtmlUrl { get; set; }
 
+    // Reference to global library content if this lesson was imported from the global library
+    public long? GlobalLibraryContentId { get; set; }
+
     // Optional flag
     public bool IsOptional { get; set; } = false;
 

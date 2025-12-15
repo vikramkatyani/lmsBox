@@ -139,10 +139,11 @@ const lessonsService = {
   },
 
   // Global Library - Get all lessons from Byte Learning Library
-  getGlobalLibraryLessons: async (contentType = null, category = null) => {
+  getGlobalLibraryLessons: async (contentType = null, category = null, courseId = null) => {
     const params = {};
     if (contentType && contentType !== 'all') params.contentType = contentType;
     if (category && category !== 'all') params.category = category;
+    if (courseId) params.courseId = courseId;
     
     const response = await api.get('/api/admin/global-library/lessons', { params });
     return response.data;

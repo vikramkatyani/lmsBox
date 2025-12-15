@@ -44,9 +44,9 @@ public class GoogleSheetsService : IGoogleSheetsService
     {
         try
         {
-            // Read data from sheet (A2:F - skip header row)
-            // Expected columns: Title | Description | Category | Tags | Thumbnail URL | Content File URL
-            var range = $"{sheetName}!A2:F";
+            // Read data from sheet (A2:G - skip header row)
+            // Expected columns: Title | Description | Code | Category | Tags | Thumbnail URL | Content File URL
+            var range = $"{sheetName}!A2:G";
             var request = _sheetsService.Spreadsheets.Values.Get(spreadsheetId, range);
             var response = await request.ExecuteAsync();
 
@@ -71,16 +71,23 @@ public class GoogleSheetsService : IGoogleSheetsService
                     RowNumber = i + 2, // +2 because we started from row 2
                     Title = row.Count > 0 ? row[0]?.ToString() ?? "" : "",
                     Description = row.Count > 1 ? row[1]?.ToString() ?? "" : "",
-                    Category = row.Count > 2 ? row[2]?.ToString() ?? "" : "",
-                    Tags = row.Count > 3 ? row[3]?.ToString() ?? "" : "",
-                    ThumbnailUrl = row.Count > 4 ? row[4]?.ToString() ?? "" : "",
-                    ContentFileUrl = row.Count > 5 ? row[5]?.ToString() ?? "" : ""
+                    Code = row.Count > 2 ? row[2]?.ToString() ?? "" : "",
+                    Category = row.Count > 3 ? row[3]?.ToString() ?? "" : "",
+                    Tags = row.Count > 4 ? row[4]?.ToString() ?? "" : "",
+                    ThumbnailUrl = row.Count > 5 ? row[5]?.ToString() ?? "" : "",
+                    ContentFileUrl = row.Count > 6 ? row[6]?.ToString() ?? "" : ""
                 };
 
                 // Validate required fields
                 if (string.IsNullOrWhiteSpace(package.Title))
                 {
                     _logger.LogWarning("Row {RowNumber}: Missing title, skipping", package.RowNumber);
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(package.Code))
+                {
+                    _logger.LogWarning("Row {RowNumber}: Missing code, skipping", package.RowNumber);
                     continue;
                 }
 

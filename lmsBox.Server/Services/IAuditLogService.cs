@@ -23,5 +23,6 @@ public interface IAuditLogService
     Task LogSurveyCreation(string userId, string userName, string surveyId, string surveyTitle);
     Task LogSurveyUpdate(string userId, string userName, string surveyId, string surveyTitle);
     Task LogSurveyDelete(string userId, string userName, string surveyId, string surveyTitle);
+    Task LogContentPreview(string userId, string userName, string contentId, string contentTitle, string contentType);
     Task LogCustomAction(string action, string performedBy, string? details = null);
 }
