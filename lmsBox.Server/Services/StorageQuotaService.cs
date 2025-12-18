@@ -23,6 +23,14 @@ public class StorageQuotaService : IStorageQuotaService
         }
 
         var allocatedBytes = organisation.AllocatedStorageGB * 1024L * 1024L * 1024L; // Convert GB to bytes
+
+        // Treat zero/undefined allocation as unlimited to avoid blocking small uploads in dev/seeded orgs
+        if (allocatedBytes <= 0)
+        {
+            _logger.LogInformation("Storage quota bypassed for Org {OrgId}: allocation not configured (AllocatedStorageGB={AllocatedGB})", organisationId, organisation.AllocatedStorageGB);
+            return (true, "No storage limit configured", long.MaxValue);
+        }
+
         var currentUsage = organisation.StorageUsedBytes;
         var availableBytes = allocatedBytes - currentUsage;
 

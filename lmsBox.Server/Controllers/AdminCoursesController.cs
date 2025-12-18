@@ -320,6 +320,17 @@ public class AdminCoursesController : ControllerBase
                 return BadRequest(new { message = "Title is required" });
             }
 
+            // Check for duplicate course title in the same organization
+            var duplicateExists = await _context.Courses
+                .AnyAsync(c => c.OrganisationId == user.OrganisationID 
+                    && c.Title.ToLower() == request.Title.Trim().ToLower() 
+                    && !c.IsDeleted);
+
+            if (duplicateExists)
+            {
+                return BadRequest(new { message = $"A course with the title '{request.Title.Trim()}' already exists in your organization. Please use a different title." });
+            }
+
             // Auto-create category if it doesn't exist
             if (!string.IsNullOrWhiteSpace(request.Category))
             {

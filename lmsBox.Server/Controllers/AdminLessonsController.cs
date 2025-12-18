@@ -925,13 +925,28 @@ public class AdminLessonsController : ControllerBase
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var userRole = User.FindFirstValue(ClaimTypes.Role);
 
+            // Log the request details for debugging
+            _logger.LogInformation("HTML upload request for course {CourseId} - Title: {TitlePresent}, Content length: {ContentLength}", 
+                courseId, 
+                !string.IsNullOrEmpty(request?.Title), 
+                request?.HtmlContent?.Length ?? 0);
+
+            // Check if model binding failed
+            if (request == null)
+            {
+                _logger.LogWarning("HTML upload request body is null for course {CourseId}", courseId);
+                return BadRequest(new { message = "Request body is required" });
+            }
+
             if (string.IsNullOrEmpty(request.HtmlContent))
             {
+                _logger.LogWarning("HTML content is empty for course {CourseId}", courseId);
                 return BadRequest(new { message = "HTML content is required" });
             }
 
             if (string.IsNullOrEmpty(request.Title))
             {
+                _logger.LogWarning("Title is empty for course {CourseId}", courseId);
                 return BadRequest(new { message = "Title is required" });
             }
 

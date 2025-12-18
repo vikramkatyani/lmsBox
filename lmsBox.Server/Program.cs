@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using System.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -147,7 +148,39 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    })
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        // Customize model validation error responses
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            var errors = context.ModelState
+                .Where(e => e.Value?.Errors.Count > 0)
+                .Select(e => new { Field = e.Key, Errors = e.Value!.Errors.Select(x => x.ErrorMessage).ToArray() })
+                .ToList();
+            
+            logger.LogWarning("Model validation failed: {Errors}", System.Text.Json.JsonSerializer.Serialize(errors));
+            
+            return new BadRequestObjectResult(new
+            {
+                message = "Validation failed",
+                errors = errors
+            });
+        };
     });
+
+// Configure Kestrel to accept larger request bodies (for AI-generated HTML content)
+builder.Services.Configure<Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerOptions>(options =>
+{
+    options.Limits.MaxRequestBodySize = 100 * 1024 * 1024; // 100 MB
+});
+
+// Configure form options for larger payloads
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 100 * 1024 * 1024; // 100 MB
+});
 
 // Add response compression for better performance
 builder.Services.AddResponseCompression(options =>
