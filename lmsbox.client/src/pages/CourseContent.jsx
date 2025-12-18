@@ -781,6 +781,9 @@ export default function CourseContent() {
         setCourse(prevCourse => {
           if (!prevCourse) return prevCourse;
           
+          // Check if all lessons were already complete before this update (to avoid infinite loop on initial load)
+          const wereAllAlreadyComplete = prevCourse.lessons.every(l => l.isCompleted);
+          
           const updatedCourse = {
             ...prevCourse,
             lessons: prevCourse.lessons.map(lesson => 
@@ -792,7 +795,9 @@ export default function CourseContent() {
           
           // Check if all lessons are now completed
           const allLessonsComplete = updatedCourse.lessons.every(l => l.isCompleted);
-          if (allLessonsComplete) {
+          
+          // Only show congratulations and load post-survey if this is a NEW completion (not already complete on load)
+          if (allLessonsComplete && !wereAllAlreadyComplete) {
             // Reload course details to get updated completion status
             loadCourseDetails().then(() => {
               toast.success('🎉 Congratulations! You\'ve completed all lessons!');
