@@ -63,7 +63,7 @@ public static class DbSeeder
                 ActivatedOn = DateTime.UtcNow,
                 CreatedOn = DateTime.UtcNow
             };
-            var createSuperAdmin = await userManager.CreateAsync(superAdmin, "SuperAdmin@123");
+            var createSuperAdmin = await userManager.CreateAsync(superAdmin, "4TYB&t10!Nmm");
             if (!createSuperAdmin.Succeeded)
             {
                 logger.LogWarning("SuperAdmin creation failed: {Errors}", string.Join(",", createSuperAdmin.Errors.Select(e => e.Description)));

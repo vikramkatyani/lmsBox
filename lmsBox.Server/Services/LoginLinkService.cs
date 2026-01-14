@@ -30,6 +30,13 @@ namespace lmsBox.Server.Services
         // Return bool to avoid returning the raw link/token to callers.
         public async Task<bool> CreateAndSendLoginLinkAsync(ApplicationUser user)
         {
+            // Check if user is active (ActiveStatus = 1)
+            if (user.ActiveStatus != 1)
+            {
+                _logger.LogWarning("Login link requested for inactive user {UserId} with ActiveStatus {ActiveStatus}", user.Id, user.ActiveStatus);
+                return false;
+            }
+
             var now = DateTime.UtcNow;
 
             // Expire any existing active tokens for this user (single-active-token enforcement)
