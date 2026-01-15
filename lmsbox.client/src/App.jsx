@@ -46,6 +46,7 @@ import SuperAdminLibrary from './pages/SuperAdminLibrary';
 import SuperAdminLibraryCreate from './pages/SuperAdminLibraryCreate';
 import SuperAdminLibraryEdit from './pages/SuperAdminLibraryEdit';
 import OrganisationSettings from './pages/OrganisationSettings';
+import { CohortsList, CohortSubmission } from './pages/Qualifications';
 
 function App() {
   return (
@@ -124,6 +125,10 @@ function App() {
           />
           {/* Legacy certificates route -> redirect to courses certificate tab */}
           <Route path="/certificates" element={<Navigate to="/courses/certificates" replace />} />
+          
+          {/* Qualifications routes - learner submission (no authentication required) */}
+          <Route path="/qualifications" element={<CohortsList />} />
+          <Route path="/qualifications/cohorts/:cohortId" element={<CohortSubmission />} />
           
           {/* Admin routes - protected with AdminRoute */}
           <Route
