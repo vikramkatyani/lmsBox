@@ -43,7 +43,7 @@ public partial class CoursesController : ControllerBase
     /// <param name="progress">Filter by progress: all, not_started, in_progress, completed</param>
     /// <returns>List of courses with user progress</returns>
     [HttpGet]
-    [ResponseCache(Duration = 60, VaryByQueryKeys = new[] { "search", "progress" }, VaryByHeader = "Authorization")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<ActionResult<CourseListResponse>> GetMyCourses(
         [FromQuery] string? search = null,
         [FromQuery] string? progress = "all")
@@ -86,8 +86,14 @@ public partial class CoursesController : ControllerBase
                     Course = c,
                     UserProgress = _context.LearnerProgresses
                         .Where(lp => lp.UserId == userId && lp.CourseId == c.Id && lp.LessonId == null)
-                        .Select(lp => new { lp.ProgressPercent, lp.Completed })
+                        .OrderByDescending(lp => lp.ProgressPercent)
+                        .ThenByDescending(lp => lp.Completed)
+                        .ThenByDescending(lp => lp.CompletedAt)
+                        .Select(lp => new { lp.ProgressPercent, lp.Completed, lp.PostSurveyCompleted })
                         .FirstOrDefault(),
+                    TotalLessons = _context.Lessons.Count(l => l.CourseId == c.Id),
+                    CompletedLessons = _context.LearnerProgresses
+                        .Count(lp => lp.UserId == userId && lp.CourseId == c.Id && lp.LessonId != null && lp.Completed),
                     HasAnyLessonAccessed = _context.LearnerProgresses
                         .Any(lp => lp.UserId == userId && lp.CourseId == c.Id && lp.LessonId != null && 
                             (lp.LastAccessedAt != null || lp.StartedAt != null))
@@ -105,17 +111,36 @@ public partial class CoursesController : ControllerBase
             }
 
             // Map to DTOs
-            var courseDtos = courses.Select(r => new CourseItemDto
+            var courseDtos = courses.Select(r =>
             {
-                Id = r.Course.Id.ToString(),
-                Title = r.Course.Title,
-                Banner = r.Course.BannerUrl ?? "/assets/default-course-banner.png",
-                Progress = r.UserProgress?.ProgressPercent ?? 0,
-                EnrolledDate = r.UserProgress != null ? r.Course.CreatedAt : null,
-                LastAccessedDate = null, // TODO: Add LastAccessedDate to LearnerProgress model
-                IsCompleted = r.UserProgress?.Completed ?? false,
-                CertificateEligible = r.UserProgress?.Completed ?? false, // TODO: Add certificate logic
-                HasAccessedLessons = r.HasAnyLessonAccessed
+                // Compute progress from lesson completion for real-time accuracy.
+                var computedProgress = r.TotalLessons > 0
+                    ? (int)Math.Round((double)r.CompletedLessons / r.TotalLessons * 100)
+                    : 0;
+
+                var effectiveProgress = r.TotalLessons > 0
+                    ? computedProgress
+                    : (r.UserProgress?.ProgressPercent ?? 0);
+
+                var postSurveyRequired = r.Course.IsPostSurveyMandatory && r.Course.PostCourseSurveyId.HasValue;
+                var postSurveyCompleted = r.UserProgress?.PostSurveyCompleted ?? false;
+
+                var effectiveCompleted = r.TotalLessons > 0
+                    ? r.CompletedLessons == r.TotalLessons && (!postSurveyRequired || postSurveyCompleted)
+                    : (r.UserProgress?.Completed ?? false);
+
+                return new CourseItemDto
+                {
+                    Id = r.Course.Id.ToString(),
+                    Title = r.Course.Title,
+                    Banner = r.Course.BannerUrl ?? "/assets/default-course-banner.png",
+                    Progress = effectiveProgress,
+                    EnrolledDate = r.UserProgress != null ? r.Course.CreatedAt : null,
+                    LastAccessedDate = null, // TODO: Add LastAccessedDate to LearnerProgress model
+                    IsCompleted = effectiveCompleted,
+                    CertificateEligible = effectiveCompleted, // TODO: Add certificate logic
+                    HasAccessedLessons = r.HasAnyLessonAccessed
+                };
             }).ToList();
 
             // Apply progress filter
@@ -294,12 +319,32 @@ public partial class CoursesController : ControllerBase
             // Get course-level progress
             var courseProgress = await _context.LearnerProgresses
                 .Where(lp => lp.UserId == userId && lp.CourseId == courseId && lp.LessonId == null)
+                .OrderByDescending(lp => lp.ProgressPercent)
+                .ThenByDescending(lp => lp.Completed)
+                .ThenByDescending(lp => lp.CompletedAt)
                 .FirstOrDefaultAsync();
 
             // Get lesson-level progress
             var lessonProgresses = await _context.LearnerProgresses
                 .Where(lp => lp.UserId == userId && lp.CourseId == courseId && lp.LessonId != null)
                 .ToListAsync();
+
+            // Calculate progress from lesson completion for immediate consistency.
+            var totalLessons = course.Lessons.Count;
+            var completedLessons = lessonProgresses.Count(lp => lp.Completed);
+            var computedProgress = totalLessons > 0
+                ? (int)Math.Round((double)completedLessons / totalLessons * 100)
+                : (courseProgress?.ProgressPercent ?? 0);
+
+            var postSurveyRequired = course.IsPostSurveyMandatory && course.PostCourseSurveyId.HasValue;
+            var effectiveCompleted = totalLessons > 0
+                ? completedLessons == totalLessons && (!postSurveyRequired || (courseProgress?.PostSurveyCompleted ?? false))
+                : (courseProgress?.Completed ?? false);
+
+            var effectiveCompletedAt = courseProgress?.CompletedAt
+                ?? (effectiveCompleted
+                    ? lessonProgresses.Where(lp => lp.CompletedAt != null).Max(lp => lp.CompletedAt)
+                    : null);
 
             // Find the last accessed lesson (most recent LastAccessedAt)
             var lastAccessedProgress = lessonProgresses
@@ -319,9 +364,9 @@ public partial class CoursesController : ControllerBase
                 Title = course.Title,
                 Description = course.Description ?? "",
                 Banner = course.BannerUrl ?? "/assets/default-course-banner.png",
-                Progress = courseProgress?.ProgressPercent ?? 0,
-                IsCompleted = courseProgress?.Completed ?? false,
-                CompletedAt = courseProgress?.CompletedAt,
+                Progress = computedProgress,
+                IsCompleted = effectiveCompleted,
+                CompletedAt = effectiveCompletedAt,
                 LastAccessedLessonId = lastAccessedProgress?.LessonId?.ToString(),
                 HasPreSurvey = course.PreCourseSurveyId.HasValue,
                 IsPreSurveyMandatory = course.IsPreSurveyMandatory,
@@ -660,8 +705,22 @@ public partial class CoursesController : ControllerBase
             .Where(lp => lp.UserId == userId && lp.CourseId == courseId && lp.LessonId != null)
             .ToListAsync();
 
-        var courseProgress = await _context.LearnerProgresses
-            .FirstOrDefaultAsync(lp => lp.UserId == userId && lp.CourseId == courseId && lp.LessonId == null);
+        var courseProgressRows = await _context.LearnerProgresses
+            .Where(lp => lp.UserId == userId && lp.CourseId == courseId && lp.LessonId == null)
+            .OrderByDescending(lp => lp.ProgressPercent)
+            .ThenByDescending(lp => lp.Completed)
+            .ThenByDescending(lp => lp.CompletedAt)
+            .ToListAsync();
+
+        var courseProgress = courseProgressRows.FirstOrDefault();
+
+        if (courseProgressRows.Count > 1)
+        {
+            var duplicates = courseProgressRows.Skip(1).ToList();
+            _logger.LogWarning("Found {DuplicateCount} duplicate course progress rows for user {UserId}, course {CourseId}. Keeping row {PrimaryId}.",
+                duplicates.Count, userId, courseId, courseProgress?.Id);
+            _context.LearnerProgresses.RemoveRange(duplicates);
+        }
 
         if (courseProgress == null)
         {

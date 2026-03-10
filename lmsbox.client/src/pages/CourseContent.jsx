@@ -559,6 +559,8 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate }) {
         );
       }
       case 'html': {
+        const htmlUrl = lesson.htmlUrl || lesson.url;
+
         const toggleHtmlFullscreen = () => {
           const element = htmlContainerRef.current;
           if (!element) return;
@@ -602,16 +604,16 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate }) {
                 </svg>
               </button>
             </div>
-            {lesson.url ? (
+            {htmlUrl ? (
               <>
-                {console.log('HTML Lesson URL:', lesson.url)}
+                {console.log('HTML Lesson URL:', htmlUrl)}
                 <iframe
-                  src={`http://localhost:5132/api/scorm-proxy/html?url=${encodeURIComponent(lesson.url)}`}
+                  src={`${API_BASE}/api/scorm-proxy/html?url=${encodeURIComponent(htmlUrl)}`}
                   className="w-full h-full border-0"
                   title="HTML Content"
                   sandbox="allow-scripts allow-same-origin"
                   onError={(e) => {
-                    console.error('Failed to load HTML content from URL:', lesson.url);
+                    console.error('Failed to load HTML content from URL:', htmlUrl);
                     toast.error('Failed to load HTML content');
                   }}
                 />

@@ -107,11 +107,12 @@ export default function AdminCourseEditor() {
         // Upload HTML content to Azure Blob
         const uploadResult = await lessonsService.uploadHtmlContent(courseId, title, htmlContent);
         
-        // Create the lesson (only send htmlUrl, not the full htmlContent)
+        // Create the lesson with both htmlUrl and htmlContent for editing
         const newLesson = await lessonsService.createLesson(courseId, {
           title: title,
           type: 'html',
           htmlUrl: uploadResult.htmlUrl,
+          htmlContent: htmlContent,
           ordinal: lessons.length + 1,
           isOptional: false
         });
