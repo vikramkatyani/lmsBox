@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace lmsBox.Server.Controllers;
 
@@ -42,11 +43,19 @@ public class LearnerProgressController : ControllerBase
                 return Unauthorized(new { message = "User not authenticated" });
             }
 
-            // Verify user has access to this course
+            // Verify user has access to this course (group or pathway)
             var hasAccess = await _context.LearnerGroups
                 .Where(lg => lg.UserId == userId && lg.IsActive)
                 .Join(_context.GroupCourses, lg => lg.LearningGroupId, gc => gc.LearningGroupId, (lg, gc) => gc)
                 .AnyAsync(gc => gc.CourseId == courseId);
+
+            if (!hasAccess)
+            {
+                hasAccess = await _context.LearnerPathwayProgresses
+                    .Where(lp => lp.UserId == userId)
+                    .Join(_context.PathwayCourses, lp => lp.LearningPathwayId, pc => pc.LearningPathwayId, (lp, pc) => pc)
+                    .AnyAsync(pc => pc.CourseId == courseId);
+            }
 
             if (!hasAccess)
             {
@@ -159,11 +168,19 @@ public class LearnerProgressController : ControllerBase
                 return NotFound(new { message = "Lesson not found" });
             }
 
-            // Verify user has access to this course
+            // Verify user has access to this course (group or pathway)
             var hasAccess = await _context.LearnerGroups
                 .Where(lg => lg.UserId == userId && lg.IsActive)
                 .Join(_context.GroupCourses, lg => lg.LearningGroupId, gc => gc.LearningGroupId, (lg, gc) => gc)
                 .AnyAsync(gc => gc.CourseId == lesson.CourseId);
+
+            if (!hasAccess)
+            {
+                hasAccess = await _context.LearnerPathwayProgresses
+                    .Where(lp => lp.UserId == userId)
+                    .Join(_context.PathwayCourses, lp => lp.LearningPathwayId, pc => pc.LearningPathwayId, (lp, pc) => pc)
+                    .AnyAsync(pc => pc.CourseId == lesson.CourseId);
+            }
 
             if (!hasAccess)
             {
@@ -278,11 +295,19 @@ public class LearnerProgressController : ControllerBase
                 return NotFound(new { message = "Lesson not found" });
             }
 
-            // Verify user has access
+            // Verify user has access (group or pathway)
             var hasAccess = await _context.LearnerGroups
                 .Where(lg => lg.UserId == userId && lg.IsActive)
                 .Join(_context.GroupCourses, lg => lg.LearningGroupId, gc => gc.LearningGroupId, (lg, gc) => gc)
                 .AnyAsync(gc => gc.CourseId == lesson.CourseId);
+
+            if (!hasAccess)
+            {
+                hasAccess = await _context.LearnerPathwayProgresses
+                    .Where(lp => lp.UserId == userId)
+                    .Join(_context.PathwayCourses, lp => lp.LearningPathwayId, pc => pc.LearningPathwayId, (lp, pc) => pc)
+                    .AnyAsync(pc => pc.CourseId == lesson.CourseId);
+            }
 
             if (!hasAccess)
             {
@@ -525,6 +550,13 @@ public class LearnerProgressController : ControllerBase
                 return Unauthorized(new { message = "User not authenticated" });
             }
 
+            var lessonScormVersion = await _context.Lessons
+                .Where(l => l.Id == lessonId)
+                .Select(l => l.ScormVersion)
+                .FirstOrDefaultAsync();
+
+            var defaultScormVersion = IsScorm2004(lessonScormVersion) ? (lessonScormVersion ?? "2004-2nd") : "1.2";
+
             // Get lesson progress with SCORM data
             var lessonProgress = await _context.LearnerProgresses
                 .FirstOrDefaultAsync(lp => lp.UserId == userId && lp.LessonId == lessonId);
@@ -534,20 +566,74 @@ public class LearnerProgressController : ControllerBase
                 // No progress yet - return default values
                 return Ok(new ScormDataResponse
                 {
+                    ScormVersion = defaultScormVersion,
                     ScormData = "",
                     ScormLessonLocation = "",
                     ScormLessonStatus = "not attempted",
-                    ScormScore = ""
+                    ScormScore = "",
+                    ScormCompletionStatus = "unknown",
+                    ScormSuccessStatus = "unknown",
+                    ScormScoreRaw = "",
+                    ScormScoreMin = "",
+                    ScormScoreMax = "",
+                    ScormScoreScaled = "",
+                    ScormLocation = "",
+                    ScormSuspendData = "",
+                    ScormObjectives = "",
+                    ScormInteractions = ""
                 });
             }
 
-            return Ok(new ScormDataResponse
+            var response = new ScormDataResponse
             {
+                ScormVersion = defaultScormVersion,
                 ScormData = lessonProgress.ScormData ?? "",
                 ScormLessonLocation = lessonProgress.ScormLessonLocation ?? "",
                 ScormLessonStatus = lessonProgress.ScormLessonStatus ?? "not attempted",
-                ScormScore = lessonProgress.ScormScore ?? ""
-            });
+                ScormScore = lessonProgress.ScormScore ?? "",
+                ScormCompletionStatus = "unknown",
+                ScormSuccessStatus = "unknown",
+                ScormScoreRaw = lessonProgress.ScormScore ?? "",
+                ScormScoreMin = "",
+                ScormScoreMax = "",
+                ScormScoreScaled = "",
+                ScormLocation = lessonProgress.ScormLessonLocation ?? "",
+                ScormSuspendData = "",
+                ScormObjectives = "",
+                ScormInteractions = ""
+            };
+
+            if (!string.IsNullOrWhiteSpace(lessonProgress.ScormData))
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(lessonProgress.ScormData);
+                    if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                    {
+                        if (TryGetString(doc.RootElement, "scormVersion", out var version) && IsScorm2004(version))
+                        {
+                            response.ScormVersion = version;
+                        }
+
+                        response.ScormCompletionStatus = GetStringOrDefault(doc.RootElement, "completionStatus", "unknown");
+                        response.ScormSuccessStatus = GetStringOrDefault(doc.RootElement, "successStatus", "unknown");
+                        response.ScormScoreRaw = GetStringOrDefault(doc.RootElement, "scoreRaw", response.ScormScoreRaw);
+                        response.ScormScoreMin = GetStringOrDefault(doc.RootElement, "scoreMin", "");
+                        response.ScormScoreMax = GetStringOrDefault(doc.RootElement, "scoreMax", "");
+                        response.ScormScoreScaled = GetStringOrDefault(doc.RootElement, "scoreScaled", "");
+                        response.ScormLocation = GetStringOrDefault(doc.RootElement, "location", response.ScormLocation);
+                        response.ScormSuspendData = GetStringOrDefault(doc.RootElement, "suspendData", "");
+                        response.ScormObjectives = GetStringOrDefault(doc.RootElement, "objectives", "");
+                        response.ScormInteractions = GetStringOrDefault(doc.RootElement, "interactions", "");
+                    }
+                }
+                catch
+                {
+                    // Keep backward-compatible response values when ScormData is legacy plain text.
+                }
+            }
+
+            return Ok(response);
         }
         catch (Exception ex)
         {
@@ -578,6 +664,8 @@ public class LearnerProgressController : ControllerBase
                 _logger.LogWarning("SCORM update failed - invalid model state: {@ModelState}", ModelState);
                 return BadRequest(new { message = "Invalid request", errors = ModelState });
             }
+
+            PopulateMissingScorm2004FieldsFromEmbeddedPayload(request);
             
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId))
@@ -601,6 +689,23 @@ public class LearnerProgressController : ControllerBase
                 .Where(lg => lg.UserId == userId && lg.IsActive)
                 .Join(_context.GroupCourses, lg => lg.LearningGroupId, gc => gc.LearningGroupId, (lg, gc) => gc)
                 .AnyAsync(gc => gc.CourseId == lesson.CourseId);
+
+            // Also allow access through assigned learning pathways.
+            if (!hasAccess)
+            {
+                hasAccess = await _context.LearnerPathwayProgresses
+                    .Where(lp => lp.UserId == userId)
+                    .Join(_context.PathwayCourses,
+                        lp => lp.LearningPathwayId,
+                        pc => pc.LearningPathwayId,
+                        (lp, pc) => pc)
+                    .AnyAsync(pc => pc.CourseId == lesson.CourseId);
+
+                if (hasAccess)
+                {
+                    _logger.LogInformation("SCORM update allowed - user {UserId} has pathway access for course {CourseId}", userId, lesson.CourseId);
+                }
+            }
 
             // Also check if user has existing progress (means they already started the course)
             if (!hasAccess)
@@ -648,57 +753,114 @@ public class LearnerProgressController : ControllerBase
                 await SetCourseStartedAtIfNeeded(userId, lesson.CourseId);
             }
 
-            // Update SCORM-specific fields - always update if provided
-            if (!string.IsNullOrEmpty(request.ScormData))
-                lessonProgress.ScormData = request.ScormData;
-            
-            if (!string.IsNullOrEmpty(request.ScormLessonLocation))
-                lessonProgress.ScormLessonLocation = request.ScormLessonLocation;
-            
             // Track completion state BEFORE we update it
             var wasCompleted = lessonProgress.Completed;
-            
-            if (!string.IsNullOrEmpty(request.ScormLessonStatus))
+
+            void ApplyScormUpdate()
             {
-                _logger.LogInformation("SCORM Status Update: User={UserId}, Lesson={LessonId}, NewStatus={NewStatus}, WasCompleted={WasCompleted}, CurrentStatus={CurrentStatus}", 
-                    userId, lessonId, request.ScormLessonStatus, wasCompleted, lessonProgress.ScormLessonStatus);
-                
-                // PROTECT: Never allow downgrading from completed/passed to incomplete/not attempted
-                if (lessonProgress.Completed && 
-                    (request.ScormLessonStatus == "incomplete" || request.ScormLessonStatus == "not attempted"))
+                if (!string.IsNullOrEmpty(request.ScormLessonLocation))
+                    lessonProgress.ScormLessonLocation = request.ScormLessonLocation;
+
+                if (!string.IsNullOrEmpty(request.ScormLocation))
+                    lessonProgress.ScormLessonLocation = request.ScormLocation;
+
+                var computedLessonStatus = request.ScormLessonStatus;
+                if (string.IsNullOrWhiteSpace(computedLessonStatus) && IsScorm2004(request.ScormVersion))
                 {
-                    _logger.LogWarning("BLOCKING status downgrade: Lesson {LessonId} already completed, ignoring status '{NewStatus}'", 
-                        lessonId, request.ScormLessonStatus);
-                    // Don't update ScormLessonStatus - keep it as completed
+                    computedLessonStatus = MapScorm2004ToLessonStatus(request.ScormCompletionStatus, request.ScormSuccessStatus);
                 }
-                else
+
+                if (!string.IsNullOrEmpty(computedLessonStatus))
                 {
-                    lessonProgress.ScormLessonStatus = request.ScormLessonStatus;
-                    
-                    // Auto-complete if SCORM status indicates completion
-                    if (request.ScormLessonStatus == "completed" || request.ScormLessonStatus == "passed")
+                    _logger.LogInformation("SCORM Status Update: User={UserId}, Lesson={LessonId}, NewStatus={NewStatus}, WasCompleted={WasCompleted}, CurrentStatus={CurrentStatus}",
+                        userId, lessonId, computedLessonStatus, wasCompleted, lessonProgress.ScormLessonStatus);
+
+                    // PROTECT: Never allow downgrading from completed/passed to incomplete/not attempted
+                    if (lessonProgress.Completed &&
+                        (computedLessonStatus == "incomplete" || computedLessonStatus == "not attempted"))
                     {
-                        if (!lessonProgress.Completed)
+                        _logger.LogWarning("BLOCKING status downgrade: Lesson {LessonId} already completed, ignoring status '{NewStatus}'",
+                            lessonId, computedLessonStatus);
+                    }
+                    else
+                    {
+                        lessonProgress.ScormLessonStatus = computedLessonStatus;
+
+                        if (computedLessonStatus == "completed" || computedLessonStatus == "passed")
                         {
-                            _logger.LogInformation("Marking lesson {LessonId} as completed for user {UserId}", lessonId, userId);
-                            lessonProgress.Completed = true;
-                            lessonProgress.CompletedAt = DateTime.UtcNow;
-                            lessonProgress.ProgressPercent = 100;
-                        }
-                        else
-                        {
-                            _logger.LogInformation("Lesson {LessonId} already completed for user {UserId}, skipping re-completion", lessonId, userId);
+                            if (!lessonProgress.Completed)
+                            {
+                                _logger.LogInformation("Marking lesson {LessonId} as completed for user {UserId}", lessonId, userId);
+                                lessonProgress.Completed = true;
+                                lessonProgress.CompletedAt = DateTime.UtcNow;
+                                lessonProgress.ProgressPercent = 100;
+                            }
+                            else
+                            {
+                                _logger.LogInformation("Lesson {LessonId} already completed for user {UserId}, skipping re-completion", lessonId, userId);
+                            }
                         }
                     }
                 }
-            }
-            
-            if (!string.IsNullOrEmpty(request.ScormScore))
-                lessonProgress.ScormScore = request.ScormScore;
 
-            lessonProgress.LastAccessedAt = DateTime.UtcNow;
-            
-            await _context.SaveChangesAsync();
+                var normalizedScore = !string.IsNullOrWhiteSpace(request.ScormScoreRaw)
+                    ? request.ScormScoreRaw
+                    : request.ScormScore;
+
+                if (!string.IsNullOrEmpty(normalizedScore))
+                    lessonProgress.ScormScore = normalizedScore;
+
+                lessonProgress.ScormData = BuildScormDataPayload(lessonProgress.ScormData, request);
+                lessonProgress.LastAccessedAt = DateTime.UtcNow;
+            }
+
+            ApplyScormUpdate();
+
+            var saveAttempts = 0;
+            while (true)
+            {
+                try
+                {
+                    await _context.SaveChangesAsync();
+                    break;
+                }
+                catch (DbUpdateConcurrencyException ex) when (saveAttempts < 2)
+                {
+                    saveAttempts++;
+                    _logger.LogWarning(ex, "SCORM save concurrency conflict for lesson {LessonId}, user {UserId}. Retrying attempt {Attempt}.", lessonId, userId, saveAttempts);
+
+                    foreach (var entry in ex.Entries)
+                    {
+                        await entry.ReloadAsync();
+                    }
+
+                    wasCompleted = lessonProgress.Completed;
+                    ApplyScormUpdate();
+                }
+                catch (DbUpdateException ex) when (saveAttempts < 2)
+                {
+                    saveAttempts++;
+                    _logger.LogWarning(ex, "SCORM save DB update conflict for lesson {LessonId}, user {UserId}. Retrying attempt {Attempt}.", lessonId, userId, saveAttempts);
+
+                    var existingProgress = await _context.LearnerProgresses
+                        .Where(lp => lp.UserId == userId && lp.LessonId == lessonId)
+                        .FirstOrDefaultAsync();
+
+                    if (existingProgress == null)
+                    {
+                        throw;
+                    }
+
+                    if (_context.Entry(lessonProgress).State == EntityState.Added)
+                    {
+                        _context.Entry(lessonProgress).State = EntityState.Detached;
+                    }
+
+                    lessonProgress = existingProgress;
+                    wasCompleted = lessonProgress.Completed;
+                    ApplyScormUpdate();
+                }
+            }
 
             // Update course progress after saving lesson progress (only if newly completed)
             if (lessonProgress.Completed && !wasCompleted)
@@ -723,6 +885,190 @@ public class LearnerProgressController : ControllerBase
             return StatusCode(500, new { message = "An error occurred while updating SCORM data" });
         }
     }
+
+    private static bool IsScorm2004(string? version)
+    {
+        if (string.IsNullOrWhiteSpace(version))
+        {
+            return false;
+        }
+
+        return version.Contains("2004", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeScorm2004Version(string? version)
+    {
+        if (string.IsNullOrWhiteSpace(version)) return "2004-2nd";
+        if (version.Contains("4th", StringComparison.OrdinalIgnoreCase)) return "2004-4th";
+        if (version.Contains("3rd", StringComparison.OrdinalIgnoreCase)) return "2004-3rd";
+        if (version.Contains("2nd", StringComparison.OrdinalIgnoreCase)) return "2004-2nd";
+        return IsScorm2004(version) ? "2004-2nd" : version;
+    }
+
+    private static string MapScorm2004ToLessonStatus(string? completionStatus, string? successStatus)
+    {
+        if (string.Equals(successStatus, "passed", StringComparison.OrdinalIgnoreCase))
+        {
+            return "passed";
+        }
+
+        if (string.Equals(successStatus, "failed", StringComparison.OrdinalIgnoreCase))
+        {
+            return "failed";
+        }
+
+        if (string.Equals(completionStatus, "completed", StringComparison.OrdinalIgnoreCase))
+        {
+            return "completed";
+        }
+
+        if (string.Equals(completionStatus, "incomplete", StringComparison.OrdinalIgnoreCase))
+        {
+            return "incomplete";
+        }
+
+        return "not attempted";
+    }
+
+    private static string BuildScormDataPayload(string? existingScormData, UpdateScormDataRequest request)
+    {
+        if (!IsScorm2004(request.ScormVersion))
+        {
+            return !string.IsNullOrWhiteSpace(request.ScormData) ? request.ScormData : (existingScormData ?? string.Empty);
+        }
+
+        var payload = new
+        {
+            scormVersion = NormalizeScorm2004Version(request.ScormVersion),
+            completionStatus = request.ScormCompletionStatus ?? "unknown",
+            successStatus = request.ScormSuccessStatus ?? "unknown",
+            scoreRaw = request.ScormScoreRaw ?? request.ScormScore ?? string.Empty,
+            scoreMin = request.ScormScoreMin ?? string.Empty,
+            scoreMax = request.ScormScoreMax ?? string.Empty,
+            scoreScaled = request.ScormScoreScaled ?? string.Empty,
+            location = request.ScormLocation ?? request.ScormLessonLocation ?? string.Empty,
+            suspendData = request.ScormSuspendData ?? request.ScormData ?? string.Empty,
+            objectives = request.ScormObjectives ?? string.Empty,
+            interactions = request.ScormInteractions ?? string.Empty
+        };
+
+        return JsonSerializer.Serialize(payload);
+    }
+
+    private static void PopulateMissingScorm2004FieldsFromEmbeddedPayload(UpdateScormDataRequest request)
+    {
+        if (!IsScorm2004(request.ScormVersion))
+        {
+            return;
+        }
+
+        var candidate = request.ScormSuspendData;
+        if (string.IsNullOrWhiteSpace(candidate) || !candidate.TrimStart().StartsWith("{"))
+        {
+            candidate = request.ScormData;
+        }
+
+        if (string.IsNullOrWhiteSpace(candidate) || !candidate.TrimStart().StartsWith("{"))
+        {
+            return;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(candidate);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return;
+            }
+
+            var hasEmbedded2004Payload = doc.RootElement.TryGetProperty("completionStatus", out _) ||
+                                         doc.RootElement.TryGetProperty("successStatus", out _) ||
+                                         doc.RootElement.TryGetProperty("scoreRaw", out _) ||
+                                         doc.RootElement.TryGetProperty("location", out _) ||
+                                         doc.RootElement.TryGetProperty("suspendData", out _);
+
+            if (!hasEmbedded2004Payload)
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(request.ScormVersion) && TryGetString(doc.RootElement, "scormVersion", out var version))
+            {
+                request.ScormVersion = NormalizeScorm2004Version(version);
+            }
+
+            if (string.IsNullOrWhiteSpace(request.ScormCompletionStatus) && TryGetString(doc.RootElement, "completionStatus", out var completionStatus))
+            {
+                request.ScormCompletionStatus = completionStatus;
+            }
+
+            if (string.IsNullOrWhiteSpace(request.ScormSuccessStatus) && TryGetString(doc.RootElement, "successStatus", out var successStatus))
+            {
+                request.ScormSuccessStatus = successStatus;
+            }
+
+            if (string.IsNullOrWhiteSpace(request.ScormScoreRaw) && TryGetString(doc.RootElement, "scoreRaw", out var scoreRaw))
+            {
+                request.ScormScoreRaw = scoreRaw;
+            }
+
+            if (string.IsNullOrWhiteSpace(request.ScormScoreMin) && TryGetString(doc.RootElement, "scoreMin", out var scoreMin))
+            {
+                request.ScormScoreMin = scoreMin;
+            }
+
+            if (string.IsNullOrWhiteSpace(request.ScormScoreMax) && TryGetString(doc.RootElement, "scoreMax", out var scoreMax))
+            {
+                request.ScormScoreMax = scoreMax;
+            }
+
+            if (string.IsNullOrWhiteSpace(request.ScormScoreScaled) && TryGetString(doc.RootElement, "scoreScaled", out var scoreScaled))
+            {
+                request.ScormScoreScaled = scoreScaled;
+            }
+
+            if (string.IsNullOrWhiteSpace(request.ScormLocation) && TryGetString(doc.RootElement, "location", out var location))
+            {
+                request.ScormLocation = location;
+            }
+
+            if (string.IsNullOrWhiteSpace(request.ScormSuspendData) && TryGetString(doc.RootElement, "suspendData", out var suspendData))
+            {
+                request.ScormSuspendData = suspendData;
+            }
+
+            if (string.IsNullOrWhiteSpace(request.ScormObjectives) && TryGetString(doc.RootElement, "objectives", out var objectives))
+            {
+                request.ScormObjectives = objectives;
+            }
+
+            if (string.IsNullOrWhiteSpace(request.ScormInteractions) && TryGetString(doc.RootElement, "interactions", out var interactions))
+            {
+                request.ScormInteractions = interactions;
+            }
+        }
+        catch
+        {
+            // Ignore parse failures and keep original request values.
+        }
+    }
+
+    private static bool TryGetString(JsonElement root, string propertyName, out string value)
+    {
+        value = string.Empty;
+        if (!root.TryGetProperty(propertyName, out var property))
+        {
+            return false;
+        }
+
+        value = property.ValueKind == JsonValueKind.String ? property.GetString() ?? string.Empty : property.ToString();
+        return true;
+    }
+
+    private static string GetStringOrDefault(JsonElement root, string propertyName, string defaultValue)
+    {
+        return TryGetString(root, propertyName, out var value) ? value : defaultValue;
+    }
 }
 
 // Request/Response DTOs
@@ -733,18 +1079,40 @@ public class UpdateLessonProgressRequest
 
 public class UpdateScormDataRequest
 {
+    public string? ScormVersion { get; set; }
     public string? ScormData { get; set; }
     public string? ScormLessonLocation { get; set; }
     public string? ScormLessonStatus { get; set; }
     public string? ScormScore { get; set; }
+    public string? ScormCompletionStatus { get; set; }
+    public string? ScormSuccessStatus { get; set; }
+    public string? ScormScoreRaw { get; set; }
+    public string? ScormScoreMin { get; set; }
+    public string? ScormScoreMax { get; set; }
+    public string? ScormScoreScaled { get; set; }
+    public string? ScormLocation { get; set; }
+    public string? ScormSuspendData { get; set; }
+    public string? ScormObjectives { get; set; }
+    public string? ScormInteractions { get; set; }
 }
 
 public class ScormDataResponse
 {
+    public string ScormVersion { get; set; } = "1.2";
     public string ScormData { get; set; } = string.Empty;
     public string ScormLessonLocation { get; set; } = string.Empty;
     public string ScormLessonStatus { get; set; } = string.Empty;
     public string ScormScore { get; set; } = string.Empty;
+    public string ScormCompletionStatus { get; set; } = string.Empty;
+    public string ScormSuccessStatus { get; set; } = string.Empty;
+    public string ScormScoreRaw { get; set; } = string.Empty;
+    public string ScormScoreMin { get; set; } = string.Empty;
+    public string ScormScoreMax { get; set; } = string.Empty;
+    public string ScormScoreScaled { get; set; } = string.Empty;
+    public string ScormLocation { get; set; } = string.Empty;
+    public string ScormSuspendData { get; set; } = string.Empty;
+    public string ScormObjectives { get; set; } = string.Empty;
+    public string ScormInteractions { get; set; } = string.Empty;
 }
 
 public class CourseProgressResponse

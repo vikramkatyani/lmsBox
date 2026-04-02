@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using lmsBox.Server.Services;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace lmsBox.Server.Controllers;
 
@@ -57,6 +58,32 @@ public class ScormProxyController : ControllerBase
 
             var content = await response.Content.ReadAsByteArrayAsync();
             var contentType = response.Content.Headers.ContentType?.ToString() ?? "application/octet-stream";
+            var baseUrl = url.Substring(0, url.LastIndexOf('/') + 1);
+
+            // For CSS files, rewrite relative url(...) references to load through proxy.
+            if (contentType.Contains("text/css") || url.EndsWith(".css", StringComparison.OrdinalIgnoreCase))
+            {
+                var cssContent = System.Text.Encoding.UTF8.GetString(content);
+
+                cssContent = Regex.Replace(
+                    cssContent,
+                    @"url\((['""']?)(?!https?:|//|data:|#)([^)'""?]+(?:\?[^)'""]*)?)\1\)",
+                    match =>
+                    {
+                        var path = match.Groups[2].Value;
+                        var fullUrl = baseUrl + path;
+                        var encodedUrl = Uri.EscapeDataString(fullUrl);
+                        return $"url('/api/scorm-proxy?url={encodedUrl}')";
+                    },
+                    RegexOptions.IgnoreCase
+                );
+
+                content = System.Text.Encoding.UTF8.GetBytes(cssContent);
+                Response.Headers.CacheControl = "no-store, no-cache, must-revalidate, max-age=0";
+                Response.Headers.Pragma = "no-cache";
+                Response.Headers.Expires = "0";
+                return File(content, contentType);
+            }
 
             // For HTML files, rewrite relative URLs to load through proxy
             if (contentType.Contains("text/html") || url.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
@@ -64,11 +91,27 @@ public class ScormProxyController : ControllerBase
                 var htmlContent = System.Text.Encoding.UTF8.GetString(content);
                 
                 _logger.LogInformation("Rewriting relative URLs for SCORM content: {Url}", url);
-                
-                // Rewrite relative URLs to go through the proxy
-                // Get the base URL (directory of the current HTML file)
-                var baseUrl = url.Substring(0, url.LastIndexOf('/') + 1);
-                
+
+                // Check for own SCORM scripts BEFORE rewriting src/href so the literal filenames
+                // are still present in the HTML.  After rewriting, every src becomes a proxy URL
+                // that still contains the original filename as a substring, making the check a
+                // false-positive that silently skips bridge injection for most packages.
+                var hasOwnScormScript =
+                    Regex.IsMatch(htmlContent, @"<script[^>]+src=[""'][^""']*scorm[^""']*\.js[""']", RegexOptions.IgnoreCase);
+
+                // Some SCORM 2004 driver packages (notably scormdriver/indexAPI.html variants)
+                // use their own runtime event bus and can crash if any bridge script is injected
+                // into the package window. Those packages talk to window.parent.API_1484_11 directly.
+                var isLikelyScorm2004Driver =
+                    url.Contains("scorm2004", StringComparison.OrdinalIgnoreCase) ||
+                    url.Contains("2004_", StringComparison.OrdinalIgnoreCase) ||
+                    url.Contains("/scormdriver/", StringComparison.OrdinalIgnoreCase) ||
+                    Regex.IsMatch(htmlContent, @"API_1484_11|adl\.nav\.request|SCORM\s*2004", RegexOptions.IgnoreCase);
+
+                var isScormDriverPage = url.Contains("/scormdriver/", StringComparison.OrdinalIgnoreCase);
+                var isScormContentPage = url.Contains("/scormcontent/", StringComparison.OrdinalIgnoreCase);
+                var shouldSkipBridge = isLikelyScorm2004Driver && isScormContentPage && !isScormDriverPage;
+
                 // Rewrite src and href attributes to use proxy
                 // This ensures scorm_api.js and other resources load through the proxy
                 htmlContent = Regex.Replace(
@@ -83,200 +126,200 @@ public class ScormProxyController : ControllerBase
                     },
                     RegexOptions.IgnoreCase
                 );
-                
-                // Inject postMessage-based API shim before </head> to avoid CORS
-                // This runs before scorm_api.js and provides window.API via postMessage
-                var apiShim = @"<script>
-(function() {
-    console.log('🔧 SCORM API Shim: Initializing...');
-    
-    // Create window.API that communicates with parent via postMessage (CORS-safe)
-    var scormData = {
-        'cmi.core.lesson_status': 'not attempted',
-        'cmi.core.score.raw': '',
-        'cmi.core.lesson_location': '',
-        'cmi.suspend_data': ''
-    };
-    
-    var dataLoaded = false;
-    var pendingCommit = false;
-    var bookmarkLocked = false; // Prevent overwriting bookmark until saved data loads
-    var bookmarkRead = false; // Track if course has read the bookmark
-    
-    // Request data immediately on script load
-    window.parent.postMessage({type:'scorm-request-data'}, '*');
-    console.log('📡 API Shim: Requested saved data on load');
-    
-    window.API = {
-        LMSInitialize: function(p) {
-            console.log('🔧 API Shim: LMSInitialize called');
-            bookmarkLocked = true; // Lock bookmark until data arrives
-            return 'true';
-        },
-        LMSGetValue: function(element) {
-            // If asking for bookmark/status and data hasn't loaded, wait briefly
-            if (!dataLoaded && (element === 'cmi.core.lesson_location' || element === 'cmi.core.lesson_status' || element === 'cmi.suspend_data')) {
-                console.log('⏳ API Shim: LMSGetValue(' + element + ') called before data loaded, waiting...');
-                
-                // Synchronous wait (blocking) - SCORM API must be synchronous
-                var startTime = Date.now();
-                var maxWait = 2000; // Wait up to 2 seconds
-                
-                while (!dataLoaded && (Date.now() - startTime) < maxWait) {
-                    // Busy wait - not ideal but SCORM API must be synchronous
-                    var dummy = 1 + 1; // Keep loop alive
-                }
-                
-                if (dataLoaded) {
-                    console.log('✅ API Shim: Data arrived, returning ' + element + ' = ' + (scormData[element] || ''));
-                } else {
-                    console.log('⚠️ API Shim: Timeout waiting for data, returning empty ' + element);
-                }
-            }
-            
-            var value = scormData[element] || '';
-            
-            // Track when course reads the bookmark - keep lock for 100ms after read
-            if (element === 'cmi.core.lesson_location' && dataLoaded && !bookmarkRead && scormData[element]) {
-                bookmarkRead = true;
-                console.log('📖 API Shim: Course read bookmark (' + value + '), keeping lock for 100ms');
-                setTimeout(function() {
-                    bookmarkLocked = false;
-                    console.log('🔓 API Shim: Bookmark lock released after read');
-                }, 100);
-            }
-            
-            // CRITICAL FIX: If course is completed but has a bookmark, return 'incomplete' so it resumes
-            if (element === 'cmi.core.lesson_status' && value === 'completed' && scormData['cmi.core.lesson_location']) {
-                console.log('🔄 API Shim: Returning incomplete instead of completed to enable bookmark resume');
-                value = 'incomplete';
-            }
-            
-            console.log('🔧 API Shim: LMSGetValue(' + element + ') = ' + value);
-            return value;
-        },
-        LMSSetValue: function(element, value) {
-            console.log('🔧 API Shim: LMSSetValue(' + element + ', ' + value + ')');
-            
-            // Protect completed/passed status from being overwritten by incomplete
-            if (element === 'cmi.core.lesson_status') {
-                var currentStatus = scormData[element];
-                if ((currentStatus === 'completed' || currentStatus === 'passed') && 
-                    (value === 'incomplete' || value === 'not attempted')) {
-                    console.log('🔧 API Shim: Preventing status downgrade from ' + currentStatus + ' to ' + value);
-                    return 'true';
-                }
-            }
-            
-            // Protect bookmark AND suspend_data from being overwritten before saved data loads
-            if ((element === 'cmi.core.lesson_location' || element === 'cmi.suspend_data') && bookmarkLocked) {
-                console.log('🔧 API Shim: Bookmark/suspend_data locked, ignoring SetValue until data loads');
-                return 'true';
-            }
-            
-            scormData[element] = value;
-            return 'true';
-        },
-        LMSCommit: function(p) {
-            if (!dataLoaded) {
-                console.log('⏳ API Shim: LMSCommit called but data not loaded yet, deferring...');
-                pendingCommit = true;
-                return 'true';
-            }
-            
-            console.log('🔧 API Shim: LMSCommit - sending data to parent');
-            window.parent.postMessage({
-                type: 'scorm-save',
-                data: {
-                    scormLessonStatus: scormData['cmi.core.lesson_status'],
-                    scormScore: String(scormData['cmi.core.score.raw'] || ''),
-                    scormLessonLocation: String(scormData['cmi.core.lesson_location'] || ''),
-                    scormData: String(scormData['cmi.suspend_data'] || '')
-                }
-            }, '*');
-            pendingCommit = false;
-            return 'true';
-        },
-        LMSFinish: function(p) { 
-            console.log('🔧 API Shim: LMSFinish');
-            this.LMSCommit(''); 
-            return 'true'; 
-        },
-        LMSGetLastError: function() { return '0'; },
-        LMSGetErrorString: function(e) { return ''; },
-        LMSGetDiagnostic: function(e) { return ''; }
-    };
-    
-    window.addEventListener('message', function(e) {
-        if (e.data?.type === 'scorm-init-data' && e.data.data) {
-            console.log('🔧 API Shim: Received saved data from parent:', e.data.data);
-            
-            // Load saved status - if it's completed/passed, lock it in
-            var savedStatus = e.data.data.lessonStatus || 'not attempted';
-            if (savedStatus === 'completed' || savedStatus === 'passed') {
-                console.log('🔒 API Shim: Lesson already completed, locking status');
-                scormData['cmi.core.lesson_status'] = savedStatus;
-            } else if (scormData['cmi.core.lesson_status'] === 'not attempted') {
-                // Only load non-completed status if current is still 'not attempted'
-                scormData['cmi.core.lesson_status'] = savedStatus;
-            }
-            
-            if (!scormData['cmi.core.score.raw']) {
-                scormData['cmi.core.score.raw'] = e.data.data.score || '';
-            }
-            
-            // Always load saved bookmark, overwriting any course defaults
-            var savedBookmark = e.data.data.lessonLocation || '';
-            console.log('🔖 API Shim: Loading saved bookmark:', savedBookmark, 'Current bookmark:', scormData['cmi.core.lesson_location']);
-            if (savedBookmark) {
-                scormData['cmi.core.lesson_location'] = savedBookmark;
-                console.log('🔖 API Shim: Bookmark set to:', scormData['cmi.core.lesson_location']);
-            }
-            
-            // Always load saved suspend_data, overwriting any course defaults
-            var savedSuspendData = e.data.data.suspendData || '';
-            console.log('💾 API Shim: Loading saved suspend_data:', savedSuspendData);
-            if (savedSuspendData) {
-                scormData['cmi.suspend_data'] = savedSuspendData;
-                console.log('💾 API Shim: Suspend data set to:', scormData['cmi.suspend_data']);
-            }
-            
-            bookmarkLocked = false; // Unlock bookmark BEFORE setting dataLoaded to prevent race
-            dataLoaded = true;
-            console.log('✅ API Shim: Data loaded, status:', scormData['cmi.core.lesson_status'], 'bookmark:', scormData['cmi.core.lesson_location']);
-            
-            // If there was a pending commit, execute it now
-            if (pendingCommit) {
-                console.log('📤 API Shim: Executing deferred commit');
-                window.API.LMSCommit('');
-            }
-        }
-    });
-    
-    console.log('✅ SCORM API Shim: window.API created');
-})();
-</script>";
-                
-                var headCloseIndex = htmlContent.IndexOf("</head>", StringComparison.OrdinalIgnoreCase);
-                if (headCloseIndex > 0)
+
+                // Rewrite single-quoted src/href attributes too.
+                htmlContent = Regex.Replace(
+                    htmlContent,
+                    @"(src|href)='(?!http|https|//|data:|#)([^']+)'",
+                    match => {
+                        var attr = match.Groups[1].Value;
+                        var path = match.Groups[2].Value;
+                        var fullUrl = baseUrl + path;
+                        var encodedUrl = Uri.EscapeDataString(fullUrl);
+                        return $"{attr}='/api/scorm-proxy?url={encodedUrl}'";
+                    },
+                    RegexOptions.IgnoreCase
+                );
+
+                if (!shouldSkipBridge)
                 {
-                    htmlContent = htmlContent.Insert(headCloseIndex, apiShim);
+                    // Inject bridge in head to ensure APIs are available before external scripts load.
+                    var bridgeInjection = "<script src=\"/scorm-runtime-bridge.js\"></script>";
+                    var headCloseIndex = htmlContent.IndexOf("</head>", StringComparison.OrdinalIgnoreCase);
+                    if (headCloseIndex > 0)
+                    {
+                        htmlContent = htmlContent.Insert(headCloseIndex, bridgeInjection);
+                    }
+                    else
+                    {
+                        // No </head> tag, inject at start
+                        htmlContent = bridgeInjection + htmlContent;
+                    }
+
+                    if (hasOwnScormScript)
+                    {
+                        _logger.LogInformation("Injected scorm-runtime-bridge.js into {Url} (package has own scorm script)", url);
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Injected scorm-runtime-bridge.js into {Url} (standard injection)", url);
+                    }
                 }
                 else
                 {
-                    // No </head> tag, inject at start
-                    htmlContent = apiShim + htmlContent;
+                    _logger.LogInformation("Skipped bridge injection for SCORM 2004 content page: {Url}", url);
                 }
                 
                 content = System.Text.Encoding.UTF8.GetBytes(htmlContent);
+                Response.Headers.CacheControl = "no-store, no-cache, must-revalidate, max-age=0";
+                Response.Headers.Pragma = "no-cache";
+                Response.Headers.Expires = "0";
                 return File(content, contentType);
             }
 
+            Response.Headers.CacheControl = "no-store, no-cache, must-revalidate, max-age=0";
+            Response.Headers.Pragma = "no-cache";
+            Response.Headers.Expires = "0";
             return File(content, contentType);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error proxying SCORM content from {Url}", url);
+            return StatusCode(500, new { message = "An error occurred while loading SCORM content" });
+        }
+    }
+
+    /// <summary>
+    /// Fallback for SCORM packages that hardcode root-relative paths like /scormcontent/index.html.
+    /// Resolves the requested path against the proxied launch file URL from the Referer.
+    /// </summary>
+    [HttpGet("/scormcontent/{*path}")]
+    public async Task<IActionResult> ProxyRootRelativeScormContent([FromRoute] string? path)
+    {
+        try
+        {
+            const string scormSourceCookie = "scorm_proxy_source_url";
+            var referer = Request.Headers.Referer.ToString();
+            string originalUrl;
+
+            if (!string.IsNullOrWhiteSpace(referer) && Uri.TryCreate(referer, UriKind.Absolute, out var refererUri))
+            {
+                var refererQuery = QueryHelpers.ParseQuery(refererUri.Query);
+                if (refererQuery.TryGetValue("url", out var encodedOriginalUrl) && !string.IsNullOrWhiteSpace(encodedOriginalUrl))
+                {
+                    originalUrl = Uri.UnescapeDataString(encodedOriginalUrl.ToString());
+                    Response.Cookies.Append(scormSourceCookie, originalUrl, new CookieOptions
+                    {
+                        Path = "/",
+                        HttpOnly = true,
+                        IsEssential = true,
+                        SameSite = SameSiteMode.Lax,
+                        Expires = DateTimeOffset.UtcNow.AddMinutes(30)
+                    });
+                }
+                else if (Request.Cookies.TryGetValue(scormSourceCookie, out var cookieOriginalUrl) && !string.IsNullOrWhiteSpace(cookieOriginalUrl))
+                {
+                    originalUrl = cookieOriginalUrl;
+                }
+                else
+                {
+                    _logger.LogWarning("Referer missing url query and no cookie context for /scormcontent request. Referer: {Referer}", referer);
+                    return NotFound(new { message = "SCORM root-relative request could not be resolved" });
+                }
+            }
+            else if (Request.Cookies.TryGetValue(scormSourceCookie, out var cookieOriginalUrl) && !string.IsNullOrWhiteSpace(cookieOriginalUrl))
+            {
+                originalUrl = cookieOriginalUrl;
+            }
+            else
+            {
+                _logger.LogWarning("Received /scormcontent request without Referer and no cookie context. Path: {Path}", path);
+                return NotFound(new { message = "SCORM root-relative request could not be resolved" });
+            }
+
+            if (!Uri.TryCreate(originalUrl, UriKind.Absolute, out var originalUri))
+            {
+                return NotFound(new { message = "SCORM root-relative request could not be resolved" });
+            }
+
+            var cleanPath = (path ?? string.Empty).TrimStart('/');
+            var launchPath = originalUri.AbsolutePath;
+            var segmentIndex = launchPath.IndexOf("/scormcontent/", StringComparison.OrdinalIgnoreCase);
+            var launchDirectory = launchPath.Substring(0, launchPath.LastIndexOf('/') + 1);
+
+            string packageRootPath;
+            if (segmentIndex >= 0)
+            {
+                // Keep everything up to package root, then append the requested scormcontent file.
+                packageRootPath = launchPath.Substring(0, segmentIndex).TrimEnd('/');
+            }
+            else
+            {
+                // Fallback: use launch file directory as package root.
+                var lastSlash = launchPath.LastIndexOf('/');
+                packageRootPath = lastSlash > 0 ? launchPath.Substring(0, lastSlash).TrimEnd('/') : string.Empty;
+            }
+
+            var packageParentPath = string.Empty;
+            if (!string.IsNullOrWhiteSpace(packageRootPath))
+            {
+                var rootLastSlash = packageRootPath.LastIndexOf('/');
+                packageParentPath = rootLastSlash > 0 ? packageRootPath.Substring(0, rootLastSlash).TrimEnd('/') : string.Empty;
+            }
+
+            var baseOrigin = $"{originalUri.Scheme}://{originalUri.Host}{(originalUri.IsDefaultPort ? string.Empty : $":{originalUri.Port}")}";
+            var candidateUrls = new List<string>
+            {
+                $"{baseOrigin}{packageRootPath}/scormcontent/{cleanPath}",
+                $"{baseOrigin}{packageParentPath}/scormcontent/{cleanPath}",
+                $"{baseOrigin}{launchDirectory}{cleanPath}",
+                $"{baseOrigin}{packageRootPath}/{cleanPath}"
+            };
+
+            if (!string.IsNullOrWhiteSpace(Request.QueryString.Value))
+            {
+                var query = Request.QueryString.Value ?? string.Empty;
+                if (query.StartsWith("?", StringComparison.Ordinal))
+                {
+                    query = query.Substring(1);
+                }
+
+                if (!string.IsNullOrWhiteSpace(query))
+                {
+                    for (var i = 0; i < candidateUrls.Count; i++)
+                    {
+                        candidateUrls[i] += $"?{query}";
+                    }
+                }
+            }
+
+            foreach (var candidateUrl in candidateUrls.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation("Trying /scormcontent fallback candidate {TargetUrl}", candidateUrl);
+                var result = await ProxyScormContent(candidateUrl);
+
+                if (result is FileContentResult)
+                {
+                    return result;
+                }
+
+                if (result is StatusCodeResult statusCodeResult && statusCodeResult.StatusCode < 400)
+                {
+                    return result;
+                }
+
+                if (result is ObjectResult objectResult && (objectResult.StatusCode ?? 500) < 400)
+                {
+                    return result;
+                }
+            }
+
+            _logger.LogWarning("All /scormcontent fallback candidates failed for path {Path}", path);
+            return NotFound(new { message = "Failed to fetch SCORM content" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resolving root-relative /scormcontent request for path {Path}", path);
             return StatusCode(500, new { message = "An error occurred while loading SCORM content" });
         }
     }

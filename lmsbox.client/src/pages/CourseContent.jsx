@@ -119,6 +119,7 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate }) {
   const sessionStartTimeRef = React.useRef(null);
   const timeTrackingIntervalRef = React.useRef(null);
   const hasTrackedAccessRef = React.useRef(false);
+  const legacyScormCompletionHandledRef = React.useRef(false);
 
   // Handle fullscreen state changes for PDF and HTML content
   React.useEffect(() => {
@@ -212,20 +213,34 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate }) {
   React.useEffect(() => {
     if (!lesson || lesson.type !== 'scorm') return;
 
+    legacyScormCompletionHandledRef.current = false;
+
     const handleScormMessage = (event) => {
-      // Accept messages from the SCORM player
-      if (event.data && event.data.type === 'scorm') {
-        const { status, score: _score } = event.data;
-        
-        // SCORM statuses: completed, incomplete, passed, failed
-        if (status === 'completed' || status === 'passed') {
-          onProgressUpdate?.(lesson.id, {
-            progressPercent: 100,
-            videoTimestamp: null,
-            completed: true
-          });
-          toast.success('SCORM lesson completed!');
-        }
+      // The modern message is handled in CourseContent.
+      // Keep this listener only as a legacy fallback for older SCORM packages.
+      if (!event.data) return;
+      const isModern = event.data.type === 'scorm-lesson-completed';
+      const isLegacy = event.data.type === 'scorm';
+      if (isModern) return;
+      if (!isLegacy) return;
+
+      const { status, score: _score } = event.data;
+      const isCompleted = status === 'completed' || status === 'passed';
+      if (!isCompleted) return;
+
+      if (lesson.isCompleted || legacyScormCompletionHandledRef.current) {
+        return;
+      }
+
+      legacyScormCompletionHandledRef.current = true;
+
+      if (isCompleted) {
+        onProgressUpdate?.(lesson.id, {
+          progressPercent: 100,
+          videoTimestamp: null,
+          completed: true
+        });
+        toast.success('SCORM lesson completed!');
       }
     };
 
@@ -532,8 +547,10 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate }) {
       case 'scorm': {
         // Use scorm-player.html in iframe to handle SCORM content with API
         const proxyUrl = lesson.url ? `${API_BASE}/api/scorm-proxy?url=${encodeURIComponent(lesson.url)}` : null;
+        const scormVersion = lesson.scormVersion || '1.2';
+        const token = localStorage.getItem('token') || '';
         const scormPlayerUrl = proxyUrl 
-          ? `/scorm-player.html?url=${encodeURIComponent(proxyUrl)}&lessonId=${lesson.id}&courseId=${_courseId}`
+          ? `${API_BASE}/scorm-player.html?url=${encodeURIComponent(proxyUrl)}&lessonId=${lesson.id}&courseId=${_courseId}&scormVersion=${encodeURIComponent(scormVersion)}&token=${encodeURIComponent(token)}`
           : null;
         
         return (
@@ -744,18 +761,70 @@ export default function CourseContent() {
   
   // AI Assistant state
   const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
+  const processedScormCompletionRef = useRef(new Set());
 
   usePageTitle(course ? `${course.title} - Course Content` : 'Course Content');
+
+  useEffect(() => {
+    processedScormCompletionRef.current.clear();
+  }, [courseId]);
 
   // Listen for SCORM completion messages
   useEffect(() => {
     const handleMessage = (event) => {
       if (event.data && event.data.type === 'scorm-lesson-completed') {
-        console.log('📥 Received SCORM completion for lesson:', event.data.lessonId);
-        // Update the lesson completion status in the sidebar
-        handleProgressUpdate(event.data.lessonId, {
-          progressPercent: 100,
-          completed: true
+        const lessonId = Number(event.data.lessonId);
+        if (Number.isNaN(lessonId)) {
+          return;
+        }
+
+        if (processedScormCompletionRef.current.has(lessonId)) {
+          return;
+        }
+
+        processedScormCompletionRef.current.add(lessonId);
+        console.log('📥 Received SCORM completion for lesson:', lessonId);
+        // SCORM data has already been saved by the backend endpoint
+        // Just update the local UI state to reflect completion
+
+        setCourse(prevCourse => {
+          if (!prevCourse) return prevCourse;
+
+          const targetLesson = prevCourse.lessons.find(lesson => String(lesson.id) === String(lessonId));
+          if (!targetLesson) {
+            return prevCourse;
+          }
+
+          if (targetLesson.isCompleted) {
+            return prevCourse;
+          }
+          
+          const updatedCourse = {
+            ...prevCourse,
+            lessons: prevCourse.lessons.map(lesson => 
+              String(lesson.id) === String(lessonId)
+                ? { ...lesson, isCompleted: true, progressPercent: 100 }
+                : lesson
+            )
+          };
+          
+          // Check if all lessons are now completed
+          const allLessonsComplete = updatedCourse.lessons.every(l => l.isCompleted);
+          
+          if (allLessonsComplete) {
+            toast.success('🎉 Congratulations! You\'ve completed all lessons!');
+            // Reload course to get updated status
+            loadCourseDetails().catch(err => console.error('Failed to reload course:', err));
+          }
+          
+          return updatedCourse;
+        });
+
+        setActiveLesson(prev => {
+          if (!prev) return prev;
+          return String(prev.id) === String(lessonId)
+            ? { ...prev, isCompleted: true, progressPercent: 100 }
+            : prev;
         });
       }
     };
@@ -789,7 +858,7 @@ export default function CourseContent() {
           const updatedCourse = {
             ...prevCourse,
             lessons: prevCourse.lessons.map(lesson => 
-              lesson.id === lessonId 
+              String(lesson.id) === String(lessonId)
                 ? { ...lesson, isCompleted: true, progressPercent: 100 }
                 : lesson
             )
@@ -814,6 +883,13 @@ export default function CourseContent() {
           }
           
           return updatedCourse;
+        });
+
+        setActiveLesson(prev => {
+          if (!prev) return prev;
+          return String(prev.id) === String(lessonId)
+            ? { ...prev, isCompleted: true, progressPercent: 100 }
+            : prev;
         });
         
         // Update active lesson if it's the completed one

@@ -7,6 +7,7 @@
     var urlParams = new URLSearchParams(window.location.search);
     var lessonId = urlParams.get('lessonId');
     var courseId = urlParams.get('courseId');
+    var requestedScormVersion = urlParams.get('scormVersion') || '1.2';
     var apiBase = window.location.origin;
     
     console.log('🎬 SCORM Player initialized with:', {
@@ -16,7 +17,10 @@
         hasLocalStorage: typeof(Storage) !== "undefined"
     });
     
-    // Get auth token from localStorage (same origin)
+    // Get auth token from localStorage (same origin).
+    // In local dev the React app runs on :5174 and the player runs on :5132, so
+    // localStorage is origin-scoped and the player cannot read the app token.
+    // CourseContent passes token via query string as a fallback.
     var authToken = null;
     try {
         authToken = localStorage.getItem('token');
@@ -24,13 +28,29 @@
     } catch (e) {
         console.error('❌ Could not access localStorage for auth token:', e);
     }
+
+    if (!authToken) {
+        authToken = urlParams.get('token');
+        console.log('🔑 Auth token from URL:', authToken ? 'Found (' + authToken.substring(0, 20) + '...)' : 'Not found');
+    }
     
     // Store to pass saved SCORM data to iframe
     var savedScormData = {
+        scormVersion: requestedScormVersion,
         lessonStatus: "not attempted",
         score: "",
         lessonLocation: "",
-        suspendData: ""
+        suspendData: "",
+        scormCompletionStatus: "unknown",
+        scormSuccessStatus: "unknown",
+        scormScoreRaw: "",
+        scormScoreMin: "",
+        scormScoreMax: "",
+        scormScoreScaled: "",
+        scormLocation: "",
+        scormSuspendData: "",
+        scormObjectives: "",
+        scormInteractions: ""
     };
     
     // SCORM data that tracks changes made during the session
@@ -38,6 +58,267 @@
     var isInitialized = false;
     var isSaving = false; // Prevent concurrent saves
     var pendingSaveData = null; // Queue for pending save
+    var autoSaveTimer = null; // Debounce timer for SetValue auto-save
+    var traceCallsCount = 0; // Diagnostic trace counter
+    var tracedElements = {}; // Track which elements we've traced
+    var lastPersistSignature = '';
+    var lastPersistAt = 0;
+
+    function appendQueryParam(url, key, value) {
+        var hashIndex = url.indexOf('#');
+        var hash = '';
+        var base = url;
+        if (hashIndex >= 0) {
+            hash = url.substring(hashIndex);
+            base = url.substring(0, hashIndex);
+        }
+        var separator = base.indexOf('?') >= 0 ? '&' : '?';
+        return base + separator + key + '=' + value + hash;
+    }
+
+    function buildIframeScormUrl(baseUrl) {
+        if (requestedScormVersion && requestedScormVersion.indexOf('2004') >= 0) {
+            return baseUrl;
+        }
+        try {
+            var initPayload = encodeURIComponent(JSON.stringify(savedScormData));
+            return appendQueryParam(baseUrl, 'scormInit', initPayload);
+        } catch (e) {
+            console.warn('⚠️ Could not embed scormInit payload in iframe URL:', e);
+            return baseUrl;
+        }
+    }
+
+    function normalizeLessonStatus(payload) {
+        var status = payload.scormLessonStatus;
+        if (status) return status;
+
+        if (payload.scormSuccessStatus === 'passed') return 'passed';
+        if (payload.scormSuccessStatus === 'failed') return 'failed';
+        if (payload.scormCompletionStatus === 'completed') return 'completed';
+        if (payload.scormCompletionStatus === 'incomplete') return 'incomplete';
+
+        return '';
+    }
+
+    function deriveScorm12LocationFromSuspend(payload) {
+        if (!payload || payload.scormVersion !== '1.2') return;
+        var locationText = String(payload.scormLessonLocation || '').trim();
+        var suspendText = String(payload.scormData || '').trim();
+        if (!suspendText) return;
+
+        try {
+            var parsed = JSON.parse(suspendText);
+            if (!parsed || typeof parsed !== 'object') return;
+            var slide = String(parsed.slide || '').trim();
+            if (!slide) return;
+
+            // If package resets lesson_location to 1 while suspend_data still has progress,
+            // trust suspend_data.slide for resume continuity.
+            if (!locationText || locationText === '1') {
+                if (slide !== '1') {
+                    payload.scormLessonLocation = slide;
+                }
+            }
+        } catch (e) {
+            // Non-JSON suspend_data is valid for some packages.
+        }
+    }
+
+    function looksLikeEmbeddedScormPayload(value) {
+        if (typeof value !== 'string') return false;
+        var text = value.trim();
+        if (text.charAt(0) !== '{') return false;
+        return text.indexOf('"completionStatus"') >= 0 &&
+               text.indexOf('"successStatus"') >= 0 &&
+               text.indexOf('"scoreRaw"') >= 0;
+    }
+
+    function deriveInProgressFromSuspendData(status, suspendData) {
+        if (!suspendData || typeof suspendData !== 'string') return status;
+        if (!(status === 'completed' || status === 'passed')) return status;
+        try {
+            var parsed = JSON.parse(suspendData);
+            if (parsed && typeof parsed === 'object' && parsed.completed === false) {
+                return 'incomplete';
+            }
+        } catch (e) {
+            // Non-JSON suspend_data is valid for many packages.
+        }
+        return status;
+    }
+
+    function normalizeScorm12ResumePayload() {
+        var suspendText = savedScormData.suspendData;
+        if (!suspendText || typeof suspendText !== 'string') return;
+        try {
+            var parsed = JSON.parse(suspendText);
+            if (!parsed || typeof parsed !== 'object') return;
+
+            if (typeof parsed.slide !== 'undefined' && (savedScormData.lessonLocation === '' || savedScormData.lessonLocation == null)) {
+                savedScormData.lessonLocation = String(parsed.slide);
+            }
+
+            if (typeof parsed.completed === 'boolean' && parsed.completed === true) {
+                parsed.completed = false;
+                savedScormData.suspendData = JSON.stringify(parsed);
+            }
+        } catch (e) {
+            // Ignore non-JSON suspend_data.
+        }
+    }
+
+    function getRuntimeScorm12Status() {
+        var status = currentScormData.scormLessonStatus || savedScormData.lessonStatus || 'not attempted';
+        if (!(status === 'completed' || status === 'passed')) return status;
+
+        var location = (currentScormData.scormLessonLocation || savedScormData.lessonLocation || '').toString().trim();
+        var suspendData = (currentScormData.scormData || savedScormData.suspendData || '').toString().trim();
+        if (location || suspendData) {
+            return 'incomplete';
+        }
+
+        return status;
+    }
+
+    function hasScorm12ResumeData() {
+        var location = (currentScormData.scormLessonLocation || savedScormData.lessonLocation || '').toString().trim();
+        var suspendData = (currentScormData.scormData || savedScormData.suspendData || '').toString().trim();
+        return !!(location || suspendData);
+    }
+
+    // Build a complete save payload from current + saved state.
+    // When the lesson is tagged as SCORM 2004 but the package actually uses a SCORM 1.2
+    // runtime driver (e.g. Rustici's scormdriver.js), the driver calls window.parent.API
+    // (1.2 interface) and populates 1.2-style keys: scormLessonStatus, scormScore,
+    // scormLessonLocation, scormData.  We bridge those into the 2004 payload so data
+    // is never lost regardless of which runtime the content uses.
+    function buildCurrentPayload() {
+        var is2004 = requestedScormVersion && requestedScormVersion.indexOf('2004') >= 0;
+        if (is2004) {
+            // SCORM 1.2 runtime fields that may have been set via window.API.LMSSetValue
+            var legacyStatus   = currentScormData.scormLessonStatus   || savedScormData.lessonStatus  || '';
+            var legacyScore    = currentScormData.scormScore           || savedScormData.score         || '';
+            var legacyLocation = currentScormData.scormLessonLocation  || savedScormData.lessonLocation || '';
+            var legacySuspend  = currentScormData.scormData            || '';
+
+            // Map legacy lesson_status to 2004 completion/success terms
+            var legacyCompletion = '';
+            var legacySuccess    = '';
+            if (legacyStatus === 'completed' || legacyStatus === 'passed' || legacyStatus === 'failed') {
+                legacyCompletion = 'completed';
+                legacySuccess    = (legacyStatus === 'passed') ? 'passed' : (legacyStatus === 'failed' ? 'failed' : 'unknown');
+            } else if (legacyStatus === 'incomplete' || legacyStatus === 'browsed') {
+                legacyCompletion = 'incomplete';
+            }
+
+            var p = {
+                scormVersion: requestedScormVersion || '2004-2nd',
+                scormCompletionStatus: currentScormData.scormCompletionStatus || legacyCompletion || savedScormData.scormCompletionStatus || 'unknown',
+                scormSuccessStatus:    currentScormData.scormSuccessStatus    || legacySuccess    || savedScormData.scormSuccessStatus    || 'unknown',
+                scormScoreRaw:         currentScormData.scormScoreRaw         || legacyScore      || savedScormData.scormScoreRaw         || '',
+                scormScoreMin:         currentScormData.scormScoreMin         || savedScormData.scormScoreMin         || '',
+                scormScoreMax:         currentScormData.scormScoreMax         || savedScormData.scormScoreMax         || '',
+                scormScoreScaled:      currentScormData.scormScoreScaled      || savedScormData.scormScoreScaled      || '',
+                scormLocation:         currentScormData.scormLocation         || legacyLocation   || savedScormData.scormLocation         || '',
+                scormSuspendData:      currentScormData.scormSuspendData      || savedScormData.scormSuspendData || legacySuspend || '',
+                scormObjectives:       currentScormData.scormObjectives       || savedScormData.scormObjectives       || '',
+                scormInteractions:     currentScormData.scormInteractions     || savedScormData.scormInteractions     || ''
+            };
+            p.scormLessonStatus = normalizeLessonStatus(p);
+            p.scormScore = p.scormScoreRaw;
+            p.scormLessonLocation = p.scormLocation;
+            p.scormData = p.scormSuspendData;
+            return p;
+        } else {
+            return Object.assign({}, currentScormData);
+        }
+    }
+
+    // Persist current SCORM state to the backend directly (no postMessage indirection).
+    // Pass keepalive=true when called from beforeunload so the request survives navigation.
+    function persistToBackend(payload, keepalive) {
+        if (!lessonId || !authToken) return;
+        if (!payload || Object.keys(payload).length === 0) return;
+
+        // Avoid rapid duplicate saves caused by packages calling Commit repeatedly.
+        // Keepalive/unload saves should bypass this guard.
+        if (!keepalive) {
+            var signature = JSON.stringify(payload);
+            var now = Date.now();
+            if (signature === lastPersistSignature && (now - lastPersistAt) < 1500) {
+                return;
+            }
+            lastPersistSignature = signature;
+            lastPersistAt = now;
+        }
+
+        var isCompleted = payload.scormLessonStatus === 'completed' || payload.scormLessonStatus === 'passed';
+        var opts = {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+            body: JSON.stringify(payload)
+        };
+        if (keepalive) opts.keepalive = true;
+        fetch(apiBase + '/api/learner/progress/lessons/' + lessonId + '/scorm', opts)
+            .then(function(r) {
+                if (r.ok) {
+                    console.log('✅ SCORM persisted to backend');
+                    mergeSavedScormDataFromPayload(payload);
+                    if (isCompleted && window.parent && window.parent !== window) {
+                        window.parent.postMessage({ type: 'scorm-lesson-completed', lessonId: lessonId }, '*');
+                    }
+                } else {
+                    console.error('❌ SCORM persist failed:', r.status);
+                }
+            })
+            .catch(function(e) { console.error('❌ SCORM persist error:', e); });
+    }
+
+    // Schedule an auto-save 2 seconds after any SetValue call.
+    // This ensures data is captured even if the package never explicitly calls Commit().
+    function scheduleAutoSave() {
+        if (autoSaveTimer) clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(function() {
+            autoSaveTimer = null;
+            if (Object.keys(currentScormData).length === 0) return;
+            console.log('⏱️ Auto-save triggered after SetValue');
+            persistToBackend(buildCurrentPayload(), false);
+        }, 2000);
+    }
+
+    function mergeSavedScormDataFromPayload(payload) {
+        if (!payload) return;
+
+        var payloadIs2004 = payload.scormVersion && payload.scormVersion.indexOf('2004') >= 0;
+
+        if (payload.scormVersion) savedScormData.scormVersion = payload.scormVersion;
+        if (payload.scormLessonStatus) savedScormData.lessonStatus = payload.scormLessonStatus;
+        if (payload.scormScore) savedScormData.score = payload.scormScore;
+        if (payload.scormLessonLocation) savedScormData.lessonLocation = payload.scormLessonLocation;
+        if (payload.scormData && !payloadIs2004 && !looksLikeEmbeddedScormPayload(payload.scormData)) {
+            savedScormData.suspendData = payload.scormData;
+        }
+
+        if (!payloadIs2004) {
+            savedScormData.lessonStatus = deriveInProgressFromSuspendData(
+                savedScormData.lessonStatus,
+                savedScormData.suspendData
+            );
+            normalizeScorm12ResumePayload();
+        }
+
+        if (payload.scormCompletionStatus) savedScormData.scormCompletionStatus = payload.scormCompletionStatus;
+        if (payload.scormSuccessStatus) savedScormData.scormSuccessStatus = payload.scormSuccessStatus;
+        if (payload.scormScoreRaw) savedScormData.scormScoreRaw = payload.scormScoreRaw;
+        if (payload.scormScoreMin) savedScormData.scormScoreMin = payload.scormScoreMin;
+        if (payload.scormScoreMax) savedScormData.scormScoreMax = payload.scormScoreMax;
+        if (payload.scormScoreScaled) savedScormData.scormScoreScaled = payload.scormScoreScaled;
+        if (payload.scormLocation) savedScormData.scormLocation = payload.scormLocation;
+        if (payload.scormSuspendData && !looksLikeEmbeddedScormPayload(payload.scormSuspendData)) savedScormData.scormSuspendData = payload.scormSuspendData;
+        if (payload.scormObjectives) savedScormData.scormObjectives = payload.scormObjectives;
+        if (payload.scormInteractions) savedScormData.scormInteractions = payload.scormInteractions;
+    }
     
     // Create SCORM 1.2 API for content that uses window.parent.API
     window.API = {
@@ -55,130 +336,119 @@
         },
         
         LMSGetValue: function(element) {
-            console.log('📥 API.LMSGetValue:', element);
+            // === DIAGNOSTIC TRACE FOR FIRE SAFETY RESUME ===
+            if (traceCallsCount < 20 && !tracedElements[element]) {
+                tracedElements[element] = true;
+                traceCallsCount++;
+            }
+            
+            // Capture the returned value for tracing
+            var returnValue = "";
             
             // Return from current session data if set, otherwise from saved data
             if (element === "cmi.core.lesson_status") {
-                return currentScormData.scormLessonStatus || savedScormData.lessonStatus || "not attempted";
+                returnValue = getRuntimeScorm12Status();
             } else if (element === "cmi.core.score.raw") {
-                return currentScormData.scormScore || savedScormData.score || "";
+                returnValue = currentScormData.scormScore || savedScormData.score || "";
             } else if (element === "cmi.core.lesson_location") {
-                return currentScormData.scormLessonLocation || savedScormData.lessonLocation || "";
+                returnValue = currentScormData.scormLessonLocation || savedScormData.lessonLocation || "";
             } else if (element === "cmi.suspend_data") {
-                return currentScormData.scormData || savedScormData.suspendData || "";
+                returnValue = currentScormData.scormData || savedScormData.suspendData || "";
+            } else if (element === "cmi.core.entry") {
+                returnValue = hasScorm12ResumeData() ? "resume" : "ab-initio";
+            } else if (element === "cmi.core.lesson_mode") {
+                returnValue = "normal";
             } else if (element === "cmi.core.student_name") {
-                return "Learner";
+                returnValue = "Learner";
             } else if (element === "cmi.core.student_id") {
-                return "learner-id";
+                returnValue = "learner-id";
             }
             
-            return "";
+            // Log trace for first 20 unique elements queried (one-time per element)
+            if (tracedElements[element] && Object.keys(tracedElements).length <= 20) {
+                console.log(`[SCORM-TRACE] 📥 GetValue(${element}) => "${returnValue}"`);
+                
+                // Extra detail for critical resume fields
+                if (element === "cmi.core.lesson_status") {
+                    console.log(`  [TRACE] Current: "${currentScormData.scormLessonStatus}" | Saved: "${savedScormData.lessonStatus}"`);
+                }
+                if (element === "cmi.core.lesson_location") {
+                    console.log(`  [TRACE] Current: "${currentScormData.scormLessonLocation}" | Saved: "${savedScormData.lessonLocation}"`);
+                }
+                if (element === "cmi.suspend_data") {
+                    var suspendVal = (currentScormData.scormData || savedScormData.suspendData || "");
+                    console.log(`  [TRACE] Length: ${suspendVal.length} | First 80 chars: "${suspendVal.substring(0, 80)}"`);
+                }
+                if (element === "cmi.core.entry") {
+                    console.log(`  [TRACE] HasResumeData: ${hasScorm12ResumeData()} | LessonLocation: "${savedScormData.lessonLocation}"`);
+                }
+            }
+            
+            console.log('📥 API.LMSGetValue:', element);
+            return returnValue;
         },
         
         LMSSetValue: function(element, value) {
             console.log('📤 API.LMSSetValue:', element, '=', value);
             
-            if (element === "cmi.core.lesson_status") {
-                // Protect completed/passed status from being downgraded
-                var currentStatus = currentScormData.scormLessonStatus || savedScormData.lessonStatus;
-                
-                // NEVER allow setting to incomplete - always upgrade to completed instead
-                if (value === 'incomplete' || value === 'not attempted') {
-                    // If we already have a better status, keep it
-                    if (currentStatus === 'completed' || currentStatus === 'passed') {
-                        console.log('🔒 Preventing status downgrade from', currentStatus, 'to', value);
-                        return "true";
-                    }
-                    // Block "incomplete" entirely - SCORM content should use "completed" or "not attempted"
-                    console.log('🚫 Blocking "incomplete" status - ignoring:', value);
-                    return "true";
+            // === RESUME INTERCEPT: Detect and prevent slide 1 reset ===
+            // Fire Safety hardcodes slide 1 on startup, overwriting saved bookmark.
+            // If this is a resume attempt (saved data exists) and package tries to set slide 1,
+            // force it to use the saved slide instead.
+            var originalValue = String(value);
+            var interceptedValue = originalValue;
+            
+            if (element === "cmi.core.lesson_location") {
+                // Check if package is trying to reset to slide 1 during resume
+                if (originalValue === "1" && savedScormData.lessonLocation && savedScormData.lessonLocation !== "1") {
+                    interceptedValue = savedScormData.lessonLocation;
+                    console.log(`🚫 INTERCEPT: Bypassed slide 1 reset. Restoring saved location: ${interceptedValue}`);
                 }
-                
+            } else if (element === "cmi.suspend_data") {
+                // Check if suspend_data is being set to slide 1 during resume
+                try {
+                    var incomingData = JSON.parse(originalValue);
+                    if (incomingData && incomingData.slide === 1 && savedScormData.suspendData) {
+                        var savedData = JSON.parse(savedScormData.suspendData);
+                        if (savedData && savedData.slide && savedData.slide !== 1) {
+                            // Keep the incoming structure but restore saved slide
+                            incomingData.slide = savedData.slide;
+                            incomingData.completed = savedData.completed; // Also restore completed status
+                            interceptedValue = JSON.stringify(incomingData);
+                            console.log(`🚫 INTERCEPT: Bypassed suspend_data slide 1 reset. Restoring saved slide: ${savedData.slide}`);
+                        }
+                    }
+                } catch (e) {
+                    // suspend_data might not be JSON, fall through to normal handling
+                }
+            }
+            
+            if (element === "cmi.core.lesson_status") {
                 currentScormData.scormLessonStatus = String(value);
             } else if (element === "cmi.core.score.raw") {
                 currentScormData.scormScore = String(value);
             } else if (element === "cmi.core.lesson_location") {
-                currentScormData.scormLessonLocation = String(value);
+                currentScormData.scormLessonLocation = interceptedValue;
             } else if (element === "cmi.suspend_data") {
-                currentScormData.scormData = String(value);
+                currentScormData.scormData = interceptedValue;
             } else if (element === "cmi.core.session_time") {
-                // Track session time but don't save it
                 console.log('⏱️ Session time:', value);
             }
-            
+
+            scheduleAutoSave();
             return "true";
         },
         
         LMSCommit: function(param) {
             console.log('💾 API.LMSCommit called - saving data to backend');
             
-            // Save current data to backend
-            if (!lessonId || !authToken) {
-                console.warn('❌ Cannot commit: missing lessonId or authToken');
-                return "true";
-            }
-            
-            // Only save if there's actual data to save
+            // Use persistToBackend so that 1.2→2004 bridging in buildCurrentPayload is applied.
             if (Object.keys(currentScormData).length === 0) {
-                console.log('ℹ️ No data to commit');
+                console.log('ℹ️ LMSCommit: no data to commit');
                 return "true";
             }
-            
-            // Prevent concurrent saves
-            if (isSaving) {
-                console.log('⏳ Save already in progress, skipping...');
-                return "true";
-            }
-            
-            isSaving = true;
-            
-            var isCompleted = currentScormData.scormLessonStatus === 'completed' || 
-                             currentScormData.scormLessonStatus === 'passed';
-            
-            console.log('💾 Committing SCORM data:', currentScormData);
-            
-            fetch(apiBase + '/api/learner/progress/lessons/' + lessonId + '/scorm', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + authToken
-                },
-                body: JSON.stringify(currentScormData)
-            })
-            .then(function(response) {
-                if (response.ok) {
-                    console.log('✅ SCORM data committed successfully');
-                    
-                    // Update saved data with current data
-                    Object.assign(savedScormData, currentScormData);
-                    
-                    // Notify parent window if lesson was completed
-                    if (isCompleted && window.parent && window.parent !== window) {
-                        console.log('📢 Notifying parent of SCORM completion');
-                        window.parent.postMessage({
-                            type: 'scorm-lesson-completed',
-                            lessonId: lessonId
-                        }, '*');
-                    }
-                    
-                    return response.json();
-                } else {
-                    console.error('❌ Failed to commit SCORM data:', response.status);
-                    return response.text().then(function(text) {
-                        console.error('Error details:', text);
-                    });
-                }
-            })
-            .then(function(data) {
-                if (data) console.log('Backend response:', data);
-            })
-            .catch(function(error) {
-                console.error('❌ Error committing SCORM data:', error);
-            })
-            .finally(function() {
-                isSaving = false;
-            });
-            
+            console.log('💾 LMSCommit: committing SCORM 1.2 data via persistToBackend');
+            persistToBackend(buildCurrentPayload(), false);
             return "true";
         },
         
@@ -196,6 +466,63 @@
     };
     
     console.log('✅ SCORM 1.2 API created on window.API for content access via window.parent.API');
+
+    // Create SCORM 2004 2nd Edition API for content that uses window.parent.API_1484_11
+    window.API_1484_11 = {
+        Initialize: function(param) {
+            console.log('📘 API_1484_11.Initialize called');
+            isInitialized = true;
+            return "true";
+        },
+
+        Terminate: function(param) {
+            console.log('📕 API_1484_11.Terminate called');
+            this.Commit("");
+            isInitialized = false;
+            return "true";
+        },
+
+        GetValue: function(element) {
+            if (element === 'cmi.completion_status') return currentScormData.scormCompletionStatus || savedScormData.scormCompletionStatus || 'unknown';
+            if (element === 'cmi.success_status') return currentScormData.scormSuccessStatus || savedScormData.scormSuccessStatus || 'unknown';
+            if (element === 'cmi.score.raw') return currentScormData.scormScoreRaw || savedScormData.scormScoreRaw || '';
+            if (element === 'cmi.score.min') return currentScormData.scormScoreMin || savedScormData.scormScoreMin || '';
+            if (element === 'cmi.score.max') return currentScormData.scormScoreMax || savedScormData.scormScoreMax || '';
+            if (element === 'cmi.score.scaled') return currentScormData.scormScoreScaled || savedScormData.scormScoreScaled || '';
+            if (element === 'cmi.location') return currentScormData.scormLocation || savedScormData.scormLocation || savedScormData.lessonLocation || '';
+            if (element === 'cmi.suspend_data') return currentScormData.scormSuspendData || savedScormData.scormSuspendData || savedScormData.suspendData || '';
+            return '';
+        },
+
+        SetValue: function(element, value) {
+            var text = String(value || '');
+            if (element === 'cmi.completion_status') currentScormData.scormCompletionStatus = text;
+            else if (element === 'cmi.success_status') currentScormData.scormSuccessStatus = text;
+            else if (element === 'cmi.score.raw') currentScormData.scormScoreRaw = text;
+            else if (element === 'cmi.score.min') currentScormData.scormScoreMin = text;
+            else if (element === 'cmi.score.max') currentScormData.scormScoreMax = text;
+            else if (element === 'cmi.score.scaled') currentScormData.scormScoreScaled = text;
+            else if (element === 'cmi.location') currentScormData.scormLocation = text;
+            else if (element === 'cmi.suspend_data') currentScormData.scormSuspendData = text;
+            else if (element.indexOf('cmi.objectives.') === 0) currentScormData.scormObjectives = text;
+            else if (element.indexOf('cmi.interactions.') === 0) currentScormData.scormInteractions = text;
+
+            scheduleAutoSave();
+            return 'true';
+        },
+
+        Commit: function(param) {
+            if (!lessonId || !authToken) return 'true';
+            persistToBackend(buildCurrentPayload(), false);
+            return 'true';
+        },
+
+        GetLastError: function() { return '0'; },
+        GetErrorString: function() { return 'No error'; },
+        GetDiagnostic: function() { return 'No error'; }
+    };
+
+    console.log('✅ SCORM 2004 API created on window.API_1484_11 for content access via window.parent.API_1484_11');
     
     // Fetch existing SCORM data for bookmarking/resume
     function loadSavedScormData() {
@@ -222,12 +549,17 @@
         })
         .then(function(data) {
             if (data) {
-                savedScormData.lessonStatus = data.scormLessonStatus || "not attempted";
-                savedScormData.score = data.scormScore || "";
-                savedScormData.lessonLocation = data.scormLessonLocation || "";
-                savedScormData.suspendData = data.scormData || "";
+                mergeSavedScormDataFromPayload(data);
+                if (requestedScormVersion && requestedScormVersion.indexOf('2004') >= 0 && savedScormData.scormVersion === '1.2') {
+                    savedScormData.scormVersion = requestedScormVersion;
+                }
+                if (!savedScormData.lessonStatus || savedScormData.lessonStatus === 'not attempted') {
+                    var derivedStatus = normalizeLessonStatus(data);
+                    if (derivedStatus) savedScormData.lessonStatus = derivedStatus;
+                }
                 
                 console.log('✅ Loaded saved SCORM data:', {
+                    version: savedScormData.scormVersion,
                     status: savedScormData.lessonStatus,
                     score: savedScormData.score,
                     bookmark: savedScormData.lessonLocation,
@@ -284,21 +616,15 @@
             }
             
             isSaving = true;
-            
-            // PROTECT: Only prevent downgrading from completed/passed to incomplete/not attempted
-            if (event.data.data.scormLessonStatus === 'incomplete' || event.data.data.scormLessonStatus === 'not attempted') {
-                var currentStatus = currentScormData.scormLessonStatus || savedScormData.lessonStatus;
-                if (currentStatus === 'completed' || currentStatus === 'passed') {
-                    // Already completed - replace incomplete with completed
-                    console.log('🔄 PROTECTION: Replacing', event.data.data.scormLessonStatus, 'with', currentStatus, '(already completed)');
-                    event.data.data.scormLessonStatus = currentStatus;
-                } else {
-                    // Not completed yet - allow incomplete to track in-progress
-                    console.log('✅ Allowing incomplete status (lesson in progress)');
-                }
+
+            var normalizedStatus = normalizeLessonStatus(event.data.data);
+            if (!event.data.data.scormLessonStatus && normalizedStatus) {
+                event.data.data.scormLessonStatus = normalizedStatus;
             }
+            deriveScorm12LocationFromSuspend(event.data.data);
             
-            // Update completion status immediately in savedScormData to protect subsequent saves
+            // Keep latest package-reported status for SCORM 1.2 so resume/bookmark logic
+            // in content that depends on lesson_status can continue from the last screen.
             if (event.data.data.scormLessonStatus === 'completed' || event.data.data.scormLessonStatus === 'passed') {
                 savedScormData.lessonStatus = event.data.data.scormLessonStatus;
                 currentScormData.scormLessonStatus = event.data.data.scormLessonStatus;
@@ -306,10 +632,7 @@
             }
             
             // Update local saved data
-            if (event.data.data.scormLessonStatus) savedScormData.lessonStatus = event.data.data.scormLessonStatus;
-            if (event.data.data.scormScore) savedScormData.score = event.data.data.scormScore;
-            if (event.data.data.scormLessonLocation) savedScormData.lessonLocation = event.data.data.scormLessonLocation;
-            if (event.data.data.scormData) savedScormData.suspendData = event.data.data.scormData;
+            mergeSavedScormDataFromPayload(event.data.data);
             
             // Check if lesson was marked as completed
             var isCompleted = event.data.data.scormLessonStatus === 'completed' || 
@@ -371,6 +694,24 @@
             });
         }
     });
+
+    // Final save when learner navigates away from the player page.
+    // fetch with keepalive:true allows the request to complete even after the page unloads.
+    window.addEventListener('beforeunload', function() {
+        if (!lessonId || !authToken) return;
+        if (autoSaveTimer) { clearTimeout(autoSaveTimer); autoSaveTimer = null; }
+        var payload = buildCurrentPayload();
+        // For SCORM 2004, buildCurrentPayload always returns a full object (using savedScormData
+        // fallbacks), so we check a meaningful field to avoid a no-op save.
+        // For SCORM 1.2, payload is a copy of currentScormData which may be empty.
+        var hasData = Object.keys(payload).length > 0 &&
+                      (payload.scormVersion ||
+                       (payload.scormLessonStatus && payload.scormLessonStatus !== 'not attempted') ||
+                       (payload.scormCompletionStatus && payload.scormCompletionStatus !== 'unknown') ||
+                       payload.scormLocation || payload.scormSuspendData || payload.scormData);
+        if (!hasData) return;
+        persistToBackend(payload, true);
+    });
     
     // Load SCORM content from proxy (which injects the stub API)
     window.addEventListener('DOMContentLoaded', function() {
@@ -425,10 +766,11 @@
         }
         
         if (scormUrl) {
-            console.log('📦 Loading SCORM content from proxy:', scormUrl);
-            
             // First load saved SCORM data, then load the content
             loadSavedScormData().then(function() {
+                var iframeSrc = buildIframeScormUrl(scormUrl);
+                console.log('📦 Loading SCORM content from proxy:', iframeSrc);
+
                 iframe.onload = function() {
                     loading.style.display = 'none';
                     console.log('✅ SCORM content loaded successfully');
@@ -446,11 +788,11 @@
                 
                 iframe.onerror = function() {
                     loading.textContent = 'Error loading SCORM content';
-                    console.error('❌ Failed to load SCORM content from:', scormUrl);
+                    console.error('❌ Failed to load SCORM content from:', iframeSrc);
                 };
                 
                 // Load from proxy which will inject stub API
-                iframe.src = scormUrl;
+                iframe.src = iframeSrc;
             });
         } else {
             loading.textContent = 'No SCORM content URL provided';
