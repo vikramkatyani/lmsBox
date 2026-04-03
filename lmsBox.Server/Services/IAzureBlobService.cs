@@ -76,6 +76,7 @@ public class ScormPackageInfo
     public string LaunchUrl { get; set; } = null!;
     public string BaseUrl { get; set; } = null!;
     public string ManifestPath { get; set; } = null!;
+    public string ScormVersion { get; set; } = "1.2";
     public long TotalSize { get; set; }
     public int FileCount { get; set; }
 }

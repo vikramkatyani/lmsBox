@@ -33,6 +33,55 @@
         authToken = urlParams.get('token');
         console.log('🔑 Auth token from URL:', authToken ? 'Found (' + authToken.substring(0, 20) + '...)' : 'Not found');
     }
+
+    function decodeJwtPayload(token) {
+        if (!token) return null;
+        try {
+            var parts = token.split('.');
+            if (parts.length < 2) return null;
+            var base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+            var padded = base64 + '==='.slice((base64.length + 3) % 4);
+            var json = decodeURIComponent(atob(padded).split('').map(function(ch) {
+                return '%' + ('00' + ch.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            return JSON.parse(json);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function getStoredUserName() {
+        try {
+            return localStorage.getItem('userName') || '';
+        } catch (e) {
+            return '';
+        }
+    }
+
+    var authPayload = decodeJwtPayload(authToken);
+    console.log('🔐 JWT Payload decoded:', authPayload);
+    var learnerId = '';
+    var learnerName = '';
+
+    if (authPayload) {
+        learnerId = authPayload.nameid || authPayload.sub || authPayload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] || '';
+        learnerName = authPayload.unique_name || authPayload.name || authPayload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] || authPayload.email || '';
+        console.log('📝 From JWT - learnerId:', learnerId, 'learnerName:', learnerName);
+    } else {
+        console.log('⚠️ No JWT payload decoded');
+    }
+
+    if (!learnerName) {
+        learnerName = getStoredUserName() || 'Learner';
+        console.log('📝 Using stored/fallback learnerName:', learnerName);
+    }
+
+    if (!learnerId) {
+        learnerId = 'learner-id';
+        console.log('📝 Using fallback learnerId:', learnerId);
+    }
+    
+    console.log('✅ Final learner identity - ID:', learnerId, 'Name:', learnerName);
     
     // Store to pass saved SCORM data to iframe
     var savedScormData = {
@@ -77,11 +126,9 @@
     }
 
     function buildIframeScormUrl(baseUrl) {
-        if (requestedScormVersion && requestedScormVersion.indexOf('2004') >= 0) {
-            return baseUrl;
-        }
         try {
-            var initPayload = encodeURIComponent(JSON.stringify(savedScormData));
+            var initData = Object.assign({}, savedScormData, { learnerId: learnerId, learnerName: learnerName });
+            var initPayload = encodeURIComponent(JSON.stringify(initData));
             return appendQueryParam(baseUrl, 'scormInit', initPayload);
         } catch (e) {
             console.warn('⚠️ Could not embed scormInit payload in iframe URL:', e);
@@ -441,6 +488,13 @@
         
         LMSCommit: function(param) {
             console.log('💾 API.LMSCommit called - saving data to backend');
+
+            // Commit is an explicit save signal from the package, so cancel any pending
+            // debounced auto-save to avoid duplicate POST requests for the same payload.
+            if (autoSaveTimer) {
+                clearTimeout(autoSaveTimer);
+                autoSaveTimer = null;
+            }
             
             // Use persistToBackend so that 1.2→2004 bridging in buildCurrentPayload is applied.
             if (Object.keys(currentScormData).length === 0) {
@@ -469,8 +523,23 @@
 
     // Create SCORM 2004 2nd Edition API for content that uses window.parent.API_1484_11
     window.API_1484_11 = {
+        // Add cmi object with direct properties for packages that read them as properties
+        cmi: {
+            learner_id: learnerId,      // Set immediately with extracted learner ID
+            learner_name: learnerName,  // Set immediately with extracted learner name
+            mode: 'normal',
+            completion_status: 'unknown',
+            success_status: 'unknown',
+            score: { raw: '', min: '', max: '', scaled: '' },
+            location: '',
+            suspend_data: '',
+            objectives: [],
+            interactions: []
+        },
+
         Initialize: function(param) {
             console.log('📘 API_1484_11.Initialize called');
+            console.log('🔧 Current cmi object at Initialize:', { learner_id: this.cmi.learner_id, learner_name: this.cmi.learner_name, mode: this.cmi.mode });
             isInitialized = true;
             return "true";
         },
@@ -491,19 +560,55 @@
             if (element === 'cmi.score.scaled') return currentScormData.scormScoreScaled || savedScormData.scormScoreScaled || '';
             if (element === 'cmi.location') return currentScormData.scormLocation || savedScormData.scormLocation || savedScormData.lessonLocation || '';
             if (element === 'cmi.suspend_data') return currentScormData.scormSuspendData || savedScormData.scormSuspendData || savedScormData.suspendData || '';
+            if (element === 'cmi.learner_id') {
+                console.log('🎯 GetValue(cmi.learner_id) returning:', learnerId);
+                return learnerId;
+            }
+            if (element === 'cmi.learner_name') {
+                console.log('🎯 GetValue(cmi.learner_name) returning:', learnerName);
+                return learnerName;
+            }
+            if (element === 'cmi.mode') {
+                console.log('🎯 GetValue(cmi.mode) returning: normal');
+                return 'normal';
+            }
             return '';
         },
 
         SetValue: function(element, value) {
             var text = String(value || '');
-            if (element === 'cmi.completion_status') currentScormData.scormCompletionStatus = text;
-            else if (element === 'cmi.success_status') currentScormData.scormSuccessStatus = text;
-            else if (element === 'cmi.score.raw') currentScormData.scormScoreRaw = text;
-            else if (element === 'cmi.score.min') currentScormData.scormScoreMin = text;
-            else if (element === 'cmi.score.max') currentScormData.scormScoreMax = text;
-            else if (element === 'cmi.score.scaled') currentScormData.scormScoreScaled = text;
-            else if (element === 'cmi.location') currentScormData.scormLocation = text;
-            else if (element === 'cmi.suspend_data') currentScormData.scormSuspendData = text;
+            if (element === 'cmi.completion_status') {
+                currentScormData.scormCompletionStatus = text;
+                this.cmi.completion_status = text;
+            }
+            else if (element === 'cmi.success_status') {
+                currentScormData.scormSuccessStatus = text;
+                this.cmi.success_status = text;
+            }
+            else if (element === 'cmi.score.raw') {
+                currentScormData.scormScoreRaw = text;
+                this.cmi.score.raw = text;
+            }
+            else if (element === 'cmi.score.min') {
+                currentScormData.scormScoreMin = text;
+                this.cmi.score.min = text;
+            }
+            else if (element === 'cmi.score.max') {
+                currentScormData.scormScoreMax = text;
+                this.cmi.score.max = text;
+            }
+            else if (element === 'cmi.score.scaled') {
+                currentScormData.scormScoreScaled = text;
+                this.cmi.score.scaled = text;
+            }
+            else if (element === 'cmi.location') {
+                currentScormData.scormLocation = text;
+                this.cmi.location = text;
+            }
+            else if (element === 'cmi.suspend_data') {
+                currentScormData.scormSuspendData = text;
+                this.cmi.suspend_data = text;
+            }
             else if (element.indexOf('cmi.objectives.') === 0) currentScormData.scormObjectives = text;
             else if (element.indexOf('cmi.interactions.') === 0) currentScormData.scormInteractions = text;
 
@@ -513,6 +618,12 @@
 
         Commit: function(param) {
             if (!lessonId || !authToken) return 'true';
+
+            if (autoSaveTimer) {
+                clearTimeout(autoSaveTimer);
+                autoSaveTimer = null;
+            }
+
             persistToBackend(buildCurrentPayload(), false);
             return 'true';
         },
@@ -523,6 +634,7 @@
     };
 
     console.log('✅ SCORM 2004 API created on window.API_1484_11 for content access via window.parent.API_1484_11');
+    console.log('📦 API_1484_11.cmi populated with:', { learner_id: window.API_1484_11.cmi.learner_id, learner_name: window.API_1484_11.cmi.learner_name, mode: window.API_1484_11.cmi.mode });
     
     // Fetch existing SCORM data for bookmarking/resume
     function loadSavedScormData() {
@@ -585,7 +697,7 @@
             if (event.source) {
                 event.source.postMessage({
                     type: 'scorm-init-data',
-                    data: savedScormData
+                    data: Object.assign({}, savedScormData, { learnerId: learnerId, learnerName: learnerName })
                 }, '*');
             }
             return;
@@ -781,7 +893,7 @@
                         console.log('📤 Sending saved SCORM data to iframe:', savedScormData);
                         iframe.contentWindow.postMessage({
                             type: 'scorm-init-data',
-                            data: savedScormData
+                            data: Object.assign({}, savedScormData, { learnerId: learnerId, learnerName: learnerName })
                         }, '*');
                     }, 500); // Small delay to ensure iframe scripts are ready
                 };

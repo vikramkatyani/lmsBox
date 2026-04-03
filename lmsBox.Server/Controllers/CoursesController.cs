@@ -430,6 +430,7 @@ public partial class CoursesController : ControllerBase
                         CompletedAt = lessonProgress?.CompletedAt,
                         LastAccessedAt = lessonProgress?.LastAccessedAt,
                         Url = url,
+                        ScormVersion = lesson.ScormVersion,
                         QuizId = lesson.QuizId,
                         VideoTimestamp = lessonProgress?.VideoTimestamp,
                         TotalTimeSpentSeconds = lessonProgress?.TotalTimeSpentSeconds ?? 0,
@@ -1346,6 +1347,7 @@ public class LessonDto
     public DateTime? CompletedAt { get; set; }
     public DateTime? LastAccessedAt { get; set; } // When lesson was last accessed
     public string Url { get; set; } = string.Empty;
+    public string? ScormVersion { get; set; }
     public string? QuizId { get; set; }
     public int? VideoTimestamp { get; set; } // Video bookmark in seconds
     public int TotalTimeSpentSeconds { get; set; } // Total time spent on this lesson

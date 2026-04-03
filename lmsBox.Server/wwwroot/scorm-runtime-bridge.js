@@ -22,6 +22,9 @@
         }
     };
 
+    var learnerId = '';
+    var learnerName = '';
+
     var dataLoaded = false;
     var pendingCommit12 = false;
     var pendingCommit2004 = false;
@@ -176,6 +179,10 @@
         state.scorm2004.suspendData = scorm2004Suspend || state.scorm2004.suspendData || state.scorm12.suspendData;
         state.scorm2004.objectives = data.scormObjectives || state.scorm2004.objectives;
         state.scorm2004.interactions = data.scormInteractions || state.scorm2004.interactions;
+
+        if (data.learnerId) learnerId = data.learnerId;
+        if (data.learnerName) learnerName = data.learnerName;
+        console.log('SCORM bridge: learner identity set -', learnerId, learnerName);
 
         if (data.scormVersion && data.scormVersion.indexOf('2004') >= 0) {
             scorm2004Version = data.scormVersion;
@@ -404,6 +411,9 @@
                 case 'cmi.score.scaled': return state.scorm2004.scoreScaled || '';
                 case 'cmi.location': return state.scorm2004.location || '';
                 case 'cmi.suspend_data': return state.scorm2004.suspendData || '';
+                case 'cmi.learner_id': return learnerId || '';
+                case 'cmi.learner_name': return learnerName || '';
+                case 'cmi.mode': return 'normal';
                 default: return '';
             }
         },

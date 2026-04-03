@@ -34,6 +34,7 @@ public class Lesson
     // For SCORM lessons
     public string? ScormUrl { get; set; }
     public string? ScormEntryUrl { get; set; }
+    public string? ScormVersion { get; set; }
 
     // For document lessons
     public string? DocumentUrl { get; set; }

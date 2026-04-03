@@ -731,7 +731,10 @@ public class AzureBlobService : IAzureBlobService
                     throw new InvalidOperationException("Invalid SCORM package: Could not determine launch file from manifest");
                 }
 
+                var scormVersion = ParseScormVersion(manifestPath);
+
                 _logger.LogInformation($"SCORM launch file: {launchFile}");
+                _logger.LogInformation("Detected SCORM version: {ScormVersion}", scormVersion);
 
                 // Upload all files from the extracted directory
                 var manifestDirectory = Path.GetDirectoryName(manifestPath)!;
@@ -753,6 +756,7 @@ public class AzureBlobService : IAzureBlobService
                     LaunchUrl = launchUrl,
                     BaseUrl = baseUrl,
                     ManifestPath = $"{scormFolder}/imsmanifest.xml",
+                    ScormVersion = scormVersion,
                     TotalSize = uploadStats.TotalSize,
                     FileCount = uploadStats.FileCount
                 };
@@ -838,6 +842,70 @@ public class AzureBlobService : IAzureBlobService
         {
             _logger.LogError(ex, "Failed to parse SCORM manifest");
             throw new InvalidOperationException("Failed to parse SCORM manifest", ex);
+        }
+    }
+
+    private string ParseScormVersion(string manifestPath)
+    {
+        try
+        {
+            var doc = XDocument.Load(manifestPath);
+
+            // Collect all namespace URIs declared on the root element
+            var namespaces = doc.Root?.Attributes()
+                .Where(a => a.IsNamespaceDeclaration)
+                .Select(a => a.Value)
+                .ToList() ?? new List<string>();
+
+            // SCORM 2004 4th Edition - adlcp_v1p4 namespace
+            if (namespaces.Any(ns => ns.Contains("adlcp_v1p4", StringComparison.OrdinalIgnoreCase)))
+                return "2004-4th";
+
+            // SCORM 2004 3rd Edition - adlcp_v1p3 + adlnav_v1p3 (sequencing navigation)
+            if (namespaces.Any(ns => ns.Contains("adlcp_v1p3", StringComparison.OrdinalIgnoreCase)) &&
+                namespaces.Any(ns => ns.Contains("adlnav_v1p3", StringComparison.OrdinalIgnoreCase)))
+                return "2004-3rd";
+
+            var schemaVersion = doc.Descendants()
+                .FirstOrDefault(e => string.Equals(e.Name.LocalName, "schemaversion", StringComparison.OrdinalIgnoreCase))
+                ?.Value
+                ?.Trim();
+
+            if (!string.IsNullOrEmpty(schemaVersion))
+            {
+                // Explicit edition strings (e.g. "SCORM 2004 4th Edition")
+                if (schemaVersion.Contains("4th", StringComparison.OrdinalIgnoreCase))
+                    return "2004-4th";
+                if (schemaVersion.Contains("3rd", StringComparison.OrdinalIgnoreCase))
+                    return "2004-3rd";
+                if (schemaVersion.Contains("2nd", StringComparison.OrdinalIgnoreCase))
+                    return "2004-2nd";
+
+                if (schemaVersion.Contains("2004", StringComparison.OrdinalIgnoreCase) ||
+                    schemaVersion.Equals("CAM 1.3", StringComparison.OrdinalIgnoreCase) ||
+                    schemaVersion.Equals("1.3", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Distinguish 2nd vs 3rd via namespace when only "2004" is in schemaversion
+                    var is3rd = namespaces.Any(ns => ns.Contains("adlnav_v1p3", StringComparison.OrdinalIgnoreCase));
+                    return is3rd ? "2004-3rd" : "2004-2nd";
+                }
+
+                if (schemaVersion.Contains("1.2", StringComparison.OrdinalIgnoreCase))
+                    return "1.2";
+            }
+
+            // Fallback: detect 2004 via well-known namespace prefixes
+            var has2004Namespace = namespaces.Any(ns =>
+                ns.Contains("adlcp_v1p3", StringComparison.OrdinalIgnoreCase) ||
+                ns.Contains("adlcp_v1p4", StringComparison.OrdinalIgnoreCase) ||
+                ns.Contains("imsss", StringComparison.OrdinalIgnoreCase));
+
+            return has2004Namespace ? "2004-2nd" : "1.2";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to parse SCORM version from manifest {ManifestPath}. Defaulting to 1.2", manifestPath);
+            return "1.2";
         }
     }
 

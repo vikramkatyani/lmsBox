@@ -277,6 +277,7 @@ public class AdminCoursesController : ControllerBase
                     IsOptional = l.IsOptional,
                     Src = l.VideoUrl ?? l.DocumentUrl ?? l.ScormUrl,
                     EntryUrl = l.ScormEntryUrl,
+                    ScormVersion = l.ScormVersion,
                     QuizId = l.QuizId
                 }).ToList()
             };
@@ -568,6 +569,7 @@ public class AdminCoursesController : ControllerBase
                             existingLesson.DurationSeconds = lessonDto.DurationSeconds;
                             existingLesson.ScormUrl = lessonDto.ScormUrl;
                             existingLesson.ScormEntryUrl = lessonDto.ScormEntryUrl;
+                            existingLesson.ScormVersion = lessonDto.ScormVersion ?? existingLesson.ScormVersion;
                             existingLesson.DocumentUrl = lessonDto.DocumentUrl;
                             existingLesson.IsOptional = lessonDto.IsOptional;
                         }
@@ -587,6 +589,7 @@ public class AdminCoursesController : ControllerBase
                             DurationSeconds = lessonDto.DurationSeconds,
                             ScormUrl = lessonDto.ScormUrl,
                             ScormEntryUrl = lessonDto.ScormEntryUrl,
+                            ScormVersion = lessonDto.ScormVersion,
                             DocumentUrl = lessonDto.DocumentUrl,
                             IsOptional = lessonDto.IsOptional,
                             CreatedByUserId = userId,
@@ -637,6 +640,7 @@ public class AdminCoursesController : ControllerBase
                     IsOptional = l.IsOptional,
                     Src = l.VideoUrl ?? l.DocumentUrl ?? l.ScormUrl,
                     EntryUrl = l.ScormEntryUrl,
+                    ScormVersion = l.ScormVersion,
                     QuizId = l.QuizId
                 }).ToList()
             };
@@ -894,6 +898,7 @@ public class AdminCoursesController : ControllerBase
                 string? newDocumentUrl = null;
                 string? newScormUrl = null;
                 string? newScormEntryUrl = null;
+                string? newScormVersion = null;
 
                 // Get organization storage key
                 var organisation = await _context.Organisations
@@ -941,6 +946,7 @@ public class AdminCoursesController : ControllerBase
                         // TODO: Implement full SCORM package folder copy if needed
                         newScormUrl = originalLesson.ScormUrl;
                         newScormEntryUrl = originalLesson.ScormEntryUrl;
+                        newScormVersion = originalLesson.ScormVersion;
                         
                         _logger.LogInformation("SCORM package will be shared: {ScormUrl}", 
                             originalLesson.ScormUrl);
@@ -953,6 +959,7 @@ public class AdminCoursesController : ControllerBase
                     newDocumentUrl = originalLesson.DocumentUrl;
                     newScormUrl = originalLesson.ScormUrl;
                     newScormEntryUrl = originalLesson.ScormEntryUrl;
+                    newScormVersion = originalLesson.ScormVersion;
                     
                     _logger.LogWarning("Blob storage not configured, lesson content URLs will be shared between courses");
                 }
@@ -969,6 +976,7 @@ public class AdminCoursesController : ControllerBase
                     DocumentUrl = newDocumentUrl ?? originalLesson.DocumentUrl,
                     ScormUrl = newScormUrl ?? originalLesson.ScormUrl,
                     ScormEntryUrl = newScormEntryUrl ?? originalLesson.ScormEntryUrl,
+                    ScormVersion = newScormVersion ?? originalLesson.ScormVersion,
                     QuizId = newQuizId,
                     IsOptional = originalLesson.IsOptional,
                     CourseId = newCourse.Id,
@@ -1021,6 +1029,7 @@ public class AdminCoursesController : ControllerBase
                         _ => null
                     },
                     EntryUrl = l.ScormEntryUrl,
+                    ScormVersion = l.ScormVersion,
                     QuizId = l.QuizId
                 }).ToList() ?? new List<AdminLessonDto>()
             };
@@ -1379,6 +1388,7 @@ public class AdminLessonDto
     public bool IsOptional { get; set; }
     public string? Src { get; set; }
     public string? EntryUrl { get; set; }
+    public string? ScormVersion { get; set; }
     public string? QuizId { get; set; }
 }
 
@@ -1421,6 +1431,7 @@ public class UpdateLessonDto
     public int? DurationSeconds { get; set; }
     public string? ScormUrl { get; set; }
     public string? ScormEntryUrl { get; set; }
+    public string? ScormVersion { get; set; }
     public string? DocumentUrl { get; set; }
     public bool IsOptional { get; set; }
 }

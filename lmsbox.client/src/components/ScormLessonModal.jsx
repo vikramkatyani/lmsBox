@@ -15,6 +15,7 @@ export default function ScormLessonModal({ isOpen, onClose, courseId, lesson, on
     ordinal: 1,
     type: 'scorm',
     scormUrl: '',
+    scormVersion: '1.2',
     isOptional: false,
   });
 
@@ -32,6 +33,7 @@ export default function ScormLessonModal({ isOpen, onClose, courseId, lesson, on
         ordinal: lesson.ordinal || 1,
         type: 'scorm',
         scormUrl: lesson.scormUrl || '',
+        scormVersion: lesson.scormVersion || '1.2',
         isOptional: lesson.isOptional || false,
       });
       
@@ -80,12 +82,14 @@ export default function ScormLessonModal({ isOpen, onClose, courseId, lesson, on
 
       setFormData(prev => ({
         ...prev,
-        scormUrl: response.launchUrl
+        scormUrl: response.launchUrl,
+        scormVersion: response.scormVersion || '1.2'
       }));
 
       setUploadSuccess({
         packageName: response.packageName,
         launchUrl: response.launchUrl,
+        scormVersion: response.scormVersion || '1.2',
         fileCount: response.fileCount,
         totalSize: response.totalSize
       });
@@ -138,6 +142,7 @@ export default function ScormLessonModal({ isOpen, onClose, courseId, lesson, on
       ordinal: 1,
       type: 'scorm',
       scormUrl: '',
+      scormVersion: '1.2',
       isOptional: false,
     });
     setUploadProgress(0);
@@ -153,6 +158,31 @@ export default function ScormLessonModal({ isOpen, onClose, courseId, lesson, on
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  const formatScormVersion = (version) => {
+    const map = {
+      '1.2':      'SCORM 1.2',
+      '2004-2nd': 'SCORM 2004 2nd Edition',
+      '2004-3rd': 'SCORM 2004 3rd Edition',
+      '2004-4th': 'SCORM 2004 4th Edition',
+    };
+    return map[version] || version;
+  };
+
+  const getScormBadgeClassName = (version) => {
+    switch (version) {
+      case '1.2':
+        return 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+      case '2004-2nd':
+        return 'bg-sky-100 text-sky-800 border border-sky-200';
+      case '2004-3rd':
+        return 'bg-amber-100 text-amber-800 border border-amber-200';
+      case '2004-4th':
+        return 'bg-fuchsia-100 text-fuchsia-800 border border-fuchsia-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border border-gray-200';
+    }
   };
 
   if (!isOpen) return null;
@@ -294,6 +324,16 @@ export default function ScormLessonModal({ isOpen, onClose, courseId, lesson, on
                         <p className="text-sm font-medium text-gray-900 mb-2">Package Details:</p>
                         <div className="space-y-1 text-xs text-gray-600">
                           <p><span className="font-medium">Package:</span> {uploadSuccess.packageName}</p>
+                          {uploadSuccess.scormVersion && (
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">Learning Standard:</span>
+                              <span
+                                className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getScormBadgeClassName(uploadSuccess.scormVersion)}`}
+                              >
+                                {formatScormVersion(uploadSuccess.scormVersion)}
+                              </span>
+                            </div>
+                          )}
                           {uploadSuccess.fileCount && (
                             <p><span className="font-medium">Files:</span> {uploadSuccess.fileCount}</p>
                           )}

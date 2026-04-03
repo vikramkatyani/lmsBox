@@ -83,6 +83,7 @@ public class AdminLessonsController : ControllerBase
                 DurationSeconds = l.DurationSeconds,
                 ScormUrl = l.ScormUrl,
                 ScormEntryUrl = l.ScormEntryUrl,
+                ScormVersion = l.ScormVersion,
                 DocumentUrl = l.DocumentUrl,
                 IsOptional = l.IsOptional,
                 CreatedAt = l.CreatedAt,
@@ -169,6 +170,7 @@ public class AdminLessonsController : ControllerBase
                 DurationSeconds = lesson.DurationSeconds,
                 ScormUrl = scormUrlWithSas ?? lesson.ScormUrl,
                 ScormEntryUrl = lesson.ScormEntryUrl,
+                ScormVersion = lesson.ScormVersion,
                 DocumentUrl = documentUrlWithSas ?? lesson.DocumentUrl,
                 HtmlContent = lesson.HtmlContent,
                 HtmlUrl = htmlUrlWithSas ?? lesson.HtmlUrl,
@@ -243,6 +245,7 @@ public class AdminLessonsController : ControllerBase
                 DurationSeconds = request.DurationSeconds,
                 ScormUrl = request.ScormUrl,
                 ScormEntryUrl = request.ScormEntryUrl,
+                ScormVersion = request.ScormVersion,
                 DocumentUrl = request.DocumentUrl,
                 HtmlContent = request.HtmlContent,
                 HtmlUrl = request.HtmlUrl,
@@ -295,6 +298,7 @@ public class AdminLessonsController : ControllerBase
                 DurationSeconds = createdLesson.DurationSeconds,
                 ScormUrl = createdLesson.ScormUrl,
                 ScormEntryUrl = createdLesson.ScormEntryUrl,
+                ScormVersion = createdLesson.ScormVersion,
                 DocumentUrl = createdLesson.DocumentUrl,
                 HtmlContent = createdLesson.HtmlContent,
                 HtmlUrl = createdLesson.HtmlUrl,
@@ -375,6 +379,7 @@ public class AdminLessonsController : ControllerBase
             lesson.DurationSeconds = request.DurationSeconds;
             lesson.ScormUrl = request.ScormUrl;
             lesson.ScormEntryUrl = request.ScormEntryUrl;
+            lesson.ScormVersion = request.ScormVersion;
             lesson.DocumentUrl = request.DocumentUrl;
             lesson.HtmlContent = request.HtmlContent;
             lesson.HtmlUrl = request.HtmlUrl;
@@ -404,6 +409,7 @@ public class AdminLessonsController : ControllerBase
                 DurationSeconds = lesson.DurationSeconds,
                 ScormUrl = lesson.ScormUrl,
                 ScormEntryUrl = lesson.ScormEntryUrl,
+                ScormVersion = lesson.ScormVersion,
                 DocumentUrl = lesson.DocumentUrl,
                 HtmlContent = lesson.HtmlContent,
                 HtmlUrl = lesson.HtmlUrl,
@@ -874,6 +880,7 @@ public class AdminLessonsController : ControllerBase
                 BaseUrl = scormInfo.BaseUrl,
                 PackageName = scormInfo.PackageName,
                 ManifestPath = scormInfo.ManifestPath,
+                ScormVersion = scormInfo.ScormVersion,
                 FileCount = scormInfo.FileCount,
                 TotalSize = scormInfo.TotalSize
             };
@@ -1295,6 +1302,7 @@ public class AdminLessonsController : ControllerBase
                     case "scorm":
                         lesson.ScormUrl = content.AzureBlobPath;
                         lesson.ScormEntryUrl = content.AzureBlobPath;
+                        lesson.ScormVersion = "1.2";
                         break;
                     case "html":
                         lesson.HtmlUrl = content.AzureBlobPath;
@@ -1361,6 +1369,7 @@ public class LessonDetailDto
     public int? DurationSeconds { get; set; }
     public string? ScormUrl { get; set; }
     public string? ScormEntryUrl { get; set; }
+    public string? ScormVersion { get; set; }
     public string? DocumentUrl { get; set; }
     public string? HtmlContent { get; set; }
     public string? HtmlUrl { get; set; }
@@ -1380,6 +1389,7 @@ public class CreateLessonRequest
     public int? DurationSeconds { get; set; }
     public string? ScormUrl { get; set; }
     public string? ScormEntryUrl { get; set; }
+    public string? ScormVersion { get; set; }
     public string? DocumentUrl { get; set; }
     public string? HtmlContent { get; set; }
     public string? HtmlUrl { get; set; }
@@ -1414,6 +1424,7 @@ public class ScormUploadResponse
     public string BaseUrl { get; set; } = null!;
     public string PackageName { get; set; } = null!;
     public string ManifestPath { get; set; } = null!;
+    public string ScormVersion { get; set; } = "1.2";
     public int FileCount { get; set; }
     public long TotalSize { get; set; }
 }
