@@ -371,4 +371,154 @@ public class ScormProxyController : ControllerBase
             return StatusCode(500, new { message = "An error occurred while loading HTML content" });
         }
     }
+
+    /// <summary>
+    /// Fallback for SCORM packages that navigate to relative files while running under /api/scorm-proxy.
+    /// Example: index_lms_html5.html resolves to /api/index_lms_html5.html and must be mapped back to blob URL.
+    /// </summary>
+    [HttpGet("/api/{*relativePath}")]
+    [ApiExplorerSettings(IgnoreApi = true)]
+    public async Task<IActionResult> ProxyApiRelativePath([FromRoute] string? relativePath, [FromQuery] string? url)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(relativePath))
+            {
+                return NotFound();
+            }
+
+            // Only handle file requests so we do not interfere with regular API endpoints.
+            var lowerPath = relativePath.ToLowerInvariant();
+            if (!(lowerPath.EndsWith(".html") ||
+                  lowerPath.EndsWith(".htm") ||
+                  lowerPath.EndsWith(".js") ||
+                  lowerPath.EndsWith(".css") ||
+                  lowerPath.EndsWith(".xml") ||
+                  lowerPath.EndsWith(".json") ||
+                  lowerPath.EndsWith(".png") ||
+                  lowerPath.EndsWith(".jpg") ||
+                  lowerPath.EndsWith(".jpeg") ||
+                  lowerPath.EndsWith(".gif") ||
+                  lowerPath.EndsWith(".svg") ||
+                  lowerPath.EndsWith(".woff") ||
+                  lowerPath.EndsWith(".woff2") ||
+                  lowerPath.EndsWith(".ttf")))
+            {
+                return NotFound();
+            }
+
+            const string scormSourceCookie = "scorm_proxy_source_url";
+
+            // Resolve source URL from explicit query first, then referer proxy query, then cookie.
+            string? sourceUrl = url;
+            if (string.IsNullOrWhiteSpace(sourceUrl))
+            {
+                var referer = Request.Headers.Referer.ToString();
+                if (!string.IsNullOrWhiteSpace(referer) && Uri.TryCreate(referer, UriKind.Absolute, out var refererUri))
+                {
+                    var refererQuery = QueryHelpers.ParseQuery(refererUri.Query);
+                    if (refererQuery.TryGetValue("url", out var encodedSourceUrl) && !string.IsNullOrWhiteSpace(encodedSourceUrl))
+                    {
+                        sourceUrl = Uri.UnescapeDataString(encodedSourceUrl.ToString());
+                    }
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(sourceUrl) && Request.Cookies.TryGetValue(scormSourceCookie, out var cookieSourceUrl) && !string.IsNullOrWhiteSpace(cookieSourceUrl))
+            {
+                sourceUrl = cookieSourceUrl;
+            }
+
+            if (!Uri.TryCreate(sourceUrl, UriKind.Absolute, out var sourceUri))
+            {
+                return NotFound(new { message = "SCORM relative request could not be resolved" });
+            }
+
+            // Persist source context for additional nested requests that may omit url/referer query.
+            Response.Cookies.Append(scormSourceCookie, sourceUri.ToString(), new CookieOptions
+            {
+                Path = "/",
+                HttpOnly = true,
+                IsEssential = true,
+                SameSite = SameSiteMode.Lax,
+                Expires = DateTimeOffset.UtcNow.AddMinutes(30)
+            });
+
+            var cleanPath = relativePath.TrimStart('/');
+            var baseOrigin = $"{sourceUri.Scheme}://{sourceUri.Host}{(sourceUri.IsDefaultPort ? string.Empty : $":{sourceUri.Port}")}";
+            var sourcePath = sourceUri.AbsolutePath;
+            var sourceDirectoryPath = sourcePath.Substring(0, sourcePath.LastIndexOf('/') + 1);
+
+            var candidateUrls = new List<string>
+            {
+                // Treat requested path as package-root relative.
+                $"{baseOrigin}{sourceDirectoryPath}{cleanPath}",
+                // Treat requested path as absolute under the same storage host.
+                $"{baseOrigin}/{cleanPath}",
+                // Standard URI resolution from current resource directory.
+                new Uri(new Uri(sourceUri.ToString(), UriKind.Absolute), cleanPath).ToString()
+            };
+
+            // If path starts with a segment that already exists in source path (e.g., html5/...)
+            // map to the package root before that segment.
+            var firstSlash = cleanPath.IndexOf('/');
+            var firstSegment = firstSlash > 0 ? cleanPath.Substring(0, firstSlash) : cleanPath;
+            if (!string.IsNullOrWhiteSpace(firstSegment))
+            {
+                var marker = $"/{firstSegment}/";
+                var markerIndex = sourcePath.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+                if (markerIndex >= 0)
+                {
+                    var packageRoot = sourcePath.Substring(0, markerIndex).TrimEnd('/');
+                    candidateUrls.Add($"{baseOrigin}{packageRoot}/{cleanPath}");
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(Request.QueryString.Value))
+            {
+                var query = Request.QueryString.Value ?? string.Empty;
+                if (query.StartsWith("?", StringComparison.Ordinal))
+                {
+                    query = query.Substring(1);
+                }
+
+                if (!string.IsNullOrWhiteSpace(query))
+                {
+                    for (var i = 0; i < candidateUrls.Count; i++)
+                    {
+                        candidateUrls[i] += candidateUrls[i].Contains('?') ? $"&{query}" : $"?{query}";
+                    }
+                }
+            }
+
+            foreach (var candidateUrl in candidateUrls.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation("Trying /api relative SCORM candidate {TargetUrl} for path {RelativePath}", candidateUrl, relativePath);
+                var result = await ProxyScormContent(candidateUrl);
+
+                if (result is FileContentResult)
+                {
+                    return result;
+                }
+
+                if (result is StatusCodeResult statusCodeResult && statusCodeResult.StatusCode < 400)
+                {
+                    return result;
+                }
+
+                if (result is ObjectResult objectResult && (objectResult.StatusCode ?? 500) < 400)
+                {
+                    return result;
+                }
+            }
+
+            _logger.LogWarning("All /api relative SCORM candidates failed for path {RelativePath}", relativePath);
+            return NotFound(new { message = "Failed to fetch SCORM content" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resolving /api relative SCORM request for path {Path}", relativePath);
+            return StatusCode(500, new { message = "An error occurred while loading SCORM content" });
+        }
+    }
 }

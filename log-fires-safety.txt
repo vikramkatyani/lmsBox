@@ -1,0 +1,127 @@
+✅ Token valid, expires in: 465 minutes
+scorm-player-v2.js:13 🎬 SCORM Player initialized with: {lessonId: '88', courseId: 'aiDJfeCpm0yJuuRzmZg_nA', apiBase: 'http://localhost:5132', hasLocalStorage: true}
+scorm-player-v2.js:27 🔑 Auth token from localStorage: Not found
+scorm-player-v2.js:34 🔑 Auth token from URL: Found (eyJhbGciOiJIUzI1NiIs...)
+scorm-player-v2.js:62 🔐 JWT Payload decoded: {http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier: '95efc800-1621-4df6-99e5-ebdfaeca9921', http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress: '19vaibhav90@gmail.com', jti: '24c1eeb4-57f7-48f6-ae84-335a7d1bdcf7', name: 'Vaibhav Mishra', http://schemas.microsoft.com/ws/2008/06/identity/claims/role: 'Learner', …}
+scorm-player-v2.js:69 📝 From JWT - learnerId: 95efc800-1621-4df6-99e5-ebdfaeca9921 learnerName: Vaibhav Mishra
+scorm-player-v2.js:84 ✅ Final learner identity - ID: 95efc800-1621-4df6-99e5-ebdfaeca9921 Name: Vaibhav Mishra
+scorm-player-v2.js:522 ✅ SCORM 1.2 API created on window.API for content access via window.parent.API
+scorm-player-v2.js:636 ✅ SCORM 2004 API created on window.API_1484_11 for content access via window.parent.API_1484_11
+scorm-player-v2.js:637 📦 API_1484_11.cmi populated with: {learner_id: '95efc800-1621-4df6-99e5-ebdfaeca9921', learner_name: 'Vaibhav Mishra', mode: 'normal'}
+scorm-player-v2.js:646 📖 Loading saved SCORM data for lesson 88
+scorm-player-v2.js:673 ✅ Loaded saved SCORM data: {version: '2004-3rd', status: 'not attempted', score: '', bookmark: '', suspendDataLength: 0}
+scorm-player-v2.js:884 📦 Loading SCORM content from proxy: http://localhost:5132/api/scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Findex_lms.html%3Fsv%3D2025-11-05%26st%3D2026-04-06T05%253A57%253A58Z%26se%3D2026-04-07T06%253A02%253A58Z%26sr%3Db%26sp%3Dr%26sig%3DPBEzieGj8deHp02TYvY3pabVLm3ZHPGFwWMw67QqVIY%253D&scormInit=%7B%22scormVersion%22%3A%222004-3rd%22%2C%22lessonStatus%22%3A%22not%20attempted%22%2C%22score%22%3A%22%22%2C%22lessonLocation%22%3A%22%22%2C%22suspendData%22%3A%22%22%2C%22scormCompletionStatus%22%3A%22unknown%22%2C%22scormSuccessStatus%22%3A%22unknown%22%2C%22scormScoreRaw%22%3A%22%22%2C%22scormScoreMin%22%3A%22%22%2C%22scormScoreMax%22%3A%22%22%2C%22scormScoreScaled%22%3A%22%22%2C%22scormLocation%22%3A%22%22%2C%22scormSuspendData%22%3A%22%22%2C%22scormObjectives%22%3A%22%22%2C%22scormInteractions%22%3A%22%22%2C%22learnerId%22%3A%2295efc800-1621-4df6-99e5-ebdfaeca9921%22%2C%22learnerName%22%3A%22Vaibhav%20Mishra%22%7D
+scorm-runtime-bridge.js:185 SCORM bridge: learner identity set - 95efc800-1621-4df6-99e5-ebdfaeca9921 Vaibhav Mishra
+scorm-runtime-bridge.js:249 SCORM bridge: hydrated init data from query payload
+scorm-runtime-bridge.js:185 SCORM bridge: learner identity set - 95efc800-1621-4df6-99e5-ebdfaeca9921 Vaibhav Mishra
+scorm-player-v2.js:694 📨 Iframe requested SCORM data, sending: {scormVersion: '2004-3rd', lessonStatus: 'not attempted', score: '', lessonLocation: '', suspendData: '', …}
+scorm-player-v2.js:694 📨 Iframe requested SCORM data, sending: {scormVersion: '2004-3rd', lessonStatus: 'not attempted', score: '', lessonLocation: '', suspendData: '', …}
+scorm-runtime-bridge.js:185 SCORM bridge: learner identity set - 95efc800-1621-4df6-99e5-ebdfaeca9921 Vaibhav Mishra
+scorm-runtime-bridge.js:185 SCORM bridge: learner identity set - 95efc800-1621-4df6-99e5-ebdfaeca9921 Vaibhav Mishra
+scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3  GET http://localhost:5132/api/html5/data/js/frame.js net::ERR_ABORTED 404 (Not Found)
+scriptSync @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+sync @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+sync @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+fetch @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+t @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+setTimeout
+i @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+t @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+setTimeout
+i @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+t @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+setTimeout
+i @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3Understand this error
+scorm-player-v2.js:694 📨 Iframe requested SCORM data, sending: {scormVersion: '2004-3rd', lessonStatus: 'not attempted', score: '', lessonLocation: '', suspendData: '', …}
+scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3 init::initialization - Could not load presentation data
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+o @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+t @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+fireWith @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+r.<computed> @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+t @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+fireWith @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+r.<computed> @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+t @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+fireWith @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+r.<computed> @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+script
+scriptSync @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+sync @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+sync @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+fetch @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+t @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+setTimeout
+i @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+t @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+setTimeout
+i @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+t @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+setTimeout
+i @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3Understand this warning
+scorm-runtime-bridge.js:185 SCORM bridge: learner identity set - 95efc800-1621-4df6-99e5-ebdfaeca9921 Vaibhav Mishra
+scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3  GET http://localhost:5132/api/html5/data/js/paths.js net::ERR_ABORTED 404 (Not Found)
+scriptSync @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+sync @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+sync @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+fetch @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+t @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+setTimeout
+i @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+t @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+setTimeout
+i @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+t @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+setTimeout
+i @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3Understand this error
+scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3  GET http://localhost:5132/api/html5/data/js/data.js net::ERR_ABORTED 404 (Not Found)
+scriptSync @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+sync @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+sync @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+fetch @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+t @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+setTimeout
+i @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+t @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+setTimeout
+i @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+t @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+setTimeout
+i @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3
+(anonymous) @ scorm-proxy?url=https%3A%2F%2Felgdocstorage.blob.core.windows.net%2Flms-content%2Forganisations%2F1d53b8ab417e%2Flibrary%2Fscorm%2FSL360_LMS_SCORM_2004%2Fhtml5%2Flib%2Fscripts%2Fapp.min.js:3Understand this error
+scorm-player-v2.js:694 📨 Iframe requested SCORM data, sending: {scormVersion: '2004-3rd', lessonStatus: 'not attempted', score: '', lessonLocation: '', suspendData: '', …}
+scorm-runtime-bridge.js:185 SCORM bridge: learner identity set - 95efc800-1621-4df6-99e5-ebdfaeca9921 Vaibhav Mishra
+scorm-player-v2.js:888 ✅ SCORM content loaded successfully
+scorm-player-v2.js:889 🔌 Stub SCORM API injected by proxy - listening for postMessage events
+scorm-player-v2.js:893 📤 Sending saved SCORM data to iframe: {scormVersion: '2004-3rd', lessonStatus: 'not attempted', score: '', lessonLocation: '', suspendData: '', …}
+scorm-runtime-bridge.js:185 SCORM bridge: learner identity set - 95efc800-1621-4df6-99e5-ebdfaeca9921 Vaibhav Mishra

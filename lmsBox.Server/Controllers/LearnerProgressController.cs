@@ -765,9 +765,27 @@ public class LearnerProgressController : ControllerBase
                     lessonProgress.ScormLessonLocation = request.ScormLocation;
 
                 var computedLessonStatus = request.ScormLessonStatus;
-                if (string.IsNullOrWhiteSpace(computedLessonStatus) && IsScorm2004(request.ScormVersion))
+                if (IsScorm2004(request.ScormVersion))
                 {
-                    computedLessonStatus = MapScorm2004ToLessonStatus(request.ScormCompletionStatus, request.ScormSuccessStatus);
+                    if (string.IsNullOrWhiteSpace(computedLessonStatus))
+                    {
+                        computedLessonStatus = MapScorm2004ToLessonStatus(request.ScormCompletionStatus, request.ScormSuccessStatus);
+                    }
+
+                    // Some SCORM 2004 packages report score/raw/max/scaled correctly
+                    // but never transition completion_status/success_status.
+                    // Promote to completed only when score evidence is definitive.
+                    if ((computedLessonStatus == "incomplete" || computedLessonStatus == "not attempted") &&
+                        HasDefinitiveScorm2004CompletionSignal(request))
+                    {
+                        computedLessonStatus = "completed";
+                        _logger.LogInformation(
+                            "Promoting SCORM 2004 lesson status to completed based on score signals. Lesson={LessonId}, Raw={Raw}, Max={Max}, Scaled={Scaled}",
+                            lessonId,
+                            request.ScormScoreRaw ?? request.ScormScore,
+                            request.ScormScoreMax,
+                            request.ScormScoreScaled);
+                    }
                 }
 
                 if (!string.IsNullOrEmpty(computedLessonStatus))
@@ -953,6 +971,29 @@ public class LearnerProgressController : ControllerBase
         };
 
         return JsonSerializer.Serialize(payload);
+    }
+
+    private static bool HasDefinitiveScorm2004CompletionSignal(UpdateScormDataRequest request)
+    {
+        if (string.Equals(request.ScormSuccessStatus, "passed", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(request.ScormCompletionStatus, "completed", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (double.TryParse(request.ScormScoreScaled, out var scaled) && scaled >= 0.999d)
+        {
+            return true;
+        }
+
+        if (double.TryParse(request.ScormScoreRaw ?? request.ScormScore, out var raw) &&
+            double.TryParse(request.ScormScoreMax, out var max) &&
+            max > 0d && raw >= max)
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private static void PopulateMissingScorm2004FieldsFromEmbeddedPayload(UpdateScormDataRequest request)

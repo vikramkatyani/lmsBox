@@ -143,9 +143,29 @@
         if (payload.scormSuccessStatus === 'passed') return 'passed';
         if (payload.scormSuccessStatus === 'failed') return 'failed';
         if (payload.scormCompletionStatus === 'completed') return 'completed';
-        if (payload.scormCompletionStatus === 'incomplete') return 'incomplete';
+        if (payload.scormCompletionStatus === 'incomplete') {
+            if (hasDefinitive2004CompletionSignal(payload)) return 'completed';
+            return 'incomplete';
+        }
+
+        if (hasDefinitive2004CompletionSignal(payload)) return 'completed';
 
         return '';
+    }
+
+    function hasDefinitive2004CompletionSignal(payload) {
+        if (!payload || !payload.scormVersion || payload.scormVersion.indexOf('2004') < 0) return false;
+        if (payload.scormSuccessStatus === 'passed') return true;
+        if (payload.scormCompletionStatus === 'completed') return true;
+
+        var scaled = parseFloat(payload.scormScoreScaled || '');
+        if (!isNaN(scaled) && scaled >= 0.999) return true;
+
+        var raw = parseFloat(payload.scormScoreRaw || payload.scormScore || '');
+        var max = parseFloat(payload.scormScoreMax || '');
+        if (!isNaN(raw) && !isNaN(max) && max > 0 && raw >= max) return true;
+
+        return false;
     }
 
     function deriveScorm12LocationFromSuspend(payload) {
