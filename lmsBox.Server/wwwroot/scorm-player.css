@@ -21,3 +21,56 @@ body, html {
     color: #666;
     font-size: 16px;
 }
+
+#controls {
+    position: absolute;
+    top: 90px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    gap: 8px;
+}
+
+#controls button {
+    background: rgba(0, 0, 0, 0.25);
+    border: none;
+    border-radius: 4px;
+    color: white;
+    padding: 8px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+#controls button:hover {
+    background: rgba(0, 0, 0, 0.9);
+}
+
+#controls button:active {
+    background: rgba(0, 0, 0, 1);
+}
+
+#controls button svg {
+    display: block;
+}
+
+/* Fullscreen styles */
+:fullscreen #minimize-btn,
+:-webkit-full-screen #minimize-btn,
+:-moz-full-screen #minimize-btn,
+html:fullscreen #minimize-btn,
+html:-webkit-full-screen #minimize-btn,
+html:-moz-full-screen #minimize-btn {
+    display: flex !important;
+}
+
+:fullscreen #fullscreen-btn,
+:-webkit-full-screen #fullscreen-btn,
+:-moz-full-screen #fullscreen-btn,
+html:fullscreen #fullscreen-btn,
+html:-webkit-full-screen #fullscreen-btn,
+html:-moz-full-screen #fullscreen-btn {
+    display: none !important;
+}
