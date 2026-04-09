@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Http;
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.OAuth;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -155,6 +156,24 @@ if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(goo
         options.SignInScheme = IdentityConstants.ExternalScheme;
         options.ClientId = googleClientId;
         options.ClientSecret = googleClientSecret;
+        options.Events = new OAuthEvents
+        {
+            OnRemoteFailure = context =>
+            {
+                var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                var frontendBaseUrl = context.HttpContext.RequestServices.GetRequiredService<IConfiguration>()["LoginLink:FrontendBaseUrl"];
+                if (string.IsNullOrWhiteSpace(frontendBaseUrl))
+                {
+                    frontendBaseUrl = $"{context.Request.Scheme}://{context.Request.Host}";
+                }
+
+                logger.LogError(context.Failure, "Google external login remote failure. Error={Error}", context.Failure?.Message);
+
+                context.HandleResponse();
+                context.Response.Redirect($"{frontendBaseUrl.TrimEnd('/')}/login#authError=external_failed");
+                return Task.CompletedTask;
+            }
+        };
     });
 }
 
@@ -174,6 +193,25 @@ if (!string.IsNullOrWhiteSpace(microsoftClientId) && !string.IsNullOrWhiteSpace(
             options.AuthorizationEndpoint = $"https://login.microsoftonline.com/{microsoftTenantId}/oauth2/v2.0/authorize";
             options.TokenEndpoint = $"https://login.microsoftonline.com/{microsoftTenantId}/oauth2/v2.0/token";
         }
+
+        options.Events = new OAuthEvents
+        {
+            OnRemoteFailure = context =>
+            {
+                var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                var frontendBaseUrl = context.HttpContext.RequestServices.GetRequiredService<IConfiguration>()["LoginLink:FrontendBaseUrl"];
+                if (string.IsNullOrWhiteSpace(frontendBaseUrl))
+                {
+                    frontendBaseUrl = $"{context.Request.Scheme}://{context.Request.Host}";
+                }
+
+                logger.LogError(context.Failure, "Microsoft external login remote failure. Error={Error}", context.Failure?.Message);
+
+                context.HandleResponse();
+                context.Response.Redirect($"{frontendBaseUrl.TrimEnd('/')}/login#authError=external_failed");
+                return Task.CompletedTask;
+            }
+        };
     });
 }
 
