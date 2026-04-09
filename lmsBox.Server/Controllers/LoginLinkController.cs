@@ -177,15 +177,7 @@ namespace lmsBox.Server.Controllers
 
                     _logger.LogInformation("User {UserId} authenticated via login link. Roles={Roles}", user.Id, string.Join(',', roles));
 
-                    // Track login engagement
-                    if (user.OrganisationID.HasValue)
-                    {
-                        await _engagementService.TrackAsync(
-                            user.Id,
-                            user.OrganisationID.Value,
-                            EngagementTrackingService.EVENT_LOGIN
-                        );
-                    }
+                    await TryTrackLoginAsync(user);
 
                     return Ok(new
                     {
@@ -223,54 +215,54 @@ namespace lmsBox.Server.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> ExternalLoginCallback([FromQuery] string? remoteError = null)
         {
-            if (!string.IsNullOrWhiteSpace(remoteError))
+            try
             {
-                _logger.LogWarning("External login failed at provider: {RemoteError}", remoteError);
-                return Redirect(BuildFrontendLoginRedirect("authError=external_denied"));
-            }
+                if (!string.IsNullOrWhiteSpace(remoteError))
+                {
+                    _logger.LogWarning("External login failed at provider: {RemoteError}", remoteError);
+                    return Redirect(BuildFrontendLoginRedirect("authError=external_denied"));
+                }
 
-            var externalResult = await HttpContext.AuthenticateAsync(IdentityConstants.ExternalScheme);
-            if (!externalResult.Succeeded || externalResult.Principal == null)
+                var externalResult = await HttpContext.AuthenticateAsync(IdentityConstants.ExternalScheme);
+                if (!externalResult.Succeeded || externalResult.Principal == null)
+                {
+                    _logger.LogWarning("External login callback received without valid external principal");
+                    return Redirect(BuildFrontendLoginRedirect("authError=external_failed"));
+                }
+
+                var email = externalResult.Principal.FindFirstValue(ClaimTypes.Email)
+                            ?? externalResult.Principal.FindFirstValue("email")
+                            ?? externalResult.Principal.FindFirstValue("preferred_username")
+                            ?? externalResult.Principal.FindFirstValue("upn")
+                            ?? externalResult.Principal.FindFirstValue(JwtRegisteredClaimNames.Email);
+
+                if (string.IsNullOrWhiteSpace(email))
+                {
+                    _logger.LogWarning("External login callback did not include an email claim");
+                    return Redirect(BuildFrontendLoginRedirect("authError=email_missing"));
+                }
+
+                var user = await _userManager.FindByEmailAsync(email);
+                if (user == null)
+                {
+                    _logger.LogInformation("External login rejected for unregistered email {Email}", email);
+                    return Redirect(BuildFrontendPathRedirect("/auth/email-not-registered"));
+                }
+
+                var (token, expiresUnixMs) = await CreateJwtTokenAsync(user);
+
+                await TryTrackLoginAsync(user);
+
+                await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+
+                var fragment = $"token={Uri.EscapeDataString(token)}&expires={expiresUnixMs}";
+                return Redirect(BuildFrontendLoginRedirect(fragment));
+            }
+            catch (Exception ex)
             {
-                _logger.LogWarning("External login callback received without valid external principal");
+                _logger.LogError(ex, "Unhandled error during external login callback");
                 return Redirect(BuildFrontendLoginRedirect("authError=external_failed"));
             }
-
-            var email = externalResult.Principal.FindFirstValue(ClaimTypes.Email)
-                        ?? externalResult.Principal.FindFirstValue("email")
-                        ?? externalResult.Principal.FindFirstValue("preferred_username")
-                        ?? externalResult.Principal.FindFirstValue("upn")
-                        ?? externalResult.Principal.FindFirstValue(JwtRegisteredClaimNames.Email);
-
-            if (string.IsNullOrWhiteSpace(email))
-            {
-                _logger.LogWarning("External login callback did not include an email claim");
-                return Redirect(BuildFrontendLoginRedirect("authError=email_missing"));
-            }
-
-            var user = await _userManager.FindByEmailAsync(email);
-            if (user == null)
-            {
-                _logger.LogInformation("External login rejected for unregistered email {Email}", email);
-                return Redirect(BuildFrontendPathRedirect("/auth/email-not-registered"));
-            }
-
-            var (token, expiresUnixMs) = await CreateJwtTokenAsync(user);
-
-            // Track login engagement
-            if (user.OrganisationID.HasValue)
-            {
-                await _engagementService.TrackAsync(
-                    user.Id,
-                    user.OrganisationID.Value,
-                    EngagementTrackingService.EVENT_LOGIN
-                );
-            }
-
-            await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
-
-            var fragment = $"token={Uri.EscapeDataString(token)}&expires={expiresUnixMs}";
-            return Redirect(BuildFrontendLoginRedirect(fragment));
         }
 
         private async Task<(bool Success, string[] ErrorCodes)> VerifyRecaptchaAsync(string token, string secret)
@@ -383,15 +375,7 @@ namespace lmsBox.Server.Controllers
 
                 _logger.LogInformation("User {UserId} authenticated via dev-login. Roles={Roles}", user.Id, string.Join(',', roles));
 
-                // Track login engagement
-                if (user.OrganisationID.HasValue)
-                {
-                    await _engagementService.TrackAsync(
-                        user.Id,
-                        user.OrganisationID.Value,
-                        EngagementTrackingService.EVENT_LOGIN
-                    );
-                }
+                await TryTrackLoginAsync(user);
 
                 return Ok(new
                 {
@@ -500,6 +484,27 @@ namespace lmsBox.Server.Controllers
 
             var tokenString = new JwtSecurityTokenHandler().WriteToken(jwt);
             return (tokenString, now.AddMinutes(expiresMinutes).ToUnixTimeMilliseconds());
+        }
+
+        private async Task TryTrackLoginAsync(ApplicationUser user)
+        {
+            if (!user.OrganisationID.HasValue)
+            {
+                return;
+            }
+
+            try
+            {
+                await _engagementService.TrackAsync(
+                    user.Id,
+                    user.OrganisationID.Value,
+                    EngagementTrackingService.EVENT_LOGIN
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Login succeeded but engagement tracking failed for user {UserId}", user.Id);
+            }
         }
     }
 
