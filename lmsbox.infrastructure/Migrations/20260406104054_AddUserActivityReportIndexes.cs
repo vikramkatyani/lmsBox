@@ -10,9 +10,14 @@ namespace lmsbox.infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_AspNetUsers_OrganisationID",
-                table: "AspNetUsers");
+                // Drop the old single-column index only if it exists (may be absent in some environments)
+                migrationBuilder.Sql(@"
+                    IF EXISTS (
+                        SELECT 1 FROM sys.indexes
+                        WHERE name = 'IX_AspNetUsers_OrganisationID'
+                          AND object_id = OBJECT_ID(N'AspNetUsers')
+                    )
+                    DROP INDEX [IX_AspNetUsers_OrganisationID] ON [AspNetUsers];");
 
             migrationBuilder.CreateIndex(
                 name: "IX_LearnerProgresses_UserId_Completed_ProgressPercent",
@@ -45,10 +50,14 @@ namespace lmsbox.infrastructure.Migrations
                 name: "IX_AspNetUsers_OrganisationID_ActiveStatus_CreatedOn",
                 table: "AspNetUsers");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_AspNetUsers_OrganisationID",
-                table: "AspNetUsers",
-                column: "OrganisationID");
+                // Recreate the old index only if it doesn't already exist
+                migrationBuilder.Sql(@"
+                    IF NOT EXISTS (
+                        SELECT 1 FROM sys.indexes
+                        WHERE name = 'IX_AspNetUsers_OrganisationID'
+                          AND object_id = OBJECT_ID(N'AspNetUsers')
+                    )
+                    CREATE INDEX [IX_AspNetUsers_OrganisationID] ON [AspNetUsers] ([OrganisationID]);");
         }
     }
 }
