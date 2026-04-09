@@ -10,9 +10,13 @@ namespace lmsbox.infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_LearnerProgresses_CourseId",
-                table: "LearnerProgresses");
+            migrationBuilder.Sql(@"
+                IF EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE name = 'IX_LearnerProgresses_CourseId'
+                      AND object_id = OBJECT_ID(N'LearnerProgresses')
+                )
+                DROP INDEX [IX_LearnerProgresses_CourseId] ON [LearnerProgresses];");
 
             migrationBuilder.CreateIndex(
                 name: "IX_LearnerProgresses_Completed_ProgressPercent_LastAccessedAt_StartedAt_CompletedAt",
@@ -38,10 +42,13 @@ namespace lmsbox.infrastructure.Migrations
                 name: "IX_LearnerProgresses_CourseId_Completed_ProgressPercent_CompletedAt",
                 table: "LearnerProgresses");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_LearnerProgresses_CourseId",
-                table: "LearnerProgresses",
-                column: "CourseId");
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE name = 'IX_LearnerProgresses_CourseId'
+                      AND object_id = OBJECT_ID(N'LearnerProgresses')
+                )
+                CREATE INDEX [IX_LearnerProgresses_CourseId] ON [LearnerProgresses] ([CourseId]);");
         }
     }
 }
