@@ -1,8 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
 import usePageTitle from '../hooks/usePageTitle';
-import { getUserActivityReport, exportToCSV, exportToJSON } from '../services/reports';
+import {
+  getUserActivityReportSummary,
+  getUserActivityReportUsers,
+  exportToCSV,
+  exportToJSON
+} from '../services/reports';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import {
   ArrowLeftIcon,
@@ -18,7 +23,15 @@ import {
 export default function UserActivityReport() {
   usePageTitle('User Activity Report');
   const navigate = useNavigate();
-  const [data, setData] = useState(null);
+  const [data, setData] = useState({ summary: null, users: [] });
+  const [pagination, setPagination] = useState({
+    pageNumber: 1,
+    pageSize: 50,
+    totalUsers: 0,
+    totalPages: 1,
+    hasPreviousPage: false,
+    hasNextPage: false
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState({
@@ -26,18 +39,70 @@ export default function UserActivityReport() {
     endDate: '',
     minDaysDormant: 30
   });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('engagement');
+  const [sortDirection, setSortDirection] = useState('desc');
+  const [pageSize, setPageSize] = useState(50);
   const [showFilters, setShowFilters] = useState(false);
+  const hasLoadedInitialRef = useRef(false);
 
-  const fetchReport = async () => {
+  const fetchSummary = async () => {
+    const result = await getUserActivityReportSummary({
+      startDate: filters.startDate || undefined,
+      endDate: filters.endDate || undefined,
+      minDaysDormant: filters.minDaysDormant
+    });
+
+    setData(prev => ({
+      ...prev,
+      summary: result.summary,
+      header: result.header
+    }));
+  };
+
+  const fetchUsers = async (
+    requestedPageNumber = 1,
+    requestedPageSize = pageSize,
+    requestedSearch = debouncedSearchTerm,
+    requestedSortBy = sortBy,
+    requestedSortDirection = sortDirection
+  ) => {
+    const result = await getUserActivityReportUsers({
+      startDate: filters.startDate || undefined,
+      endDate: filters.endDate || undefined,
+      minDaysDormant: filters.minDaysDormant,
+      pageNumber: requestedPageNumber,
+      pageSize: requestedPageSize,
+      search: requestedSearch || undefined,
+      sortBy: requestedSortBy,
+      sortDirection: requestedSortDirection
+    });
+
+    setData(prev => ({
+      ...prev,
+      users: result.users || [],
+      header: result.header || prev.header
+    }));
+
+    setPagination(result.pagination || {
+      pageNumber: requestedPageNumber,
+      pageSize: requestedPageSize,
+      totalUsers: result?.users?.length || 0,
+      totalPages: 1,
+      hasPreviousPage: false,
+      hasNextPage: false
+    });
+  };
+
+  const fetchReport = async (requestedPageNumber = 1, requestedPageSize = pageSize) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await getUserActivityReport({
-        startDate: filters.startDate || undefined,
-        endDate: filters.endDate || undefined,
-        minDaysDormant: filters.minDaysDormant
-      });
-      setData(result);
+      await Promise.all([
+        fetchSummary(),
+        fetchUsers(requestedPageNumber, requestedPageSize)
+      ]);
     } catch (err) {
       console.error('Error fetching user activity report:', err);
       setError(err.response?.data?.error || 'Failed to load report');
@@ -47,11 +112,34 @@ export default function UserActivityReport() {
   };
 
   useEffect(() => {
-    fetchReport();
+    fetchReport(1, pageSize);
+    hasLoadedInitialRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    if (!hasLoadedInitialRef.current) return;
+    setLoading(true);
+    setError(null);
+    fetchUsers(1, pageSize, debouncedSearchTerm, sortBy, sortDirection)
+      .catch((err) => {
+        console.error('Error fetching filtered users:', err);
+        setError(err.response?.data?.error || 'Failed to load report users');
+      })
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearchTerm, sortBy, sortDirection]);
+
   const handleApplyFilters = () => {
-    fetchReport();
+    fetchReport(1, pageSize);
     setShowFilters(false);
   };
 
@@ -61,6 +149,42 @@ export default function UserActivityReport() {
       endDate: '',
       minDaysDormant: 30
     });
+  };
+
+  const handlePageChange = (nextPage) => {
+    setLoading(true);
+    setError(null);
+    fetchUsers(nextPage, pageSize)
+      .catch((err) => {
+        console.error('Error fetching paged users:', err);
+        setError(err.response?.data?.error || 'Failed to load report users');
+      })
+      .finally(() => setLoading(false));
+  };
+
+  const handlePageSizeChange = (e) => {
+    const nextSize = parseInt(e.target.value, 10) || 50;
+    setPageSize(nextSize);
+    setLoading(true);
+    setError(null);
+    fetchUsers(1, nextSize)
+      .catch((err) => {
+        console.error('Error fetching paged users:', err);
+        setError(err.response?.data?.error || 'Failed to load report users');
+      })
+      .finally(() => setLoading(false));
+  };
+
+  const handleApplySearchSort = () => {
+    setDebouncedSearchTerm(searchTerm);
+    setLoading(true);
+    setError(null);
+    fetchUsers(1, pageSize, searchTerm, sortBy, sortDirection)
+      .catch((err) => {
+        console.error('Error fetching filtered users:', err);
+        setError(err.response?.data?.error || 'Failed to load report users');
+      })
+      .finally(() => setLoading(false));
   };
 
   const handleExportCSV = () => {
@@ -89,14 +213,26 @@ export default function UserActivityReport() {
     }
   };
 
+  const summary = data?.summary || {
+    totalUsers: 0,
+    activeUsers: 0,
+    inactiveUsers: 0,
+    suspendedUsers: 0,
+    dormantUsers: 0,
+    averageEngagementScore: 0,
+    highlyEngagedUsers: 0,
+    moderatelyEngagedUsers: 0,
+    lowEngagementUsers: 0
+  };
+
   // Prepare chart data
-  const engagementDistributionData = data?.summary ? {
+  const engagementDistributionData = {
     labels: ['High (≥70)', 'Moderate (40-69)', 'Low (<40)'],
     datasets: [{
       data: [
-        data.summary.highlyEngagedUsers,
-        data.summary.moderatelyEngagedUsers,
-        data.summary.lowEngagementUsers
+        summary.highlyEngagedUsers,
+        summary.moderatelyEngagedUsers,
+        summary.lowEngagementUsers
       ],
       backgroundColor: [
         'rgba(34, 197, 94, 0.8)',
@@ -110,16 +246,16 @@ export default function UserActivityReport() {
       ],
       borderWidth: 1
     }]
-  } : null;
+  };
 
-  const statusDistributionData = data?.summary ? {
+  const statusDistributionData = {
     labels: ['Active', 'Inactive', 'Suspended', 'Idle'],
     datasets: [{
       data: [
-        data.summary.activeUsers,
-        data.summary.inactiveUsers,
-        data.summary.suspendedUsers,
-        data.summary.dormantUsers
+        summary.activeUsers,
+        summary.inactiveUsers,
+        summary.suspendedUsers,
+        summary.dormantUsers
       ],
       backgroundColor: [
         'rgba(59, 130, 246, 0.8)',
@@ -135,7 +271,7 @@ export default function UserActivityReport() {
       ],
       borderWidth: 1
     }]
-  } : null;
+  };
 
   const chartOptions = {
     responsive: true,
@@ -206,9 +342,9 @@ export default function UserActivityReport() {
             Export JSON
           </button>
           <button
-            onClick={fetchReport}
+            onClick={() => fetchReport(pagination.pageNumber || 1, pageSize)}
             disabled={loading}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-[#1b365d] bg-[#2afeae] hover:bg-[#25e89e] disabled:opacity-50"
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-[#1b365d] bg-[#2afeae] hover:bg-superadmin-btn-hover disabled:opacity-50"
           >
             {loading ? 'Refreshing...' : 'Refresh Report'}
           </button>
@@ -256,7 +392,7 @@ export default function UserActivityReport() {
             <div className="flex gap-3 mt-4">
               <button
                 onClick={handleApplyFilters}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#2afeae] hover:bg-[#25e89e]"
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#2afeae] hover:bg-superadmin-btn-hover"
               >
                 Apply Filters
               </button>
@@ -297,7 +433,7 @@ export default function UserActivityReport() {
                   <UserCircleIcon className="h-10 w-10 text-[#1b365d]" />
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-500">Total Users</p>
-                    <p className="text-2xl font-semibold text-gray-900">{data.summary.totalUsers}</p>
+                    <p className="text-2xl font-semibold text-gray-900">{summary.totalUsers}</p>
                   </div>
                 </div>
               </div>
@@ -307,7 +443,7 @@ export default function UserActivityReport() {
                   <ClockIcon className="h-10 w-10 text-[#2afeae]" />
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-500">Active Users</p>
-                    <p className="text-2xl font-semibold text-gray-900">{data.summary.activeUsers}</p>
+                    <p className="text-2xl font-semibold text-gray-900">{summary.activeUsers}</p>
                   </div>
                 </div>
               </div>
@@ -317,7 +453,7 @@ export default function UserActivityReport() {
                   <ExclamationTriangleIcon className="h-10 w-10 text-orange-600" />
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-500">Idle Users</p>
-                    <p className="text-2xl font-semibold text-gray-900">{data.summary.dormantUsers}</p>
+                    <p className="text-2xl font-semibold text-gray-900">{summary.dormantUsers}</p>
                   </div>
                 </div>
               </div>
@@ -327,7 +463,7 @@ export default function UserActivityReport() {
                   <ChartBarIcon className="h-10 w-10 text-purple-600" />
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-500">Avg Engagement</p>
-                    <p className="text-2xl font-semibold text-gray-900">{data.summary.averageEngagementScore}</p>
+                    <p className="text-2xl font-semibold text-gray-900">{summary.averageEngagementScore}</p>
                   </div>
                 </div>
               </div>
@@ -353,7 +489,65 @@ export default function UserActivityReport() {
             {/* Users Table */}
             <div className="bg-white rounded-lg shadow overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">User Details ({data.users.length})</h3>
+                <div className="flex flex-col gap-3">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    User Details ({pagination.totalUsers || data.users.length})
+                  </h3>
+                  <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Search name, email, status"
+                        className="border border-gray-300 rounded-md px-3 py-1.5 text-sm min-w-60"
+                      />
+                      <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        className="border border-gray-300 rounded-md px-2 py-1.5 text-sm"
+                      >
+                        <option value="engagement">Sort: Engagement</option>
+                        <option value="name">Sort: Name</option>
+                        <option value="lastActivity">Sort: Last Activity</option>
+                        <option value="avgProgress">Sort: Avg Progress</option>
+                        <option value="completions">Sort: Completions</option>
+                        <option value="enrollments">Sort: Enrollments</option>
+                        <option value="status">Sort: Status</option>
+                        <option value="idle">Sort: Idle</option>
+                        <option value="createdOn">Sort: Created On</option>
+                      </select>
+                      <select
+                        value={sortDirection}
+                        onChange={(e) => setSortDirection(e.target.value)}
+                        className="border border-gray-300 rounded-md px-2 py-1.5 text-sm"
+                      >
+                        <option value="desc">Desc</option>
+                        <option value="asc">Asc</option>
+                      </select>
+                      <button
+                        onClick={handleApplySearchSort}
+                        className="px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50"
+                      >
+                        Apply
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-gray-600">Rows per page</label>
+                      <select
+                        value={pageSize}
+                        onChange={handlePageSizeChange}
+                        className="border border-gray-300 rounded-md px-2 py-1 text-sm"
+                      >
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                        <option value={200}>200</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -425,6 +619,28 @@ export default function UserActivityReport() {
                     )}
                   </tbody>
                 </table>
+              </div>
+
+              <div className="px-6 py-4 border-t border-gray-200 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <p className="text-sm text-gray-600">
+                  Page {pagination.pageNumber || 1} of {pagination.totalPages || 1}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handlePageChange((pagination.pageNumber || 1) - 1)}
+                    disabled={!pagination.hasPreviousPage || loading}
+                    className="px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => handlePageChange((pagination.pageNumber || 1) + 1)}
+                    disabled={!pagination.hasNextPage || loading}
+                    className="px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             </div>
           </>

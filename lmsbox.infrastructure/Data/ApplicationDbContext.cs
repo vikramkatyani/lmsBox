@@ -99,6 +99,34 @@ namespace lmsbox.infrastructure.Data
             // Index for certificate ID lookups
             builder.Entity<LearnerProgress>()
                    .HasIndex(lp => lp.CertificateId);
+
+            // User activity report performance indexes
+            builder.Entity<LearnerProgress>()
+                   .HasIndex(lp => new { lp.UserId, lp.LastAccessedAt, lp.CompletedAt });
+
+            builder.Entity<LearnerProgress>()
+                   .HasIndex(lp => new { lp.UserId, lp.Completed, lp.ProgressPercent });
+
+            // User-course progress report indexes (course-level progress rows only)
+            builder.Entity<LearnerProgress>()
+                   .HasIndex(lp => new { lp.CourseId, lp.Completed, lp.ProgressPercent, lp.CompletedAt })
+                   .HasFilter("[LessonId] IS NULL AND [CourseId] IS NOT NULL");
+
+            builder.Entity<LearnerProgress>()
+                   .HasIndex(lp => new { lp.Completed, lp.ProgressPercent, lp.LastAccessedAt, lp.StartedAt, lp.CompletedAt })
+                   .HasFilter("[LessonId] IS NULL AND [CourseId] IS NOT NULL");
+
+            // Content usage report indexes (course-level progress rows only)
+            builder.Entity<LearnerProgress>()
+                   .HasIndex(lp => new { lp.CourseId, lp.LessonId, lp.LastAccessedAt, lp.CompletedAt, lp.StartedAt })
+                   .HasFilter("[LessonId] IS NULL AND [CourseId] IS NOT NULL");
+
+            builder.Entity<LearnerProgress>()
+                   .HasIndex(lp => new { lp.CourseId, lp.LessonId, lp.UserId, lp.Completed, lp.ProgressPercent })
+                   .HasFilter("[LessonId] IS NULL AND [CourseId] IS NOT NULL");
+
+            builder.Entity<ApplicationUser>()
+                   .HasIndex(u => new { u.OrganisationID, u.ActiveStatus, u.CreatedOn });
             
             // Unique constraint for course category names (case-insensitive)
             builder.Entity<CourseCategory>()

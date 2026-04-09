@@ -4,6 +4,7 @@ import AdminProfile from './pages/AdminProfile';
 import LearnerProfile from './pages/LearnerProfile';
 import Login from './pages/Login';
 import VerifyLogin from './pages/VerifyLogin';
+import EmailNotRegistered from './pages/EmailNotRegistered';
 import AuthTest from './pages/AuthTest';
 import Courses from './pages/Courses';
 import CourseContent from './pages/CourseContent';
@@ -73,6 +74,7 @@ function App() {
             element={<Login />}
           />
           <Route path="/verify-login" element={<VerifyLogin />} />
+          <Route path="/auth/email-not-registered" element={<EmailNotRegistered />} />
           <Route path="/auth-test" element={<AuthTest />} />
           
           {/* Admin profile page */}

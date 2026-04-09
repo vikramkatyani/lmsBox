@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using lmsbox.infrastructure.Data;
 
@@ -11,9 +12,11 @@ using lmsbox.infrastructure.Data;
 namespace lmsbox.infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260406104054_AddUserActivityReportIndexes")]
+    partial class AddUserActivityReportIndexes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -786,6 +789,8 @@ namespace lmsbox.infrastructure.Migrations
 
                     b.HasIndex("CertificateIssuedAt");
 
+                    b.HasIndex("CourseId");
+
                     b.HasIndex("LessonId");
 
                     b.HasIndex("UserId", "Completed", "ProgressPercent");
@@ -795,18 +800,6 @@ namespace lmsbox.infrastructure.Migrations
                         .HasFilter("[CourseId] IS NOT NULL AND [LessonId] IS NOT NULL");
 
                     b.HasIndex("UserId", "LastAccessedAt", "CompletedAt");
-
-                    b.HasIndex("CourseId", "Completed", "ProgressPercent", "CompletedAt")
-                        .HasFilter("[LessonId] IS NULL AND [CourseId] IS NOT NULL");
-
-                    b.HasIndex("Completed", "ProgressPercent", "LastAccessedAt", "StartedAt", "CompletedAt")
-                        .HasFilter("[LessonId] IS NULL AND [CourseId] IS NOT NULL");
-
-                    b.HasIndex("CourseId", "LessonId", "LastAccessedAt", "CompletedAt", "StartedAt")
-                        .HasFilter("[LessonId] IS NULL AND [CourseId] IS NOT NULL");
-
-                    b.HasIndex("CourseId", "LessonId", "UserId", "Completed", "ProgressPercent")
-                        .HasFilter("[LessonId] IS NULL AND [CourseId] IS NOT NULL");
 
                     b.ToTable("LearnerProgresses");
                 });

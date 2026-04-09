@@ -1,9 +1,14 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 
 export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, message }) {
   if (!isOpen) return null;
 
-  return (
+  if (typeof document === 'undefined' || !document.body) {
+    return null;
+  }
+
+  return createPortal(
     <div className="fixed inset-0 bg-page-dark-bg bg-opacity-50 z-60 flex items-center justify-center">
       <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl">
         <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
@@ -23,6 +28,7 @@ export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, messa
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

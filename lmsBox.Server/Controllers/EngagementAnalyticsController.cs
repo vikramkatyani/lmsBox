@@ -150,6 +150,49 @@ namespace lmsBox.Server.Controllers
             }
         }
 
+        [HttpGet("top-users-table")]
+        public async Task<IActionResult> GetTopUsersTable(
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 25,
+            [FromQuery] string sortBy = "engagementScore",
+            [FromQuery] string sortDirection = "desc")
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+
+                if (user?.OrganisationID == null)
+                    return BadRequest(new { message = "User organisation not found" });
+
+                var from = fromDate ?? DateTime.UtcNow.AddDays(-30);
+                var to = toDate ?? DateTime.UtcNow;
+
+                if (to < from)
+                {
+                    return BadRequest(new { message = "toDate must be greater than or equal to fromDate" });
+                }
+
+                var result = await _engagementService.GetTopEngagementUsersPageAsync(
+                    user.OrganisationID.Value,
+                    from,
+                    to,
+                    pageNumber,
+                    pageSize,
+                    sortBy,
+                    sortDirection);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to get top engaged users table");
+                return StatusCode(500, new { message = "Failed to load top users table" });
+            }
+        }
+
         [HttpGet("event-breakdown")]
         public async Task<IActionResult> GetEventBreakdown([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
         {

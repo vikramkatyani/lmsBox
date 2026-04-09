@@ -1,7 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
-import { getLessonAnalyticsReport, exportToCSV, exportToJSON } from '../services/reports';
+import {
+  getLessonAnalyticsReportSummary,
+  getLessonAnalyticsReportLessons,
+  exportToCSV,
+  exportToJSON
+} from '../services/reports';
 import { Bar, Doughnut, Pie } from 'react-chartjs-2';
 import {
   ArrowLeftIcon,
@@ -10,13 +15,28 @@ import {
   CheckCircleIcon,
   ClockIcon,
   FireIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  ChevronUpDownIcon,
+  ChevronUpIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline';
+
+const DEFAULT_PAGINATION = {
+  pageNumber: 1,
+  pageSize: 50,
+  totalLessons: 0,
+  totalPages: 1,
+  hasPreviousPage: false,
+  hasNextPage: false
+};
 
 export default function LessonAnalyticsReport() {
   const navigate = useNavigate();
-  const [reportData, setReportData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [summaryData, setSummaryData] = useState(null);
+  const [lessons, setLessons] = useState([]);
+  const [pagination, setPagination] = useState(DEFAULT_PAGINATION);
+  const [loadingSummary, setLoadingSummary] = useState(true);
+  const [loadingLessons, setLoadingLessons] = useState(true);
   const [filters, setFilters] = useState({
     courseId: '',
     lessonType: '',
@@ -24,37 +44,89 @@ export default function LessonAnalyticsReport() {
     endDate: ''
   });
   const [searchTerm, setSearchTerm] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [engagementFilter, setEngagementFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('order');
+  const [sortDirection, setSortDirection] = useState('desc');
+  const [pageSize, setPageSize] = useState(50);
 
-  useEffect(() => {
-    loadReport();
-  }, []);
+  const getBaseFilters = () => ({
+    courseId: filters.courseId || undefined,
+    lessonType: filters.lessonType || undefined,
+    startDate: filters.startDate || undefined,
+    endDate: filters.endDate || undefined
+  });
 
-  const loadReport = async () => {
+  const loadSummary = async () => {
     try {
-      setLoading(true);
-      const data = await getLessonAnalyticsReport(filters);
-      setReportData(data);
+      setLoadingSummary(true);
+      const data = await getLessonAnalyticsReportSummary(getBaseFilters());
+      setSummaryData(data);
     } catch (error) {
-      console.error('Failed to load lesson analytics report:', error);
-      alert('Failed to load report data');
+      console.error('Failed to load lesson analytics summary:', error);
+      alert('Failed to load report summary');
     } finally {
-      setLoading(false);
+      setLoadingSummary(false);
     }
   };
+
+  const loadLessons = async (
+    requestedPageNumber = 1,
+    requestedPageSize = pageSize,
+    requestedSearch = appliedSearch,
+    requestedEngagement = engagementFilter,
+    requestedSortBy = sortBy,
+    requestedSortDirection = sortDirection
+  ) => {
+    try {
+      setLoadingLessons(true);
+      const data = await getLessonAnalyticsReportLessons({
+        ...getBaseFilters(),
+        pageNumber: requestedPageNumber,
+        pageSize: requestedPageSize,
+        search: requestedSearch || undefined,
+        engagement: requestedEngagement !== 'all' ? requestedEngagement : undefined,
+        sortBy: requestedSortBy,
+        sortDirection: requestedSortDirection
+      });
+
+      setLessons(data.lessons || []);
+      setPagination(data.pagination || {
+        pageNumber: requestedPageNumber,
+        pageSize: requestedPageSize,
+        totalLessons: data.lessons?.length || 0,
+        totalPages: 1,
+        hasPreviousPage: false,
+        hasNextPage: false
+      });
+    } catch (error) {
+      console.error('Failed to load lesson analytics table:', error);
+      alert('Failed to load lesson details table');
+    } finally {
+      setLoadingLessons(false);
+    }
+  };
+
+  useEffect(() => {
+    Promise.all([loadSummary(), loadLessons(1, pageSize, '', 'all', sortBy, sortDirection)]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleFilterChange = (e) => {
     setFilters({ ...filters, [e.target.name]: e.target.value });
   };
 
-  const handleApplyFilters = () => {
-    loadReport();
+  const handleApplyFilters = async () => {
+    await Promise.all([
+      loadSummary(),
+      loadLessons(1, pageSize, appliedSearch, engagementFilter, sortBy, sortDirection)
+    ]);
   };
 
   const handleExportCSV = () => {
-    if (!reportData?.lessons) return;
+    if (!lessons?.length) return;
     
-    const csvData = reportData.lessons.map(lesson => ({
+    const csvData = lessons.map(lesson => ({
       'Lesson Title': lesson.lessonTitle,
       'Course': lesson.courseTitle,
       'Type': lesson.lessonType,
@@ -71,15 +143,68 @@ export default function LessonAnalyticsReport() {
       'Popular': lesson.isPopular ? 'Yes' : 'No'
     }));
     
-    exportToCSV(csvData, 'lesson-analytics-report.csv');
+    exportToCSV(csvData, 'lesson-analytics-report-page');
   };
 
   const handleExportJSON = () => {
-    if (!reportData) return;
-    exportToJSON(reportData, 'lesson-analytics-report.json');
+    exportToJSON(
+      {
+        summary: summaryData?.summary,
+        typeBreakdown: summaryData?.typeBreakdown,
+        engagementBreakdown: summaryData?.engagementBreakdown,
+        difficultyBreakdown: summaryData?.difficultyBreakdown,
+        topLessonsByCompletionRate: summaryData?.topLessonsByCompletionRate,
+        popularLessons: summaryData?.popularLessons,
+        problematicLessons: summaryData?.problematicLessons,
+        pagination,
+        lessons
+      },
+      'lesson-analytics-report-page'
+    );
   };
 
-  if (loading) {
+  const handleSort = (column) => {
+    const nextDirection = sortBy === column && sortDirection === 'asc' ? 'desc' : 'asc';
+    setSortBy(column);
+    setSortDirection(nextDirection);
+    loadLessons(1, pageSize, appliedSearch, engagementFilter, column, nextDirection);
+  };
+
+  const renderSortIcon = (column) => {
+    if (sortBy !== column) {
+      return <ChevronUpDownIcon className="h-4 w-4 text-gray-400" />;
+    }
+
+    if (sortDirection === 'asc') {
+      return <ChevronUpIcon className="h-4 w-4 text-gray-700" />;
+    }
+
+    return <ChevronDownIcon className="h-4 w-4 text-gray-700" />;
+  };
+
+  const handleApplySearch = () => {
+    const term = searchTerm.trim();
+    setAppliedSearch(term);
+    loadLessons(1, pageSize, term, engagementFilter, sortBy, sortDirection);
+  };
+
+  const handleEngagementChange = (e) => {
+    const nextEngagement = e.target.value;
+    setEngagementFilter(nextEngagement);
+    loadLessons(1, pageSize, appliedSearch, nextEngagement, sortBy, sortDirection);
+  };
+
+  const handlePageChange = (nextPage) => {
+    loadLessons(nextPage, pageSize, appliedSearch, engagementFilter, sortBy, sortDirection);
+  };
+
+  const handlePageSizeChange = (e) => {
+    const nextSize = parseInt(e.target.value, 10) || 50;
+    setPageSize(nextSize);
+    loadLessons(1, nextSize, appliedSearch, engagementFilter, sortBy, sortDirection);
+  };
+
+  if (loadingSummary && !summaryData) {
     return (
       <div className="min-h-screen bg-gray-50">
         <AdminHeader />
@@ -93,22 +218,14 @@ export default function LessonAnalyticsReport() {
     );
   }
 
-  if (!reportData) return null;
+  if (!summaryData) return null;
 
-  // Filter lessons
-  const filteredLessons = reportData.lessons.filter(lesson => {
-    const matchesSearch = lesson.lessonTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         lesson.courseTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         lesson.lessonType.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesEngagement = engagementFilter === 'all' || lesson.engagementLevel === engagementFilter;
-    return matchesSearch && matchesEngagement;
-  });
+  const tableLessons = useMemo(() => lessons, [lessons]);
 
-  // Engagement breakdown chart
   const engagementChartData = {
-    labels: reportData.engagementBreakdown.map(e => e.level),
+    labels: (summaryData.engagementBreakdown || []).map(e => e.level),
     datasets: [{
-      data: reportData.engagementBreakdown.map(e => e.count),
+      data: (summaryData.engagementBreakdown || []).map(e => e.count),
       backgroundColor: [
         'rgba(34, 197, 94, 0.8)',   // High - Green
         'rgba(59, 130, 246, 0.8)',  // Medium - Blue
@@ -118,21 +235,19 @@ export default function LessonAnalyticsReport() {
     }]
   };
 
-  // Type breakdown chart
   const typeChartData = {
-    labels: reportData.typeBreakdown.map(t => t.type),
+    labels: (summaryData.typeBreakdown || []).map(t => t.type),
     datasets: [{
       label: 'Lesson Count',
-      data: reportData.typeBreakdown.map(t => t.count),
+      data: (summaryData.typeBreakdown || []).map(t => t.count),
       backgroundColor: 'rgba(59, 130, 246, 0.8)',
     }]
   };
 
-  // Difficulty breakdown chart
   const difficultyChartData = {
-    labels: reportData.difficultyBreakdown.map(d => d.level),
+    labels: (summaryData.difficultyBreakdown || []).map(d => d.level),
     datasets: [{
-      data: reportData.difficultyBreakdown.map(d => d.count),
+      data: (summaryData.difficultyBreakdown || []).map(d => d.count),
       backgroundColor: [
         'rgba(34, 197, 94, 0.8)',   // Easy - Green
         'rgba(59, 130, 246, 0.8)',  // Moderate - Blue
@@ -142,10 +257,7 @@ export default function LessonAnalyticsReport() {
     }]
   };
 
-  // Top lessons by completion rate
-  const top10Lessons = [...reportData.lessons]
-    .sort((a, b) => b.completionRate - a.completionRate)
-    .slice(0, 10);
+  const top10Lessons = summaryData.topLessonsByCompletionRate || [];
   
   const topLessonsChartData = {
     labels: top10Lessons.map(l => l.lessonTitle.length > 20 ? l.lessonTitle.substring(0, 20) + '...' : l.lessonTitle),
@@ -215,9 +327,10 @@ export default function LessonAnalyticsReport() {
           <div className="flex items-end">
             <button
               onClick={handleApplyFilters}
-              className="w-full px-4 py-2 bg-[#2afeae] text-[#1b365d] rounded-md hover:bg-[#25e89e] transition"
+                disabled={loadingSummary || loadingLessons}
+                className="w-full px-4 py-2 bg-[#2afeae] text-[#1b365d] rounded-md hover:bg-superadmin-btn-hover disabled:opacity-50 transition"
             >
-              Apply Filters
+                {loadingSummary ? 'Loading...' : 'Apply Filters'}
             </button>
           </div>
           <div className="flex items-end gap-2">
@@ -428,12 +541,18 @@ export default function LessonAnalyticsReport() {
               placeholder="Search by title, course, or type..."
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            <button
+              onClick={handleApplySearch}
+              className="mt-2 px-4 py-2 bg-[#1b365d] text-white rounded-md hover:bg-[#234a7a] transition text-sm"
+            >
+              Search
+            </button>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Engagement</label>
             <select
               value={engagementFilter}
-              onChange={(e) => setEngagementFilter(e.target.value)}
+              onChange={handleEngagementChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Levels</option>
@@ -442,32 +561,60 @@ export default function LessonAnalyticsReport() {
               <option value="Low">Low</option>
               <option value="Very Low">Very Low</option>
             </select>
+            <div className="mt-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Rows Per Page</label>
+              <select
+                value={pageSize}
+                onChange={handlePageSizeChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {[25, 50, 100, 200].map(size => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Lesson List Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Lesson Details</h3>
-          <p className="text-sm text-gray-600">Showing {filteredLessons.length} of {reportData.lessons.length} lessons</p>
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Lesson Details</h3>
+            <p className="text-sm text-gray-600">Showing {tableLessons.length} of {pagination.totalLessons} lessons</p>
+          </div>
+          {loadingLessons && <p className="text-sm text-gray-500">Refreshing table...</p>}
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lesson</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Enrollments</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completions</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completion Rate</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engagement</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Difficulty</th>
+                {[
+                  { key: 'lessonTitle', label: 'Lesson' },
+                  { key: 'courseTitle', label: 'Course' },
+                  { key: 'lessonType', label: 'Type' },
+                  { key: 'totalEnrollments', label: 'Enrollments' },
+                  { key: 'completions', label: 'Completions' },
+                  { key: 'completionRate', label: 'Completion Rate' },
+                  { key: 'engagementLevel', label: 'Engagement' },
+                  { key: 'difficulty', label: 'Difficulty' }
+                ].map((column) => (
+                  <th key={column.key} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <button
+                      type="button"
+                      onClick={() => handleSort(column.key)}
+                      className="inline-flex items-center gap-1 hover:text-gray-800"
+                    >
+                      {column.label}
+                      {renderSortIcon(column.key)}
+                    </button>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredLessons.map((lesson) => (
+              {!loadingLessons && tableLessons.map((lesson) => (
                 <tr key={lesson.lessonId} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <div className="text-sm font-medium text-gray-900">{lesson.lessonTitle}</div>
@@ -520,8 +667,43 @@ export default function LessonAnalyticsReport() {
                   </td>
                 </tr>
               ))}
+              {loadingLessons && (
+                <tr>
+                  <td colSpan={8} className="px-6 py-8 text-center text-sm text-gray-500">
+                    Loading lesson details...
+                  </td>
+                </tr>
+              )}
+              {!loadingLessons && tableLessons.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="px-6 py-8 text-center text-sm text-gray-500">
+                    No lessons found for current filters.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
+        </div>
+        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+          <p className="text-sm text-gray-700">
+            Page {pagination.pageNumber} of {pagination.totalPages}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handlePageChange(Math.max(1, pagination.pageNumber - 1))}
+              disabled={!pagination.hasPreviousPage || loadingLessons}
+              className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => handlePageChange(pagination.pageNumber + 1)}
+              disabled={!pagination.hasNextPage || loadingLessons}
+              className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
       </div>

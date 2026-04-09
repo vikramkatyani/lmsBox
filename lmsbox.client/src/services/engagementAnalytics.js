@@ -26,6 +26,21 @@ export const engagementAnalyticsService = {
     return response.data;
   },
 
+  async getTopUsersTable({ fromDate, toDate, pageNumber = 1, pageSize = 25, sortBy = 'engagementScore', sortDirection = 'desc' } = {}) {
+    const params = {
+      pageNumber,
+      pageSize,
+      sortBy,
+      sortDirection
+    };
+
+    if (fromDate) params.fromDate = fromDate.toISOString();
+    if (toDate) params.toDate = toDate.toISOString();
+
+    const response = await api.get('/api/EngagementAnalytics/top-users-table', { params });
+    return response.data;
+  },
+
   async getEventBreakdown(fromDate, toDate) {
     const params = {};
     if (fromDate) params.fromDate = fromDate.toISOString();

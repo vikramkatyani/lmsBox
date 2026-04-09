@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
 import usePageTitle from '../hooks/usePageTitle';
 import { getUserProgressReport, exportToCSV, exportToJSON } from '../services/reports';
-import { Bar, Line } from 'react-chartjs-2';
+import { Bar } from 'react-chartjs-2';
 import {
   ArrowLeftIcon,
   ArrowDownTrayIcon,
@@ -19,6 +19,14 @@ export default function UserProgressReport() {
   usePageTitle('User Progress Report');
   const navigate = useNavigate();
   const [data, setData] = useState(null);
+  const [pagination, setPagination] = useState({
+    pageNumber: 1,
+    pageSize: 50,
+    totalUsers: 0,
+    totalPages: 1,
+    hasPreviousPage: false,
+    hasNextPage: false
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState({
@@ -26,16 +34,39 @@ export default function UserProgressReport() {
     endDate: ''
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
+  const [pageSize, setPageSize] = useState(50);
 
-  const fetchReport = async () => {
+  const fetchReport = async (
+    requestedPageNumber = 1,
+    requestedPageSize = pageSize,
+    requestedSearch = searchTerm,
+    requestedSortBy = sortBy,
+    requestedSortDirection = sortDirection
+  ) => {
     setLoading(true);
     setError(null);
     try {
       const result = await getUserProgressReport({
         startDate: filters.startDate || undefined,
-        endDate: filters.endDate || undefined
+        endDate: filters.endDate || undefined,
+        pageNumber: requestedPageNumber,
+        pageSize: requestedPageSize,
+        search: requestedSearch || undefined,
+        sortBy: requestedSortBy,
+        sortDirection: requestedSortDirection
       });
       setData(result);
+      setPagination(result.pagination || {
+        pageNumber: requestedPageNumber,
+        pageSize: requestedPageSize,
+        totalUsers: result?.users?.length || 0,
+        totalPages: 1,
+        hasPreviousPage: false,
+        hasNextPage: false
+      });
     } catch (err) {
       console.error('Error fetching user progress report:', err);
       setError(err.response?.data?.error || 'Failed to load report');
@@ -45,11 +76,12 @@ export default function UserProgressReport() {
   };
 
   useEffect(() => {
-    fetchReport();
+    fetchReport(1, pageSize, searchTerm, sortBy, sortDirection);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleApplyFilters = () => {
-    fetchReport();
+    fetchReport(1, pageSize, searchTerm, sortBy, sortDirection);
     setShowFilters(false);
   };
 
@@ -82,15 +114,43 @@ export default function UserProgressReport() {
     }
   };
 
+  const handleSort = (column) => {
+    const nextDirection = sortBy === column && sortDirection === 'asc' ? 'desc' : 'asc';
+    setSortBy(column);
+    setSortDirection(nextDirection);
+    fetchReport(1, pageSize, searchTerm, column, nextDirection);
+  };
+
+  const getSortIndicator = (column) => {
+    if (sortBy !== column) return '';
+    return sortDirection === 'asc' ? ' (asc)' : ' (desc)';
+  };
+
+  const handlePageChange = (nextPage) => {
+    fetchReport(nextPage, pageSize, searchTerm, sortBy, sortDirection);
+  };
+
+  const handlePageSizeChange = (e) => {
+    const nextSize = parseInt(e.target.value, 10) || 50;
+    setPageSize(nextSize);
+    fetchReport(1, nextSize, searchTerm, sortBy, sortDirection);
+  };
+
+  const handleApplySearch = () => {
+    fetchReport(1, pageSize, searchTerm, sortBy, sortDirection);
+  };
+
   // Prepare chart data
+  const usersForCharts = data?.users ? [...data.users] : [];
+
   const topLearnersData = data?.users ? {
-    labels: data.users
+    labels: usersForCharts
       .sort((a, b) => b.coursesCompleted - a.coursesCompleted)
       .slice(0, 10)
       .map(u => u.name.split(' ')[0]),
     datasets: [{
       label: 'Courses Completed',
-      data: data.users
+      data: usersForCharts
         .sort((a, b) => b.coursesCompleted - a.coursesCompleted)
         .slice(0, 10)
         .map(u => u.coursesCompleted),
@@ -195,9 +255,9 @@ export default function UserProgressReport() {
             Export JSON
           </button>
           <button
-            onClick={fetchReport}
+            onClick={() => fetchReport(pagination.pageNumber || 1, pageSize, searchTerm, sortBy, sortDirection)}
             disabled={loading}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#2afeae] hover:bg-[#25e89e] disabled:opacity-50"
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#2afeae] hover:bg-superadmin-btn-hover disabled:opacity-50"
           >
             {loading ? 'Refreshing...' : 'Refresh Report'}
           </button>
@@ -235,7 +295,7 @@ export default function UserProgressReport() {
             <div className="flex gap-3 mt-4">
               <button
                 onClick={handleApplyFilters}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#2afeae] hover:bg-[#25e89e]"
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#2afeae] hover:bg-superadmin-btn-hover"
               >
                 Apply Filters
               </button>
@@ -343,19 +403,83 @@ export default function UserProgressReport() {
             {/* Users Table */}
             <div className="bg-white rounded-lg shadow overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">User Details ({data.users.length})</h3>
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">User Details ({pagination.totalUsers})</h3>
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleApplySearch();
+                        }}
+                        placeholder="Search user name or email"
+                        className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleApplySearch}
+                        className="px-3 py-1 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50"
+                      >
+                        Search
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-gray-600">Rows</label>
+                      <select
+                        value={pageSize}
+                        onChange={handlePageSizeChange}
+                        className="px-2 py-1 border border-gray-300 rounded-md text-sm"
+                      >
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                        <option value={200}>200</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Enrolled</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completed</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">In Progress</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Overall Progress</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Time (Days)</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Velocity</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button type="button" onClick={() => handleSort('name')} className="hover:text-gray-700">
+                          User{getSortIndicator('name')}
+                        </button>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button type="button" onClick={() => handleSort('enrolled')} className="hover:text-gray-700">
+                          Enrolled{getSortIndicator('enrolled')}
+                        </button>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button type="button" onClick={() => handleSort('completed')} className="hover:text-gray-700">
+                          Completed{getSortIndicator('completed')}
+                        </button>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button type="button" onClick={() => handleSort('inProgress')} className="hover:text-gray-700">
+                          In Progress{getSortIndicator('inProgress')}
+                        </button>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button type="button" onClick={() => handleSort('overallProgress')} className="hover:text-gray-700">
+                          Overall Progress{getSortIndicator('overallProgress')}
+                        </button>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button type="button" onClick={() => handleSort('avgTime')} className="hover:text-gray-700">
+                          Avg Time (Days){getSortIndicator('avgTime')}
+                        </button>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button type="button" onClick={() => handleSort('velocity')} className="hover:text-gray-700">
+                          Velocity{getSortIndicator('velocity')}
+                        </button>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -414,6 +538,29 @@ export default function UserProgressReport() {
                     )}
                   </tbody>
                 </table>
+              </div>
+              <div className="px-6 py-4 border-t border-gray-200 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <p className="text-sm text-gray-600">
+                  Page {pagination.pageNumber} of {pagination.totalPages}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handlePageChange(pagination.pageNumber - 1)}
+                    disabled={!pagination.hasPreviousPage || loading}
+                    className="px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePageChange(pagination.pageNumber + 1)}
+                    disabled={!pagination.hasNextPage || loading}
+                    className="px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             </div>
           </>

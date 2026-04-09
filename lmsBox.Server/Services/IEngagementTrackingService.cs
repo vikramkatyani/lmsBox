@@ -13,7 +13,31 @@ namespace lmsBox.Server.Services
         Task<EngagementOverview> GetOrganisationOverviewAsync(long organisationId, DateTime fromDate, DateTime toDate);
         Task<List<DailyEngagementScore>> GetDailyEngagementScoresAsync(long organisationId, DateTime fromDate, DateTime toDate);
         Task<List<TopEngagementUser>> GetTopEngagementUsersAsync(long organisationId, int days = 30, int topCount = 10);
+        Task<TopEngagementUsersPageResult> GetTopEngagementUsersPageAsync(
+            long organisationId,
+            DateTime fromDate,
+            DateTime toDate,
+            int pageNumber = 1,
+            int pageSize = 25,
+            string sortBy = "engagementScore",
+            string sortDirection = "desc");
         Task<Dictionary<string, int>> GetEventBreakdownAsync(long organisationId, DateTime fromDate, DateTime toDate);
+    }
+
+    public class TopEngagementUsersPageResult
+    {
+        public List<TopEngagementUser> Users { get; set; } = new();
+        public EngagementTablePagination Pagination { get; set; } = new();
+    }
+
+    public class EngagementTablePagination
+    {
+        public int PageNumber { get; set; }
+        public int PageSize { get; set; }
+        public int TotalUsers { get; set; }
+        public int TotalPages { get; set; }
+        public bool HasPreviousPage { get; set; }
+        public bool HasNextPage { get; set; }
     }
     
     public class EngagementOverview

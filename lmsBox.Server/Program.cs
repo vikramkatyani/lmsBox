@@ -13,6 +13,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -70,15 +71,15 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
-// JWT authentication
+// JWT + optional external authentication (Google/Microsoft)
 var jwtSection = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwtSection["Key"] ?? "dev-secret-change-me-please-0123456789");
-builder.Services.AddAuthentication(options =>
+var authBuilder = builder.Services.AddAuthentication(options =>
 {
-    options.DefaultAuthenticateScheme = "JwtBearer";
-    options.DefaultChallengeScheme = "JwtBearer";
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
-.AddJwtBearer("JwtBearer", options =>
+.AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
     {
@@ -143,6 +144,38 @@ builder.Services.AddAuthentication(options =>
         }
     };
 });
+
+var googleSection = builder.Configuration.GetSection("Authentication:Google");
+var googleClientId = googleSection["ClientId"];
+var googleClientSecret = googleSection["ClientSecret"];
+if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(googleClientSecret))
+{
+    authBuilder.AddGoogle("Google", options =>
+    {
+        options.SignInScheme = IdentityConstants.ExternalScheme;
+        options.ClientId = googleClientId;
+        options.ClientSecret = googleClientSecret;
+    });
+}
+
+var microsoftSection = builder.Configuration.GetSection("Authentication:Microsoft");
+var microsoftClientId = microsoftSection["ClientId"];
+var microsoftClientSecret = microsoftSection["ClientSecret"];
+var microsoftTenantId = microsoftSection["TenantId"];
+if (!string.IsNullOrWhiteSpace(microsoftClientId) && !string.IsNullOrWhiteSpace(microsoftClientSecret))
+{
+    authBuilder.AddMicrosoftAccount("Microsoft", options =>
+    {
+        options.SignInScheme = IdentityConstants.ExternalScheme;
+        options.ClientId = microsoftClientId;
+        options.ClientSecret = microsoftClientSecret;
+        if (!string.IsNullOrWhiteSpace(microsoftTenantId))
+        {
+            options.AuthorizationEndpoint = $"https://login.microsoftonline.com/{microsoftTenantId}/oauth2/v2.0/authorize";
+            options.TokenEndpoint = $"https://login.microsoftonline.com/{microsoftTenantId}/oauth2/v2.0/token";
+        }
+    });
+}
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

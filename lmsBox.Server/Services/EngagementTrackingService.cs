@@ -68,32 +68,41 @@ namespace lmsBox.Server.Services
 
         public async Task<EngagementOverview> GetOrganisationOverviewAsync(long organisationId, DateTime fromDate, DateTime toDate)
         {
-            var engagements = await _context.UserEngagements
+            var aggregate = await _context.UserEngagements
+                .AsNoTracking()
                 .Where(e => e.OrganisationId == organisationId && e.CreatedAt >= fromDate && e.CreatedAt <= toDate)
-                .ToListAsync();
+                .GroupBy(_ => 1)
+                .Select(g => new
+                {
+                    TotalEvents = g.Count(),
+                    ActiveUsers = g.Select(e => e.UserId).Distinct().Count(),
+                    TotalLogins = g.Count(e => e.EventType == EVENT_LOGIN),
+                    TotalViews = g.Count(e => e.EventType == EVENT_COURSE_VIEW),
+                    TotalCompletions = g.Count(e => e.EventType == EVENT_LESSON_COMPLETE),
+                    TotalQuizzes = g.Count(e => e.EventType == EVENT_QUIZ_ATTEMPT),
+                    TotalAIQueries = g.Count(e => e.EventType == EVENT_AI_QUERY),
+                    TotalCoursesCreated = g.Count(e => e.EventType == EVENT_COURSE_CREATED),
+                    TotalLessonsCreated = g.Count(e => e.EventType == EVENT_LESSON_CREATED),
+                    TotalUsersAdded = g.Count(e => e.EventType == EVENT_USER_ADDED),
+                    TotalContentUploads = g.Count(e =>
+                        e.EventType == EVENT_VIDEO_UPLOAD ||
+                        e.EventType == EVENT_PDF_UPLOAD ||
+                        e.EventType == EVENT_SCORM_UPLOAD ||
+                        e.EventType == EVENT_HTML_UPLOAD),
+                    AvgDurationSeconds = g.Where(e => e.DurationSeconds.HasValue).Average(e => (double?)e.DurationSeconds)
+                })
+                .FirstOrDefaultAsync();
 
-            // Learner metrics
-            var totalLogins = engagements.Count(e => e.EventType == EVENT_LOGIN);
-            var totalViews = engagements.Count(e => e.EventType == EVENT_COURSE_VIEW);
-            var totalCompletions = engagements.Count(e => e.EventType == EVENT_LESSON_COMPLETE);
-            var totalQuizzes = engagements.Count(e => e.EventType == EVENT_QUIZ_ATTEMPT);
-            var totalAIQueries = engagements.Count(e => e.EventType == EVENT_AI_QUERY);
-
-            // Admin metrics
-            var totalCoursesCreated = engagements.Count(e => e.EventType == EVENT_COURSE_CREATED);
-            var totalLessonsCreated = engagements.Count(e => e.EventType == EVENT_LESSON_CREATED);
-            var totalUsersAdded = engagements.Count(e => e.EventType == EVENT_USER_ADDED);
-            var totalContentUploads = engagements.Count(e => 
-                e.EventType == EVENT_VIDEO_UPLOAD || 
-                e.EventType == EVENT_PDF_UPLOAD || 
-                e.EventType == EVENT_SCORM_UPLOAD || 
-                e.EventType == EVENT_HTML_UPLOAD);
+            if (aggregate == null)
+            {
+                return new EngagementOverview();
+            }
 
             // Calculate weighted engagement score
-            var learnerScore = (totalLogins * 1) + (totalViews * 2) + (totalCompletions * 5) + 
-                              (totalQuizzes * 3) + (totalAIQueries * 1.5);
-            var adminScore = (totalCoursesCreated * 10) + (totalLessonsCreated * 5) + 
-                           (totalUsersAdded * 3) + (totalContentUploads * 2);
+            var learnerScore = (aggregate.TotalLogins * 1) + (aggregate.TotalViews * 2) + (aggregate.TotalCompletions * 5) +
+                              (aggregate.TotalQuizzes * 3) + (aggregate.TotalAIQueries * 1.5);
+            var adminScore = (aggregate.TotalCoursesCreated * 10) + (aggregate.TotalLessonsCreated * 5) +
+                           (aggregate.TotalUsersAdded * 3) + (aggregate.TotalContentUploads * 2);
             var totalScore = learnerScore + adminScore;
 
             var days = (toDate - fromDate).TotalDays;
@@ -101,137 +110,244 @@ namespace lmsBox.Server.Services
 
             return new EngagementOverview
             {
-                TotalEvents = engagements.Count,
-                ActiveUsers = engagements.Select(e => e.UserId).Distinct().Count(),
-                TotalLogins = totalLogins,
-                TotalCourseViews = totalViews,
-                TotalLessonsCompleted = totalCompletions,
-                TotalQuizAttempts = totalQuizzes,
-                TotalAIQueries = totalAIQueries,
-                TotalCoursesCreated = totalCoursesCreated,
-                TotalLessonsCreated = totalLessonsCreated,
-                TotalUsersAdded = totalUsersAdded,
-                TotalContentUploads = totalContentUploads,
+                TotalEvents = aggregate.TotalEvents,
+                ActiveUsers = aggregate.ActiveUsers,
+                TotalLogins = aggregate.TotalLogins,
+                TotalCourseViews = aggregate.TotalViews,
+                TotalLessonsCompleted = aggregate.TotalCompletions,
+                TotalQuizAttempts = aggregate.TotalQuizzes,
+                TotalAIQueries = aggregate.TotalAIQueries,
+                TotalCoursesCreated = aggregate.TotalCoursesCreated,
+                TotalLessonsCreated = aggregate.TotalLessonsCreated,
+                TotalUsersAdded = aggregate.TotalUsersAdded,
+                TotalContentUploads = aggregate.TotalContentUploads,
                 AverageEngagementScore = Math.Round(avgEngagementScore, 2),
-                AverageSessionDuration = Math.Round(
-                    engagements.Where(e => e.DurationSeconds.HasValue).Average(e => (double?)e.DurationSeconds / 60) ?? 0, 
-                    2)
+                AverageSessionDuration = Math.Round((aggregate.AvgDurationSeconds ?? 0) / 60.0, 2)
             };
         }
 
         public async Task<List<DailyEngagementScore>> GetDailyEngagementScoresAsync(long organisationId, DateTime fromDate, DateTime toDate)
         {
-            var engagements = await _context.UserEngagements
+            var dailyRows = await _context.UserEngagements
+                .AsNoTracking()
                 .Where(e => e.OrganisationId == organisationId && e.CreatedAt >= fromDate && e.CreatedAt <= toDate)
+                .GroupBy(e => e.CreatedAt.Date)
+                .Select(g => new
+                {
+                    Date = g.Key,
+                    TotalEvents = g.Count(),
+                    ActiveUsers = g.Select(e => e.UserId).Distinct().Count(),
+                    Logins = g.Count(e => e.EventType == EVENT_LOGIN),
+                    CourseViews = g.Count(e => e.EventType == EVENT_COURSE_VIEW),
+                    LessonsStarted = g.Count(e => e.EventType == EVENT_LESSON_START),
+                    LessonsCompleted = g.Count(e => e.EventType == EVENT_LESSON_COMPLETE),
+                    QuizAttempts = g.Count(e => e.EventType == EVENT_QUIZ_ATTEMPT),
+                    AIQueries = g.Count(e => e.EventType == EVENT_AI_QUERY),
+                    CoursesCreated = g.Count(e => e.EventType == EVENT_COURSE_CREATED),
+                    LessonsCreated = g.Count(e => e.EventType == EVENT_LESSON_CREATED),
+                    UsersAdded = g.Count(e => e.EventType == EVENT_USER_ADDED),
+                    ContentUploads = g.Count(e =>
+                        e.EventType == EVENT_VIDEO_UPLOAD ||
+                        e.EventType == EVENT_PDF_UPLOAD ||
+                        e.EventType == EVENT_SCORM_UPLOAD ||
+                        e.EventType == EVENT_HTML_UPLOAD)
+                })
+                .OrderBy(s => s.Date)
                 .ToListAsync();
 
-            return engagements
-                .GroupBy(e => e.CreatedAt.Date)
-                .Select(g => {
-                    // Learner activities
-                    var logins = g.Count(e => e.EventType == EVENT_LOGIN);
-                    var views = g.Count(e => e.EventType == EVENT_COURSE_VIEW);
-                    var started = g.Count(e => e.EventType == EVENT_LESSON_START);
-                    var completed = g.Count(e => e.EventType == EVENT_LESSON_COMPLETE);
-                    var quizzes = g.Count(e => e.EventType == EVENT_QUIZ_ATTEMPT);
-                    var aiQueries = g.Count(e => e.EventType == EVENT_AI_QUERY);
-
-                    // Admin activities
-                    var coursesCreated = g.Count(e => e.EventType == EVENT_COURSE_CREATED);
-                    var lessonsCreated = g.Count(e => e.EventType == EVENT_LESSON_CREATED);
-                    var usersAdded = g.Count(e => e.EventType == EVENT_USER_ADDED);
-                    var contentUploads = g.Count(e => 
-                        e.EventType == EVENT_VIDEO_UPLOAD || 
-                        e.EventType == EVENT_PDF_UPLOAD || 
-                        e.EventType == EVENT_SCORM_UPLOAD || 
-                        e.EventType == EVENT_HTML_UPLOAD);
-
-                    // Weighted scores
-                    var learnerScore = (logins * 1) + (views * 2) + (completed * 5) + 
-                                      (quizzes * 3) + (aiQueries * 1.5);
-                    var adminScore = (coursesCreated * 10) + (lessonsCreated * 5) + 
-                                   (usersAdded * 3) + (contentUploads * 2);
+            return dailyRows
+                .Select(r =>
+                {
+                    var learnerScore = (r.Logins * 1) + (r.CourseViews * 2) + (r.LessonsCompleted * 5) +
+                                      (r.QuizAttempts * 3) + (r.AIQueries * 1.5);
+                    var adminScore = (r.CoursesCreated * 10) + (r.LessonsCreated * 5) +
+                                   (r.UsersAdded * 3) + (r.ContentUploads * 2);
                     var totalScore = learnerScore + adminScore;
 
                     return new DailyEngagementScore
                     {
-                        Date = g.Key,
-                        TotalEvents = g.Count(),
-                        ActiveUsers = g.Select(e => e.UserId).Distinct().Count(),
-                        Logins = logins,
-                        CourseViews = views,
-                        LessonsStarted = started,
-                        LessonsCompleted = completed,
-                        QuizAttempts = quizzes,
-                        AIQueries = aiQueries,
-                        CoursesCreated = coursesCreated,
-                        LessonsCreated = lessonsCreated,
-                        UsersAdded = usersAdded,
-                        ContentUploads = contentUploads,
-                        EngagementScore = Math.Round((double)totalScore, 2),
-                        LearnerScore = Math.Round((double)learnerScore, 2),
+                        Date = r.Date,
+                        TotalEvents = r.TotalEvents,
+                        ActiveUsers = r.ActiveUsers,
+                        Logins = r.Logins,
+                        CourseViews = r.CourseViews,
+                        LessonsStarted = r.LessonsStarted,
+                        LessonsCompleted = r.LessonsCompleted,
+                        QuizAttempts = r.QuizAttempts,
+                        AIQueries = r.AIQueries,
+                        CoursesCreated = r.CoursesCreated,
+                        LessonsCreated = r.LessonsCreated,
+                        UsersAdded = r.UsersAdded,
+                        ContentUploads = r.ContentUploads,
+                        EngagementScore = Math.Round(totalScore, 2),
+                        LearnerScore = Math.Round(learnerScore, 2),
                         AdminScore = Math.Round((double)adminScore, 2)
                     };
                 })
-                .OrderBy(s => s.Date)
                 .ToList();
         }
 
         public async Task<List<TopEngagementUser>> GetTopEngagementUsersAsync(long organisationId, int days = 30, int topCount = 10)
         {
             var fromDate = DateTime.UtcNow.AddDays(-days);
+            var page = await GetTopEngagementUsersPageAsync(
+                organisationId,
+                fromDate,
+                DateTime.UtcNow,
+                pageNumber: 1,
+                pageSize: Math.Clamp(topCount, 1, 500),
+                sortBy: "engagementScore",
+                sortDirection: "desc");
 
-            var userEngagements = await _context.UserEngagements
-                .Where(e => e.OrganisationId == organisationId && e.CreatedAt >= fromDate)
-                .Include(e => e.User)
+            return page.Users;
+        }
+
+        public async Task<TopEngagementUsersPageResult> GetTopEngagementUsersPageAsync(
+            long organisationId,
+            DateTime fromDate,
+            DateTime toDate,
+            int pageNumber = 1,
+            int pageSize = 25,
+            string sortBy = "engagementScore",
+            string sortDirection = "desc")
+        {
+            pageNumber = Math.Max(1, pageNumber);
+            pageSize = Math.Clamp(pageSize, 1, 500);
+            var normalizedSortBy = NormalizeTopUsersSortBy(sortBy);
+            var sortDesc = string.Equals(sortDirection, "desc", StringComparison.OrdinalIgnoreCase);
+
+            var userActivityQuery =
+                from e in _context.UserEngagements.AsNoTracking()
+                where e.OrganisationId == organisationId && e.CreatedAt >= fromDate && e.CreatedAt <= toDate
+                group e by e.UserId
+                into g
+                select new
+                {
+                    UserId = g.Key,
+                    TotalEvents = g.Count(),
+                    Logins = g.Count(e => e.EventType == EVENT_LOGIN),
+                    CourseViews = g.Count(e => e.EventType == EVENT_COURSE_VIEW),
+                    LessonsCompleted = g.Count(e => e.EventType == EVENT_LESSON_COMPLETE),
+                    QuizAttempts = g.Count(e => e.EventType == EVENT_QUIZ_ATTEMPT),
+                    AIQueries = g.Count(e => e.EventType == EVENT_AI_QUERY),
+                    CoursesCreated = g.Count(e => e.EventType == EVENT_COURSE_CREATED),
+                    LessonsCreated = g.Count(e => e.EventType == EVENT_LESSON_CREATED),
+                    UsersAdded = g.Count(e => e.EventType == EVENT_USER_ADDED),
+                    ContentUploads = g.Count(e =>
+                        e.EventType == EVENT_VIDEO_UPLOAD ||
+                        e.EventType == EVENT_PDF_UPLOAD ||
+                        e.EventType == EVENT_SCORM_UPLOAD ||
+                        e.EventType == EVENT_HTML_UPLOAD),
+                    LoginDays = g.Where(e => e.EventType == EVENT_LOGIN).Select(e => e.CreatedAt.Date).Distinct().Count(),
+                    LastActivity = g.Max(e => e.CreatedAt)
+                };
+
+            var rowsQuery =
+                from a in userActivityQuery
+                join u in _context.Users.AsNoTracking() on a.UserId equals u.Id
+                select new
+                {
+                    UserId = a.UserId,
+                    UserName = ((u.FirstName ?? "") + " " + (u.LastName ?? "")).Trim(),
+                    Email = u.Email ?? "",
+                    TotalEvents = a.TotalEvents,
+                    LessonsCompleted = a.LessonsCompleted,
+                    CoursesCreated = a.CoursesCreated,
+                    LoginDays = a.LoginDays,
+                    LastActivity = a.LastActivity,
+                    LearnerScore = (a.Logins * 1d) + (a.CourseViews * 2d) + (a.LessonsCompleted * 5d) + (a.QuizAttempts * 3d) + (a.AIQueries * 1.5d),
+                    AdminScore = (a.CoursesCreated * 10d) + (a.LessonsCreated * 5d) + (a.UsersAdded * 3d) + (a.ContentUploads * 2d)
+                };
+
+            var sortableRowsQuery = rowsQuery.Select(r => new
+            {
+                r.UserId,
+                r.UserName,
+                r.Email,
+                r.TotalEvents,
+                r.LessonsCompleted,
+                r.CoursesCreated,
+                r.LoginDays,
+                r.LastActivity,
+                EngagementScore = r.LearnerScore + r.AdminScore,
+                UserRole = r.AdminScore > 0 && r.LearnerScore > 0
+                    ? "Both"
+                    : r.AdminScore > r.LearnerScore
+                        ? "Admin"
+                        : "Learner"
+            });
+
+            sortableRowsQuery = normalizedSortBy switch
+            {
+                "name" => sortDesc ? sortableRowsQuery.OrderByDescending(r => r.UserName) : sortableRowsQuery.OrderBy(r => r.UserName),
+                "email" => sortDesc ? sortableRowsQuery.OrderByDescending(r => r.Email) : sortableRowsQuery.OrderBy(r => r.Email),
+                "role" => sortDesc ? sortableRowsQuery.OrderByDescending(r => r.UserRole) : sortableRowsQuery.OrderBy(r => r.UserRole),
+                "totalevents" => sortDesc ? sortableRowsQuery.OrderByDescending(r => r.TotalEvents) : sortableRowsQuery.OrderBy(r => r.TotalEvents),
+                "lessonscompleted" => sortDesc ? sortableRowsQuery.OrderByDescending(r => r.LessonsCompleted) : sortableRowsQuery.OrderBy(r => r.LessonsCompleted),
+                "coursescreated" => sortDesc ? sortableRowsQuery.OrderByDescending(r => r.CoursesCreated) : sortableRowsQuery.OrderBy(r => r.CoursesCreated),
+                "logindays" => sortDesc ? sortableRowsQuery.OrderByDescending(r => r.LoginDays) : sortableRowsQuery.OrderBy(r => r.LoginDays),
+                "lastactivity" => sortDesc ? sortableRowsQuery.OrderByDescending(r => r.LastActivity) : sortableRowsQuery.OrderBy(r => r.LastActivity),
+                _ => sortDesc ? sortableRowsQuery.OrderByDescending(r => r.EngagementScore) : sortableRowsQuery.OrderBy(r => r.EngagementScore)
+            };
+
+            var totalUsers = await sortableRowsQuery.CountAsync();
+            var totalPages = totalUsers == 0 ? 1 : (int)Math.Ceiling(totalUsers / (double)pageSize);
+            if (pageNumber > totalPages)
+            {
+                pageNumber = totalPages;
+            }
+
+            var rows = await sortableRowsQuery
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
-            return userEngagements
-                .GroupBy(e => e.User)
-                .Select(g => {
-                    // Learner metrics
-                    var logins = g.Count(e => e.EventType == EVENT_LOGIN);
-                    var views = g.Count(e => e.EventType == EVENT_COURSE_VIEW);
-                    var completions = g.Count(e => e.EventType == EVENT_LESSON_COMPLETE);
-                    var quizzes = g.Count(e => e.EventType == EVENT_QUIZ_ATTEMPT);
-                    var aiQueries = g.Count(e => e.EventType == EVENT_AI_QUERY);
+            return new TopEngagementUsersPageResult
+            {
+                Users = rows.Select(r => new TopEngagementUser
+                {
+                    UserId = r.UserId,
+                    UserName = r.UserName,
+                    Email = r.Email,
+                    UserRole = r.UserRole,
+                    TotalEvents = r.TotalEvents,
+                    LessonsCompleted = r.LessonsCompleted,
+                    CoursesCreated = r.CoursesCreated,
+                    LoginDays = r.LoginDays,
+                    LastActivity = r.LastActivity,
+                    EngagementScore = Math.Round(r.EngagementScore, 2)
+                }).ToList(),
+                Pagination = new EngagementTablePagination
+                {
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalUsers = totalUsers,
+                    TotalPages = totalPages,
+                    HasPreviousPage = pageNumber > 1,
+                    HasNextPage = pageNumber < totalPages
+                }
+            };
+        }
 
-                    // Admin metrics
-                    var coursesCreated = g.Count(e => e.EventType == EVENT_COURSE_CREATED);
-                    var lessonsCreated = g.Count(e => e.EventType == EVENT_LESSON_CREATED);
-                    var usersAdded = g.Count(e => e.EventType == EVENT_USER_ADDED);
-                    var contentUploads = g.Count(e => 
-                        e.EventType == EVENT_VIDEO_UPLOAD || 
-                        e.EventType == EVENT_PDF_UPLOAD || 
-                        e.EventType == EVENT_SCORM_UPLOAD || 
-                        e.EventType == EVENT_HTML_UPLOAD);
+        private static string NormalizeTopUsersSortBy(string sortBy)
+        {
+            if (string.IsNullOrWhiteSpace(sortBy))
+            {
+                return "engagementscore";
+            }
 
-                    var learnerScore = (logins * 1) + (views * 2) + (completions * 5) + 
-                                      (quizzes * 3) + (aiQueries * 1.5);
-                    var adminScore = (coursesCreated * 10) + (lessonsCreated * 5) + 
-                                   (usersAdded * 3) + (contentUploads * 2);
-
-                    // Determine primary role based on activity
-                    var userRole = adminScore > learnerScore ? "Admin" : "Learner";
-                    if (adminScore > 0 && learnerScore > 0) userRole = "Both";
-
-                    return new TopEngagementUser
-                    {
-                        UserId = g.Key.Id,
-                        UserName = $"{g.Key.FirstName} {g.Key.LastName}".Trim(),
-                        Email = g.Key.Email ?? "",
-                        UserRole = userRole,
-                        TotalEvents = g.Count(),
-                        LessonsCompleted = completions,
-                        CoursesCreated = coursesCreated,
-                        LoginDays = g.Where(e => e.EventType == EVENT_LOGIN).Select(e => e.CreatedAt.Date).Distinct().Count(),
-                        LastActivity = g.Max(e => e.CreatedAt),
-                        EngagementScore = learnerScore + adminScore
-                    };
-                })
-                .OrderByDescending(u => u.EngagementScore)
-                .Take(topCount)
-                .ToList();
+            return sortBy.Trim().ToLowerInvariant() switch
+            {
+                "name" => "name",
+                "email" => "email",
+                "role" => "role",
+                "totalevents" => "totalevents",
+                "lessonscompleted" => "lessonscompleted",
+                "coursescreated" => "coursescreated",
+                "logindays" => "logindays",
+                "lastactivity" => "lastactivity",
+                _ => "engagementscore"
+            };
         }
 
         public async Task<Dictionary<string, int>> GetEventBreakdownAsync(long organisationId, DateTime fromDate, DateTime toDate)

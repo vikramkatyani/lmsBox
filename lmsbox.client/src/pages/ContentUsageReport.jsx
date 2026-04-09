@@ -1,7 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
-import { getContentUsageReport, exportToCSV, exportToJSON } from '../services/reports';
+import Pagination from '../components/Pagination';
+import {
+  getContentUsageReportSummary,
+  getContentUsageReportContent,
+  exportToCSV,
+  exportToJSON
+} from '../services/reports';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import {
   ArrowLeftIcon,
@@ -10,35 +16,108 @@ import {
   ChartBarIcon,
   FireIcon,
   ExclamationCircleIcon,
-  EyeSlashIcon
+  EyeSlashIcon,
+  ChevronUpDownIcon,
+  ChevronUpIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline';
 
 export default function ContentUsageReport() {
   const navigate = useNavigate();
-  const [reportData, setReportData] = useState(null);
-  const [loading, setLoading] = useState(true);
+
+  const [loadingSummary, setLoadingSummary] = useState(true);
+  const [loadingTable, setLoadingTable] = useState(true);
+
+  const [summaryData, setSummaryData] = useState(null);
+  const [tableRows, setTableRows] = useState([]);
+  const [pagination, setPagination] = useState({
+    pageNumber: 1,
+    pageSize: 25,
+    totalRows: 0,
+    totalPages: 1
+  });
+
   const [filters, setFilters] = useState({
     category: '',
     startDate: '',
     endDate: ''
   });
-  const [searchTerm, setSearchTerm] = useState('');
-  const [engagementFilter, setEngagementFilter] = useState('all');
+
+  const [tableFilters, setTableFilters] = useState({
+    search: '',
+    engagement: 'all'
+  });
+
+  const [appliedFilters, setAppliedFilters] = useState({
+    category: '',
+    startDate: '',
+    endDate: ''
+  });
+
+  const [appliedTableFilters, setAppliedTableFilters] = useState({
+    search: '',
+    engagement: 'all'
+  });
+
+  const [sortBy, setSortBy] = useState('usageScore');
+  const [sortDirection, setSortDirection] = useState('desc');
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   useEffect(() => {
-    loadReport();
+    loadSummary(appliedFilters);
   }, []);
 
-  const loadReport = async () => {
+  useEffect(() => {
+    loadTable(appliedFilters, appliedTableFilters, pageNumber, pageSize, sortBy, sortDirection);
+  }, [appliedFilters, appliedTableFilters, pageNumber, pageSize, sortBy, sortDirection]);
+
+  const loadSummary = async (requestFilters) => {
     try {
-      setLoading(true);
-      const data = await getContentUsageReport(filters);
-      setReportData(data);
+      setLoadingSummary(true);
+      const data = await getContentUsageReportSummary({
+        category: requestFilters.category || undefined,
+        startDate: requestFilters.startDate || undefined,
+        endDate: requestFilters.endDate || undefined
+      });
+      setSummaryData(data);
     } catch (error) {
-      console.error('Failed to load content usage report:', error);
-      alert('Failed to load report data');
+      console.error('Failed to load content usage summary:', error);
+      alert('Failed to load report summary');
     } finally {
-      setLoading(false);
+      setLoadingSummary(false);
+    }
+  };
+
+  const loadTable = async (requestFilters, requestTableFilters, requestedPage, requestedPageSize, requestedSortBy, requestedSortDirection) => {
+    try {
+      setLoadingTable(true);
+      const data = await getContentUsageReportContent({
+        category: requestFilters.category || undefined,
+        startDate: requestFilters.startDate || undefined,
+        endDate: requestFilters.endDate || undefined,
+        search: requestTableFilters.search || undefined,
+        engagement: requestTableFilters.engagement === 'all' ? undefined : requestTableFilters.engagement,
+        pageNumber: requestedPage,
+        pageSize: requestedPageSize,
+        sortBy: requestedSortBy,
+        sortDirection: requestedSortDirection
+      });
+
+      setTableRows(data.content || []);
+      setPagination(
+        data.pagination || {
+          pageNumber: requestedPage,
+          pageSize: requestedPageSize,
+          totalRows: 0,
+          totalPages: 1
+        }
+      );
+    } catch (error) {
+      console.error('Failed to load content usage table data:', error);
+      alert('Failed to load content table data');
+    } finally {
+      setLoadingTable(false);
     }
   };
 
@@ -47,13 +126,45 @@ export default function ContentUsageReport() {
   };
 
   const handleApplyFilters = () => {
-    loadReport();
+    const next = { ...filters };
+    setAppliedFilters(next);
+    setPageNumber(1);
+    loadSummary(next);
+  };
+
+  const handleTableFilterChange = (e) => {
+    setTableFilters((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleApplyTableFilters = () => {
+    setAppliedTableFilters({ ...tableFilters });
+    setPageNumber(1);
+  };
+
+  const handleSort = (column) => {
+    if (sortBy === column) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(column);
+      setSortDirection('desc');
+    }
+    setPageNumber(1);
+  };
+
+  const renderSortIcon = (column) => {
+    if (sortBy !== column) {
+      return <ChevronUpDownIcon className="h-4 w-4 text-gray-400" />;
+    }
+    if (sortDirection === 'asc') {
+      return <ChevronUpIcon className="h-4 w-4 text-gray-700" />;
+    }
+    return <ChevronDownIcon className="h-4 w-4 text-gray-700" />;
   };
 
   const handleExportCSV = () => {
-    if (!reportData?.content) return;
-    
-    const csvData = reportData.content.map(item => ({
+    if (!tableRows?.length) return;
+
+    const csvData = tableRows.map(item => ({
       'Content Title': item.contentTitle,
       'Category': item.category,
       'Type': item.contentType,
@@ -73,11 +184,24 @@ export default function ContentUsageReport() {
   };
 
   const handleExportJSON = () => {
-    if (!reportData) return;
-    exportToJSON(reportData, 'content-usage-report.json');
+    if (!summaryData) return;
+    exportToJSON(
+      {
+        summary: summaryData.summary,
+        categoryBreakdown: summaryData.categoryBreakdown,
+        engagementBreakdown: summaryData.engagementBreakdown,
+        topContent: summaryData.topContent,
+        unusedContent: summaryData.unusedContent,
+        underutilizedContent: summaryData.underutilizedContent,
+        usageTrends: summaryData.usageTrends,
+        content: tableRows,
+        pagination
+      },
+      'content-usage-report'
+    );
   };
 
-  if (loading) {
+  if (loadingSummary && !summaryData) {
     return (
       <div className="min-h-screen bg-gray-50">
         <AdminHeader />
@@ -91,49 +215,37 @@ export default function ContentUsageReport() {
     );
   }
 
-  if (!reportData) return null;
+  if (!summaryData) return null;
 
-  // Filter content
-  const filteredContent = reportData.content.filter(item => {
-    const matchesSearch = item.contentTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.category.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesEngagement = engagementFilter === 'all' || item.engagementLevel === engagementFilter;
-    return matchesSearch && matchesEngagement;
-  });
+  const categories = summaryData.categoryOptions || [];
 
-  // Get unique categories
-  const categories = ['all', ...new Set(reportData.content.map(c => c.category))];
-
-  // Engagement chart
   const engagementChartData = {
-    labels: reportData.engagementBreakdown.map(e => e.level),
+    labels: summaryData.engagementBreakdown.map(e => e.level),
     datasets: [{
-      data: reportData.engagementBreakdown.map(e => e.count),
+      data: summaryData.engagementBreakdown.map(e => e.count),
       backgroundColor: [
-        'rgba(34, 197, 94, 0.8)',   // High
-        'rgba(59, 130, 246, 0.8)',  // Medium
-        'rgba(251, 191, 36, 0.8)',  // Low
-        'rgba(156, 163, 175, 0.8)'  // None
+        'rgba(34, 197, 94, 0.8)',
+        'rgba(59, 130, 246, 0.8)',
+        'rgba(251, 191, 36, 0.8)',
+        'rgba(156, 163, 175, 0.8)'
       ],
     }]
   };
 
-  // Category usage trends chart
   const categoryChartData = {
-    labels: reportData.usageTrends.map(t => t.category),
+    labels: summaryData.usageTrends.map(t => t.category),
     datasets: [{
       label: 'Total Accesses',
-      data: reportData.usageTrends.map(t => t.accessCount),
+      data: summaryData.usageTrends.map(t => t.accessCount),
       backgroundColor: 'rgba(59, 130, 246, 0.8)',
     }]
   };
 
-  // Top content chart
   const topContentChartData = {
-    labels: reportData.topContent.map(c => c.contentTitle.length > 20 ? c.contentTitle.substring(0, 20) + '...' : c.contentTitle),
+    labels: summaryData.topContent.map(c => c.contentTitle.length > 20 ? c.contentTitle.substring(0, 20) + '...' : c.contentTitle),
     datasets: [{
       label: 'Access Count',
-      data: reportData.topContent.map(c => c.accessCount),
+      data: summaryData.topContent.map(c => c.accessCount),
       backgroundColor: 'rgba(34, 197, 94, 0.8)',
     }]
   };
@@ -167,7 +279,7 @@ export default function ContentUsageReport() {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Categories</option>
-              {categories.filter(c => c !== 'all').map(cat => (
+              {categories.map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
@@ -195,7 +307,7 @@ export default function ContentUsageReport() {
           <div className="flex items-end">
             <button
               onClick={handleApplyFilters}
-              className="w-full px-4 py-2 bg-[#2afeae] text-[#1b365d] rounded-md hover:bg-[#25e89e] transition"
+              className="w-full px-4 py-2 bg-[#2afeae] text-[#1b365d] rounded-md hover:bg-superadmin-btn-hover transition"
             >
               Apply Filters
             </button>
@@ -203,7 +315,7 @@ export default function ContentUsageReport() {
           <div className="flex items-end gap-2">
             <button
               onClick={handleExportCSV}
-              className="flex-1 px-4 py-2 bg-[#2afeae] text-[#1b365d] rounded-md hover:bg-[#25e89e] transition text-sm"
+              className="flex-1 px-4 py-2 bg-[#2afeae] text-[#1b365d] rounded-md hover:bg-superadmin-btn-hover transition text-sm"
             >
               Export CSV
             </button>
@@ -223,7 +335,7 @@ export default function ContentUsageReport() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Total Content</p>
-              <p className="text-3xl font-bold text-gray-900">{reportData.summary.totalContent}</p>
+              <p className="text-3xl font-bold text-gray-900">{summaryData.summary.totalContent}</p>
             </div>
             <DocumentTextIcon className="h-12 w-12 text-blue-500" />
           </div>
@@ -233,7 +345,7 @@ export default function ContentUsageReport() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Total Accesses</p>
-              <p className="text-3xl font-bold text-gray-900">{reportData.summary.totalAccesses}</p>
+              <p className="text-3xl font-bold text-gray-900">{summaryData.summary.totalAccesses}</p>
             </div>
             <ChartBarIcon className="h-12 w-12 text-green-500" />
           </div>
@@ -243,7 +355,7 @@ export default function ContentUsageReport() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Unique Users</p>
-              <p className="text-3xl font-bold text-gray-900">{reportData.summary.totalUniqueUsers}</p>
+              <p className="text-3xl font-bold text-gray-900">{summaryData.summary.totalUniqueUsers}</p>
             </div>
             <UserGroupIcon className="h-12 w-12 text-purple-500" />
           </div>
@@ -253,7 +365,7 @@ export default function ContentUsageReport() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Avg Access/Content</p>
-              <p className="text-3xl font-bold text-gray-900">{reportData.summary.averageAccessPerContent}</p>
+              <p className="text-3xl font-bold text-gray-900">{summaryData.summary.averageAccessPerContent}</p>
             </div>
             <FireIcon className="h-12 w-12 text-orange-500" />
           </div>
@@ -267,10 +379,10 @@ export default function ContentUsageReport() {
             <EyeSlashIcon className="h-6 w-6 text-red-600 mr-2" />
             <h3 className="text-lg font-semibold text-red-900">Unused Content</h3>
           </div>
-          <p className="text-3xl font-bold text-red-900">{reportData.summary.unusedContent}</p>
+          <p className="text-3xl font-bold text-red-900">{summaryData.summary.unusedContent}</p>
           <p className="text-sm text-red-700 mt-1">
-            {reportData.summary.totalContent > 0 ? 
-              Math.round((reportData.summary.unusedContent / reportData.summary.totalContent) * 100) : 0}% of total
+            {summaryData.summary.totalContent > 0 ?
+              Math.round((summaryData.summary.unusedContent / summaryData.summary.totalContent) * 100) : 0}% of total
           </p>
         </div>
 
@@ -279,7 +391,7 @@ export default function ContentUsageReport() {
             <ExclamationCircleIcon className="h-6 w-6 text-yellow-600 mr-2" />
             <h3 className="text-lg font-semibold text-yellow-900">Underutilized</h3>
           </div>
-          <p className="text-3xl font-bold text-yellow-900">{reportData.summary.underutilizedContent}</p>
+          <p className="text-3xl font-bold text-yellow-900">{summaryData.summary.underutilizedContent}</p>
           <p className="text-sm text-yellow-700 mt-1">Less than 10 accesses</p>
         </div>
 
@@ -288,7 +400,7 @@ export default function ContentUsageReport() {
             <FireIcon className="h-6 w-6 text-green-600 mr-2" />
             <h3 className="text-lg font-semibold text-green-900">High Engagement</h3>
           </div>
-          <p className="text-3xl font-bold text-green-900">{reportData.summary.highEngagement}</p>
+          <p className="text-3xl font-bold text-green-900">{summaryData.summary.highEngagement}</p>
           <p className="text-sm text-green-700 mt-1">Over 100 accesses</p>
         </div>
       </div>
@@ -352,7 +464,7 @@ export default function ContentUsageReport() {
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Category Breakdown</h3>
           <div className="space-y-3 overflow-y-auto max-h-80">
-            {reportData.categoryBreakdown.map((cat, idx) => (
+            {summaryData.categoryBreakdown.map((cat, idx) => (
               <div key={idx} className="p-3 bg-gray-50 rounded-lg">
                 <div className="flex justify-between items-center mb-1">
                   <span className="font-medium text-gray-900">{cat.category}</span>
@@ -364,7 +476,7 @@ export default function ContentUsageReport() {
                     <span>{cat.totalUsers} users</span>
                   </div>
                   {cat.unusedContent > 0 && (
-                    <div className="text-red-600">⚠️ {cat.unusedContent} unused</div>
+                    <div className="text-red-600">{cat.unusedContent} unused</div>
                   )}
                 </div>
               </div>
@@ -374,14 +486,14 @@ export default function ContentUsageReport() {
       </div>
 
       {/* Unused Content List */}
-      {reportData.unusedContent.length > 0 && (
+      {summaryData.unusedContent.length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-lg shadow p-6 mb-6">
           <div className="flex items-center mb-4">
             <EyeSlashIcon className="h-6 w-6 text-red-600 mr-2" />
-            <h3 className="text-lg font-semibold text-red-900">Unused Content ({reportData.unusedContent.length})</h3>
+            <h3 className="text-lg font-semibold text-red-900">Unused Content ({summaryData.unusedContent.length})</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {reportData.unusedContent.map((item, idx) => (
+            {summaryData.unusedContent.map((item, idx) => (
               <div key={idx} className="bg-white p-3 rounded border border-red-200">
                 <div className="font-medium text-gray-900">{item.contentTitle}</div>
                 <div className="text-sm text-gray-600">{item.category} • {item.lessonCount} lessons</div>
@@ -398,8 +510,9 @@ export default function ContentUsageReport() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Search Content</label>
             <input
               type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              name="search"
+              value={tableFilters.search}
+              onChange={handleTableFilterChange}
               placeholder="Search by title or category..."
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
@@ -407,8 +520,9 @@ export default function ContentUsageReport() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Engagement</label>
             <select
-              value={engagementFilter}
-              onChange={(e) => setEngagementFilter(e.target.value)}
+              name="engagement"
+              value={tableFilters.engagement}
+              onChange={handleTableFilterChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Levels</option>
@@ -418,6 +532,14 @@ export default function ContentUsageReport() {
               <option value="None">None (Unused)</option>
             </select>
           </div>
+          <div className="md:col-span-2 flex justify-end">
+            <button
+              onClick={handleApplyTableFilters}
+              className="px-4 py-2 bg-[#1b365d] text-white rounded-md hover:bg-[#234a7a] transition"
+            >
+              Apply Table Filters
+            </button>
+          </div>
         </div>
       </div>
 
@@ -425,24 +547,67 @@ export default function ContentUsageReport() {
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">Content Details</h3>
-          <p className="text-sm text-gray-600">Showing {filteredContent.length} of {reportData.content.length} items</p>
+          <p className="text-sm text-gray-600">Showing {tableRows.length} of {pagination.totalRows || 0} items</p>
         </div>
+        {loadingTable ? (
+          <div className="py-12 text-center text-gray-600">Loading table data...</div>
+        ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Content</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Accesses</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completions</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engagement</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Access</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <button type="button" onClick={() => handleSort('contentTitle')} className="inline-flex items-center gap-1 hover:text-gray-800">
+                    Content
+                    {renderSortIcon('contentTitle')}
+                  </button>
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <button type="button" onClick={() => handleSort('category')} className="inline-flex items-center gap-1 hover:text-gray-800">
+                    Category
+                    {renderSortIcon('category')}
+                  </button>
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <button type="button" onClick={() => handleSort('accessCount')} className="inline-flex items-center gap-1 hover:text-gray-800">
+                    Accesses
+                    {renderSortIcon('accessCount')}
+                  </button>
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <button type="button" onClick={() => handleSort('uniqueUsers')} className="inline-flex items-center gap-1 hover:text-gray-800">
+                    Users
+                    {renderSortIcon('uniqueUsers')}
+                  </button>
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <button type="button" onClick={() => handleSort('completions')} className="inline-flex items-center gap-1 hover:text-gray-800">
+                    Completions
+                    {renderSortIcon('completions')}
+                  </button>
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <button type="button" onClick={() => handleSort('engagementLevel')} className="inline-flex items-center gap-1 hover:text-gray-800">
+                    Engagement
+                    {renderSortIcon('engagementLevel')}
+                  </button>
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <button type="button" onClick={() => handleSort('lastAccessDate')} className="inline-flex items-center gap-1 hover:text-gray-800">
+                    Last Access
+                    {renderSortIcon('lastAccessDate')}
+                  </button>
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <button type="button" onClick={() => handleSort('status')} className="inline-flex items-center gap-1 hover:text-gray-800">
+                    Status
+                    {renderSortIcon('status')}
+                  </button>
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredContent.map((item) => (
+              {tableRows.map((item) => (
                 <tr key={item.contentId} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <div className="text-sm font-medium text-gray-900">{item.contentTitle}</div>
@@ -498,6 +663,19 @@ export default function ContentUsageReport() {
             </tbody>
           </table>
         </div>
+        )}
+
+        <Pagination
+          currentPage={pagination.pageNumber || 1}
+          totalPages={pagination.totalPages || 1}
+          pageSize={pagination.pageSize || pageSize}
+          totalCount={pagination.totalRows || 0}
+          onPageChange={(nextPage) => setPageNumber(nextPage)}
+          onPageSizeChange={(nextPageSize) => {
+            setPageSize(nextPageSize);
+            setPageNumber(1);
+          }}
+        />
       </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 using lmsbox.domain.Models;
 using lmsbox.infrastructure.Data;
 using lmsBox.Server.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
@@ -200,6 +201,78 @@ namespace lmsBox.Server.Controllers
             }
         }
 
+        // GET /auth/external/google
+        // GET /auth/external/microsoft
+        [HttpGet("external/{provider}")]
+        [AllowAnonymous]
+        public IActionResult ExternalLogin([FromRoute] string provider)
+        {
+            var (scheme, configured) = ResolveExternalScheme(provider);
+            if (scheme == null || !configured)
+            {
+                return BadRequest(new { message = "Requested external login provider is not available." });
+            }
+
+            var redirectUri = Url.Action(nameof(ExternalLoginCallback), "LoginLink")!;
+            var properties = new AuthenticationProperties { RedirectUri = redirectUri };
+            return Challenge(properties, scheme);
+        }
+
+        // GET /auth/external/callback
+        [HttpGet("external/callback")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ExternalLoginCallback([FromQuery] string? remoteError = null)
+        {
+            if (!string.IsNullOrWhiteSpace(remoteError))
+            {
+                _logger.LogWarning("External login failed at provider: {RemoteError}", remoteError);
+                return Redirect(BuildFrontendLoginRedirect("authError=external_denied"));
+            }
+
+            var externalResult = await HttpContext.AuthenticateAsync(IdentityConstants.ExternalScheme);
+            if (!externalResult.Succeeded || externalResult.Principal == null)
+            {
+                _logger.LogWarning("External login callback received without valid external principal");
+                return Redirect(BuildFrontendLoginRedirect("authError=external_failed"));
+            }
+
+            var email = externalResult.Principal.FindFirstValue(ClaimTypes.Email)
+                        ?? externalResult.Principal.FindFirstValue("email")
+                        ?? externalResult.Principal.FindFirstValue("preferred_username")
+                        ?? externalResult.Principal.FindFirstValue("upn")
+                        ?? externalResult.Principal.FindFirstValue(JwtRegisteredClaimNames.Email);
+
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                _logger.LogWarning("External login callback did not include an email claim");
+                return Redirect(BuildFrontendLoginRedirect("authError=email_missing"));
+            }
+
+            var user = await _userManager.FindByEmailAsync(email);
+            if (user == null)
+            {
+                _logger.LogInformation("External login rejected for unregistered email {Email}", email);
+                return Redirect(BuildFrontendPathRedirect("/auth/email-not-registered"));
+            }
+
+            var (token, expiresUnixMs) = await CreateJwtTokenAsync(user);
+
+            // Track login engagement
+            if (user.OrganisationID.HasValue)
+            {
+                await _engagementService.TrackAsync(
+                    user.Id,
+                    user.OrganisationID.Value,
+                    EngagementTrackingService.EVENT_LOGIN
+                );
+            }
+
+            await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+
+            var fragment = $"token={Uri.EscapeDataString(token)}&expires={expiresUnixMs}";
+            return Redirect(BuildFrontendLoginRedirect(fragment));
+        }
+
         private async Task<(bool Success, string[] ErrorCodes)> VerifyRecaptchaAsync(string token, string secret)
         {
             try
@@ -305,43 +378,8 @@ namespace lmsBox.Server.Controllers
                     return BadRequest(new { message = "User not found" });
                 }
 
-                // Generate JWT token directly (same logic as verify-login)
-                var jwtSection = _config.GetSection("Jwt");
-                var keyBytes = Encoding.UTF8.GetBytes(jwtSection["Key"]);
-                var expiresMinutes = int.Parse(jwtSection["ExpiryMinutes"]);
-                var now = DateTime.UtcNow;
-
-                var claims = new List<Claim>
-                {
-                    new(ClaimTypes.NameIdentifier, user.Id),
-                    new(ClaimTypes.Email, user.Email),
-                    new("jti", Guid.NewGuid().ToString())
-                };
-
-                if (!string.IsNullOrWhiteSpace(user.FirstName) || !string.IsNullOrWhiteSpace(user.LastName))
-                {
-                    var name = (user.FirstName ?? string.Empty).Trim();
-                    if (!string.IsNullOrWhiteSpace(user.LastName)) name = string.IsNullOrWhiteSpace(name) ? user.LastName : name + " " + user.LastName;
-                    claims.Add(new Claim("name", name));
-                }
-
+                var (tokenString, expiresUnixMs) = await CreateJwtTokenAsync(user);
                 var roles = await _userManager.GetRolesAsync(user);
-                foreach (var r in roles)
-                {
-                    claims.Add(new Claim(ClaimTypes.Role, r));
-                }
-
-                var creds = new SigningCredentials(new SymmetricSecurityKey(keyBytes), SecurityAlgorithms.HmacSha256);
-                var jwt = new JwtSecurityToken(
-                    issuer: jwtSection["Issuer"],
-                    audience: jwtSection["Audience"],
-                    claims: claims,
-                    notBefore: now,
-                    expires: now.AddMinutes(expiresMinutes),
-                    signingCredentials: creds
-                );
-
-                var tokenString = new JwtSecurityTokenHandler().WriteToken(jwt);
 
                 _logger.LogInformation("User {UserId} authenticated via dev-login. Roles={Roles}", user.Id, string.Join(',', roles));
 
@@ -358,7 +396,7 @@ namespace lmsBox.Server.Controllers
                 return Ok(new
                 {
                     token = tokenString,
-                    expires = jwt.ValidTo,
+                    expires = expiresUnixMs,
                     user = new
                     {
                         id = user.Id,
@@ -373,6 +411,95 @@ namespace lmsBox.Server.Controllers
                 _logger.LogError(ex, "Error during dev login for {Email}", request.Email);
                 return StatusCode(500, new { message = "An error occurred during login" });
             }
+        }
+
+        private (string? Scheme, bool Configured) ResolveExternalScheme(string provider)
+        {
+            if (string.Equals(provider, "google", StringComparison.OrdinalIgnoreCase))
+            {
+                var configured = !string.IsNullOrWhiteSpace(_config["Authentication:Google:ClientId"]) &&
+                                 !string.IsNullOrWhiteSpace(_config["Authentication:Google:ClientSecret"]);
+                return ("Google", configured);
+            }
+
+            if (string.Equals(provider, "microsoft", StringComparison.OrdinalIgnoreCase))
+            {
+                var configured = !string.IsNullOrWhiteSpace(_config["Authentication:Microsoft:ClientId"]) &&
+                                 !string.IsNullOrWhiteSpace(_config["Authentication:Microsoft:ClientSecret"]);
+                return ("Microsoft", configured);
+            }
+
+            return (null, false);
+        }
+
+        private string BuildFrontendLoginRedirect(string fragment)
+        {
+            var frontendBaseUrl = _config["LoginLink:FrontendBaseUrl"];
+            if (string.IsNullOrWhiteSpace(frontendBaseUrl))
+            {
+                frontendBaseUrl = $"{Request.Scheme}://{Request.Host}";
+            }
+
+            return $"{frontendBaseUrl.TrimEnd('/')}/login#{fragment}";
+        }
+
+        private string BuildFrontendPathRedirect(string path)
+        {
+            var frontendBaseUrl = _config["LoginLink:FrontendBaseUrl"];
+            if (string.IsNullOrWhiteSpace(frontendBaseUrl))
+            {
+                frontendBaseUrl = $"{Request.Scheme}://{Request.Host}";
+            }
+
+            var normalizedPath = path.StartsWith("/") ? path : "/" + path;
+            return $"{frontendBaseUrl.TrimEnd('/')}{normalizedPath}";
+        }
+
+        private async Task<(string Token, long ExpiresUnixMs)> CreateJwtTokenAsync(ApplicationUser user)
+        {
+            var jwtSection = _config.GetSection("Jwt");
+            var keyBytes = Encoding.UTF8.GetBytes(jwtSection["Key"] ?? "dev-secret-change-me-please-0123456789");
+            var expiresMinutes = int.TryParse(_config["LoginLink:AuthTokenExpiryMinutes"], out var em)
+                ? em
+                : int.TryParse(jwtSection["ExpiryMinutes"], out var jm) ? jm : 60;
+            var now = DateTimeOffset.UtcNow;
+
+            var claims = new List<Claim>
+            {
+                new(JwtRegisteredClaimNames.Sub, user.Id),
+                new(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
+                new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            };
+
+            if (!string.IsNullOrWhiteSpace(user.FirstName) || !string.IsNullOrWhiteSpace(user.LastName))
+            {
+                var name = (user.FirstName ?? string.Empty).Trim();
+                if (!string.IsNullOrWhiteSpace(user.LastName))
+                {
+                    name = string.IsNullOrWhiteSpace(name) ? user.LastName : name + " " + user.LastName;
+                }
+
+                claims.Add(new Claim("name", name));
+            }
+
+            var roles = await _userManager.GetRolesAsync(user);
+            foreach (var role in roles)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+            }
+
+            var creds = new SigningCredentials(new SymmetricSecurityKey(keyBytes), SecurityAlgorithms.HmacSha256);
+            var jwt = new JwtSecurityToken(
+                issuer: jwtSection["Issuer"],
+                audience: jwtSection["Audience"],
+                claims: claims,
+                notBefore: now.UtcDateTime,
+                expires: now.AddMinutes(expiresMinutes).UtcDateTime,
+                signingCredentials: creds
+            );
+
+            var tokenString = new JwtSecurityTokenHandler().WriteToken(jwt);
+            return (tokenString, now.AddMinutes(expiresMinutes).ToUnixTimeMilliseconds());
         }
     }
 

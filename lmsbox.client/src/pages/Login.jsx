@@ -1,6 +1,6 @@
 import { useForm } from 'react-hook-form';
-import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { getUserRole, setAuthToken } from '../utils/auth';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../theme/ThemeContext';
@@ -14,10 +14,12 @@ export default function Login() {
   const { register, handleSubmit, formState: { errors } } = useForm();
   const [status, setStatus] = useState('idle'); // idle, loading, success, error
   const [message, setMessage] = useState('');
+  const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const theme = useTheme();
   const logoSrc = theme?.logo || lmsLogo;
   const tenantName = theme?.name || import.meta.env.VITE_APP_TITLE || 'LMS Box';
+  const API_BASE = import.meta.env.VITE_API_BASE;
   
   usePageTitle('Login');
 
@@ -28,6 +30,57 @@ export default function Login() {
         ? '/admin/dashboard'
         : '/courses/all')
     : null;
+
+  useEffect(() => {
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const token = hashParams.get('token');
+    const expires = hashParams.get('expires');
+    const authError = hashParams.get('authError');
+
+    if (token) {
+      const expiresMs = Number(expires);
+      setAuthToken(token, Number.isFinite(expiresMs) ? expiresMs : undefined);
+      setStatus('success');
+      setMessage('Successfully signed in. Redirecting...');
+
+      window.history.replaceState({}, document.title, '/login');
+      setTimeout(() => {
+        const userRole = getUserRole();
+        if (userRole && (userRole === 'admin' || userRole === 'Admin' || userRole === 'OrgAdmin' || userRole === 'SuperAdmin')) {
+          navigate('/admin/dashboard');
+          return;
+        }
+
+        navigate('/courses/all');
+      }, 700);
+      return;
+    }
+
+    if (authError) {
+      if (authError === 'not_registered') {
+        window.history.replaceState({}, document.title, '/login');
+        navigate('/auth/email-not-registered', { replace: true });
+        return;
+      }
+
+      const errorMessages = {
+        email_missing: 'Your identity provider did not return an email address. Please use your work account email.',
+        external_denied: 'External login was cancelled or denied. Please try again.',
+        external_failed: 'External login failed. Please try again.'
+      };
+
+      setStatus('error');
+      setMessage(errorMessages[authError] || 'Unable to sign in with external provider. Please try again.');
+      window.history.replaceState({}, document.title, '/login');
+    }
+  }, [navigate]);
+
+  const startExternalLogin = (provider) => {
+    const endpoint = API_BASE
+      ? `${API_BASE}/api/auth/external/${provider}`
+      : `/api/auth/external/${provider}`;
+    window.location.href = endpoint;
+  };
 
   const onSubmit = async (data) => {
     try {
@@ -139,7 +192,7 @@ export default function Login() {
 
             <button 
               type="submit" 
-              className={`w-full py-2.5 rounded-lg font-medium transition-colors text-login-btn-text ${
+              className={`w-full cursor-pointer py-2.5 rounded-lg font-medium transition-colors text-login-btn-text ${
                 status === 'loading'
                   ? 'bg-login-btn-bg/60 cursor-not-allowed'
                   : status === 'success'
@@ -152,6 +205,62 @@ export default function Login() {
                status === 'success' ? 'Check your email' : 
                'Send Login link'}
             </button>
+
+            <div className="relative py-1">
+              <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                <div className="w-full border-t border-login-input-border"></div>
+              </div>
+              <div className="relative flex justify-center">
+                <span className="bg-login-box-bg px-3 text-xs text-login-box-text/80">or continue with</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => startExternalLogin('google')}
+                disabled={status === 'loading'}
+                className="w-full cursor-pointer rounded-lg border border-white/60 bg-transparent px-4 py-2.5 text-sm font-medium text-white transition hover:border-white disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M21.805 12.23c0-.75-.067-1.47-.19-2.16H12v4.09h5.49a4.7 4.7 0 0 1-2.04 3.08v2.56h3.3c1.93-1.77 3.055-4.38 3.055-7.57z"
+                      fill="#4285F4"
+                    />
+                    <path
+                      d="M12 22c2.7 0 4.96-.89 6.62-2.41l-3.3-2.56c-.91.61-2.08.98-3.32.98-2.55 0-4.7-1.72-5.46-4.03H3.13v2.63A10 10 0 0 0 12 22z"
+                      fill="#34A853"
+                    />
+                    <path
+                      d="M6.54 13.98A6.01 6.01 0 0 1 6.23 12c0-.69.12-1.35.31-1.98V7.39H3.13A10 10 0 0 0 2 12c0 1.61.39 3.13 1.13 4.61l3.41-2.63z"
+                      fill="#FBBC05"
+                    />
+                    <path
+                      d="M12 5.99c1.47 0 2.78.51 3.81 1.5l2.86-2.86A9.98 9.98 0 0 0 12 2a10 10 0 0 0-8.87 5.39l3.41 2.63c.76-2.31 2.91-4.03 5.46-4.03z"
+                      fill="#EA4335"
+                    />
+                  </svg>
+                  <span>Google</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => startExternalLogin('microsoft')}
+                disabled={status === 'loading'}
+                className="w-full cursor-pointer rounded-lg border border-white/60 bg-transparent px-4 py-2.5 text-sm font-medium text-white transition hover:border-white disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="2" y="2" width="9" height="9" fill="#F25022" />
+                    <rect x="13" y="2" width="9" height="9" fill="#7FBA00" />
+                    <rect x="2" y="13" width="9" height="9" fill="#00A4EF" />
+                    <rect x="13" y="13" width="9" height="9" fill="#FFB900" />
+                  </svg>
+                  <span>Microsoft</span>
+                </span>
+              </button>
+            </div>
 
             {/* <p className="text-sm text-center text-login-box-text mt-6">
               Don't have an account?
@@ -167,14 +276,14 @@ export default function Login() {
                 <button
                   onClick={() => devLogin('19vaibhav90@gmail.com')}
                   disabled={status === 'loading'}
-                  className="w-full py-2 px-4 bg-[#2afeae] text-[#1b365d] text-sm rounded hover:bg-[#25e89e] disabled:opacity-50"
+                  className="w-full cursor-pointer py-2 px-4 bg-[#2afeae] text-[#1b365d] text-sm rounded hover:bg-[#25e89e] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Login as Learner (19vaibhav90@gmail.com)
                 </button>
                 <button
                   onClick={() => devLogin('admin@dev.local')}
                   disabled={status === 'loading'}
-                  className="w-full py-2 px-4 bg-[#2afeae] text-[#1b365d] text-sm rounded hover:bg-[#25e89e] disabled:opacity-50"
+                  className="w-full cursor-pointer py-2 px-4 bg-[#2afeae] text-[#1b365d] text-sm rounded hover:bg-[#25e89e] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Login as Admin (admin@dev.local)
                 </button>
