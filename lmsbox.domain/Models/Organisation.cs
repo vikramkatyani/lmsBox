@@ -56,6 +56,8 @@ public class Organisation
     public string? FromEmail { get; set; }
     
     public string? FromName { get; set; }
+
+    public string? TimeZoneId { get; set; }
     
     public string? BrandName { get; set; }
     

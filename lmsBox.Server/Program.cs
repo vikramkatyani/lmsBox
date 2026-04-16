@@ -322,6 +322,9 @@ builder.Services.AddScoped<lmsBox.Server.Services.IAIAssistantService, lmsBox.Se
 // Engagement Tracking service registration
 builder.Services.AddScoped<lmsBox.Server.Services.IEngagementTrackingService, lmsBox.Server.Services.EngagementTrackingService>();
 
+// Background automation dispatch processor
+builder.Services.AddHostedService<lmsBox.Server.Services.AutomationDispatchWorker>();
+
 var app = builder.Build();
 
 // Serilog request logging - logs HTTP requests and responses

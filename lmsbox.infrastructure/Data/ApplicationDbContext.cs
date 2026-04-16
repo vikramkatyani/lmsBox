@@ -66,6 +66,10 @@ namespace lmsbox.infrastructure.Data
         // Engagement Tracking
         public DbSet<UserEngagement> UserEngagements { get; set; } = null!;
 
+       // Automation
+       public DbSet<AutomationTask> AutomationTasks { get; set; } = null!;
+       public DbSet<AutomationDispatch> AutomationDispatches { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
@@ -132,6 +136,40 @@ namespace lmsbox.infrastructure.Data
             builder.Entity<CourseCategory>()
                    .HasIndex(cc => cc.Name)
                    .IsUnique();
+
+            builder.Entity<AutomationTask>()
+                   .HasIndex(a => new { a.OrganisationId, a.Status, a.Type });
+
+            builder.Entity<AutomationTask>()
+                   .HasIndex(a => a.CreatedAtUtc);
+
+            builder.Entity<AutomationDispatch>()
+                   .HasIndex(d => new { d.Status, d.ScheduledForUtc });
+
+            builder.Entity<AutomationDispatch>()
+                   .HasIndex(d => d.AutomationTaskId);
+
+            builder.Entity<AutomationDispatch>()
+                   .HasIndex(d => d.IdempotencyKey)
+                   .IsUnique();
+
+            builder.Entity<AutomationDispatch>()
+                   .HasOne(d => d.AutomationTask)
+                   .WithMany(t => t.Dispatches)
+                   .HasForeignKey(d => d.AutomationTaskId)
+                   .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<AutomationDispatch>()
+                   .HasOne(d => d.Organisation)
+                   .WithMany()
+                   .HasForeignKey(d => d.OrganisationId)
+                   .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<AutomationDispatch>()
+                   .HasOne(d => d.User)
+                   .WithMany()
+                   .HasForeignKey(d => d.UserId)
+                   .OnDelete(DeleteBehavior.NoAction);
         }
     }
 }

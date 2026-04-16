@@ -1597,7 +1597,7 @@ function AddLessonMenu({ onAdd, disabled = false }) {
   const lessonTypes = [
     { value: 'video', label: 'Video Lesson', icon: '🎥' },
     { value: 'pdf', label: 'PDF Lesson', icon: '📄' },
-    { value: 'scorm', label: 'SCORM Package', icon: '📦' },
+    { value: 'scorm', label: 'SCORM 1.2 or SCORM 2004 Package', icon: '📦' },
     { value: 'html', label: 'HTML Lesson', icon: '🌐' },
     { value: 'quiz', label: 'Quiz', icon: '📝' }
   ];
