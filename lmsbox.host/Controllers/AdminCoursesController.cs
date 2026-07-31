@@ -1077,6 +1077,7 @@ public class AdminCoursesController : ControllerBase
                 // Copy lesson content files to new locations if they exist
                 string? newVideoUrl = null;
                 string? newDocumentUrl = null;
+                string? newHtmlUrl = null;
                 string? newScormUrl = null;
                 string? newScormEntryUrl = null;
                 string? newScormVersion = null;
@@ -1119,6 +1120,34 @@ public class AdminCoursesController : ControllerBase
                         }
                     }
 
+                    // Copy HTML lesson blob (share global-library references)
+                    if (!string.IsNullOrEmpty(originalLesson.HtmlUrl))
+                    {
+                        if (originalLesson.HtmlUrl.Contains("global-library/", StringComparison.OrdinalIgnoreCase))
+                        {
+                            newHtmlUrl = originalLesson.HtmlUrl;
+                            _logger.LogInformation("HTML global-library content will be shared: {HtmlUrl}",
+                                originalLesson.HtmlUrl);
+                        }
+                        else
+                        {
+                            var htmlFileName = Path.GetFileName(new Uri(originalLesson.HtmlUrl).AbsolutePath);
+                            var uniqueHtmlFileName = $"{Guid.NewGuid()}{Path.GetExtension(htmlFileName)}";
+                            if (string.IsNullOrEmpty(Path.GetExtension(uniqueHtmlFileName)))
+                            {
+                                uniqueHtmlFileName += ".html";
+                            }
+                            var newHtmlPath = $"organisations/{storageKey}/library/{uniqueHtmlFileName}";
+                            newHtmlUrl = await _blobService.CopyBlobAsync(originalLesson.HtmlUrl, newHtmlPath);
+
+                            if (newHtmlUrl != null)
+                            {
+                                _logger.LogInformation("Copied HTML from {OldUrl} to {NewUrl}",
+                                    originalLesson.HtmlUrl, newHtmlUrl);
+                            }
+                        }
+                    }
+
                     // Copy SCORM package
                     if (!string.IsNullOrEmpty(originalLesson.ScormUrl))
                     {
@@ -1138,6 +1167,7 @@ public class AdminCoursesController : ControllerBase
                     // If blob service is not configured, just copy the URLs as-is
                     newVideoUrl = originalLesson.VideoUrl;
                     newDocumentUrl = originalLesson.DocumentUrl;
+                    newHtmlUrl = originalLesson.HtmlUrl;
                     newScormUrl = originalLesson.ScormUrl;
                     newScormEntryUrl = originalLesson.ScormEntryUrl;
                     newScormVersion = originalLesson.ScormVersion;
@@ -1155,9 +1185,12 @@ public class AdminCoursesController : ControllerBase
                     VideoUrl = newVideoUrl ?? originalLesson.VideoUrl,
                     DurationSeconds = originalLesson.DurationSeconds,
                     DocumentUrl = newDocumentUrl ?? originalLesson.DocumentUrl,
+                    HtmlContent = originalLesson.HtmlContent,
+                    HtmlUrl = newHtmlUrl ?? originalLesson.HtmlUrl,
                     ScormUrl = newScormUrl ?? originalLesson.ScormUrl,
                     ScormEntryUrl = newScormEntryUrl ?? originalLesson.ScormEntryUrl,
                     ScormVersion = newScormVersion ?? originalLesson.ScormVersion,
+                    GlobalLibraryContentId = originalLesson.GlobalLibraryContentId,
                     QuizId = newQuizId,
                     IsOptional = originalLesson.IsOptional,
                     CourseId = newCourse.Id,
@@ -1206,6 +1239,7 @@ public class AdminCoursesController : ControllerBase
                     {
                         "video" => l.VideoUrl,
                         "document" => l.DocumentUrl,
+                        "html" => l.HtmlUrl,
                         "scorm" => l.ScormUrl,
                         _ => null
                     },
