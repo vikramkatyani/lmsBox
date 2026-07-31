@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
 import Pagination from '../components/Pagination';
@@ -16,6 +16,9 @@ export default function AdminCourses() {
   const [status, setStatus] = useState('all');
   const [category, setCategory] = useState('all');
   const [deleteDialog, setDeleteDialog] = useState({ open: false, course: null });
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [menuPosition, setMenuPosition] = useState(null);
+  const menuRef = useRef(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [pagination, setPagination] = useState({
@@ -33,6 +36,67 @@ export default function AdminCourses() {
   useEffect(() => {
     loadCourses();
   }, [query, sort, status, category, page, pageSize]);
+
+  useEffect(() => {
+    if (!openMenuId) return undefined;
+
+    const closeMenu = () => {
+      setOpenMenuId(null);
+      setMenuPosition(null);
+    };
+
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        closeMenu();
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        closeMenu();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    window.addEventListener('resize', closeMenu);
+    window.addEventListener('scroll', closeMenu, true);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+      window.removeEventListener('resize', closeMenu);
+      window.removeEventListener('scroll', closeMenu, true);
+    };
+  }, [openMenuId]);
+
+  useEffect(() => {
+    setOpenMenuId(null);
+    setMenuPosition(null);
+  }, [query, sort, status, category, page, pageSize]);
+
+  const toggleCourseMenu = (courseId, event) => {
+    if (openMenuId === courseId) {
+      setOpenMenuId(null);
+      setMenuPosition(null);
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const estimatedMenuHeight = 240;
+    const openUpward = window.innerHeight - rect.bottom < estimatedMenuHeight;
+
+    setMenuPosition(
+      openUpward
+        ? { bottom: window.innerHeight - rect.top + 4, right: window.innerWidth - rect.right }
+        : { top: rect.bottom + 4, right: window.innerWidth - rect.right }
+    );
+    setOpenMenuId(courseId);
+  };
+
+  const closeCourseMenu = () => {
+    setOpenMenuId(null);
+    setMenuPosition(null);
+  };
 
   const loadCourses = async () => {
     try {
@@ -114,6 +178,8 @@ export default function AdminCourses() {
   };
 
   const onEdit = (id) => navigate(`/admin/courses/${id}/edit`);
+
+  const onPreview = (id) => adminCourseService.openCoursePreview(id);
   
   const handlePublishToggle = async (courseId) => {
     const course = courses.find(c => c.id === courseId);
@@ -280,45 +346,116 @@ export default function AdminCourses() {
                       <td className="px-6 py-4">{statusBadge(c.statusDisplay)}</td>
                       <td className="px-6 py-4 text-gray-700">{c.updatedAt}</td>
                       <td className="px-6 py-4">
-                        <div className="flex justify-end gap-2">
-                          <button onClick={() => onEdit(c.id)} className="px-3 py-1.5 text-sm bg-info text-blue-700 rounded hover:bg-blue-100">Edit</button>
-                          
-                          <button 
-                            onClick={() => handleDuplicateCourse(c)} 
-                            className="px-3 py-1.5 text-sm bg-info text-[#1b365d] rounded hover:bg-[#d9e5f2]"
-                            title="Duplicate course with all lessons and quizzes"
+                        <div className="relative flex justify-end" ref={openMenuId === c.id ? menuRef : null}>
+                          <button
+                            type="button"
+                            onClick={(event) => toggleCourseMenu(c.id, event)}
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+                            aria-label={`Actions for ${c.title}`}
+                            aria-haspopup="menu"
+                            aria-expanded={openMenuId === c.id}
+                            title="Actions"
                           >
-                            Duplicate
+                            <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                              <path d="M10 6a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 5.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 5.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3z" />
+                            </svg>
                           </button>
-                          
-                          {c.status === 'Draft' && (
-                            <button 
-                              onClick={() => handlePublishToggle(c.id)} 
-                              className="px-3 py-1.5 text-sm bg-success text-green-700 rounded hover:bg-green-100"
+
+                          {openMenuId === c.id && menuPosition && (
+                            <div
+                              role="menu"
+                              className="fixed z-50 w-44 rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+                              style={{
+                                top: menuPosition.top,
+                                bottom: menuPosition.bottom,
+                                right: menuPosition.right,
+                              }}
                             >
-                              Publish
-                            </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => {
+                                  closeCourseMenu();
+                                  onPreview(c.id);
+                                }}
+                                className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                              >
+                                Preview
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => {
+                                  closeCourseMenu();
+                                  onEdit(c.id);
+                                }}
+                                className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => {
+                                  closeCourseMenu();
+                                  handleDuplicateCourse(c);
+                                }}
+                                className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                              >
+                                Duplicate
+                              </button>
+                              {c.status === 'Draft' && (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => {
+                                    closeCourseMenu();
+                                    handlePublishToggle(c.id);
+                                  }}
+                                  className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                                >
+                                  Publish
+                                </button>
+                              )}
+                              {c.status !== 'Archived' ? (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => {
+                                    closeCourseMenu();
+                                    onArchiveToggle(c.id);
+                                  }}
+                                  className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                                >
+                                  Archive
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => {
+                                    closeCourseMenu();
+                                    onArchiveToggle(c.id);
+                                  }}
+                                  className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                                >
+                                  Unarchive
+                                </button>
+                              )}
+                              <div className="my-1 border-t border-gray-100" />
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => {
+                                  closeCourseMenu();
+                                  onDelete(c);
+                                }}
+                                className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                              >
+                                Delete
+                              </button>
+                            </div>
                           )}
-                          
-                          {c.status !== 'Archived' && (
-                            <button 
-                              onClick={() => onArchiveToggle(c.id)} 
-                              className="px-3 py-1.5 text-sm bg-yellow-50 text-yellow-800 rounded hover:bg-yellow-100"
-                            >
-                              Archive
-                            </button>
-                          )}
-                          
-                          {c.status === 'Archived' && (
-                            <button 
-                              onClick={() => onArchiveToggle(c.id)} 
-                              className="px-3 py-1.5 text-sm bg-yellow-50 text-yellow-800 rounded hover:bg-yellow-100"
-                            >
-                              Unarchive
-                            </button>
-                          )}
-                          
-                          <button onClick={() => onDelete(c)} className="px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded hover:bg-red-100">Delete</button>
                         </div>
                       </td>
                     </tr>

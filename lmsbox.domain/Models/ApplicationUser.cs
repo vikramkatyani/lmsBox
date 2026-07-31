@@ -44,4 +44,7 @@ public class ApplicationUser : IdentityUser
     public ICollection<CourseAssignment> CourseAssignments { get; set; } = new List<CourseAssignment>();
     public ICollection<LearnerProgress> LearnerProgresses { get; set; } = new List<LearnerProgress>();
     public ICollection<LoginLinkToken> LoginLinkTokens { get; set; } = new List<LoginLinkToken>();
+
+    /// <summary>JSON array of favourited admin report ids; null = platform defaults not yet persisted.</summary>
+    public string? FavoriteReportIds { get; set; }
 }

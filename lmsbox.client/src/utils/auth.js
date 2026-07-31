@@ -95,15 +95,32 @@ export const getUserRole = () => {
   const token = getAuthToken();
   if (!token) return null;
   const decoded = decodeToken(token);
-  
+
   // Check for Microsoft claims format role
   const msRole = decoded?.['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'];
   if (msRole) {
-    return msRole;
+    return Array.isArray(msRole) ? msRole[0] : msRole;
   }
-  
+
   // Fallback to standard role claim
   return decoded?.role || 'learner';
+};
+
+/** All roles from JWT (supports single claim or array). */
+export const getUserRoles = () => {
+  const token = getAuthToken();
+  if (!token) return [];
+  const decoded = decodeToken(token);
+  if (!decoded) return [];
+
+  const roleClaim =
+    decoded['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ??
+    decoded.role ??
+    decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role'];
+
+  if (Array.isArray(roleClaim)) return roleClaim.filter(Boolean);
+  if (roleClaim) return [roleClaim];
+  return [];
 };
 
 // Check if user is admin

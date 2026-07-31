@@ -41,6 +41,17 @@ public class Course
     public bool IsPreSurveyMandatory { get; set; } = false;
     public bool IsPostSurveyMandatory { get; set; } = false;
 
+    /// <summary>
+    /// When true, learners must complete each lesson before the next becomes available.
+    /// </summary>
+    public bool RequireSequentialLessons { get; set; } = false;
+
+    /// <summary>
+    /// When true, learners see Previous/Next navigation buttons in the course player.
+    /// Defaults to off; admins can enable per course at any time.
+    /// </summary>
+    public bool ShowLessonNavigation { get; set; } = false;
+
     // Ownership: course belongs to an organisation
     public long OrganisationId { get; set; }
     [ForeignKey(nameof(OrganisationId))]
@@ -65,6 +76,9 @@ public class Course
 
     // Quizzes in this course
     public ICollection<Quiz> Quizzes { get; set; } = new List<Quiz>();
+
+    // Supplementary resources (PDF / HTML / video) outside the lesson sequence
+    public ICollection<CourseResource> Resources { get; set; } = new List<CourseResource>();
 
     // Mapping to learning groups
     public ICollection<GroupCourse> GroupCourses { get; set; } = new List<GroupCourse>();

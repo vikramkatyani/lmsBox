@@ -4,6 +4,19 @@
 
 import api from '../utils/api';
 
+export async function getAdminCoursePreview(courseId, signal = null) {
+  try {
+    const res = await api.get(`/api/admin/courses/${courseId}/preview`, { signal });
+    return res.data;
+  } catch (err) {
+    if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') {
+      return null;
+    }
+    console.warn('Failed to fetch admin course preview from API.', err.message);
+    return null;
+  }
+}
+
 export async function getCourseDetails(courseId, signal = null) {
   try {
     const res = await api.get(`/api/learner/courses/${courseId}`, {
@@ -51,4 +64,21 @@ export async function getCourseDetails(courseId, signal = null) {
       ]
     };
   }
+}
+
+export async function getCourseResources(courseId, previewMode = false) {
+  const url = previewMode
+    ? `/api/admin/courses/${courseId}/resources`
+    : `/api/learner/courses/${courseId}/resources`;
+  const res = await api.get(url);
+  return res.data;
+}
+
+export async function getCourseResource(courseId, resourceId, previewMode = false) {
+  if (previewMode) {
+    const res = await api.get(`/api/admin/courses/${courseId}/resources/${resourceId}`);
+    return res.data;
+  }
+  const res = await api.get(`/api/learner/courses/${courseId}/resources/${resourceId}`);
+  return res.data;
 }

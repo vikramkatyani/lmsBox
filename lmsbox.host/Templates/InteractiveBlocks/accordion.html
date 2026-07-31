@@ -1,0 +1,180 @@
+<div class="lmsbox-interactive-block" data-block-id="{{BLOCK_ID}}" data-block-type="accordion" role="region" aria-label="Lesson accordion">
+  <style>
+    .lmsbox-interactive-block[data-block-type="accordion"] {
+      --lmsbox-primary: #1b365d;
+      --lmsbox-focus: #1b365d;
+      --lmsbox-text: #0f172a;
+      --lmsbox-muted: #334155;
+      --lmsbox-border: #64748b;
+      box-sizing: border-box;
+      width: 100%;
+      margin: 0;
+      padding: 1rem 0 1.25rem;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 1rem;
+      line-height: 1.5;
+      color: var(--lmsbox-text);
+      background: transparent;
+    }
+    .lmsbox-interactive-block[data-block-type="accordion"] *,
+    .lmsbox-interactive-block[data-block-type="accordion"] *::before,
+    .lmsbox-interactive-block[data-block-type="accordion"] *::after {
+      box-sizing: border-box;
+    }
+    .lmsbox-accordion {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .lmsbox-accordion__progress {
+      margin: 0 0 0.75rem;
+      font-size: 0.875rem;
+      line-height: 1.5;
+      color: var(--lmsbox-muted);
+    }
+    .lmsbox-accordion__item {
+      border-bottom: 1px solid var(--lmsbox-border);
+      background: transparent;
+    }
+    .lmsbox-accordion__trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      width: 100%;
+      min-height: 48px;
+      margin: 0;
+      padding: 0.85rem 0.25rem;
+      border: none;
+      background: transparent;
+      color: var(--lmsbox-primary);
+      font: inherit;
+      font-size: 1.125rem;
+      font-weight: 700;
+      text-align: left;
+      cursor: pointer;
+    }
+    .lmsbox-accordion__trigger:focus-visible {
+      outline: 3px solid var(--lmsbox-focus);
+      outline-offset: 2px;
+    }
+    .lmsbox-accordion__chevron {
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+      color: var(--lmsbox-primary);
+      transition: transform 0.15s ease;
+    }
+    .lmsbox-accordion__item[data-open="1"] .lmsbox-accordion__chevron {
+      transform: rotate(180deg);
+    }
+    .lmsbox-accordion__panel {
+      display: none;
+      padding: 0 0.25rem 1rem;
+      color: var(--lmsbox-text);
+      font-size: 1rem;
+      line-height: 1.65;
+      white-space: pre-wrap;
+    }
+    .lmsbox-accordion__item[data-open="1"] .lmsbox-accordion__panel {
+      display: block;
+    }
+  </style>
+
+  <p class="lmsbox-accordion__progress" data-accordion-progress aria-live="polite"></p>
+  <div class="lmsbox-accordion" data-accordion-root></div>
+
+  <script type="application/json" id="lmsbox-accordion-data-{{BLOCK_ID}}">{{PANELS_JSON}}</script>
+  <script>
+  (function () {
+    var root = document.querySelector('.lmsbox-interactive-block[data-block-type="accordion"][data-block-id="{{BLOCK_ID}}"]');
+    if (!root || root.getAttribute('data-accordion-ready') === '1') return;
+    root.setAttribute('data-accordion-ready', '1');
+
+    var blockId = root.getAttribute('data-block-id');
+    var dataEl = document.getElementById('lmsbox-accordion-data-{{BLOCK_ID}}');
+    var panels = [];
+    try { panels = JSON.parse(dataEl ? dataEl.textContent : '[]'); } catch (e) { panels = []; }
+    if (!Array.isArray(panels) || panels.length === 0) return;
+
+    var listEl = root.querySelector('[data-accordion-root]');
+    var progressEl = root.querySelector('[data-accordion-progress]');
+    var expanded = {};
+    var completed = false;
+
+    function notifyComplete() {
+      if (completed) return;
+      completed = true;
+      var payload = { type: 'interactive-block-complete', blockId: Number(blockId) };
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, '*');
+      }
+      if (window.lmsboxInteractive && typeof window.lmsboxInteractive.notifyComplete === 'function') {
+        window.lmsboxInteractive.notifyComplete(Number(blockId));
+      }
+    }
+
+    function updateProgress() {
+      var count = 0;
+      for (var i = 0; i < panels.length; i++) if (expanded[i]) count++;
+      progressEl.textContent = count + ' of ' + panels.length + ' sections opened';
+      if (count === panels.length) notifyComplete();
+    }
+
+    panels.forEach(function (panel, index) {
+      var item = document.createElement('div');
+      item.className = 'lmsbox-accordion__item';
+      item.setAttribute('data-open', '0');
+
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'lmsbox-accordion__trigger';
+      btn.setAttribute('aria-expanded', 'false');
+      btn.id = 'lmsbox-acc-trigger-{{BLOCK_ID}}-' + index;
+
+      var titleSpan = document.createElement('span');
+      titleSpan.textContent = panel.title || ('Section ' + (index + 1));
+      btn.appendChild(titleSpan);
+
+      var chevron = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      chevron.setAttribute('class', 'lmsbox-accordion__chevron');
+      chevron.setAttribute('viewBox', '0 0 24 24');
+      chevron.setAttribute('fill', 'none');
+      chevron.setAttribute('aria-hidden', 'true');
+      var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', 'M6 9l6 6 6-6');
+      path.setAttribute('stroke', 'currentColor');
+      path.setAttribute('stroke-width', '2');
+      path.setAttribute('stroke-linecap', 'round');
+      path.setAttribute('stroke-linejoin', 'round');
+      chevron.appendChild(path);
+      btn.appendChild(chevron);
+
+      var body = document.createElement('div');
+      body.className = 'lmsbox-accordion__panel';
+      body.id = 'lmsbox-acc-panel-{{BLOCK_ID}}-' + index;
+      body.setAttribute('role', 'region');
+      body.setAttribute('aria-labelledby', btn.id);
+      body.textContent = panel.body || '';
+      btn.setAttribute('aria-controls', body.id);
+
+      btn.addEventListener('click', function () {
+        var isOpen = item.getAttribute('data-open') === '1';
+        item.setAttribute('data-open', isOpen ? '0' : '1');
+        btn.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+        if (!isOpen) {
+          expanded[index] = true;
+          updateProgress();
+        }
+      });
+
+      item.appendChild(btn);
+      item.appendChild(body);
+      listEl.appendChild(item);
+    });
+
+    updateProgress();
+  })();
+  </script>
+</div>

@@ -73,6 +73,11 @@ public class SurveyQuestion
 
     public bool IsRequired { get; set; } = true;
 
+    /// <summary>
+    /// Who can view responses in reports: All or SuperAdminOnly.
+    /// </summary>
+    public string ResponseVisibility { get; set; } = SurveyQuestionResponseVisibility.All;
+
     // For rating questions: min and max values
     public int? MinRating { get; set; }
     public int? MaxRating { get; set; }
@@ -81,6 +86,12 @@ public class SurveyQuestion
 
     // Navigation properties
     public ICollection<SurveyQuestionResponse>? QuestionResponses { get; set; }
+}
+
+public static class SurveyQuestionResponseVisibility
+{
+    public const string All = "All";
+    public const string SuperAdminOnly = "SuperAdminOnly";
 }
 
 /// <summary>

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
 import usePageTitle from '../hooks/usePageTitle';
+import { getFavoriteReports, updateFavoriteReports } from '../services/profile';
 import {
   ChartBarIcon,
   UserGroupIcon,
@@ -11,20 +12,27 @@ import {
   ArrowTrendingUpIcon,
   BookOpenIcon,
   MapIcon,
-  ChartPieIcon
+  ChartPieIcon,
+  ClipboardDocumentListIcon,
+  StarIcon
 } from '@heroicons/react/24/outline';
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { HardDrive } from 'lucide-react';
 
 export default function AdminReports() {
   usePageTitle('Reports & Analytics');
-  const [activeCategory, setActiveCategory] = useState('all');
+  const [activeCategory, setActiveCategory] = useState(null);
+  const [favoriteReportIds, setFavoriteReportIds] = useState([]);
+  const [favoritesLoaded, setFavoritesLoaded] = useState(false);
+  const [togglingFavoriteId, setTogglingFavoriteId] = useState(null);
 
   const reportCategories = [
-    { id: 'all', name: 'All Reports', icon: DocumentChartBarIcon },
+    { id: 'favorites', name: 'Favourites', icon: StarIcon },
     { id: 'users', name: 'Users & Engagement', icon: UserGroupIcon },
     { id: 'courses', name: 'Course Analytics', icon: AcademicCapIcon },
     { id: 'pathways', name: 'Learning Pathways', icon: MapIcon },
-    { id: 'admin', name: 'Administrative', icon: ChartBarIcon }
+    { id: 'admin', name: 'Administrative', icon: ChartBarIcon },
+    { id: 'all', name: 'All Reports', icon: DocumentChartBarIcon }
   ];
 
   const reports = [
@@ -47,6 +55,24 @@ export default function AdminReports() {
       color: 'bg-[#1b365d]'
     },
     {
+      id: 'time-tracking',
+      name: 'Time Tracking & Engagement',
+      description: 'Detailed time spent analytics by users, courses, and lessons with engagement metrics',
+      category: 'users',
+      icon: ClockIcon,
+      path: '/admin/reports/time-tracking',
+      color: 'bg-rose-500'
+    },
+    {
+      id: 'engagement-analytics',
+      name: 'Engagement Analytics',
+      description: 'Real-time engagement tracking with daily scores, top users, and activity breakdown',
+      category: 'users',
+      icon: ChartPieIcon,
+      path: '/admin/analytics/engagement',
+      color: 'bg-purple-600'
+    },
+    {
       id: 'course-enrollment',
       name: 'Course Enrollment Report',
       description: 'Analyse enrollment trends over time across all courses',
@@ -67,29 +93,47 @@ export default function AdminReports() {
     {
       id: 'lesson-analytics',
       name: 'Lesson Analytics Report',
-      description: 'Per-lesson analytics including views, completions, and quiz performance',
+      description: 'Per-lesson analytics including views, completions, and assessment performance',
       category: 'courses',
       icon: BookOpenIcon,
       path: '/admin/reports/lesson-analytics',
       color: 'bg-yellow-500'
     },
     {
-      id: 'time-tracking',
-      name: 'Time Tracking & Engagement',
-      description: 'Detailed time spent analytics by users, courses, and lessons with engagement metrics',
-      category: 'users',
-      icon: ClockIcon,
-      path: '/admin/reports/time-tracking',
-      color: 'bg-rose-500'
+      id: 'user-lesson-progress',
+      name: 'User-Lesson Progress Report',
+      description: 'Detailed view of each user\'s progress on individual lessons with time spent and completion status',
+      category: 'courses',
+      icon: BookOpenIcon,
+      path: '/admin/reports/user-lesson-progress',
+      color: 'bg-indigo-500'
     },
     {
-      id: 'engagement-analytics',
-      name: 'Engagement Analytics',
-      description: 'Real-time engagement tracking with daily scores, top users, and activity breakdown',
-      category: 'users',
+      id: 'quiz-attempts',
+      name: 'Assessment Attempts Report',
+      description: 'Heat maps for assessment, category, and question difficulty plus latest-attempt drill-down',
+      category: 'courses',
       icon: ChartPieIcon,
-      path: '/admin/analytics/engagement',
-      color: 'bg-purple-600'
+      path: '/admin/reports/quiz-attempts',
+      color: 'bg-violet-600'
+    },
+    {
+      id: 'assessment-difficulty',
+      name: 'Assessment Difficulty Report',
+      description: 'All assessments with attempt, completion, and pass statistics plus per-question difficulty drill-down',
+      category: 'courses',
+      icon: ChartBarIcon,
+      path: '/admin/reports/assessment-difficulty',
+      color: 'bg-orange-600'
+    },
+    {
+      id: 'survey-report',
+      name: 'Survey Report',
+      description: 'Table of all course-linked surveys with attempt counts; open any row for question-level analytics',
+      category: 'courses',
+      icon: ClipboardDocumentListIcon,
+      path: '/admin/reports/surveys',
+      color: 'bg-emerald-600'
     },
     {
       id: 'pathway-progress',
@@ -128,6 +172,16 @@ export default function AdminReports() {
       color: 'bg-[#36454F]'
     },
     {
+      id: 'activity-logs',
+      name: 'Activity Log Report',
+      description:
+        'Browse all logged platform activity from learners and admins with search, filters, and full detail view',
+      category: 'admin',
+      icon: ClipboardDocumentListIcon,
+      path: '/admin/reports/activity-logs',
+      color: 'bg-teal-700'
+    },
+    {
       id: 'storage-usage',
       name: 'Storage Usage Report',
       description: 'Monitor Azure storage consumption and manage your storage quota',
@@ -138,14 +192,128 @@ export default function AdminReports() {
     }
   ];
 
-  const filteredReports = activeCategory === 'all' 
-    ? reports 
-    : reports.filter(r => r.category === activeCategory);
+  const favoriteIdSet = new Set(favoriteReportIds);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadFavorites() {
+      try {
+        const data = await getFavoriteReports();
+        if (cancelled) return;
+
+        const ids = data?.favoriteReportIds ?? [];
+        setFavoriteReportIds(ids);
+        setActiveCategory(ids.length > 0 ? 'favorites' : 'all');
+      } catch {
+        if (!cancelled) {
+          setActiveCategory('all');
+        }
+      } finally {
+        if (!cancelled) {
+          setFavoritesLoaded(true);
+        }
+      }
+    }
+
+    loadFavorites();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const toggleFavorite = async (reportId, event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (togglingFavoriteId) return;
+
+    const isFavorite = favoriteIdSet.has(reportId);
+    const nextFavorites = isFavorite
+      ? favoriteReportIds.filter((id) => id !== reportId)
+      : [...favoriteReportIds, reportId];
+
+    setFavoriteReportIds(nextFavorites);
+    setTogglingFavoriteId(reportId);
+
+    try {
+      const data = await updateFavoriteReports(nextFavorites);
+      const savedFavorites = data?.favoriteReportIds ?? nextFavorites;
+      setFavoriteReportIds(savedFavorites);
+      if (savedFavorites.length === 0 && activeCategory === 'favorites') {
+        setActiveCategory('all');
+      }
+    } catch {
+      setFavoriteReportIds(favoriteReportIds);
+    } finally {
+      setTogglingFavoriteId(null);
+    }
+  };
+
+  const getFilteredReports = () => {
+    if (activeCategory === 'all') return reports;
+    if (activeCategory === 'favorites') {
+      return reports.filter((report) => favoriteIdSet.has(report.id));
+    }
+    return reports.filter((report) => report.category === activeCategory);
+  };
+
+  const renderReportCard = (report) => {
+    const Icon = report.icon;
+    const isFavorite = favoriteIdSet.has(report.id);
+
+    return (
+      <Link
+        key={report.id}
+        to={report.path}
+        className="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-indigo-500 rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <span className={`rounded-lg inline-flex p-3 ${report.color} text-white ring-4 ring-white`}>
+            <Icon className="h-6 w-6" aria-hidden="true" />
+          </span>
+          <button
+            type="button"
+            onClick={(event) => toggleFavorite(report.id, event)}
+            disabled={togglingFavoriteId === report.id}
+            className={`rounded-md p-1 transition-colors ${
+              isFavorite
+                ? 'text-amber-500 hover:text-amber-600'
+                : 'text-gray-300 hover:text-amber-500'
+            }`}
+            aria-label={isFavorite ? `Remove ${report.name} from favourites` : `Add ${report.name} to favourites`}
+            title={isFavorite ? 'Remove from favourites' : 'Add to favourites'}
+          >
+            {isFavorite ? (
+              <StarIconSolid className="h-6 w-6" aria-hidden="true" />
+            ) : (
+              <StarIcon className="h-6 w-6" aria-hidden="true" />
+            )}
+          </button>
+        </div>
+        <div className="mt-8">
+          <h3 className="text-lg font-medium text-gray-900">
+            {report.name}
+          </h3>
+          <p className="mt-2 text-sm text-gray-500">
+            {report.description}
+          </p>
+        </div>
+      </Link>
+    );
+  };
+
+  const sectionCategories = reportCategories.filter(
+    (category) => category.id !== 'all' && category.id !== 'favorites'
+  );
+
+  const filteredReports = getFilteredReports();
 
   return (
     <div className="min-h-screen bg-gray-50">
       <AdminHeader />
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-6">
           <div>
@@ -155,9 +323,8 @@ export default function AdminReports() {
             </p>
           </div>
 
-          {/* Category Filter */}
           <div className="border-b border-gray-200 bg-white rounded-t-lg px-4">
-            <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+            <nav className="-mb-px flex flex-wrap gap-x-8" aria-label="Tabs">
               {reportCategories.map((category) => {
                 const Icon = category.icon;
                 const isActive = activeCategory === category.id;
@@ -165,12 +332,14 @@ export default function AdminReports() {
                   <button
                     key={category.id}
                     onClick={() => setActiveCategory(category.id)}
+                    disabled={!favoritesLoaded}
                     className={`
                       group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm
                       ${isActive
                         ? 'border-indigo-500 text-indigo-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                       }
+                      ${!favoritesLoaded ? 'opacity-60 cursor-wait' : ''}
                     `}
                   >
                     <Icon
@@ -181,49 +350,57 @@ export default function AdminReports() {
                       aria-hidden="true"
                     />
                     <span>{category.name}</span>
+                    {category.id === 'favorites' && favoriteReportIds.length > 0 && (
+                      <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                        {favoriteReportIds.length}
+                      </span>
+                    )}
                   </button>
                 );
               })}
             </nav>
           </div>
 
-          {/* Reports Grid */}
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredReports.map((report) => {
-              const Icon = report.icon;
-              return (
-                <Link
-                  key={report.id}
-                  to={report.path}
-                  className="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-indigo-500 rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all"
-                >
-                  <div>
-                    <span className={`rounded-lg inline-flex p-3 ${report.color} text-white ring-4 ring-white`}>
-                      <Icon className="h-6 w-6" aria-hidden="true" />
-                    </span>
-                  </div>
-                  <div className="mt-8">
-                    <h3 className="text-lg font-medium text-gray-900">
-                      {report.name}
-                    </h3>
-                    <p className="mt-2 text-sm text-gray-500">
-                      {report.description}
-                    </p>
-                  </div>
-                  <span
-                    className="pointer-events-none absolute top-6 right-6 text-gray-300 group-hover:text-gray-400"
-                    aria-hidden="true"
-                  >
-                    <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M20 4h1a1 1 0 00-1-1v1zm-1 12a1 1 0 102 0h-2zM8 3a1 1 0 000 2V3zM3.293 19.293a1 1 0 101.414 1.414l-1.414-1.414zM19 4v12h2V4h-2zm1-1H8v2h12V3zm-.707.293l-16 16 1.414 1.414 16-16-1.414-1.414z" />
-                    </svg>
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
+          {!favoritesLoaded ? (
+            <div className="rounded-lg border border-gray-200 bg-white px-6 py-12 text-center text-sm text-gray-500">
+              Loading reports...
+            </div>
+          ) : activeCategory === 'all' ? (
+            <div className="space-y-10">
+              {sectionCategories.map((category) => {
+                const categoryReports = reports.filter((report) => report.category === category.id);
+                if (categoryReports.length === 0) return null;
 
-          {/* Quick Actions section removed as per requirement */}
+                return (
+                  <section key={category.id}>
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">{category.name}</h2>
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                      {categoryReports.map(renderReportCard)}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          ) : activeCategory === 'favorites' && filteredReports.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-gray-300 bg-white px-6 py-12 text-center">
+              <StarIcon className="mx-auto h-10 w-10 text-gray-300" aria-hidden="true" />
+              <h2 className="mt-4 text-lg font-medium text-gray-900">No favourite reports yet</h2>
+              <p className="mt-2 text-sm text-gray-500">
+                Use the star on any report card to add it here for quick access.
+              </p>
+              <button
+                type="button"
+                onClick={() => setActiveCategory('all')}
+                className="mt-6 inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+              >
+                Browse all reports
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredReports.map(renderReportCard)}
+            </div>
+          )}
         </div>
       </div>
     </div>

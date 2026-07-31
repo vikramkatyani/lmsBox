@@ -10,6 +10,7 @@ namespace lmsbox.domain.Models
         [Required]
         public string Title { get; set; } = null!;
         public string? Description { get; set; }
+        public string? IntroductionContent { get; set; }
         public int PassingScore { get; set; } = 70;
         public bool IsTimed { get; set; } = false;
         public int TimeLimit { get; set; } = 30;
@@ -18,12 +19,48 @@ namespace lmsbox.domain.Models
         public bool ShowResults { get; set; } = true;
         public bool AllowRetake { get; set; } = true;
         public int MaxAttempts { get; set; } = 3;
-        [Required]
-        public string CourseId { get; set; } = null!;
+        /// <summary>Random questions per attempt; null or 0 = show entire pool.</summary>
+        public int? QuestionsPerAttempt { get; set; }
+        /// <summary>
+        /// CourseId is required for course quizzes, but omitted for Question Bank quizzes.
+        /// Validation is enforced in the relevant controllers.
+        /// </summary>
+        public string? CourseId { get; set; }
         public List<CreateQuestionRequest> Questions { get; set; } = new();
     }
 
     public class UpdateQuizRequest : CreateQuizRequest
+    {
+    }
+
+    public class CreateQuizFromBankRequest
+    {
+        [Required]
+        public string Title { get; set; } = null!;
+        public string? Description { get; set; }
+        public string? IntroductionContent { get; set; }
+        public int PassingScore { get; set; } = 70;
+        public bool IsTimed { get; set; } = false;
+        public int TimeLimit { get; set; } = 30;
+        public bool ShuffleQuestions { get; set; } = false;
+        public bool ShuffleAnswers { get; set; } = false;
+        public bool ShowResults { get; set; } = true;
+        public bool AllowRetake { get; set; } = true;
+        public int MaxAttempts { get; set; } = 3;
+        public int? QuestionsPerAttempt { get; set; }
+        /// <summary>
+        /// Optional mapping of Category -> number of questions to show per attempt.
+        /// When provided, the sum should equal QuestionsPerAttempt.
+        /// </summary>
+        public Dictionary<string, int>? QuestionsPerAttemptByCategory { get; set; }
+
+        [Required]
+        public string CourseId { get; set; } = null!;
+
+        public long[] QuestionBankQuestionIds { get; set; } = Array.Empty<long>();
+    }
+
+    public class UpdateQuizFromBankRequest : CreateQuizFromBankRequest
     {
     }
 
@@ -34,6 +71,8 @@ namespace lmsbox.domain.Models
         public string Type { get; set; } = "mc_single";
         public int Points { get; set; } = 1;
         public string? Explanation { get; set; }
+        public string? Category { get; set; }
+        public bool IsCriticalSafety { get; set; }
         public List<CreateOptionRequest> Options { get; set; } = new();
     }
 
@@ -42,6 +81,24 @@ namespace lmsbox.domain.Models
         [Required]
         public string Text { get; set; } = null!;
         public bool IsCorrect { get; set; } = false;
+    }
+
+    // Question Bank (global questions) DTOs
+    public class CreateQuestionBankQuestionRequest
+    {
+        [Required]
+        public string Question { get; set; } = null!;
+        public string Type { get; set; } = "mc_single";
+        public int Points { get; set; } = 1;
+        public string? Explanation { get; set; }
+        public string? Category { get; set; }
+        public bool IsCriticalSafety { get; set; }
+        public string[]? Tags { get; set; }
+        public List<CreateOptionRequest> Options { get; set; } = new();
+    }
+
+    public class UpdateQuestionBankQuestionRequest : CreateQuestionBankQuestionRequest
+    {
     }
 
     // User DTOs

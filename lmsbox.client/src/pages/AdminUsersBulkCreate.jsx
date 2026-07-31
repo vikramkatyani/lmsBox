@@ -1,14 +1,22 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
 import toast from 'react-hot-toast';
 import { bulkCreateUsers } from '../services/users';
 import { listUserGroups } from '../services/learningPathways';
+import { canManageUsersInUI } from '../config/adminFeatureFlags';
 import usePageTitle from '../hooks/usePageTitle';
 
 export default function AdminUsersBulkCreate() {
   const navigate = useNavigate();
   usePageTitle('Add Users');
+
+  useEffect(() => {
+    if (!canManageUsersInUI()) {
+      toast.error('User create and edit are not available here. Changes are managed via the integration API.');
+      navigate('/admin/users', { replace: true });
+    }
+  }, [navigate]);
 
   const [emailsText, setEmailsText] = useState('');
   const [groupPickerOpen, setGroupPickerOpen] = useState(false);

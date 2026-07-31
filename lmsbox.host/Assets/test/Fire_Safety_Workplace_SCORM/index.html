@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fire Safety in the Workplace - Micro-Training Course</title>
+  <script src="scorm_api.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --color-surface: #0f172a;
+      --color-surface-light: #1e293b;
+      --color-surface-lighter: #334155;
+      --color-primary: #f97316;
+      --color-primary-dark: #ea580c;
+      --color-danger: #ef4444;
+      --color-success: #22c55e;
+      --color-warning: #eab308;
+      --color-info: #3b82f6;
+      --color-purple: #a855f7;
+      --color-text: #f8fafc;
+      --color-text-muted: #94a3b8;
+      --color-border: #475569;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--color-surface); color: var(--color-text); min-height: 100vh; line-height: 1.6; }
+    .lms-container { max-width: 1000px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+    .progress-bar { height: 4px; background: var(--color-border); position: sticky; top: 0; z-index: 100; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--color-primary), var(--color-warning)); transition: width 0.3s ease; }
+    .course-header { padding: 16px 24px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; background: var(--color-surface-light); }
+    .course-title { font-size: 16px; font-weight: 600; }
+    .course-meta { display: flex; gap: 16px; font-size: 13px; color: var(--color-text-muted); }
+    .slide-container { flex: 1; padding: 32px 24px; overflow-y: auto; }
+    .slide { display: none; animation: fadeIn 0.3s ease; }
+    .slide.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .slide-lesson-tag { color: var(--color-primary); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; font-weight: 600; }
+    .slide-title { font-size: 28px; font-weight: 700; margin-bottom: 16px; line-height: 1.2; }
+    .slide-intro { font-size: 15px; color: var(--color-text-muted); margin-bottom: 24px; line-height: 1.7; }
+    .learning-objectives { background: var(--color-surface-light); border-radius: 10px; padding: 20px; margin: 20px 0; border-left: 4px solid var(--color-info); }
+    .learning-objectives h4 { color: var(--color-info); font-size: 12px; letter-spacing: 1px; margin-bottom: 12px; }
+    .learning-objectives li { margin-left: 20px; margin-bottom: 8px; font-size: 14px; color: var(--color-text-muted); }
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin: 24px 0; }
+    .card { background: var(--color-surface-light); border-radius: 10px; padding: 20px; border-left: 4px solid var(--color-primary); }
+    .card-header { color: var(--color-primary); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+    .card-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+    .card-text { font-size: 14px; color: var(--color-text-muted); }
+    .card-footer { margin-top: 12px; font-size: 12px; color: var(--color-primary); }
+    .info-block { background: var(--color-surface-light); border-radius: 10px; padding: 18px 20px; margin: 12px 0; display: flex; gap: 16px; align-items: flex-start; }
+    .info-block-icon { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .info-block-content h4 { font-size: 15px; margin-bottom: 4px; }
+    .info-block-content p { font-size: 13px; color: var(--color-text-muted); }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 24px 0; }
+    @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+    .triangle-container { display: flex; justify-content: center; align-items: center; padding: 30px; background: var(--color-surface-light); border-radius: 12px; }
+    .triangle-visual { position: relative; width: 240px; height: 210px; }
+    .triangle-shape { width: 0; height: 0; border-left: 120px solid transparent; border-right: 120px solid transparent; border-bottom: 200px solid var(--color-surface-lighter); position: absolute; top: 0; left: 0; }
+    .triangle-label { position: absolute; text-align: center; font-size: 12px; }
+    .triangle-label.top { top: 20px; left: 50%; transform: translateX(-50%); }
+    .triangle-label.left { bottom: 10px; left: 10px; }
+    .triangle-label.right { bottom: 10px; right: 10px; }
+    .triangle-label.center { top: 55%; left: 50%; transform: translate(-50%, -50%); }
+    .triangle-label strong { display: block; color: var(--color-primary); font-size: 14px; font-weight: 700; }
+    .fire-class-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 20px 0; }
+    .fire-class-item { background: var(--color-surface-light); border-radius: 10px; padding: 16px; text-align: center; }
+    .fire-class-badge { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; margin: 0 auto 12px; }
+    .fire-class-item h4 { font-size: 13px; margin-bottom: 6px; }
+    .fire-class-item p { font-size: 11px; color: var(--color-text-muted); }
+    .spread-card { background: var(--color-surface-light); border-radius: 12px; padding: 20px; text-align: center; border-top: 4px solid var(--color-primary); }
+    .spread-icon { font-size: 32px; margin-bottom: 12px; }
+    .spread-title { font-size: 16px; font-weight: 700; color: var(--color-primary); margin-bottom: 4px; }
+    .spread-stat { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+    .spread-desc { font-size: 12px; color: var(--color-text-muted); }
+    .action-list { margin: 20px 0; }
+    .action-item { display: flex; gap: 16px; align-items: flex-start; background: var(--color-surface-light); padding: 16px; border-radius: 10px; margin-bottom: 10px; border-left: 4px solid var(--color-primary); }
+    .action-keyword { background: var(--color-primary); color: white; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 1px; flex-shrink: 0; }
+    .action-text { font-size: 14px; color: var(--color-text-muted); }
+    .action-text strong { color: var(--color-text); }
+    .sign-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 20px 0; }
+    @media (max-width: 600px) { .sign-grid { grid-template-columns: 1fr; } }
+    .sign-item { background: var(--color-surface-light); border-radius: 10px; padding: 16px; display: flex; gap: 14px; align-items: center; }
+    .sign-icon { width: 50px; height: 50px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+    .sign-content h4 { font-size: 14px; margin-bottom: 4px; }
+    .sign-content p { font-size: 12px; color: var(--color-text-muted); }
+    .steps-vertical { margin: 24px 0; }
+    .step-item { display: flex; gap: 16px; margin-bottom: 12px; }
+    .step-number { width: 36px; height: 36px; border-radius: 50%; background: var(--color-primary); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; flex-shrink: 0; }
+    .step-content { flex: 1; background: var(--color-surface-light); border-radius: 10px; padding: 14px 18px; }
+    .step-content h4 { font-size: 14px; margin-bottom: 4px; color: var(--color-primary); }
+    .step-content p { font-size: 13px; color: var(--color-text-muted); }
+    .extinguisher-table { margin: 20px 0; }
+    .ext-row { display: grid; grid-template-columns: 100px 1fr 100px; gap: 8px; margin-bottom: 8px; }
+    .ext-row.header { font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 1px; padding-bottom: 8px; border-bottom: 1px solid var(--color-border); }
+    .ext-row > div { background: var(--color-surface-light); padding: 12px; border-radius: 6px; display: flex; align-items: center; }
+    .ext-row.header > div { background: transparent; }
+    .ext-type { font-weight: 600; font-size: 13px; }
+    .ext-label { width: 16px; height: 16px; border-radius: 3px; margin-right: 8px; }
+    .ext-uses { font-size: 12px; color: var(--color-text-muted); }
+    .ext-classes { font-size: 12px; font-weight: 600; }
+    .pass-technique { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 24px 0; }
+    @media (max-width: 700px) { .pass-technique { grid-template-columns: repeat(2, 1fr); } }
+    .pass-item { background: var(--color-surface-light); border-radius: 12px; padding: 20px 14px; text-align: center; }
+    .pass-letter { width: 56px; height: 56px; background: var(--color-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700; margin: 0 auto 14px; }
+    .pass-word { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .pass-desc { font-size: 12px; color: var(--color-text-muted); }
+    .callout { background: linear-gradient(135deg, var(--color-danger) 0%, #991b1b 100%); border-radius: 12px; padding: 20px; margin: 20px 0; }
+    .callout.warning { background: linear-gradient(135deg, var(--color-warning) 0%, #a16207 100%); }
+    .callout.info { background: linear-gradient(135deg, var(--color-info) 0%, #1d4ed8 100%); }
+    .callout.primary { background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%); }
+    .callout-stat { font-size: 36px; font-weight: 700; margin-bottom: 4px; }
+    .callout-text { font-size: 14px; opacity: 0.9; }
+    .key-takeaway { background: var(--color-surface-light); border-radius: 8px; padding: 14px 18px; margin-top: 28px; border-left: 4px solid var(--color-primary); }
+    .key-takeaway-label { color: var(--color-primary); font-size: 10px; letter-spacing: 1px; font-weight: 700; margin-bottom: 4px; }
+    .key-takeaway p { font-size: 14px; }
+    .key-takeaway.danger { background: var(--color-danger); border-left-color: var(--color-danger); }
+    .key-takeaway.danger .key-takeaway-label { color: rgba(255,255,255,0.7); }
+    .summary-list { margin: 20px 0; }
+    .summary-item { display: flex; gap: 14px; align-items: center; background: var(--color-surface-light); padding: 14px 16px; border-radius: 8px; margin-bottom: 10px; }
+    .summary-number { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+    .summary-item p { font-size: 14px; }
+    .summary-item strong { color: var(--color-primary); }
+    .quote-box { background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%); border-radius: 10px; padding: 20px 24px; text-align: center; margin-top: 24px; }
+    .quote-box p { font-size: 15px; font-style: italic; }
+    .title-slide { text-align: center; padding: 50px 20px; }
+    .title-badge { color: var(--color-primary); font-size: 12px; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 20px; }
+    .title-slide h1 { font-size: 42px; font-weight: 700; margin-bottom: 8px; line-height: 1.1; }
+    .title-slide h1 span { color: var(--color-primary); }
+    .title-subtitle { font-size: 16px; color: var(--color-text-muted); margin-top: 16px; }
+    .title-stats { display: flex; justify-content: center; gap: 32px; margin-top: 40px; }
+    .title-stat { text-align: center; }
+    .title-stat .value { font-size: 32px; font-weight: 700; color: var(--color-primary); }
+    .title-stat .label { font-size: 11px; color: var(--color-text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+    .title-divider { width: 1px; height: 50px; background: var(--color-border); }
+    .nav-bar { padding: 14px 24px; border-top: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; background: var(--color-surface-light); position: sticky; bottom: 0; }
+    .nav-info { font-size: 12px; color: var(--color-text-muted); }
+    .nav-buttons { display: flex; gap: 10px; }
+    .nav-btn { padding: 10px 22px; border-radius: 6px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+    .nav-btn.secondary { background: var(--color-surface-lighter); color: var(--color-text); }
+    .nav-btn.secondary:hover { background: var(--color-border); }
+    .nav-btn.primary { background: var(--color-primary); color: white; }
+    .nav-btn.primary:hover { background: var(--color-primary-dark); }
+    .nav-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .completion-screen { text-align: center; padding: 60px 20px; }
+    .completion-icon { width: 80px; height: 80px; background: var(--color-success); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: 0 auto 24px; }
+    .completion-screen h2 { font-size: 28px; margin-bottom: 12px; }
+    .completion-screen p { color: var(--color-text-muted); margin-bottom: 28px; }
+    .restart-btn { padding: 12px 28px; background: var(--color-primary); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .restart-btn:hover { background: var(--color-primary-dark); }
+  </style>
+</head>
+<body>
+  <div class="lms-container">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width: 0%"></div></div>
+    <div class="course-header">
+      <div class="course-title">🔥 Fire Safety in the Workplace</div>
+      <div class="course-meta"><span>⏱️ 10 mins</span><span>📚 5 lessons</span><span id="slideCounter">1 / 19</span></div>
+    </div>
+    <div class="slide-container">
+      
+      <!-- Slide 1: Title -->
+      <div class="slide active" data-slide="1">
+        <div class="title-slide">
+          <div class="title-badge">Micro-Training Course</div>
+          <h1>FIRE SAFETY<br><span>IN THE WORKPLACE</span></h1>
+          <p class="title-subtitle">Essential Training for Office Employees</p>
+          <div class="title-stats">
+            <div class="title-stat"><div class="value">10</div><div class="label">Minutes</div></div>
+            <div class="title-divider"></div>
+            <div class="title-stat"><div class="value">5</div><div class="label">Lessons</div></div>
+            <div class="title-divider"></div>
+            <div class="title-stat"><div class="value">19</div><div class="label">Screens</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 2: Course Overview -->
+      <div class="slide" data-slide="2">
+        <div class="slide-title">Course Overview</div>
+        <div class="cards-grid">
+          <div class="card"><div class="card-header">LESSON 1</div><div class="card-title">Understanding Fire</div><div class="card-text">The Triangle of Fire, fire classes, and how fire spreads</div><div class="card-footer">2 mins • 4 screens</div></div>
+          <div class="card"><div class="card-header">LESSON 2</div><div class="card-title">Fire Prevention</div><div class="card-text">Practical prevention, electrical safety, hazard identification</div><div class="card-footer">2 mins • 4 screens</div></div>
+          <div class="card"><div class="card-header">LESSON 3</div><div class="card-title">Fire Safety Signs & Equipment</div><div class="card-text">Recognising signs, fire doors, escape routes</div><div class="card-footer">2 mins • 4 screens</div></div>
+          <div class="card"><div class="card-header">LESSON 4</div><div class="card-title">Emergency Response</div><div class="card-text">Discovering a fire, alarm response, smoke survival</div><div class="card-footer">2 mins • 4 screens</div></div>
+          <div class="card"><div class="card-header">LESSON 5</div><div class="card-title">Using Fire Extinguishers</div><div class="card-text">Extinguisher types and the PASS technique</div><div class="card-footer">2 mins • 3 screens</div></div>
+        </div>
+      </div>
+
+      <!-- Slide 3: Lesson 1 Intro -->
+      <div class="slide" data-slide="3">
+        <div class="slide-lesson-tag">LESSON 1</div>
+        <div class="slide-title">Understanding Fire</div>
+        <p class="slide-intro">This lesson covers the fundamental principles of fire and how it behaves. Understanding what fire needs to survive is essential for preventing fires and knowing how to respond in an emergency.</p>
+        <div class="learning-objectives"><h4>IN THIS LESSON YOU WILL LEARN</h4><ul><li>The three elements required for fire to exist</li><li>The different classes of fire based on fuel type</li><li>How fires spread through buildings</li></ul></div>
+      </div>
+
+      <!-- Slide 4: Triangle of Fire -->
+      <div class="slide" data-slide="4">
+        <div class="slide-lesson-tag">LESSON 1</div>
+        <div class="slide-title">The Triangle of Fire</div>
+        <p class="slide-intro">Fire is a chemical reaction called combustion. For fire to start and survive, three elements must be present.</p>
+        <div class="two-col">
+          <div class="triangle-container">
+            <div class="triangle-visual">
+              <div class="triangle-shape"></div>
+              <div class="triangle-label top"><strong>HEAT</strong><span>Electrics, sparks</span></div>
+              <div class="triangle-label left"><strong>FUEL</strong><span>Paper, wood</span></div>
+              <div class="triangle-label right"><strong>OXYGEN</strong><span>In the air</span></div>
+              <div class="triangle-label center"><strong style="color: white; font-size: 16px;">🔥 FIRE</strong></div>
+            </div>
+          </div>
+          <div>
+            <div class="info-block"><div class="info-block-icon" style="background: rgba(239,68,68,0.2); color: var(--color-danger);">🔥</div><div class="info-block-content"><h4>Heat Sources</h4><p>Faulty electrical equipment, discarded cigarettes, sparks from machinery</p></div></div>
+            <div class="info-block"><div class="info-block-icon" style="background: rgba(249,115,22,0.2); color: var(--color-primary);">📦</div><div class="info-block-content"><h4>Fuel Sources</h4><p>Paper, wood, textiles, petrol, escaping gas</p></div></div>
+            <div class="info-block"><div class="info-block-icon" style="background: rgba(59,130,246,0.2); color: var(--color-info);">💨</div><div class="info-block-content"><h4>Oxygen</h4><p>Present in the air (approximately 21%)</p></div></div>
+          </div>
+        </div>
+        <div class="key-takeaway"><div class="key-takeaway-label">KEY TAKEAWAY</div><p>All three elements – heat, fuel, and oxygen – must be present for fire to exist. <strong>Remove any one element and the fire will go out.</strong></p></div>
+      </div>
+
+      <!-- Slide 5: Classes of Fire -->
+      <div class="slide" data-slide="5">
+        <div class="slide-lesson-tag">LESSON 1</div>
+        <div class="slide-title">Classes of Fire</div>
+        <p class="slide-intro">Fires are classified based on the type of fuel that is burning. Different classes require different firefighting methods.</p>
+        <div class="fire-class-grid">
+          <div class="fire-class-item"><div class="fire-class-badge" style="background: var(--color-success);">A</div><h4>Ordinary Combustibles</h4><p>Wood, paper, textiles, plastics</p></div>
+          <div class="fire-class-item"><div class="fire-class-badge" style="background: var(--color-danger);">B</div><h4>Flammable Liquids</h4><p>Petrol, oils, spirits, grease</p></div>
+          <div class="fire-class-item"><div class="fire-class-badge" style="background: var(--color-info);">C</div><h4>Flammable Gases</h4><p>Propane, butane, natural gas</p></div>
+          <div class="fire-class-item"><div class="fire-class-badge" style="background: var(--color-warning);">⚡</div><h4>Electrical</h4><p>Live equipment, sockets, cables</p></div>
+          <div class="fire-class-item"><div class="fire-class-badge" style="background: var(--color-purple);">F</div><h4>Cooking Oils & Fats</h4><p>Kitchens, catering areas</p></div>
+        </div>
+        <div class="key-takeaway"><div class="key-takeaway-label">KEY TAKEAWAY</div><p>Always identify the class of fire before attempting to tackle it – <strong>using the wrong method can spread the fire or cause injury.</strong></p></div>
+      </div>
+
+      <!-- Slide 6: How Fires Spread -->
+      <div class="slide" data-slide="6">
+        <div class="slide-lesson-tag">LESSON 1</div>
+        <div class="slide-title">How Fires Spread</div>
+        <p class="slide-intro">Understanding how fire spreads helps you anticipate danger and evacuate safely.</p>
+        <div class="cards-grid" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="spread-card"><div class="spread-icon">↑</div><div class="spread-title">CONVECTION</div><div class="spread-stat">70%</div><div class="spread-desc">Hot gases rise through stairwells, lift shafts, and ducts</div></div>
+          <div class="spread-card"><div class="spread-icon">→</div><div class="spread-title">CONDUCTION</div><div class="spread-stat">Solids</div><div class="spread-desc">Heat transfers through metal pipes, structural elements</div></div>
+          <div class="spread-card"><div class="spread-icon">≈</div><div class="spread-title">RADIATION</div><div class="spread-stat">Air</div><div class="spread-desc">Heat radiates through air, igniting nearby objects</div></div>
+        </div>
+        <div class="callout"><div class="callout-stat">50%+</div><div class="callout-text">of fire-related deaths are caused by <strong>SMOKE</strong> – it fills rooms from the ceiling downwards</div></div>
+        <div class="key-takeaway"><div class="key-takeaway-label">KEY TAKEAWAY</div><p>Fire spreads fastest upwards through convection – <strong>upper floors are at greatest risk.</strong></p></div>
+      </div>
+
+      <!-- Slide 7: Lesson 2 Intro -->
+      <div class="slide" data-slide="7">
+        <div class="slide-lesson-tag">LESSON 2</div>
+        <div class="slide-title">Fire Prevention</div>
+        <p class="slide-intro">Prevention is always better than cure. This lesson covers practical steps you can take every day to reduce fire risks in your workplace.</p>
+        <div class="learning-objectives"><h4>IN THIS LESSON YOU WILL LEARN</h4><ul><li>Practical fire prevention measures</li><li>Safe handling of electrical equipment</li><li>How to identify and report fire hazards</li></ul></div>
+      </div>
+
+      <!-- Slide 8: Preventing Common Fires -->
+      <div class="slide" data-slide="8">
+        <div class="slide-lesson-tag">LESSON 2</div>
+        <div class="slide-title">Preventing Common Fires</div>
+        <p class="slide-intro">Most workplace fires are preventable through simple housekeeping measures and awareness of potential hazards.</p>
+        <div class="action-list">
+          <div class="action-item"><div class="action-keyword">EMPTY</div><div class="action-text">Waste bins regularly and dispose of combustible materials like <strong>newspapers and oily rags</strong> correctly</div></div>
+          <div class="action-item"><div class="action-keyword">STORE</div><div class="action-text">Flammable liquids in original containers with lids replaced, <strong>away from heat and sunlight</strong></div></div>
+          <div class="action-item"><div class="action-keyword">REMOVE</div><div class="action-text">Packaging, cardboard boxes, and combustible materials to <strong>safe storage areas</strong> promptly</div></div>
+          <div class="action-item"><div class="action-keyword">REPORT</div><div class="action-text">Any suspected gas leaks immediately – <strong>do not operate electrical switches</strong></div></div>
+        </div>
+        <div class="key-takeaway"><div class="key-takeaway-label">KEY TAKEAWAY</div><p>Good housekeeping prevents fires – <strong>keep your workspace clear of unnecessary combustible materials.</strong></p></div>
+      </div>
+
+      <!-- Slide 9: Electrical Safety -->
+      <div class="slide" data-slide="9">
+        <div class="slide-lesson-tag">LESSON 2</div>
+        <div class="slide-title">Electrical Safety</div>
+        <p class="slide-intro">Electrical faults are one of the leading causes of workplace fires.</p>
+        <div class="action-list">
+          <div class="action-item"><div class="action-keyword">REPLACE</div><div class="action-text">Electrical leads at the first sign of <strong>wear, fraying, or damage</strong></div></div>
+          <div class="action-item"><div class="action-keyword">AVOID</div><div class="action-text">Overloading electrical sockets – <strong>use one plug per socket</strong> where possible</div></div>
+          <div class="action-item"><div class="action-keyword">SWITCH OFF</div><div class="action-text">All electrical appliances when not in use, <strong>especially overnight</strong></div></div>
+          <div class="action-item"><div class="action-keyword">ENSURE</div><div class="action-text">All appliances are <strong>PAT tested regularly</strong> and air vents are not blocked</div></div>
+          <div class="action-item"><div class="action-keyword">REPORT</div><div class="action-text">Any faulty equipment immediately and <strong>take it out of service</strong></div></div>
+        </div>
+        <div class="key-takeaway"><div class="key-takeaway-label">KEY TAKEAWAY</div><p>Never ignore damaged electrical equipment – <strong>report it immediately and stop using it.</strong></p></div>
+      </div>
+
+      <!-- Slide 10: Identifying Fire Hazards -->
+      <div class="slide" data-slide="10">
+        <div class="slide-lesson-tag">LESSON 2</div>
+        <div class="slide-title">Identifying Fire Hazards</div>
+        <p class="slide-intro">Being alert to potential fire hazards is everyone's responsibility.</p>
+        <div class="action-list">
+          <div class="action-item"><div class="action-keyword">LOOK</div><div class="action-text">For obstructed fire exits, <strong>blocked escape routes</strong>, and items near heat sources</div></div>
+          <div class="action-item"><div class="action-keyword">CHECK</div><div class="action-text">That fire doors are <strong>kept closed</strong> and not propped open</div></div>
+          <div class="action-item"><div class="action-keyword">NOTICE</div><div class="action-text">Unusual smells such as <strong>burning, gas, or overheating</strong> equipment</div></div>
+          <div class="action-item"><div class="action-keyword">REPORT</div><div class="action-text">Any concerns to your <strong>fire warden or H&S representative</strong> immediately</div></div>
+        </div>
+        <div class="key-takeaway"><div class="key-takeaway-label">KEY TAKEAWAY</div><p>If you see a fire hazard, report it – <strong>don't assume someone else will.</strong></p></div>
+      </div>
+
+      <!-- Slide 11: Lesson 3 Intro -->
+      <div class="slide" data-slide="11">
+        <div class="slide-lesson-tag">LESSON 3</div>
+        <div class="slide-title">Fire Safety Signs & Equipment</div>
+        <p class="slide-intro">Fire safety signs and equipment are strategically placed throughout your workplace. Familiarising yourself with their locations could save your life.</p>
+        <div class="learning-objectives"><h4>IN THIS LESSON YOU WILL LEARN</h4><ul><li>How to recognise fire safety signs</li><li>The importance of the Fire Action Notice</li><li>The purpose of fire doors and escape routes</li></ul></div>
+      </div>
+
+      <!-- Slide 12: Fire Safety Signs -->
+      <div class="slide" data-slide="12">
+        <div class="slide-lesson-tag">LESSON 3</div>
+        <div class="slide-title">Fire Safety Signs</div>
+        <p class="slide-intro">By law, all fire safety signs must include a picture to make them easily recognisable.</p>
+        <div class="sign-grid">
+          <div class="sign-item"><div class="sign-icon" style="background: var(--color-success);">🚪</div><div class="sign-content"><h4>FIRE EXIT</h4><p>Green with white figure – shows your nearest route out</p></div></div>
+          <div class="sign-item"><div class="sign-icon" style="background: var(--color-danger);">🔔</div><div class="sign-content"><h4>FIRE ALARM</h4><p>Red – shows where to activate the alarm</p></div></div>
+          <div class="sign-item"><div class="sign-icon" style="background: var(--color-danger);">🧯</div><div class="sign-content"><h4>EXTINGUISHER</h4><p>Red – indicates firefighting equipment location</p></div></div>
+          <div class="sign-item"><div class="sign-icon" style="background: var(--color-success);">📍</div><div class="sign-content"><h4>ASSEMBLY POINT</h4><p>Green – where to gather after evacuating</p></div></div>
+        </div>
+        <div class="key-takeaway"><div class="key-takeaway-label">KEY TAKEAWAY</div><p>Know where your nearest <strong>fire exit, alarm call point, and assembly point</strong> are before you need them.</p></div>
+      </div>
+
+      <!-- Slide 13: Fire Doors and Escape Routes -->
+      <div class="slide" data-slide="13">
+        <div class="slide-lesson-tag">LESSON 3</div>
+        <div class="slide-title">Fire Doors and Escape Routes</div>
+        <p class="slide-intro">Fire doors slow the progress of fire and smoke, giving you valuable extra seconds to evacuate.</p>
+        <div class="action-list">
+          <div class="action-item" style="border-left-color: var(--color-danger);"><div class="action-keyword" style="background: var(--color-danger);">NEVER</div><div class="action-text">Prop fire doors open with wedges or furniture – <strong>they must close automatically</strong></div></div>
+          <div class="action-item"><div class="action-keyword">KEEP</div><div class="action-text">Escape routes clear – <strong>never store items in corridors or stairwells</strong></div></div>
+          <div class="action-item"><div class="action-keyword">PLAN</div><div class="action-text">Two escape routes: <strong>primary and secondary</strong>, in case one is blocked</div></div>
+          <div class="action-item"><div class="action-keyword">PRACTISE</div><div class="action-text">Using your escape routes during fire drills – <strong>familiarity saves time</strong></div></div>
+        </div>
+        <div class="key-takeaway"><div class="key-takeaway-label">KEY TAKEAWAY</div><p>Fire doors save lives – <strong>never prop them open or obstruct escape routes.</strong></p></div>
+      </div>
+
+      <!-- Slide 14: Fire Action Notice -->
+      <div class="slide" data-slide="14">
+        <div class="slide-lesson-tag">LESSON 3</div>
+        <div class="slide-title">The Fire Action Notice</div>
+        <p class="slide-intro">The Fire Action Notice is probably the single most important sign in your building.</p>
+        <div class="callout info" style="text-align: center; padding: 30px;"><div style="font-size: 48px; margin-bottom: 16px;">📋</div><div style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">FIRE ACTION NOTICE</div><div style="font-size: 14px; opacity: 0.9;">Located near fire alarm call points and exits</div></div>
+        <div class="action-list">
+          <div class="action-item"><div class="action-keyword">LOCATE</div><div class="action-text">Your Fire Action Notice <strong>today</strong></div></div>
+          <div class="action-item"><div class="action-keyword">READ</div><div class="action-text">The instructions carefully – <strong>each building may differ</strong></div></div>
+          <div class="action-item"><div class="action-keyword">UNDERSTAND</div><div class="action-text">Who to contact, where to assemble, <strong>any specific duties</strong></div></div>
+          <div class="action-item"><div class="action-keyword">FOLLOW</div><div class="action-text">The instructions exactly – <strong>don't improvise</strong></div></div>
+        </div>
+        <div class="key-takeaway"><div class="key-takeaway-label">KEY TAKEAWAY</div><p>Read your Fire Action Notice <strong>before an emergency happens</strong> – not during one.</p></div>
+      </div>
+
+      <!-- Slide 15: Lesson 4 Intro -->
+      <div class="slide" data-slide="15">
+        <div class="slide-lesson-tag">LESSON 4</div>
+        <div class="slide-title">Emergency Response</div>
+        <p class="slide-intro">Knowing what to do in a fire emergency can save lives. Remember: if in doubt, get out!</p>
+        <div class="learning-objectives"><h4>IN THIS LESSON YOU WILL LEARN</h4><ul><li>What to do if you discover a fire</li><li>How to respond when the fire alarm sounds</li><li>What to do if trapped by smoke</li></ul></div>
+      </div>
+
+      <!-- Slide 16: If You Discover a Fire -->
+      <div class="slide" data-slide="16">
+        <div class="slide-lesson-tag">LESSON 4</div>
+        <div class="slide-title">If You Discover a Fire</div>
+        <p class="slide-intro">Your first priority is to raise the alarm. This gives everyone maximum time to evacuate safely.</p>
+        <div class="steps-vertical">
+          <div class="step-item"><div class="step-number" style="background: var(--color-danger);">1</div><div class="step-content"><h4>ACTIVATE</h4><p>The fire alarm immediately using the nearest call point</p></div></div>
+          <div class="step-item"><div class="step-number">2</div><div class="step-content"><h4>CALL</h4><p>The fire brigade (999) or follow your organisation's procedure</p></div></div>
+          <div class="step-item"><div class="step-number">3</div><div class="step-content"><h4>SWITCH OFF</h4><p>Any safety-critical machinery if safe to do so</p></div></div>
+          <div class="step-item"><div class="step-number">4</div><div class="step-content"><h4>CLOSE</h4><p>The door if leaving a room with fire – slows the spread</p></div></div>
+          <div class="step-item"><div class="step-number" style="background: var(--color-border);">5</div><div class="step-content"><h4>ONLY TACKLE</h4><p>The fire if trained and it's blocking your escape</p></div></div>
+        </div>
+        <div class="key-takeaway danger"><div class="key-takeaway-label">KEY TAKEAWAY</div><p>Sound the alarm FIRST – then call emergency services. <strong>Never delay raising the alarm.</strong></p></div>
+      </div>
+
+      <!-- Slide 17: When the Fire Alarm Sounds -->
+      <div class="slide" data-slide="17">
+        <div class="slide-lesson-tag">LESSON 4</div>
+        <div class="slide-title">When the Fire Alarm Sounds</div>
+        <p class="slide-intro">Your one and only priority is to evacuate. Treat every alarm as real.</p>
+        <div class="action-list">
+          <div class="action-item"><div class="action-keyword">LEAVE</div><div class="action-text">Immediately by your primary escape route, <strong>escorting any visitors</strong></div></div>
+          <div class="action-item"><div class="action-keyword">GO STRAIGHT</div><div class="action-text">To your assembly point and <strong>report to the fire warden</strong></div></div>
+          <div class="action-item" style="border-left-color: var(--color-danger);"><div class="action-keyword" style="background: var(--color-danger);">DO NOT</div><div class="action-text">Use lifts – they may stop or <strong>open onto a floor with fire</strong></div></div>
+          <div class="action-item" style="border-left-color: var(--color-danger);"><div class="action-keyword" style="background: var(--color-danger);">DO NOT</div><div class="action-text">Stop for belongings – <strong>your life is more important</strong></div></div>
+          <div class="action-item" style="border-left-color: var(--color-danger);"><div class="action-keyword" style="background: var(--color-danger);">DO NOT</div><div class="action-text">Return until <strong>officially told it is safe</strong></div></div>
+        </div>
+        <div class="key-takeaway"><div class="key-takeaway-label">KEY TAKEAWAY</div><p>Never use the lift during a fire – <strong>always use the stairs.</strong></p></div>
+      </div>
+
+      <!-- Slide 18: If Trapped by Smoke -->
+      <div class="slide" data-slide="18">
+        <div class="slide-lesson-tag">LESSON 4</div>
+        <div class="slide-title">If Trapped by Smoke</div>
+        <p class="slide-intro">Over 50% of fire-related deaths are caused by smoke inhalation, not fire itself.</p>
+        <div class="two-col">
+          <div><div class="callout"><div class="callout-stat">50%+</div><div class="callout-text">of fire deaths are caused by <strong>smoke inhalation</strong></div></div></div>
+          <div>
+            <div class="info-block"><div class="info-block-icon" style="background: rgba(249,115,22,0.2); color: var(--color-primary);">⬇️</div><div class="info-block-content"><h4>GET DOWN LOW</h4><p>Smoke rises, cleaner air is near the floor</p></div></div>
+            <div class="info-block"><div class="info-block-icon" style="background: rgba(249,115,22,0.2); color: var(--color-primary);">🧣</div><div class="info-block-content"><h4>COVER YOUR MOUTH</h4><p>Damp cloth helps filter smoke</p></div></div>
+            <div class="info-block"><div class="info-block-icon" style="background: rgba(249,115,22,0.2); color: var(--color-primary);">🚪</div><div class="info-block-content"><h4>FEEL DOORS</h4><p>If hot, do not open</p></div></div>
+            <div class="info-block" style="border-left: 3px solid var(--color-danger);"><div class="info-block-icon" style="background: rgba(239,68,68,0.2); color: var(--color-danger);">⚠️</div><div class="info-block-content"><h4>IF TRAPPED</h4><p>Seal gaps, go to window to signal</p></div></div>
+          </div>
+        </div>
+        <div class="key-takeaway"><div class="key-takeaway-label">KEY TAKEAWAY</div><p>Get low and go – <strong>smoke rises, so cleaner air is always near the floor.</strong></p></div>
+      </div>
+
+      <!-- Slide 19: Lesson 5 Intro -->
+      <div class="slide" data-slide="19">
+        <div class="slide-lesson-tag">LESSON 5</div>
+        <div class="slide-title">Using Fire Extinguishers</div>
+        <p class="slide-intro">Firefighting is best left to professionals. However, if a small fire is blocking your escape and you have been trained, using an extinguisher correctly could save your life.</p>
+        <div class="learning-objectives"><h4>IN THIS LESSON YOU WILL LEARN</h4><ul><li>The different types of fire extinguishers</li><li>How to match extinguisher type to fire class</li><li>Basic extinguisher operation technique</li></ul></div>
+      </div>
+
+      <!-- Slide 20: Types of Extinguishers -->
+      <div class="slide" data-slide="20">
+        <div class="slide-lesson-tag">LESSON 5</div>
+        <div class="slide-title">Types of Extinguishers</div>
+        <p class="slide-intro">Each extinguisher type is designed for specific fire classes. Using the wrong type can be dangerous.</p>
+        <div class="extinguisher-table">
+          <div class="ext-row header"><div>TYPE</div><div>BEST FOR</div><div>CLASSES</div></div>
+          <div class="ext-row"><div><span class="ext-label" style="background: #dc2626;"></span><span class="ext-type">WATER</span></div><div class="ext-uses">Class A only. <strong>Never on electrical/liquid</strong></div><div class="ext-classes" style="color: var(--color-success);">A</div></div>
+          <div class="ext-row"><div><span class="ext-label" style="background: #fef3c7;"></span><span class="ext-type">FOAM</span></div><div class="ext-uses">Cools and smothers. <strong>Not for electrical</strong></div><div class="ext-classes" style="color: var(--color-primary);">A, B</div></div>
+          <div class="ext-row"><div><span class="ext-label" style="background: #3b82f6;"></span><span class="ext-type">POWDER</span></div><div class="ext-uses">Most versatile. <strong>Only type for gas</strong></div><div class="ext-classes" style="color: var(--color-info);">A, B, C, ⚡</div></div>
+          <div class="ext-row"><div><span class="ext-label" style="background: #1f2937;"></span><span class="ext-type">CO2</span></div><div class="ext-uses"><strong>Best for office electrical fires</strong></div><div class="ext-classes" style="color: var(--color-warning);">B, ⚡</div></div>
+          <div class="ext-row"><div><span class="ext-label" style="background: #eab308;"></span><span class="ext-type">WET CHEM</span></div><div class="ext-uses"><strong>Kitchen fires only</strong></div><div class="ext-classes" style="color: var(--color-purple);">F</div></div>
+        </div>
+        <div class="key-takeaway"><div class="key-takeaway-label">KEY TAKEAWAY</div><p>CO2 extinguishers are safest for office electrical fires – <strong>know where yours is located.</strong></p></div>
+      </div>
+
+      <!-- Slide 21: PASS Technique -->
+      <div class="slide" data-slide="21">
+        <div class="slide-lesson-tag">LESSON 5</div>
+        <div class="slide-title">How to Use an Extinguisher</div>
+        <p class="slide-intro">Only attempt if the fire is small, you have an escape route, you're trained, and have the correct type.</p>
+        <div class="pass-technique">
+          <div class="pass-item"><div class="pass-letter">P</div><div class="pass-word">PULL</div><div class="pass-desc">Remove the pin to unlock</div></div>
+          <div class="pass-item"><div class="pass-letter">A</div><div class="pass-word">AIM</div><div class="pass-desc">Point at the <strong>BASE</strong></div></div>
+          <div class="pass-item"><div class="pass-letter">S</div><div class="pass-word">SQUEEZE</div><div class="pass-desc">Press the handle</div></div>
+          <div class="pass-item"><div class="pass-letter">S</div><div class="pass-word">SWEEP</div><div class="pass-desc">Move side to side</div></div>
+        </div>
+        <div class="callout warning" style="text-align: center;"><div style="font-size: 16px; font-weight: 600;">⚠️ EVACUATE IMMEDIATELY if the fire does not go out or begins to spread</div></div>
+        <div class="key-takeaway"><div class="key-takeaway-label">KEY TAKEAWAY</div><p>Remember PASS: <strong>Pull, Aim low, Squeeze, Sweep.</strong></p></div>
+      </div>
+
+      <!-- Slide 22: Summary -->
+      <div class="slide" data-slide="22">
+        <div class="slide-lesson-tag" style="color: var(--color-success);">COURSE COMPLETE</div>
+        <div class="slide-title">5 Key Takeaways</div>
+        <div class="summary-list">
+          <div class="summary-item" style="border-left: 4px solid var(--color-danger);"><div class="summary-number" style="background: var(--color-danger);">1</div><p>Fire needs <strong>heat, fuel, and oxygen</strong> – remove any one and it goes out</p></div>
+          <div class="summary-item" style="border-left: 4px solid var(--color-primary);"><div class="summary-number" style="background: var(--color-primary);">2</div><p><strong>Good housekeeping</strong> prevents fires – clear workspaces, report faults, don't prop doors</p></div>
+          <div class="summary-item" style="border-left: 4px solid var(--color-info);"><div class="summary-number" style="background: var(--color-info);">3</div><p>Know your <strong>escape routes and assembly point</strong> before an emergency</p></div>
+          <div class="summary-item" style="border-left: 4px solid var(--color-warning);"><div class="summary-number" style="background: var(--color-warning);">4</div><p>If you discover a fire, <strong>RAISE THE ALARM FIRST</strong></p></div>
+          <div class="summary-item" style="border-left: 4px solid var(--color-success);"><div class="summary-number" style="background: var(--color-success);">5</div><p>Only tackle a fire if trained and it's blocking escape – <strong>when in doubt, get out!</strong></p></div>
+        </div>
+        <div class="quote-box"><p>"The best fire is the one that never starts. Stay alert, stay safe."</p></div>
+      </div>
+
+      <!-- Completion -->
+      <div class="slide" data-slide="complete">
+        <div class="completion-screen">
+          <div class="completion-icon">✓</div>
+          <h2>Course Complete!</h2>
+          <p>You have successfully completed Fire Safety in the Workplace.<br>Your completion has been recorded.</p>
+          <button class="restart-btn" onclick="restartCourse()">Review Course</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-bar">
+      <div class="nav-info" id="navInfo">Introduction</div>
+      <div class="nav-buttons">
+        <button class="nav-btn secondary" id="prevBtn" onclick="prevSlide()" disabled>← Previous</button>
+        <button class="nav-btn primary" id="nextBtn" onclick="nextSlide()">Next →</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentSlide = 1;
+    const totalSlides = 22;
+    let startTime = new Date();
+    let isCompleted = false;
+    let scormInitialized = false;
+    const lessonMap = {1:0,2:0,3:1,4:1,5:1,6:1,7:2,8:2,9:2,10:2,11:3,12:3,13:3,14:3,15:4,16:4,17:4,18:4,19:5,20:5,21:5,22:5};
+    
+    window.onload = function() {
+      console.log('🔥 Fire Safety: Starting initialization...');
+      SCORM.Initialize();
+      
+      // Wait a moment for SCORM data to be loaded from parent
+      setTimeout(function() {
+        var status = SCORM.GetStatus();
+        console.log('🔥 Fire Safety: Retrieved status =', status);
+        if (status === "" || status === "not attempted") { 
+          SCORM.SetStatus("incomplete"); 
+        }
+        
+        var bookmark = SCORM.GetBookmark();
+        console.log('🔥 Fire Safety: Retrieved bookmark =', bookmark);
+        if (bookmark && parseInt(bookmark) > 0 && parseInt(bookmark) <= totalSlides) { 
+          currentSlide = parseInt(bookmark); 
+          console.log('🔥 Fire Safety: Resuming at slide', currentSlide);
+        } else {
+          console.log('🔥 Fire Safety: Starting from beginning (bookmark invalid or empty)');
+        }
+        scormInitialized = true;
+        updateUI();
+      }, 300); // Wait 300ms for saved data to load
+    };
+    
+    window.onbeforeunload = function() { saveProgress(); SCORM.Terminate(); };
+    
+    function saveProgress() {
+      var sessionTime = new Date() - startTime;
+      SCORM.SetSessionTime(sessionTime);
+      SCORM.SetBookmark(currentSlide.toString()); // Save to lesson_location for resume
+      var score = Math.round((currentSlide / totalSlides) * 100);
+      SCORM.SetScore(score, 0, 100);
+      SCORM.SetSuspendData(JSON.stringify({slide:currentSlide,completed:isCompleted}));
+      SCORM.Commit();
+      console.log('✅ Fire Safety: Saved progress - slide:', currentSlide, 'status:', SCORM.GetStatus(), 'bookmark:', SCORM.GetBookmark());
+    }
+    
+    function updateUI() {
+      document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+      var activeSlide = document.querySelector('[data-slide="'+currentSlide+'"]');
+      if (activeSlide) activeSlide.classList.add('active');
+      document.getElementById('progressFill').style.width = ((currentSlide-1)/totalSlides)*100+'%';
+      document.getElementById('slideCounter').textContent = currentSlide+' / '+totalSlides;
+      var lesson = lessonMap[currentSlide];
+      document.getElementById('navInfo').textContent = lesson === 0 ? 'Introduction' : 'Lesson '+lesson+' of 5';
+      document.getElementById('prevBtn').disabled = currentSlide === 1;
+      document.getElementById('nextBtn').textContent = currentSlide === totalSlides ? 'Complete ✓' : 'Next →';
+      // Only save progress if not the initial load (prevents overwriting saved bookmark)
+      if (window.scormInitialized) {
+        saveProgress();
+      }
+    }
+    
+    function nextSlide() {
+      if (currentSlide < totalSlides) { scormInitialized = true; currentSlide++; updateUI(); }
+      else if (currentSlide === totalSlides && !isCompleted) {
+        isCompleted = true;
+        document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+        document.querySelector('[data-slide="complete"]').classList.add('active');
+        document.getElementById('progressFill').style.width = '100%';
+        document.getElementById('nextBtn').disabled = true;
+        SCORM.SetStatus("completed");
+        SCORM.SetScore(100,0,100);
+        SCORM.Commit();
+        saveProgress();
+      }
+    }
+    
+    function prevSlide() { if (currentSlide > 1) { scormInitialized = true; currentSlide--; updateUI(); } }
+    function restartCourse() { scormInitialized = true; currentSlide = 1; document.getElementById('nextBtn').disabled = false; updateUI(); }
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextSlide(); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); prevSlide(); }
+    });
+  </script>
+</body>
+</html>

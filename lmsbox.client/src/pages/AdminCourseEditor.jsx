@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
 import AIAssistant from '../components/AIAssistant';
@@ -8,15 +8,22 @@ import PdfLessonModal from '../components/PdfLessonModal';
 import ScormLessonModal from '../components/ScormLessonModal';
 import HtmlLessonModal from '../components/HtmlLessonModal';
 import QuizLessonModal from '../components/QuizLessonModal';
+import ExternalLessonModal from '../components/ExternalLessonModal';
+import CourseResourceModal from '../components/CourseResourceModal';
 import toast from 'react-hot-toast';
 import { uploadMedia, uploadScorm } from '../services/upload';
 import { listQuizzes } from '../services/quizzes';
 import usePageTitle from '../hooks/usePageTitle';
 import { adminCourseService, courseHelpers } from '../services/adminCourses';
 import lessonsService from '../services/lessons';
+import resourcesService from '../services/resources';
 import { adminSurveyService } from '../services/surveys';
+import { formatResourceTypeLabel } from '../utils/resourceTypes';
+import { getLessonTypeMenuLabel } from '../utils/lessonTypes';
+import { SHOW_PRACTICAL_IN_ADD_MENU } from '../config/lessonFeatureFlags';
 import { Sparkles } from 'lucide-react';
 import { getUserRole } from '../utils/auth';
+import { adminFeatureFlags } from '../config/adminFeatureFlags';
 
 export default function AdminCourseEditor() {
   const navigate = useNavigate();
@@ -34,7 +41,9 @@ export default function AdminCourseEditor() {
 
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
-  const [aiAssistantOpen, setAiAssistantOpen] = useState(openAIParam === 'true');
+  const [aiAssistantOpen, setAiAssistantOpen] = useState(
+    adminFeatureFlags.showAdminAiAssistant && openAIParam === 'true'
+  );
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [form, setForm] = useState({
     title: '',
@@ -49,12 +58,14 @@ export default function AdminCourseEditor() {
     preCourseSurveyId: null,
     postCourseSurveyId: null,
     isPreSurveyMandatory: false,
-    isPostSurveyMandatory: false
+    isPostSurveyMandatory: false,
+    requireSequentialLessons: false,
+    showLessonNavigation: false
   });
 
   const [tagInput, setTagInput] = useState('');
   const [submitted, setSubmitted] = useState(false);
-  const [activeTab, setActiveTab] = useState('details'); // details | lessons | quizzes
+  const [activeTab, setActiveTab] = useState('details'); // details | lessons | resources | quizzes
   
   // Surveys state (for dropdowns)
   const [availableSurveys, setAvailableSurveys] = useState([]);
@@ -62,6 +73,10 @@ export default function AdminCourseEditor() {
   
   // Lessons state
   const [lessons, setLessons] = useState([]);
+  const [resources, setResources] = useState([]);
+  const [openLessonMenuId, setOpenLessonMenuId] = useState(null);
+  const [lessonMenuPosition, setLessonMenuPosition] = useState(null);
+  const lessonMenuRef = useRef(null);
 
   // Categories state
   const [categories, setCategories] = useState([]);
@@ -71,7 +86,7 @@ export default function AdminCourseEditor() {
   // Set active tab from query parameter
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab && ['details', 'lessons', 'quizzes'].includes(tab)) {
+    if (tab && ['details', 'lessons', 'resources', 'quizzes'].includes(tab)) {
       setActiveTab(tab);
     }
   }, [searchParams]);
@@ -236,6 +251,14 @@ export default function AdminCourseEditor() {
   // Quiz Lesson Modal state
   const [quizLessonModalOpen, setQuizLessonModalOpen] = useState(false);
   const [editingQuizLesson, setEditingQuizLesson] = useState(null);
+
+  const [externalLessonModalOpen, setExternalLessonModalOpen] = useState(false);
+  const [editingExternalLesson, setEditingExternalLesson] = useState(null);
+
+  // Course Resource Modal state
+  const [resourceModalOpen, setResourceModalOpen] = useState(false);
+  const [editingResource, setEditingResource] = useState(null);
+  const [resourceModalType, setResourceModalType] = useState('pdf');
   
   // Drag and drop state
   const [draggedLesson, setDraggedLesson] = useState(null);
@@ -394,12 +417,225 @@ export default function AdminCourseEditor() {
     }
   };
 
+  const handlePreviewCourse = () => {
+    if (isNew || !courseId) {
+      toast.error('Save the course before previewing');
+      return;
+    }
+    adminCourseService.openCoursePreview(courseId);
+  };
+
+  const handlePreviewLesson = (lessonId) => {
+    if (isNew || !courseId) {
+      toast.error('Save the course before previewing lessons');
+      return;
+    }
+    adminCourseService.openCoursePreview(courseId, lessonId);
+  };
+
   // Load lessons when switching to lessons tab
   useEffect(() => {
     if (activeTab === 'lessons' && courseId && !isNew) {
       loadLessons();
     }
   }, [activeTab, courseId, isNew]);
+
+  useEffect(() => {
+    if (activeTab !== 'lessons') {
+      setOpenLessonMenuId(null);
+      setLessonMenuPosition(null);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!openLessonMenuId) return undefined;
+
+    const closeMenu = () => {
+      setOpenLessonMenuId(null);
+      setLessonMenuPosition(null);
+    };
+
+    const handleClickOutside = (event) => {
+      if (lessonMenuRef.current && !lessonMenuRef.current.contains(event.target)) {
+        closeMenu();
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        closeMenu();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    window.addEventListener('resize', closeMenu);
+    window.addEventListener('scroll', closeMenu, true);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+      window.removeEventListener('resize', closeMenu);
+      window.removeEventListener('scroll', closeMenu, true);
+    };
+  }, [openLessonMenuId]);
+
+  const toggleLessonMenu = (lessonId, event) => {
+    if (openLessonMenuId === lessonId) {
+      setOpenLessonMenuId(null);
+      setLessonMenuPosition(null);
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const estimatedMenuHeight = 180;
+    const openUpward = window.innerHeight - rect.bottom < estimatedMenuHeight;
+
+    setLessonMenuPosition(
+      openUpward
+        ? { bottom: window.innerHeight - rect.top + 4, right: window.innerWidth - rect.right }
+        : { top: rect.bottom + 4, right: window.innerWidth - rect.right }
+    );
+    setOpenLessonMenuId(lessonId);
+  };
+
+  const closeLessonMenu = () => {
+    setOpenLessonMenuId(null);
+    setLessonMenuPosition(null);
+  };
+
+  const getLessonEditAction = (lesson) => {
+    if (isGlobalLibraryLesson(lesson)) {
+      return null;
+    }
+
+    if (lesson.type === 'video') {
+      return {
+        label: form.status === 'Published' ? 'Captions' : 'Edit',
+        onClick: () => handleOpenVideoLessonModal(lesson),
+        disabled: false,
+      };
+    }
+
+    if (lesson.type === 'document') {
+      return {
+        label: 'Edit',
+        onClick: () => handleOpenPdfLessonModal(lesson),
+        disabled: form.status === 'Published',
+      };
+    }
+
+    if (lesson.type === 'scorm') {
+      return {
+        label: 'Edit',
+        onClick: () => handleOpenScormLessonModal(lesson),
+        disabled: form.status === 'Published',
+      };
+    }
+
+    if (lesson.type === 'html') {
+      return {
+        label: 'Edit',
+        onClick: () => handleOpenHtmlLessonModal(lesson),
+        disabled: form.status === 'Published',
+      };
+    }
+
+    if (lesson.type === 'quiz') {
+      return {
+        label: 'Edit',
+        onClick: () => handleOpenQuizLessonModal(lesson),
+        disabled: form.status === 'Published',
+      };
+    }
+
+    if (lesson.type === 'interactive') {
+      return {
+        label: 'Edit',
+        onClick: () => navigate(`/admin/interactive/edit/${lesson.id}`),
+        disabled: form.status === 'Published',
+      };
+    }
+
+    if (lesson.type === 'external') {
+      return {
+        label: 'Edit',
+        onClick: () => handleOpenExternalLessonModal(lesson),
+        disabled: form.status === 'Published',
+      };
+    }
+
+    return {
+      label: 'Edit',
+      onClick: () => editLesson(lessons.findIndex((item) => item.id === lesson.id)),
+      disabled: form.status === 'Published',
+    };
+  };
+
+  const getLessonDeleteAction = (lesson, index) => {
+    if (isGlobalLibraryLesson(lesson)) {
+      return {
+        label: 'Remove',
+        onClick: () => handleDeleteLesson(lesson.id),
+        disabled: form.status !== 'Draft',
+        title: form.status !== 'Draft' ? 'Can only remove global lessons from draft courses' : 'Remove from course',
+      };
+    }
+
+    if (['video', 'document', 'scorm', 'html', 'quiz', 'interactive', 'external'].includes(lesson.type)) {
+      return {
+        label: 'Delete',
+        onClick: () => handleDeleteLesson(lesson.id),
+        disabled: form.status === 'Published',
+      };
+    }
+
+    return {
+      label: 'Delete',
+      onClick: () => deleteLesson(index),
+      disabled: form.status === 'Published',
+    };
+  };
+
+  const loadResources = async () => {
+    if (!courseId || isNew) return;
+    try {
+      const resourcesData = await resourcesService.getResources(courseId);
+      setResources(resourcesData);
+    } catch (error) {
+      console.error('Error loading resources:', error);
+      toast.error('Failed to load resources');
+    }
+  };
+
+  // Load resources when switching to resources tab
+  useEffect(() => {
+    if (activeTab === 'resources' && courseId && !isNew) {
+      loadResources();
+    }
+  }, [activeTab, courseId, isNew]);
+
+  const handleOpenResourceModal = (type, resource = null) => {
+    setResourceModalType(type);
+    setEditingResource(resource);
+    setResourceModalOpen(true);
+  };
+
+  const handleResourceSaved = () => {
+    loadResources();
+    toast.success('Resource saved successfully');
+  };
+
+  const handleDeleteResource = async (resourceId) => {
+    if (!window.confirm('Delete this resource? This action cannot be undone.')) return;
+    try {
+      await resourcesService.deleteResource(courseId, resourceId);
+      loadResources();
+      toast.success('Resource deleted');
+    } catch (error) {
+      console.error('Error deleting resource:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete resource');
+    }
+  };
 
   // Handle video lesson modal
   const handleOpenVideoLessonModal = (lesson = null) => {
@@ -409,7 +645,11 @@ export default function AdminCourseEditor() {
 
   const handleVideoLessonSaved = () => {
     loadLessons();
-    toast.success('Video lesson saved successfully');
+    toast.success(
+      form.status === 'Published'
+        ? 'Video captions saved successfully'
+        : 'Video lesson saved successfully'
+    );
   };
 
   // Handle PDF lesson modal
@@ -454,6 +694,21 @@ export default function AdminCourseEditor() {
   const handleQuizLessonSaved = () => {
     loadLessons();
     toast.success('Quiz lesson saved successfully');
+  };
+
+  const handleOpenExternalLessonModal = (lesson = null) => {
+    const hasPractical = lessons.some((l) => l.type === 'external');
+    if (!lesson && hasPractical) {
+      toast.error('A course can only have one practical lesson.');
+      return;
+    }
+    setEditingExternalLesson(lesson);
+    setExternalLessonModalOpen(true);
+  };
+
+  const handleExternalLessonSaved = () => {
+    loadLessons();
+    toast.success('Practical lesson saved successfully');
   };
 
   const handleDeleteLesson = async (lessonId) => {
@@ -696,14 +951,16 @@ export default function AdminCourseEditor() {
   return (
     <div className="min-h-screen bg-gray-50">
       <AdminHeader />
-      <AIAssistant 
-        mode="slideIn"
-        isOpen={aiAssistantOpen}
-        onClose={() => setAiAssistantOpen(false)}
-        context={form.title ? `Creating course: ${form.title}` : 'Creating a new course'}
-        onApplyContent={handleApplyAIContent}
-        defaultTab="course"
-      />
+      {adminFeatureFlags.showAdminAiAssistant && (
+        <AIAssistant 
+          mode="slideIn"
+          isOpen={aiAssistantOpen}
+          onClose={() => setAiAssistantOpen(false)}
+          context={form.title ? `Creating course: ${form.title}` : 'Creating a new course'}
+          onApplyContent={handleApplyAIContent}
+          defaultTab="course"
+        />
+      )}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-4">
           <button onClick={() => navigate(-1)} className="flex items-center text-gray-600 hover:text-gray-900">
@@ -713,15 +970,28 @@ export default function AdminCourseEditor() {
             Back
           </button>
           
-          <button
-            onClick={() => setAiAssistantOpen(true)}
-            className="bg-[#2afeae] text-[#1b365d] px-4 py-2 rounded-lg hover:bg-[#25e89e] hover:shadow-lg transition-all duration-200 flex items-center gap-2 font-medium"
-          >
-            <Sparkles className="w-5 h-5" />
-            AI Assistant
-          </button>
+          {adminFeatureFlags.showAdminAiAssistant && (
+            <button
+              onClick={() => setAiAssistantOpen(true)}
+              className="bg-[#2afeae] text-[#1b365d] px-4 py-2 rounded-lg hover:bg-[#25e89e] hover:shadow-lg transition-all duration-200 flex items-center gap-2 font-medium"
+            >
+              <Sparkles className="w-5 h-5" />
+              AI Assistant
+            </button>
+          )}
         </div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">{isNew ? 'Create New Course' : 'Edit Course'}</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+          <h1 className="text-3xl font-bold text-gray-900">{isNew ? 'Create New Course' : 'Edit Course'}</h1>
+          {!isNew && courseId && (
+            <button
+              type="button"
+              onClick={handlePreviewCourse}
+              className="px-4 py-2 text-sm border border-gray-300 bg-white text-gray-700 rounded hover:bg-gray-50"
+            >
+              Preview Course
+            </button>
+          )}
+        </div>
 
         {loading ? (
           <div className="bg-white rounded-lg shadow p-8">
@@ -745,6 +1015,12 @@ export default function AdminCourseEditor() {
                 onClick={() => setActiveTab('lessons')}
               >
                 Lessons
+              </button>
+              <button
+                className={`pb-3 text-sm font-medium border-b-2 ${activeTab==='resources' ? 'border-[#2afeae] text-[#1b365d]' : 'border-transparent text-gray-600 hover:text-gray-900'}`}
+                onClick={() => setActiveTab('resources')}
+              >
+                Resources
               </button>
               <button
                 className={`pb-3 text-sm font-medium border-b-2 ${activeTab==='quizzes' ? 'border-[#2afeae] text-[#1b365d]' : 'border-transparent text-gray-600 hover:text-gray-900'}`}
@@ -843,6 +1119,57 @@ export default function AdminCourseEditor() {
                     />
                     <span className="text-sm text-gray-700">Issue certificate on completion</span>
                   </label>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Course Player Navigation</label>
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={form.showLessonNavigation}
+                      onChange={(e) => handleChange('showLessonNavigation', e.target.checked)}
+                      className="rounded text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">Show Previous / Next buttons</span>
+                  </label>
+                  <p className="mt-1 text-xs text-gray-500">
+                    When enabled, learners can move between lessons, surveys, and the certificate using footer buttons.
+                  </p>
+                </div>
+
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Content Access</h3>
+                  <p className="text-xs text-gray-600 mb-3">
+                    Control whether learners can open lessons in any order or must complete them sequentially.
+                  </p>
+                  <div className="space-y-2">
+                    <label className="flex items-start gap-2">
+                      <input
+                        type="radio"
+                        name="lessonAccessMode"
+                        checked={!form.requireSequentialLessons}
+                        onChange={() => handleChange('requireSequentialLessons', false)}
+                        className="mt-0.5 text-[#2afeae] focus:ring-[#2afeae]"
+                        disabled={form.status === 'Published'}
+                      />
+                      <span className="text-xs text-gray-700">
+                        <span className="font-medium">Any order</span> — learners can access all lessons freely
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-2">
+                      <input
+                        type="radio"
+                        name="lessonAccessMode"
+                        checked={form.requireSequentialLessons}
+                        onChange={() => handleChange('requireSequentialLessons', true)}
+                        className="mt-0.5 text-[#2afeae] focus:ring-[#2afeae]"
+                        disabled={form.status === 'Published'}
+                      />
+                      <span className="text-xs text-gray-700">
+                        <span className="font-medium">Sequential</span> — each lesson unlocks after the previous one is completed
+                      </span>
+                    </label>
+                  </div>
                 </div>
 
                 {/* Survey Settings - Hidden for OrgAdmin */}
@@ -977,6 +1304,7 @@ export default function AdminCourseEditor() {
                 <div className="flex items-center gap-2">
                   <AddLessonMenu 
                     disabled={isNew || form.status === 'Published'}
+                    hasPractical={lessons.some((l) => l.type === 'external')}
                     onAdd={(type) => {
                       if (type === 'video') {
                         handleOpenVideoLessonModal();
@@ -988,6 +1316,10 @@ export default function AdminCourseEditor() {
                         handleOpenHtmlLessonModal();
                       } else if (type === 'quiz') {
                         handleOpenQuizLessonModal();
+                      } else if (type === 'external') {
+                        handleOpenExternalLessonModal();
+                      } else if (type === 'interactive') {
+                        navigate(`/admin/interactive/create/${courseId}`);
                       } else {
                         startAddLesson(type);
                       }
@@ -1004,7 +1336,7 @@ export default function AdminCourseEditor() {
 
               {form.status === 'Published' && !isNew && (
                 <div className="bg-info border border-info rounded-lg p-4 text-sm text-info">
-                  <strong>Note:</strong> This course is published. Lessons cannot be modified while the course is published. Published courses cannot be unpublished, but they can be archived or deleted.
+                  <strong>Note:</strong> This course is published. Lessons cannot be modified while the course is published, except you can add or update captions on video lessons. Survey mappings can still be updated from the Details tab. Published courses cannot be unpublished, but they can be archived or deleted.
                 </div>
               )}
 
@@ -1066,119 +1398,136 @@ export default function AdminCourseEditor() {
                             {l.type === 'quiz' && l.quizId && (
                               <div className="text-xs text-[#1b365d] mt-1">Quiz ID: {l.quizId}</div>
                             )}
+                            {l.type === 'interactive' && (
+                              <div className="text-xs mt-1">
+                                <span className={`inline-flex px-2 py-0.5 rounded-full ${l.interactiveStatus === 'Ready' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
+                                  {l.interactiveStatus || 'Draft'}
+                                </span>
+                                {typeof l.interactiveBlockCount === 'number' && (
+                                  <span className="text-gray-500 ml-2">
+                                    {l.interactiveApprovedBlockCount || 0}/{l.interactiveBlockCount} blocks approved
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </td>
                           <td className="px-4 py-3">
                             <TypeBadge type={l.type} />
                           </td>
                           <td className="px-4 py-3">{l.isOptional ? 'Yes' : 'No'}</td>
                           <td className="px-4 py-3">
-                            <div className="flex justify-end gap-2">
-                              {isGlobalLibraryLesson(l) ? (
-                                // Global library lessons - only show Remove button
-                                <button 
-                                  onClick={() => handleDeleteLesson(l.id)} 
-                                  disabled={form.status !== 'Draft'}
-                                  className="px-3 py-1.5 text-sm bg-info text-[#1b365d] rounded hover:bg-[#d9e5f2] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                                  title={form.status !== 'Draft' ? 'Can only remove global lessons from draft courses' : 'Remove from course'}
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                  Remove
-                                </button>
-                              ) : l.type === 'video' ? (
-                                <>
-                                  <button 
-                                    onClick={() => handleOpenVideoLessonModal(l)} 
-                                    disabled={form.status === 'Published'}
-                                    className="px-3 py-1.5 text-sm bg-info text-[#1b365d] rounded hover:bg-[#d9e5f2] disabled:opacity-50 disabled:cursor-not-allowed"
+                            <div
+                              className="relative flex justify-end"
+                              ref={openLessonMenuId === l.id ? lessonMenuRef : null}
+                            >
+                              <button
+                                type="button"
+                                onClick={(event) => toggleLessonMenu(l.id, event)}
+                                className="inline-flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+                                aria-label={`Actions for ${l.title}`}
+                                aria-haspopup="menu"
+                                aria-expanded={openLessonMenuId === l.id}
+                                title="Actions"
+                              >
+                                <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                  <path d="M10 6a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 5.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 5.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3z" />
+                                </svg>
+                              </button>
+
+                              {openLessonMenuId === l.id && lessonMenuPosition && (() => {
+                                const editAction = getLessonEditAction(l);
+                                const deleteAction = getLessonDeleteAction(l, idx);
+                                const isUnknownType = !isGlobalLibraryLesson(l) &&
+                                  !['video', 'document', 'scorm', 'html', 'quiz', 'interactive', 'external'].includes(l.type);
+
+                                return (
+                                  <div
+                                    role="menu"
+                                    className="fixed z-50 w-44 rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+                                    style={{
+                                      top: lessonMenuPosition.top,
+                                      bottom: lessonMenuPosition.bottom,
+                                      right: lessonMenuPosition.right,
+                                    }}
                                   >
-                                    Edit
-                                  </button>
-                                  <button 
-                                    onClick={() => handleDeleteLesson(l.id)} 
-                                    disabled={form.status === 'Published'}
-                                    className="px-3 py-1.5 text-sm bg-error text-error rounded hover:bg-[#fee2e2] disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    Delete
-                                  </button>
-                                </>
-                              ) : l.type === 'document' ? (
-                                <>
-                                  <button 
-                                    onClick={() => handleOpenPdfLessonModal(l)} 
-                                    disabled={form.status === 'Published'}
-                                    className="px-3 py-1.5 text-sm bg-[#1b365d] text-white rounded hover:bg-[#234a7a] disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button 
-                                    onClick={() => handleDeleteLesson(l.id)} 
-                                    disabled={form.status === 'Published'}
-                                    className="px-3 py-1.5 text-sm bg-error text-error rounded hover:bg-[#fee2e2] disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    Delete
-                                  </button>
-                                </>
-                              ) : l.type === 'scorm' ? (
-                                <>
-                                  <button 
-                                    onClick={() => handleOpenScormLessonModal(l)} 
-                                    disabled={form.status === 'Published'}
-                                    className="px-3 py-1.5 text-sm bg-info text-[#1b365d] rounded hover:bg-[#d5dfe9] disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button 
-                                    onClick={() => handleDeleteLesson(l.id)} 
-                                    disabled={form.status === 'Published'}
-                                    className="px-3 py-1.5 text-sm bg-error text-error rounded hover:bg-[#fee2e2] disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    Delete
-                                  </button>
-                                </>
-                              ) : l.type === 'html' ? (
-                                <>
-                                  <button 
-                                    onClick={() => handleOpenHtmlLessonModal(l)} 
-                                    disabled={form.status === 'Published'}
-                                    className="px-3 py-1.5 text-sm bg-teal-50 text-teal-700 rounded hover:bg-teal-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button 
-                                    onClick={() => handleDeleteLesson(l.id)} 
-                                    disabled={form.status === 'Published'}
-                                    className="px-3 py-1.5 text-sm bg-error text-error rounded hover:bg-[#fee2e2] disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    Delete
-                                  </button>
-                                </>
-                              ) : l.type === 'quiz' ? (
-                                <>
-                                  <button 
-                                    onClick={() => handleOpenQuizLessonModal(l)} 
-                                    disabled={form.status === 'Published'}
-                                    className="px-3 py-1.5 text-sm bg-info text-[#1b365d] rounded hover:bg-[#d9e5f2] disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button 
-                                    onClick={() => handleDeleteLesson(l.id)} 
-                                    disabled={form.status === 'Published'}
-                                    className="px-3 py-1.5 text-sm bg-error text-error rounded hover:bg-[#fee2e2] disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    Delete
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <button onClick={() => moveLesson(idx, 'up')} disabled={idx===0 || form.status === 'Published'} className="px-2 py-1 text-sm bg-gray-100 text-gray-700 rounded disabled:opacity-40 disabled:cursor-not-allowed">↑</button>
-                                  <button onClick={() => moveLesson(idx, 'down')} disabled={idx===lessons.length-1 || form.status === 'Published'} className="px-2 py-1 text-sm bg-gray-100 text-gray-700 rounded disabled:opacity-40 disabled:cursor-not-allowed">↓</button>
-                                  <button onClick={() => editLesson(idx)} disabled={form.status === 'Published'} className="px-3 py-1.5 text-sm bg-info text-[#1b365d] rounded hover:bg-[#d9e5f2] disabled:opacity-50 disabled:cursor-not-allowed">Edit</button>
-                                  <button onClick={() => deleteLesson(idx)} disabled={form.status === 'Published'} className="px-3 py-1.5 text-sm bg-error text-error rounded hover:bg-[#fee2e2] disabled:opacity-50 disabled:cursor-not-allowed">Delete</button>
-                                </>
-                              )}
+                                    <button
+                                      type="button"
+                                      role="menuitem"
+                                      onClick={() => {
+                                        closeLessonMenu();
+                                        handlePreviewLesson(l.id);
+                                      }}
+                                      className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                                    >
+                                      Preview
+                                    </button>
+
+                                    {editAction && (
+                                      <button
+                                        type="button"
+                                        role="menuitem"
+                                        disabled={editAction.disabled}
+                                        onClick={() => {
+                                          if (editAction.disabled) return;
+                                          closeLessonMenu();
+                                          editAction.onClick();
+                                        }}
+                                        className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                      >
+                                        {editAction.label}
+                                      </button>
+                                    )}
+
+                                    {isUnknownType && (
+                                      <>
+                                        <button
+                                          type="button"
+                                          role="menuitem"
+                                          disabled={idx === 0 || form.status === 'Published'}
+                                          onClick={() => {
+                                            if (idx === 0 || form.status === 'Published') return;
+                                            closeLessonMenu();
+                                            moveLesson(idx, 'up');
+                                          }}
+                                          className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                          Move up
+                                        </button>
+                                        <button
+                                          type="button"
+                                          role="menuitem"
+                                          disabled={idx === lessons.length - 1 || form.status === 'Published'}
+                                          onClick={() => {
+                                            if (idx === lessons.length - 1 || form.status === 'Published') return;
+                                            closeLessonMenu();
+                                            moveLesson(idx, 'down');
+                                          }}
+                                          className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                          Move down
+                                        </button>
+                                      </>
+                                    )}
+
+                                    <div className="my-1 border-t border-gray-100" />
+
+                                    <button
+                                      type="button"
+                                      role="menuitem"
+                                      disabled={deleteAction.disabled}
+                                      title={deleteAction.title}
+                                      onClick={() => {
+                                        if (deleteAction.disabled) return;
+                                        closeLessonMenu();
+                                        deleteAction.onClick();
+                                      }}
+                                      className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                      {deleteAction.label}
+                                    </button>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </td>
                         </tr>
@@ -1391,6 +1740,102 @@ export default function AdminCourseEditor() {
             </div>
           )}
 
+          {/* Resources Tab */}
+          {activeTab === 'resources' && (
+            <div className="p-6 space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Resources</h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Supplementary files learners can access alongside course lessons (PDF, HTML, or video).
+                  </p>
+                </div>
+                <AddResourceMenu
+                  disabled={isNew}
+                  onAdd={(type) => handleOpenResourceModal(type)}
+                />
+              </div>
+
+              {isNew && (
+                <div className="bg-warning border border-warning rounded-lg p-4 text-sm text-warning">
+                  <strong>Note:</strong> Please save the course first before adding resources.
+                </div>
+              )}
+
+              {form.status === 'Published' && !isNew && (
+                <div className="bg-info border border-info rounded-lg p-4 text-sm text-info">
+                  <strong>Note:</strong> This course is published. You can still add, edit, or delete supplementary resources. Lessons and quizzes remain locked.
+                </div>
+              )}
+
+              <div className="overflow-x-auto border rounded">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resource</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {resources.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
+                          No resources yet. Click &quot;Add Resource&quot; to get started.
+                        </td>
+                      </tr>
+                    ) : (
+                      resources.map((resource) => (
+                        <tr key={resource.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3">
+                            <div className="flex items-start gap-3">
+                              {resource.thumbnailUrl ? (
+                                <img
+                                  src={resource.thumbnailUrl}
+                                  alt=""
+                                  className="h-12 w-16 shrink-0 rounded object-cover ring-1 ring-gray-200"
+                                />
+                              ) : (
+                                <div className="flex h-12 w-16 shrink-0 items-center justify-center rounded bg-gray-100 text-xs text-gray-400 ring-1 ring-gray-200">
+                                  No thumb
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <div className="font-medium text-gray-900">{resource.title}</div>
+                                {resource.description && (
+                                  <div className="mt-0.5 line-clamp-2 text-sm text-gray-500">{resource.description}</div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <ResourceTypeBadge type={resource.type} />
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                onClick={() => handleOpenResourceModal(resource.type, resource)}
+                                className="px-3 py-1.5 text-sm bg-info text-[#1b365d] rounded hover:bg-[#d9e5f2]"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteResource(resource.id)}
+                                className="px-3 py-1.5 text-sm bg-error text-error rounded hover:bg-[#fee2e2]"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* Quizzes Tab */}
           {activeTab === 'quizzes' && (
             <div className="p-6">
@@ -1499,6 +1944,7 @@ export default function AdminCourseEditor() {
           courseId={courseId}
           lesson={editingVideoLesson}
           onSave={handleVideoLessonSaved}
+          captionOnly={form.status === 'Published'}
         />
       )}
 
@@ -1558,6 +2004,36 @@ export default function AdminCourseEditor() {
         />
       )}
 
+      {/* Practical (External) Lesson Modal */}
+      {!isNew && courseId && (
+        <ExternalLessonModal
+          isOpen={externalLessonModalOpen}
+          onClose={() => {
+            setExternalLessonModalOpen(false);
+            setEditingExternalLesson(null);
+          }}
+          courseId={courseId}
+          lesson={editingExternalLesson}
+          lessonsCount={lessons.length}
+          onSave={handleExternalLessonSaved}
+        />
+      )}
+
+      {!isNew && courseId && (
+        <CourseResourceModal
+          isOpen={resourceModalOpen}
+          onClose={() => {
+            setResourceModalOpen(false);
+            setEditingResource(null);
+          }}
+          courseId={courseId}
+          resource={editingResource}
+          resourceType={resourceModalType}
+          resourcesCount={resources.length}
+          onSave={handleResourceSaved}
+        />
+      )}
+
       {/* Image Crop Modal for Course Banner */}
       <ImageCropModal
         isOpen={cropModalOpen}
@@ -1570,6 +2046,65 @@ export default function AdminCourseEditor() {
 }
 
 // Small helper components and functions
+function ResourceTypeBadge({ type }) {
+  const map = {
+    video: 'bg-info text-[#1b365d]',
+    pdf: 'bg-info text-[#1b365d]',
+    html: 'bg-info text-[#1b365d]',
+  };
+  const label = formatResourceTypeLabel(type);
+  return <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${map[type] || 'bg-gray-100 text-gray-800'}`}>{label}</span>;
+}
+
+function AddResourceMenu({ onAdd, disabled = false }) {
+  const [open, setOpen] = useState(false);
+
+  const resourceTypes = [
+    { value: 'pdf', label: 'PDF', icon: '📄' },
+    { value: 'html', label: 'HTML', icon: '🌐' },
+    { value: 'video', label: 'Video', icon: '🎥' },
+  ];
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => !disabled && setOpen((v) => !v)}
+        disabled={disabled}
+        className={`px-4 py-2 rounded inline-flex items-center gap-2 ${
+          disabled
+            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            : 'bg-boxlms-primary-btn text-boxlms-primary-btn-txt hover:brightness-90 cursor-pointer'
+        }`}
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
+        Add Resource
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow-lg z-10">
+          {resourceTypes.map((t, index) => (
+            <div key={t.value}>
+              <button
+                onClick={() => {
+                  onAdd(t.value);
+                  setOpen(false);
+                }}
+                className={`w-full text-left px-4 py-3 text-sm flex items-center gap-3 hover:bg-gray-50${
+                  index < resourceTypes.length - 1 ? ' border-b' : ''
+                }`}
+              >
+                <span className="text-lg">{t.icon}</span>
+                <span>{t.label}</span>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TypeBadge({ type }) {
   const map = {
     video: 'bg-info text-[#1b365d]',
@@ -1577,29 +2112,44 @@ function TypeBadge({ type }) {
     pdf: 'bg-info text-[#1b365d]',
     scorm: 'bg-success text-[#1b365d]',
     html: 'bg-info text-[#1b365d]',
-    quiz: 'bg-warning text-[#1b365d]'
+    quiz: 'bg-warning text-[#1b365d]',
+    external: 'bg-slate-100 text-slate-800',
+    interactive: 'bg-purple-100 text-purple-800'
   };
   const labelMap = {
     document: 'PDF',
     pdf: 'PDF',
     scorm: 'SCORM',
-    html: 'HTML'
+    html: 'HTML',
+    external: getLessonTypeMenuLabel('external'),
+    interactive: 'Interactive'
   };
   const label = labelMap[type] || type.charAt(0).toUpperCase() + type.slice(1);
   return <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${map[type] || 'bg-gray-100 text-gray-800'}`}>{label}</span>;
 }
 
-function AddLessonMenu({ onAdd, disabled = false }) {
+function AddLessonMenu({ onAdd, disabled = false, hasPractical = false }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { courseId } = useParams();
+  const practicalLimitMessage = 'Not more than one practical lesson is allowed in the course.';
   
   const lessonTypes = [
     { value: 'video', label: 'Video Lesson', icon: '🎥' },
     { value: 'pdf', label: 'PDF Lesson', icon: '📄' },
     { value: 'scorm', label: 'SCORM 1.2 or SCORM 2004 Package', icon: '📦' },
     { value: 'html', label: 'HTML Lesson', icon: '🌐' },
-    { value: 'quiz', label: 'Quiz', icon: '📝' }
+    { value: 'quiz', label: 'Quiz', icon: '📝' },
+    { value: 'interactive', label: 'Interactive Lesson', icon: '🧩' },
+    ...(SHOW_PRACTICAL_IN_ADD_MENU
+      ? [{
+          value: 'external',
+          label: getLessonTypeMenuLabel('external'),
+          icon: '↗️',
+          disabled: hasPractical,
+          title: hasPractical ? practicalLimitMessage : undefined,
+        }]
+      : []),
   ];
   
   const handleLibraryClick = () => {
@@ -1626,16 +2176,37 @@ function AddLessonMenu({ onAdd, disabled = false }) {
       </button>
       {open && (
         <div className="absolute right-0 mt-2 w-56 bg-white border rounded shadow-lg z-10">
-          {lessonTypes.map(t => (
-            <button 
-              key={t.value} 
-              onClick={() => { onAdd(t.value); setOpen(false); }} 
-              className="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 flex items-center gap-3 border-b"
-            >
-              <span className="text-lg">{t.icon}</span>
-              <span>{t.label}</span>
-            </button>
-          ))}
+          {lessonTypes.map((t, index) => {
+            const itemClassName = `w-full text-left px-4 py-3 text-sm flex items-center gap-3${index < lessonTypes.length - 1 ? ' border-b' : ''} ${
+              t.disabled
+                ? 'text-gray-400 cursor-not-allowed'
+                : 'hover:bg-gray-50'
+            }`;
+            const itemButton = (
+              <button
+                key={t.value}
+                onClick={() => {
+                  if (!t.disabled) {
+                    onAdd(t.value);
+                    setOpen(false);
+                  }
+                }}
+                disabled={t.disabled}
+                className={itemClassName}
+              >
+                <span className="text-lg">{t.icon}</span>
+                <span>{t.label}</span>
+              </button>
+            );
+
+            return t.disabled ? (
+              <span key={t.value} title={t.title} className="block">
+                {itemButton}
+              </span>
+            ) : (
+              itemButton
+            );
+          })}
           {/* Separator */}
           <div className="border-t-2 border-gray-200"></div>
           {/* Library Option */}

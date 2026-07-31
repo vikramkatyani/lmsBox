@@ -61,6 +61,15 @@
         letter-spacing: -0.04em;
     }
 
+    button:not(:disabled),
+    [role="button"]:not([aria-disabled="true"]) {
+        cursor: pointer;
+    }
+
+    button:disabled {
+        cursor: not-allowed;
+    }
+
     /* Button styles - Primary (Turquoise) */
     .btn-primary {
         background-color: var(--color-boxlms-primary-btn);
@@ -141,4 +150,105 @@
     }
     .border-secondary {
         border-color: var(--color-boxlms-secondary-btn) !important;
+    }
+
+    .survey-rating-slider__input {
+        -webkit-appearance: none;
+        appearance: none;
+        height: 28px;
+        background: transparent;
+        cursor: pointer;
+    }
+
+    .survey-rating-slider__input:focus {
+        outline: none;
+    }
+
+    .survey-rating-slider__input:focus-visible::-webkit-slider-thumb {
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--tenant-primary, var(--color-boxlms-navbar)) 25%, transparent);
+    }
+
+    .survey-rating-slider__input:focus-visible::-moz-range-thumb {
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--tenant-primary, var(--color-boxlms-navbar)) 25%, transparent);
+    }
+
+    .survey-rating-slider__input::-webkit-slider-runnable-track {
+        height: 8px;
+        background: transparent;
+    }
+
+    .survey-rating-slider__input::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 24px;
+        height: 24px;
+        margin-top: -8px;
+        border-radius: 50%;
+        background: var(--color-boxlms-secondary-btn);
+        border: 3px solid var(--color-boxlms-primary-btn);
+        box-shadow: 0 2px 8px rgba(27, 54, 93, 0.2);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .survey-rating-slider__input:active::-webkit-slider-thumb {
+        transform: scale(1.08);
+    }
+
+    .survey-rating-slider__input::-moz-range-track {
+        height: 8px;
+        background: transparent;
+        border: none;
+    }
+
+    .survey-rating-slider__input::-moz-range-thumb {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: var(--color-boxlms-secondary-btn);
+        border: 3px solid var(--color-boxlms-primary-btn);
+        box-shadow: 0 2px 8px rgba(27, 54, 93, 0.2);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .survey-rating-slider__input:active::-moz-range-thumb {
+        transform: scale(1.08);
+    }
+
+    .survey-rating-slider--disabled .survey-rating-slider__input {
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+
+    .survey-rating-slider--disabled .survey-rating-slider__input::-webkit-slider-thumb,
+    .survey-rating-slider--disabled .survey-rating-slider__input::-moz-range-thumb {
+        transform: none;
+    }
+
+    @keyframes lesson-unlock-pulse {
+        0% {
+            transform: scale(0.95);
+            opacity: 0.75;
+            box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-boxlms-primary-btn) 55%, transparent);
+        }
+        100% {
+            transform: scale(2);
+            opacity: 0;
+            box-shadow: 0 0 0 6px transparent;
+        }
+    }
+
+    .lesson-unlock-pulse-ring {
+        position: absolute;
+        inset: -1px;
+        border-radius: 9999px;
+        border: 2px solid var(--color-boxlms-primary-btn);
+        background: color-mix(in srgb, var(--color-boxlms-primary-btn) 10%, transparent);
+        pointer-events: none;
+        transform-origin: center;
+        animation: lesson-unlock-pulse 2.8s ease-out infinite;
+        z-index: 0;
+    }
+
+    .lesson-unlock-pulse-ring--delay {
+        animation-delay: 1.4s;
     }

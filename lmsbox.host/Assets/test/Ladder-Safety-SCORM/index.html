@@ -1,0 +1,1668 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ladder Safety</title>
+    <script src="scorm_api.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --transition-speed: 0.3s;
+        }
+
+        /* Light Theme (Default) */
+        [data-theme="light"] {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --border-color: #e2e8f0;
+            --text-primary: #0f172a;
+            --text-secondary: #334155;
+            --text-muted: #64748b;
+            --text-faint: #94a3b8;
+            --accent: #1d4ed8;
+            --accent-dark: #1e40af;
+            --accent-glow: rgba(29, 78, 216, 0.25);
+            --accent-bg: rgba(29, 78, 216, 0.1);
+            --accent-border: rgba(29, 78, 216, 0.3);
+            --ui-accent: #2563eb;
+            --ui-accent-dark: #1d4ed8;
+            --ui-accent-glow: rgba(37, 99, 235, 0.25);
+            --danger: #dc2626;
+            --danger-bg: rgba(220, 38, 38, 0.1);
+            --danger-border: rgba(220, 38, 38, 0.25);
+            --warning: #ca8a04;
+            --warning-bg: rgba(202, 138, 4, 0.1);
+            --warning-border: rgba(202, 138, 4, 0.25);
+            --info: #2563eb;
+            --info-bg: rgba(37, 99, 235, 0.1);
+            --info-border: rgba(37, 99, 235, 0.25);
+            --success: #16a34a;
+            --success-bg: rgba(22, 163, 74, 0.1);
+            --nav-btn-bg: #e2e8f0;
+            --nav-btn-hover: #cbd5e1;
+            --card-hover-border: #1d4ed8;
+        }
+
+        /* Dark Theme */
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1a1f2e;
+            --bg-tertiary: #0f172a;
+            --border-color: #2d3748;
+            --text-primary: #fff;
+            --text-secondary: #e2e8f0;
+            --text-muted: #94a3b8;
+            --text-faint: #64748b;
+            --accent: #2affae;
+            --accent-dark: #05eb93;
+            --accent-glow: rgba(42, 255, 174, 0.3);
+            --accent-bg: rgba(42, 255, 174, 0.1);
+            --accent-border: rgba(42, 255, 174, 0.25);
+            --ui-accent: #2affae;
+            --ui-accent-dark: #05eb93;
+            --ui-accent-glow: rgba(42, 255, 174, 0.3);
+            --danger: #ef4444;
+            --danger-bg: rgba(239, 68, 68, 0.13);
+            --danger-border: rgba(239, 68, 68, 0.3);
+            --warning: #eab308;
+            --warning-bg: rgba(234, 179, 8, 0.13);
+            --warning-border: rgba(234, 179, 8, 0.3);
+            --info: #3b82f6;
+            --info-bg: rgba(59, 130, 246, 0.13);
+            --info-border: rgba(59, 130, 246, 0.3);
+            --success: #22c55e;
+            --success-bg: rgba(34, 197, 94, 0.13);
+            --nav-btn-bg: #2d3748;
+            --nav-btn-hover: #3d4758;
+            --card-hover-border: #2affae;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            min-height: 100vh;
+            line-height: 1.6;
+            transition: background var(--transition-speed) ease, color var(--transition-speed) ease;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--bg-secondary);
+            z-index: 1000;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-dark), var(--accent));
+            transition: width 0.3s ease;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-secondary);
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 4px;
+            transition: background var(--transition-speed) ease, border-color var(--transition-speed) ease;
+        }
+
+        .header-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--ui-accent);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .header-info {
+            display: flex;
+            gap: 1.5rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .header-info span {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        /* Theme Toggle Button */
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--nav-btn-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 30px;
+            padding: 0.4rem 0.5rem;
+            cursor: pointer;
+            transition: all var(--transition-speed) ease;
+        }
+
+        .theme-toggle:hover {
+            background: var(--nav-btn-hover);
+            border-color: var(--accent);
+        }
+
+        .theme-toggle-track {
+            width: 44px;
+            height: 24px;
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            position: relative;
+            transition: background var(--transition-speed) ease;
+            border: 1px solid var(--border-color);
+        }
+
+        .theme-toggle-thumb {
+            width: 18px;
+            height: 18px;
+            background: var(--accent);
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 3px;
+            transition: transform var(--transition-speed) ease, background var(--transition-speed) ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+
+        [data-theme="dark"] .theme-toggle-thumb {
+            transform: translateX(20px);
+        }
+
+        .theme-icon {
+            font-size: 0.9rem;
+        }
+
+        .theme-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            min-width: 36px;
+        }
+
+        /* Main Content */
+        .main-content {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+            min-height: calc(100vh - 140px);
+        }
+
+        /* Slides */
+        .slide {
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .slide.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Title Slide */
+        .title-slide {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        .title-slide h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .title-slide h1 span {
+            color: var(--text-primary);
+        }
+
+        .title-slide .subtitle {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+        }
+
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 1.5rem 2rem;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 2px solid var(--border-color);
+            min-width: 140px;
+            transition: border-color 0.2s ease, background var(--transition-speed) ease;
+        }
+
+        .stat-item:hover {
+            border-color: var(--accent);
+        }
+
+        .stat-icon {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Lesson Tag */
+        .lesson-tag {
+            display: inline-block;
+            background: var(--accent-bg);
+            color: var(--accent);
+            padding: 0.4rem 1rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 1rem;
+            border: 1px solid var(--accent-border);
+        }
+
+        /* Slide Title */
+        .slide-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+        }
+
+        .slide-intro {
+            font-size: 1.05rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+            line-height: 1.7;
+        }
+
+        /* Learning Objectives Box */
+        .objectives-box {
+            background: var(--bg-secondary);
+            border-left: 4px solid var(--info);
+            border-radius: 0 8px 8px 0;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            transition: background var(--transition-speed) ease;
+        }
+
+        .objectives-box h3 {
+            color: var(--info);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
+        }
+
+        .objectives-box ul {
+            list-style: none;
+        }
+
+        .objectives-box li {
+            padding: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+            color: var(--text-secondary);
+        }
+
+        .objectives-box li::before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: var(--info);
+        }
+
+        /* Action List */
+        .action-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .action-item {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+            background: var(--bg-secondary);
+            padding: 1rem 1.25rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            transition: background var(--transition-speed) ease, border-color var(--transition-speed) ease;
+        }
+
+        .action-keyword {
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            color: #0f172a;
+            padding: 0.3rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        [data-theme="light"] .action-keyword {
+            color: #fff;
+        }
+
+        .action-text {
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Key Takeaway Box */
+        .key-takeaway {
+            background: var(--bg-secondary);
+            border-left: 4px solid var(--accent);
+            border-radius: 0 8px 8px 0;
+            padding: 1.25rem 1.5rem;
+            margin-top: 2rem;
+            transition: background var(--transition-speed) ease;
+        }
+
+        .key-takeaway-label {
+            color: var(--accent);
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.5rem;
+        }
+
+        .key-takeaway p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+
+        .key-takeaway strong {
+            color: var(--text-primary);
+        }
+
+        /* Overview Grid */
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .overview-card {
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--accent);
+            transition: transform 0.2s ease, border-color 0.2s ease, background var(--transition-speed) ease;
+        }
+
+        .overview-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--card-hover-border);
+        }
+
+        .overview-card-number {
+            font-size: 0.75rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.5rem;
+        }
+
+        .overview-card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .overview-card-desc {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+        }
+
+        .overview-card-duration {
+            font-size: 0.8rem;
+            color: var(--text-faint);
+        }
+
+        /* Stat Cards */
+        .stat-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            padding: 1.5rem;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            transition: background var(--transition-speed) ease, border-color var(--transition-speed) ease;
+        }
+
+        .stat-card-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card-label {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        /* Hazard Categories Grid */
+        .hazard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .hazard-card {
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            padding: 1.25rem;
+            border: 1px solid var(--border-color);
+            transition: background var(--transition-speed) ease, border-color var(--transition-speed) ease;
+        }
+
+        .hazard-badge {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 0.75rem;
+        }
+
+        .hazard-badge.physical { background: var(--danger-bg); color: var(--danger); }
+        .hazard-badge.chemical { background: var(--warning-bg); color: var(--warning); }
+        .hazard-badge.biological { background: var(--success-bg); color: var(--success); }
+        .hazard-badge.ergonomic { background: var(--info-bg); color: var(--info); }
+        .hazard-badge.psychosocial { background: rgba(168, 85, 247, 0.13); color: #a855f7; }
+
+        .hazard-card p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        /* Two Column Layout */
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        @media (max-width: 768px) {
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .column-box {
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            transition: background var(--transition-speed) ease, border-color var(--transition-speed) ease;
+        }
+
+        .column-box h4 {
+            color: var(--accent);
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .column-box p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* Warning Callout */
+        .callout {
+            border-radius: 10px;
+            padding: 1.25rem 1.5rem;
+            margin: 1.5rem 0;
+            transition: background var(--transition-speed) ease, border-color var(--transition-speed) ease;
+        }
+
+        .callout.danger {
+            background: var(--danger-bg);
+            border: 1px solid var(--danger-border);
+            border-left: 4px solid var(--danger);
+        }
+
+        .callout.warning {
+            background: var(--warning-bg);
+            border: 1px solid var(--warning-border);
+            border-left: 4px solid var(--warning);
+        }
+
+        .callout.info {
+            background: var(--info-bg);
+            border: 1px solid var(--info-border);
+            border-left: 4px solid var(--info);
+        }
+
+        .callout-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .callout.danger .callout-title { color: var(--danger); }
+        .callout.warning .callout-title { color: var(--warning); }
+        .callout.info .callout-title { color: var(--info); }
+
+        .callout p {
+            color: var(--text-secondary);
+        }
+
+        /* Summary List */
+        .summary-list {
+            margin: 1.5rem 0;
+        }
+
+        .summary-item {
+            display: flex;
+            gap: 1rem;
+            padding: 1.25rem;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border-color);
+            transition: background var(--transition-speed) ease, border-color var(--transition-speed) ease;
+        }
+
+        .summary-number {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .summary-number.n1 { background: var(--info-bg); color: var(--info); }
+        .summary-number.n2 { background: var(--success-bg); color: var(--success); }
+        .summary-number.n3 { background: var(--danger-bg); color: var(--danger); }
+        .summary-number.n4 { background: var(--warning-bg); color: var(--warning); }
+        .summary-number.n5 { background: rgba(168, 85, 247, 0.13); color: #a855f7; }
+
+        .summary-text {
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .summary-text strong {
+            color: var(--text-primary);
+        }
+
+        /* Quote Box */
+        .quote-box {
+            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            margin: 2rem 0;
+            transition: background var(--transition-speed) ease, border-color var(--transition-speed) ease;
+        }
+
+        .quote-box p {
+            font-style: italic;
+            font-size: 1.15rem;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .quote-box p::before {
+            content: '"';
+            color: var(--accent);
+            font-size: 1.5rem;
+        }
+
+        .quote-box p::after {
+            content: '"';
+            color: var(--accent);
+            font-size: 1.5rem;
+        }
+
+        /* Completion Screen */
+        .completion-screen {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        .completion-icon {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, var(--success), #16a34a);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 2rem;
+            font-size: 3rem;
+            color: #fff;
+        }
+
+        .completion-screen h2 {
+            font-size: 2rem;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+        }
+
+        .completion-screen p {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+        }
+
+        .restart-btn {
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            color: #0f172a;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        [data-theme="light"] .restart-btn {
+            color: #fff;
+        }
+
+        .restart-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px var(--accent-glow);
+        }
+
+        /* Footer Navigation */
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background var(--transition-speed) ease, border-color var(--transition-speed) ease;
+        }
+
+        .lesson-indicator {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .nav-btn {
+            background: var(--nav-btn-bg);
+            color: var(--text-secondary);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: var(--nav-btn-hover);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .nav-btn.primary {
+            background: linear-gradient(135deg, var(--ui-accent), var(--ui-accent-dark));
+            color: #0f172a;
+        }
+
+        [data-theme="light"] .nav-btn.primary {
+            color: #fff;
+        }
+
+        .nav-btn.primary:hover:not(:disabled) {
+            box-shadow: 0 4px 15px var(--ui-accent-glow);
+        }
+
+        .nav-btn.complete {
+            background: linear-gradient(135deg, var(--success), #16a34a);
+            color: #fff;
+        }
+
+        /* Lifting Technique Visual */
+        .lifting-visual {
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-color);
+            transition: background var(--transition-speed) ease, border-color var(--transition-speed) ease;
+        }
+
+        .lifting-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 1rem;
+        }
+
+        .lifting-step {
+            text-align: center;
+            padding: 1rem;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            transition: background var(--transition-speed) ease;
+        }
+
+        .lifting-step-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .lifting-step-text {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .lifting-step-text strong {
+            display: block;
+            color: var(--accent);
+            margin-bottom: 0.25rem;
+        }
+
+        /* Responsive adjustments for header */
+        @media (max-width: 768px) {
+            .header {
+                flex-wrap: wrap;
+                gap: 1rem;
+            }
+            
+            .header-right {
+                width: 100%;
+                justify-content: space-between;
+            }
+            
+            .header-info {
+                gap: 1rem;
+            }
+
+            .theme-label {
+                display: none;
+            }
+
+            .stats-bar {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .stat-item {
+                width: 100%;
+                max-width: 280px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-container">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <header class="header">
+        <div class="header-title">Ladder Safety</div>
+        <div class="header-right">
+            <div class="header-info">
+                <span>⏱ 10 mins</span>
+                <span>📚 5 Lessons</span>
+                <span id="slideCounter">1 / 20</span>
+            </div>
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light/dark mode">
+                <span class="theme-label" id="themeLabel">Light</span>
+                <div class="theme-toggle-track">
+                    <div class="theme-toggle-thumb">
+                        <span id="themeIcon">☀️</span>
+                    </div>
+                </div>
+            </button>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <!-- ============================================== -->
+        <!-- SLIDE CONTENT START                           -->
+        <!-- ============================================== -->
+
+        <!-- SLIDE 1: Title Slide -->
+        <div class="slide active" data-slide="1">
+            <div class="title-slide">
+                <h1>Ladder Safety</h1>
+                <p class="subtitle">For Occasional Ladder Users in the Workplace</p>
+                <div class="stats-bar">
+                    <div class="stat-item">
+                        <div class="stat-icon">⏱️</div>
+                        <div class="stat-value">10</div>
+                        <div class="stat-label">Minutes</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-icon">📚</div>
+                        <div class="stat-value">5</div>
+                        <div class="stat-label">Lessons</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-icon">🖥️</div>
+                        <div class="stat-value">18</div>
+                        <div class="stat-label">Screens</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 2: Overview Slide -->
+        <div class="slide" data-slide="2">
+            <div class="lesson-tag">Course Overview</div>
+            <h2 class="slide-title">What You'll Learn</h2>
+            <p class="slide-intro">Ladders are one of the most common tools in any workplace, but they are also one of the most dangerous when used incorrectly. This course will give you the essential knowledge to use ladders safely.</p>
+            
+            <div class="overview-grid">
+                <div class="overview-card">
+                    <div class="overview-card-number">Lesson 1</div>
+                    <div class="overview-card-title">Why Ladder Safety Matters</div>
+                    <div class="overview-card-desc">Understanding the real risks and why training is essential</div>
+                    <div class="overview-card-duration">⏱ 2 minutes</div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-card-number">Lesson 2</div>
+                    <div class="overview-card-title">Before You Climb</div>
+                    <div class="overview-card-desc">Selecting the right ladder and pre-use inspection</div>
+                    <div class="overview-card-duration">⏱ 2 minutes</div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-card-number">Lesson 3</div>
+                    <div class="overview-card-title">Setting Up Safely</div>
+                    <div class="overview-card-desc">The 4-to-1 rule and proper positioning</div>
+                    <div class="overview-card-duration">⏱ 2 minutes</div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-card-number">Lesson 4</div>
+                    <div class="overview-card-title">Safe Climbing Techniques</div>
+                    <div class="overview-card-desc">Three points of contact and avoiding overreaching</div>
+                    <div class="overview-card-duration">⏱ 2 minutes</div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-card-number">Lesson 5</div>
+                    <div class="overview-card-title">Care & Storage</div>
+                    <div class="overview-card-desc">Maintenance, inspection and proper storage</div>
+                    <div class="overview-card-duration">⏱ 2 minutes</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 3: Lesson 1 Intro -->
+        <div class="slide" data-slide="3" data-lesson="1">
+            <div class="lesson-tag">Lesson 1</div>
+            <h2 class="slide-title">Why Ladder Safety Matters</h2>
+            <p class="slide-intro">Ladders are one of the most common tools in any workplace, but they are also one of the most dangerous when used incorrectly. This lesson explains why ladder safety training is essential and the real risks involved.</p>
+            
+            <div class="objectives-box">
+                <h3>In this lesson you will learn:</h3>
+                <ul>
+                    <li>The scale of ladder-related accidents in the UK</li>
+                    <li>Common causes of ladder injuries</li>
+                    <li>Why even occasional users need proper training</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- SLIDE 4: Lesson 1 - The Real Risks -->
+        <div class="slide" data-slide="4" data-lesson="1">
+            <div class="lesson-tag">Lesson 1</div>
+            <h2 class="slide-title">The Real Risks</h2>
+            <p class="slide-intro">Falls from height remain the most common cause of workplace fatalities in the UK. Ladders are involved in a significant proportion of these incidents, and the consequences can be life-changing.</p>
+            
+            <div class="stat-cards">
+                <div class="stat-card">
+                    <div class="stat-card-number">25%</div>
+                    <div class="stat-card-label">Of workplace deaths are falls from height</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-number">40%</div>
+                    <div class="stat-card-label">Of falls from height involve ladders</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-number">48,000</div>
+                    <div class="stat-card-label">A&E visits per year from ladder accidents</div>
+                </div>
+            </div>
+
+            <div class="callout danger">
+                <div class="callout-title">⚠️ Critical Warning</div>
+                <p>Many victims suffer permanent disabilities, even from short falls. The height of the fall is not the only factor – how you land matters too.</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 5: Lesson 1 - Why Accidents Happen -->
+        <div class="slide" data-slide="5" data-lesson="1">
+            <div class="lesson-tag">Lesson 1</div>
+            <h2 class="slide-title">Why Accidents Happen</h2>
+            <p class="slide-intro">Most ladder accidents are entirely preventable. Research shows that the majority of incidents are caused by human error rather than equipment failure.</p>
+            
+            <div class="action-list">
+                <div class="action-item">
+                    <span class="action-keyword">Wrong Ladder</span>
+                    <span class="action-text">Using a ladder unsuitable for the task at hand</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Incorrect Setup</span>
+                    <span class="action-text">Poor positioning or unstable base causing instability</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Overreaching</span>
+                    <span class="action-text">Leaning too far instead of repositioning the ladder</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">No Inspection</span>
+                    <span class="action-text">Using damaged or defective equipment without checking</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Rushing</span>
+                    <span class="action-text">Taking shortcuts to save time puts you at serious risk</span>
+                </div>
+            </div>
+
+            <div class="key-takeaway">
+                <div class="key-takeaway-label">Key Takeaway</div>
+                <p>The good news is that <strong>most ladder accidents are preventable</strong> with proper training and by following simple safety procedures.</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 6: Lesson 2 Intro -->
+        <div class="slide" data-slide="6" data-lesson="2">
+            <div class="lesson-tag">Lesson 2</div>
+            <h2 class="slide-title">Before You Climb</h2>
+            <p class="slide-intro">Before using any ladder, you need to ensure it is the right ladder for the job and that it is safe to use. This lesson covers how to select and inspect a ladder before every use.</p>
+            
+            <div class="objectives-box">
+                <h3>In this lesson you will learn:</h3>
+                <ul>
+                    <li>How to choose the right type of ladder</li>
+                    <li>Understanding duty ratings and weight limits</li>
+                    <li>How to inspect a ladder before use</li>
+                    <li>When a ladder should NOT be used</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- SLIDE 7: Lesson 2 - Choosing the Right Ladder -->
+        <div class="slide" data-slide="7" data-lesson="2">
+            <div class="lesson-tag">Lesson 2</div>
+            <h2 class="slide-title">Choosing the Right Ladder</h2>
+            <p class="slide-intro">Different tasks require different ladders. Using the wrong type is a leading cause of accidents. Always select a ladder that is appropriate for the job.</p>
+            
+            <div class="action-list">
+                <div class="action-item">
+                    <span class="action-keyword">Stepladders</span>
+                    <span class="action-text">For freestanding tasks away from walls – self-supporting</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Leaning Ladders</span>
+                    <span class="action-text">For tasks against a wall or structure – requires support</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Extension Ladders</span>
+                    <span class="action-text">For accessing higher areas – adjustable length</span>
+                </div>
+            </div>
+
+            <div class="callout info">
+                <div class="callout-title">ℹ️ Important Checks</div>
+                <p>Always consider the height you need to reach safely and check the duty rating supports your weight plus any tools or materials you'll be carrying.</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 8: Lesson 2 - Pre-Use Inspection -->
+        <div class="slide" data-slide="8" data-lesson="2">
+            <div class="lesson-tag">Lesson 2</div>
+            <h2 class="slide-title">Pre-Use Inspection</h2>
+            <p class="slide-intro">Every ladder must be inspected before each use. A quick visual check takes just seconds and could prevent a serious accident.</p>
+            
+            <div class="action-list">
+                <div class="action-item">
+                    <span class="action-keyword">Stiles</span>
+                    <span class="action-text">Check side rails for cracks, bends or damage</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Rungs</span>
+                    <span class="action-text">Ensure all rungs are secure, straight and intact</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Feet</span>
+                    <span class="action-text">Check rubber feet are present and not worn</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Locks</span>
+                    <span class="action-text">Test that locking mechanisms engage properly</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Labels</span>
+                    <span class="action-text">Safety labels should be readable and intact</span>
+                </div>
+            </div>
+
+            <div class="key-takeaway">
+                <div class="key-takeaway-label">Key Takeaway</div>
+                <p>A <strong>30-second inspection</strong> before each use could save your life. Never assume a ladder is safe – always check.</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 9: Lesson 2 - When NOT to Use a Ladder -->
+        <div class="slide" data-slide="9" data-lesson="2">
+            <div class="lesson-tag">Lesson 2</div>
+            <h2 class="slide-title">When NOT to Use a Ladder</h2>
+            <p class="slide-intro">Ladders are suitable for low-risk, short-duration tasks. There are situations where a ladder is not the right choice.</p>
+            
+            <div class="action-list">
+                <div class="action-item">
+                    <span class="action-keyword">Duration</span>
+                    <span class="action-text">Tasks requiring more than 30 minutes at height</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Two Hands</span>
+                    <span class="action-text">Work that requires both hands (no free hand for holding on)</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Heavy Loads</span>
+                    <span class="action-text">Heavy or bulky loads that affect your balance</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Weather</span>
+                    <span class="action-text">Adverse weather conditions – wind, rain, or ice</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Health</span>
+                    <span class="action-text">When you feel unwell, dizzy or fatigued</span>
+                </div>
+            </div>
+
+            <div class="callout warning">
+                <div class="callout-title">⚠️ Important</div>
+                <p>If any of these conditions apply, consider alternative equipment such as scaffolding, a mobile elevated work platform, or a podium step.</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 10: Lesson 3 Intro -->
+        <div class="slide" data-slide="10" data-lesson="3">
+            <div class="lesson-tag">Lesson 3</div>
+            <h2 class="slide-title">Setting Up Safely</h2>
+            <p class="slide-intro">How you position a ladder is critical to your safety. An incorrectly angled or poorly placed ladder can slip or topple, causing serious injury. This lesson covers the essential rules for safe setup.</p>
+            
+            <div class="objectives-box">
+                <h3>In this lesson you will learn:</h3>
+                <ul>
+                    <li>The 4-to-1 rule for leaning ladders</li>
+                    <li>How to set up stepladders correctly</li>
+                    <li>Securing ladders to prevent movement</li>
+                    <li>Choosing the right surface and location</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- SLIDE 11: Lesson 3 - The 4-to-1 Rule -->
+        <div class="slide" data-slide="11" data-lesson="3">
+            <div class="lesson-tag">Lesson 3</div>
+            <h2 class="slide-title">The 4-to-1 Rule</h2>
+            <p class="slide-intro">For leaning ladders (straight and extension ladders), the angle is critical. The 4-to-1 rule ensures maximum stability and is required by health and safety guidance.</p>
+            
+            <div class="lifting-visual">
+                <div class="lifting-steps">
+                    <div class="lifting-step">
+                        <div class="lifting-step-icon">📐</div>
+                        <div class="lifting-step-text"><strong>The Rule</strong>For every 4 feet of height, base 1 foot from wall</div>
+                    </div>
+                    <div class="lifting-step">
+                        <div class="lifting-step-icon">📊</div>
+                        <div class="lifting-step-text"><strong>The Angle</strong>Creates the ideal 75-degree angle</div>
+                    </div>
+                    <div class="lifting-step">
+                        <div class="lifting-step-icon">📏</div>
+                        <div class="lifting-step-text"><strong>Example</strong>8 feet high = base 2 feet from wall</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="two-column">
+                <div class="column-box">
+                    <h4>Too Steep</h4>
+                    <p>The ladder may fall backwards away from the wall</p>
+                </div>
+                <div class="column-box">
+                    <h4>Too Shallow</h4>
+                    <p>The base may slide out from under you</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 12: Lesson 3 - Stepladder Setup -->
+        <div class="slide" data-slide="12" data-lesson="3">
+            <div class="lesson-tag">Lesson 3</div>
+            <h2 class="slide-title">Stepladder Setup</h2>
+            <p class="slide-intro">Stepladders are self-supporting and do not lean against a wall. They have their own setup requirements to ensure stability.</p>
+            
+            <div class="action-list">
+                <div class="action-item">
+                    <span class="action-keyword">Fully Open</span>
+                    <span class="action-text">Open the ladder until spreader bars lock into place</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Never Partial</span>
+                    <span class="action-text">Never use a stepladder partially open or as a leaning ladder</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Firm Ground</span>
+                    <span class="action-text">Place on firm, level ground with all four feet in contact</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Face Work</span>
+                    <span class="action-text">Position the ladder facing the work – not side-on</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Stable Surface</span>
+                    <span class="action-text">Avoid soft or uneven surfaces that could cause tipping</span>
+                </div>
+            </div>
+
+            <div class="key-takeaway">
+                <div class="key-takeaway-label">Key Takeaway</div>
+                <p>A stepladder must always be <strong>fully open with spreader bars locked</strong> before you climb. Never take shortcuts with setup.</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 13: Lesson 3 - Securing the Ladder -->
+        <div class="slide" data-slide="13" data-lesson="3">
+            <div class="lesson-tag">Lesson 3</div>
+            <h2 class="slide-title">Securing the Ladder</h2>
+            <p class="slide-intro">Wherever possible, a ladder should be secured to prevent it slipping or moving during use.</p>
+            
+            <div class="action-list">
+                <div class="action-item">
+                    <span class="action-keyword">Tie</span>
+                    <span class="action-text">Tie the top of the ladder to a fixed point where possible</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Stabilisers</span>
+                    <span class="action-text">Use stabilisers or stand-offs for additional support</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Footing</span>
+                    <span class="action-text">If securing is not possible, have someone foot the ladder</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Doors</span>
+                    <span class="action-text">Never place ladders in front of unlocked doors</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Walkways</span>
+                    <span class="action-text">Use barriers or signs if the ladder is in a walkway</span>
+                </div>
+            </div>
+
+            <div class="callout info">
+                <div class="callout-title">ℹ️ Footing a Ladder</div>
+                <p>When footing a ladder, the person should stand facing the ladder with one foot on the bottom rung and hands on the stiles.</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 14: Lesson 4 Intro -->
+        <div class="slide" data-slide="14" data-lesson="4">
+            <div class="lesson-tag">Lesson 4</div>
+            <h2 class="slide-title">Safe Climbing Techniques</h2>
+            <p class="slide-intro">Even with the right ladder correctly positioned, accidents can still happen through unsafe climbing practices. This lesson covers how to climb, work from, and descend a ladder safely.</p>
+            
+            <div class="objectives-box">
+                <h3>In this lesson you will learn:</h3>
+                <ul>
+                    <li>The three points of contact rule</li>
+                    <li>Safe reaching limits and avoiding overreaching</li>
+                    <li>What not to do while on a ladder</li>
+                    <li>Carrying tools and materials safely</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- SLIDE 15: Lesson 4 - Three Points of Contact -->
+        <div class="slide" data-slide="15" data-lesson="4">
+            <div class="lesson-tag">Lesson 4</div>
+            <h2 class="slide-title">Three Points of Contact</h2>
+            <p class="slide-intro">Maintaining three points of contact at all times is essential for stability and balance while climbing or descending a ladder.</p>
+            
+            <div class="lifting-visual">
+                <div class="lifting-steps">
+                    <div class="lifting-step">
+                        <div class="lifting-step-icon">✋✋🦶</div>
+                        <div class="lifting-step-text"><strong>Option 1</strong>Two hands and one foot</div>
+                    </div>
+                    <div class="lifting-step">
+                        <div class="lifting-step-icon">✋🦶🦶</div>
+                        <div class="lifting-step-text"><strong>Option 2</strong>One hand and two feet</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-list">
+                <div class="action-item">
+                    <span class="action-keyword">Face</span>
+                    <span class="action-text">Always face the ladder when climbing up or down</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Grip</span>
+                    <span class="action-text">Grip the rungs, not the stiles, for better hold</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">One Step</span>
+                    <span class="action-text">Take one step at a time – do not skip rungs</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Centred</span>
+                    <span class="action-text">Keep your body centred between the stiles</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 16: Lesson 4 - Avoiding Overreaching -->
+        <div class="slide" data-slide="16" data-lesson="4">
+            <div class="lesson-tag">Lesson 4</div>
+            <h2 class="slide-title">Avoiding Overreaching</h2>
+            <p class="slide-intro">Overreaching is one of the most common causes of ladder falls. It shifts your centre of gravity and can cause the ladder to tip.</p>
+            
+            <div class="action-list">
+                <div class="action-item">
+                    <span class="action-keyword">Belt Buckle</span>
+                    <span class="action-text">Keep your belt buckle between the stiles at all times</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Reposition</span>
+                    <span class="action-text">If you cannot reach comfortably, climb down and move the ladder</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">No Leaning</span>
+                    <span class="action-text">Never lean to the side – move the ladder instead</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Face Forward</span>
+                    <span class="action-text">Do not work side-on to a stepladder</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Same Rung</span>
+                    <span class="action-text">Both feet should remain on the same rung while working</span>
+                </div>
+            </div>
+
+            <div class="key-takeaway">
+                <div class="key-takeaway-label">Key Takeaway</div>
+                <p>The <strong>"belt buckle rule"</strong> is simple: if your belt buckle moves outside the stiles, you're overreaching. Move the ladder!</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 17: Lesson 4 - Working Safely on a Ladder -->
+        <div class="slide" data-slide="17" data-lesson="4">
+            <div class="lesson-tag">Lesson 4</div>
+            <h2 class="slide-title">Working Safely on a Ladder</h2>
+            <p class="slide-intro">There are important rules about what you should and should not do while working on a ladder.</p>
+            
+            <div class="callout danger">
+                <div class="callout-title">⚠️ Never Do These Things</div>
+                <p>Never stand on the top three rungs of a leaning ladder. Never stand on the top step or cap of a stepladder.</p>
+            </div>
+
+            <div class="action-list">
+                <div class="action-item">
+                    <span class="action-keyword">Tool Belt</span>
+                    <span class="action-text">Use a tool belt – do not carry items while climbing</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Rope/Bucket</span>
+                    <span class="action-text">Raise and lower tools using a rope or bucket</span>
+                </div>
+                <div class="action-item">
+                    <span class="action-keyword">Weight Limit</span>
+                    <span class="action-text">Do not overload the ladder beyond its duty rating</span>
+                </div>
+            </div>
+
+            <div class="key-takeaway">
+                <div class="key-takeaway-label">Key Takeaway</div>
+                <p>If you need to reach higher, <strong>use a taller ladder</strong> – never stand on the top rungs to gain extra height.</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 18: Lesson 5 Intro -->
+        <div class="slide" data-slide="18" data-lesson="5">
+            <div class="lesson-tag">Lesson 5</div>
+            <h2 class="slide-title">Care & Storage</h2>
+            <p class="slide-intro">Looking after ladders properly extends their life and ensures they remain safe to use. This lesson covers how to maintain, store and transport ladders correctly.</p>
+            
+            <div class="objectives-box">
+                <h3>In this lesson you will learn:</h3>
+                <ul>
+                    <li>Regular inspection and maintenance requirements</li>
+                    <li>Proper storage to prevent damage</li>
+                    <li>Safe transportation of ladders</li>
+                    <li>When to take a ladder out of service</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- SLIDE 19: Lesson 5 - Maintenance & Inspection + Storage & Transport -->
+        <div class="slide" data-slide="19" data-lesson="5">
+            <div class="lesson-tag">Lesson 5</div>
+            <h2 class="slide-title">Maintenance, Storage & Transport</h2>
+            <p class="slide-intro">As well as pre-use checks, ladders require regular formal inspections, proper maintenance, and correct storage to remain safe.</p>
+            
+            <div class="two-column">
+                <div class="column-box">
+                    <h4>Maintenance</h4>
+                    <p>Clean ladders regularly to remove mud, grease and debris. Lubricate moving parts like locks and pulleys periodically. Check ropes on extension ladders for fraying. Keep records of all formal inspections. Only allow competent persons to carry out repairs.</p>
+                </div>
+                <div class="column-box">
+                    <h4>Storage & Transport</h4>
+                    <p>Store on racks that support the full length. Keep wooden ladders away from excessive heat or damp. Keep fibreglass ladders away from direct sunlight. Secure ladders during transport. Never store materials or hang items on ladders.</p>
+                </div>
+            </div>
+
+            <div class="key-takeaway">
+                <div class="key-takeaway-label">Key Takeaway</div>
+                <p>Proper care and storage <strong>extends the safe working life</strong> of your ladders. A damaged ladder should be immediately taken out of service and labelled.</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 20: Summary Slide -->
+        <div class="slide" data-slide="20">
+            <div class="lesson-tag">Course Complete</div>
+            <h2 class="slide-title">Summary</h2>
+            <p class="slide-intro">Congratulations on completing this course. Remember these five key takeaways:</p>
+            
+            <div class="summary-list">
+                <div class="summary-item">
+                    <div class="summary-number n1">1</div>
+                    <div class="summary-text"><strong>Inspect every ladder before use</strong> – never use damaged equipment. A 30-second check could save your life.</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-number n2">2</div>
+                    <div class="summary-text"><strong>Position leaning ladders using the 4-to-1 rule</strong> – this creates the safe 75-degree angle required for stability.</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-number n3">3</div>
+                    <div class="summary-text"><strong>Maintain three points of contact</strong> at all times while climbing – two hands and one foot, or two feet and one hand.</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-number n4">4</div>
+                    <div class="summary-text"><strong>Never stand on the top steps</strong> – reposition or use a taller ladder if you need to reach higher.</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-number n5">5</div>
+                    <div class="summary-text"><strong>Move the ladder instead of overreaching</strong> – most falls happen when people lean too far to avoid repositioning.</div>
+                </div>
+            </div>
+
+            <div class="quote-box">
+                <p>Taking a few extra seconds to set up safely could save you from a life-changing injury.</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 21: Completion Slide -->
+        <div class="slide" data-slide="21">
+            <div class="completion-screen">
+                <div class="completion-icon">✓</div>
+                <h2>Congratulations!</h2>
+                <p>You have successfully completed the Ladder Safety course.</p>
+                <button class="restart-btn" onclick="restartCourse()">Start Over</button>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- SLIDE CONTENT END                             -->
+        <!-- ============================================== -->
+    </main>
+
+    <footer class="footer">
+        <div class="lesson-indicator" id="lessonIndicator">Introduction</div>
+        <div class="nav-buttons">
+            <button class="nav-btn" id="prevBtn" onclick="previousSlide()">← Previous</button>
+            <button class="nav-btn primary" id="nextBtn" onclick="nextSlide()">Next →</button>
+        </div>
+    </footer>
+
+    <script>
+        // Course Configuration
+        let currentSlide = 1;
+        const totalSlides = 21;
+        const totalLessons = 5;
+        
+        // Map which slides belong to which lesson
+        const lessonSlides = {
+            1: [3, 4, 5],
+            2: [6, 7, 8, 9],
+            3: [10, 11, 12, 13],
+            4: [14, 15, 16, 17],
+            5: [18, 19]
+        };
+
+        // Theme toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            
+            html.setAttribute('data-theme', newTheme);
+            
+            document.getElementById('themeLabel').textContent = newTheme === 'light' ? 'Light' : 'Dark';
+            document.getElementById('themeIcon').textContent = newTheme === 'light' ? '☀️' : '🌙';
+            
+            localStorage.setItem('theme-preference', newTheme);
+        }
+
+        function loadThemePreference() {
+            const savedTheme = localStorage.getItem('theme-preference');
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+                document.getElementById('themeLabel').textContent = savedTheme === 'light' ? 'Light' : 'Dark';
+                document.getElementById('themeIcon').textContent = savedTheme === 'light' ? '☀️' : '🌙';
+            }
+        }
+
+        // Initialize course
+        document.addEventListener('DOMContentLoaded', function() {
+            loadThemePreference();
+            
+            setTimeout(function() {
+                const progress = SCORM.loadProgress();
+                if (progress && progress.slide && progress.slide > 1) {
+                    if (confirm('Would you like to resume from where you left off?')) {
+                        goToSlide(progress.slide);
+                    }
+                }
+                updateUI();
+            }, 500);
+        });
+
+        // Navigation functions
+        function nextSlide() {
+            if (currentSlide < totalSlides) {
+                currentSlide++;
+                updateUI();
+                saveProgress();
+            }
+        }
+
+        function previousSlide() {
+            if (currentSlide > 1) {
+                currentSlide--;
+                updateUI();
+                saveProgress();
+            }
+        }
+
+        function goToSlide(slideNum) {
+            if (slideNum >= 1 && slideNum <= totalSlides) {
+                currentSlide = slideNum;
+                updateUI();
+            }
+        }
+
+        function restartCourse() {
+            currentSlide = 1;
+            updateUI();
+            saveProgress();
+        }
+
+        // Update UI elements
+        function updateUI() {
+            // Update slides
+            document.querySelectorAll('.slide').forEach(function(slide) {
+                slide.classList.remove('active');
+            });
+            const activeSlide = document.querySelector('[data-slide="' + currentSlide + '"]');
+            if (activeSlide) {
+                activeSlide.classList.add('active');
+            }
+
+            // Update progress bar
+            const progress = (currentSlide / totalSlides) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+
+            // Update slide counter
+            document.getElementById('slideCounter').textContent = currentSlide + ' / ' + totalSlides;
+
+            // Update lesson indicator
+            const lessonIndicator = document.getElementById('lessonIndicator');
+            let lessonText = 'Introduction';
+            for (let lesson in lessonSlides) {
+                if (lessonSlides[lesson].includes(currentSlide)) {
+                    lessonText = 'Lesson ' + lesson + ' of ' + totalLessons;
+                    break;
+                }
+            }
+            if (currentSlide === totalSlides - 1) lessonText = 'Summary';
+            if (currentSlide === totalSlides) lessonText = 'Complete';
+            lessonIndicator.textContent = lessonText;
+
+            // Update navigation buttons
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            
+            prevBtn.disabled = currentSlide === 1;
+            
+            if (currentSlide === totalSlides) {
+                nextBtn.style.display = 'none';
+            } else if (currentSlide === totalSlides - 1) {
+                nextBtn.innerHTML = 'Complete ✓';
+                nextBtn.classList.remove('primary');
+                nextBtn.classList.add('complete');
+                nextBtn.style.display = 'inline-flex';
+            } else {
+                nextBtn.innerHTML = 'Next →';
+                nextBtn.classList.add('primary');
+                nextBtn.classList.remove('complete');
+                nextBtn.style.display = 'inline-flex';
+            }
+        }
+
+        // Save progress to SCORM
+        function saveProgress() {
+            SCORM.saveProgress(currentSlide);
+            
+            if (currentSlide === totalSlides) {
+                SCORM.complete();
+            }
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                e.preventDefault();
+                nextSlide();
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                previousSlide();
+            }
+        });
+    </script>
+</body>
+</html>

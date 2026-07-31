@@ -1,5 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { PencilIcon, EyeIcon, ArrowsPointingOutIcon, ArrowsPointingInIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, EyeIcon, ArrowsPointingOutIcon, ArrowsPointingInIcon, FlagIcon } from '@heroicons/react/24/outline';
+
+export const HTML_COMPLETION_TRIGGER_SNIPPET = `<!-- LMSBOX completion trigger: lesson completes when the learner reaches this point -->
+<div data-lmsbox-complete-trigger aria-hidden="true" style="height:1px;width:100%;overflow:hidden;"></div>
+`;
 
 const HtmlLessonEditor = ({ initialContent = '', onContentChange, onUrlChange }) => {
   const [htmlContent, setHtmlContent] = useState(initialContent);
@@ -8,6 +12,7 @@ const HtmlLessonEditor = ({ initialContent = '', onContentChange, onUrlChange })
   const [uploading, setUploading] = useState(false);
   const iframeRef = useRef(null);
   const containerRef = useRef(null);
+  const textareaRef = useRef(null);
 
   useEffect(() => {
     setHtmlContent(initialContent);
@@ -19,6 +24,33 @@ const HtmlLessonEditor = ({ initialContent = '', onContentChange, onUrlChange })
       onContentChange(newContent);
     }
   };
+
+  const insertCompletionTrigger = () => {
+    const textarea = textareaRef.current;
+    const snippet = HTML_COMPLETION_TRIGGER_SNIPPET;
+    let nextContent;
+
+    if (textarea) {
+      const start = textarea.selectionStart ?? htmlContent.length;
+      const end = textarea.selectionEnd ?? start;
+      nextContent = htmlContent.slice(0, start) + snippet + htmlContent.slice(end);
+      handleContentChange(nextContent);
+
+      // Restore cursor after the inserted snippet
+      requestAnimationFrame(() => {
+        const cursor = start + snippet.length;
+        textarea.focus();
+        textarea.setSelectionRange(cursor, cursor);
+      });
+    } else {
+      nextContent = htmlContent + (htmlContent.endsWith('\n') || !htmlContent ? '' : '\n') + snippet;
+      handleContentChange(nextContent);
+    }
+
+    setIsPreview(false);
+  };
+
+  const hasCompletionTrigger = /data-lmsbox-complete-trigger/i.test(htmlContent);
 
   // Update iframe when switching to preview mode
   useEffect(() => {
@@ -128,6 +160,23 @@ const HtmlLessonEditor = ({ initialContent = '', onContentChange, onUrlChange })
             <EyeIcon className="h-4 w-4" />
             <span className="text-sm font-medium">Preview</span>
           </button>
+          {!isPreview && (
+            <button
+              type="button"
+              onClick={insertCompletionTrigger}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded border ${
+                hasCompletionTrigger
+                  ? 'bg-white text-[#1b365d] border-[#2afeae]'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+              title="Insert a completion trigger at the cursor. When the learner reaches this point, the lesson is marked complete."
+            >
+              <FlagIcon className="h-4 w-4" />
+              <span className="text-sm font-medium">
+                {hasCompletionTrigger ? 'Insert another trigger' : 'Insert completion trigger'}
+              </span>
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -150,6 +199,7 @@ const HtmlLessonEditor = ({ initialContent = '', onContentChange, onUrlChange })
       <div className="relative" style={{ height: isFullscreen ? 'calc(100vh - 56px)' : '500px' }}>
         {!isPreview ? (
           <textarea
+            ref={textareaRef}
             value={htmlContent}
             onChange={(e) => handleContentChange(e.target.value)}
             placeholder="Paste your HTML content here..."
@@ -168,10 +218,19 @@ const HtmlLessonEditor = ({ initialContent = '', onContentChange, onUrlChange })
 
       {/* Helper Text */}
       {!isPreview && (
-        <div className="bg-gray-50 border-t border-gray-300 px-4 py-2 text-xs text-gray-600">
+        <div className="bg-gray-50 border-t border-gray-300 px-4 py-2 text-xs text-gray-600 space-y-1">
           <p>
             <strong>Tip:</strong> Paste complete HTML documents or HTML snippets. Use Preview to test your content before saving.
           </p>
+          <p>
+            <strong>Completion:</strong> Use <em>Insert completion trigger</em> to place a marker anywhere in the HTML.
+            The lesson completes when the learner reaches that point. If you do not add a trigger, completion happens automatically when they reach the end of the content.
+          </p>
+          {hasCompletionTrigger && (
+            <p className="text-teal-700">
+              A completion trigger is present in this content.
+            </p>
+          )}
         </div>
       )}
     </div>

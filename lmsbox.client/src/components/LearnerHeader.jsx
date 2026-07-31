@@ -3,7 +3,9 @@ import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { removeAuthToken, saveLastVisitedPage, getAuthToken, getUserRole, isAdmin } from '../utils/auth';
 import toast, { Toaster } from 'react-hot-toast';
 import ConfirmDialog from './ConfirmDialog';
+import UnreadBadge from './UnreadBadge';
 import { useTheme } from '../theme/ThemeContext';
+import useUnreadAnnouncements from '../hooks/useUnreadAnnouncements';
 import { API_BASE } from '../utils/apiBase';
 
 export default function LearnerHeader() {
@@ -16,6 +18,7 @@ export default function LearnerHeader() {
   const [isUserAdmin, setIsUserAdmin] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { unreadCount, refresh: refreshUnreadCount } = useUnreadAnnouncements();
 
   // Extract user name from token or localStorage
   useEffect(() => {
@@ -57,6 +60,12 @@ export default function LearnerHeader() {
     const interval = setInterval(checkToken, 60000); // Check every minute
     return () => clearInterval(interval);
   }, [navigate, location.pathname]);
+
+  useEffect(() => {
+    const handleAnnouncementsUpdated = () => refreshUnreadCount();
+    window.addEventListener('announcements:updated', handleAnnouncementsUpdated);
+    return () => window.removeEventListener('announcements:updated', handleAnnouncementsUpdated);
+  }, [refreshUnreadCount]);
   
   const menuRef = useRef(null);
   const profileDropdownRef = useRef(null);
@@ -206,6 +215,7 @@ export default function LearnerHeader() {
               <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" className="cursor-pointer hover:fill-boxlms-profile" viewBox="0 0 512 512">
                 <path d="M437.02 74.981C388.667 26.629 324.38 0 256 0S123.333 26.629 74.98 74.981C26.629 123.333 0 187.62 0 256s26.629 132.667 74.98 181.019C123.333 485.371 187.62 512 256 512s132.667-26.629 181.02-74.981C485.371 388.667 512 324.38 512 256s-26.629-132.667-74.98-181.019zM256 482c-66.869 0-127.037-29.202-168.452-75.511C113.223 338.422 178.948 290 256 290c-49.706 0-90-40.294-90-90s40.294-90 90-90 90 40.294 90 90-40.294 90-90 90c77.052 0 142.777 48.422 168.452 116.489C383.037 452.798 322.869 482 256 482z" />
               </svg>
+              <UnreadBadge count={unreadCount} className="absolute -right-1 -top-1" />
             </button>
 
             {isProfileDropdownOpen && (
@@ -219,7 +229,13 @@ export default function LearnerHeader() {
                   <li><Link to="/profile" className="text-sm text-gray-500 hover:text-slate-900">Profile Settings</Link></li>
                   <li><Link to="/courses/all" className="text-sm text-gray-500 hover:text-slate-900">My Learning</Link></li>
                   <li><Link to="/courses/certificates" className="text-sm text-gray-500 hover:text-slate-900">My Certificates</Link></li>
-                  <li><Link to="/notifications" className="text-sm text-gray-500 hover:text-slate-900">Notifications</Link></li>
+                  <li><Link to="/courses/progress-report" className="text-sm text-gray-500 hover:text-slate-900">Progress Report</Link></li>
+                  <li>
+                    <Link to="/notifications" className="flex items-center gap-2 text-sm text-gray-500 hover:text-slate-900">
+                      <span>Notifications</span>
+                      <UnreadBadge count={unreadCount} />
+                    </Link>
+                  </li>
                   <li><a href="http://www.lmsbox.co.uk/help-centre#learner-help" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-500 hover:text-slate-900">Help Center</a></li>
                 </ul>
                 {isUserAdmin && (

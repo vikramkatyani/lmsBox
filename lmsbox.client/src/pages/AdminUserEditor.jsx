@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { getUser, saveUser } from '../services/users';
 import { listUserGroups } from '../services/learningPathways';
 import { getUserId } from '../utils/auth';
+import { canManageUsersInUI } from '../config/adminFeatureFlags';
 import usePageTitle from '../hooks/usePageTitle';
 
 export default function AdminUserEditor() {
@@ -15,6 +16,13 @@ export default function AdminUserEditor() {
   const isEditingSelf = !isNew && userId === currentUserId;
 
   usePageTitle(isNew ? 'Add User' : 'Edit User');
+
+  useEffect(() => {
+    if (!canManageUsersInUI()) {
+      toast.error('User create and edit are not available here. Changes are managed via the integration API.');
+      navigate('/admin/users', { replace: true });
+    }
+  }, [navigate]);
 
   const [form, setForm] = useState({
     firstName: '',

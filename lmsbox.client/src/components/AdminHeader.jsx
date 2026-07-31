@@ -6,6 +6,7 @@ import ProfileIcon from './ProfileIcon';
 import ConfirmDialog from './ConfirmDialog';
 import toast, { Toaster } from 'react-hot-toast';
 import { API_BASE } from '../utils/apiBase';
+import { getAdminNavLinks } from '../config/adminFeatureFlags';
 
 export default function AdminHeader({ hideNavigation = false }) {
   const theme = useTheme();
@@ -13,6 +14,7 @@ export default function AdminHeader({ hideNavigation = false }) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [openMobileGroups, setOpenMobileGroups] = useState({});
   const [userName, setUserName] = useState('');
   const [userRole, setUserRole] = useState('');
   
@@ -87,6 +89,21 @@ export default function AdminHeader({ hideNavigation = false }) {
     setShowProfileMenu(false);
   };
 
+  const navItems = getAdminNavLinks();
+
+  const navLinkClass = ({ isActive }) =>
+    `block text-[15px] font-medium relative transition-all duration-200
+    ${isActive
+      ? 'text-boxlms-navbar-active'
+      : 'text-boxlms-navbar-txt hover:text-boxlms-navbar-active'
+    }
+    max-lg:py-3 max-lg:px-3
+    lg:py-2 lg:px-1
+    lg:after:content-[""] lg:after:block lg:after:absolute lg:after:h-0.5 
+    lg:after:bg-boxlms-navbar-active lg:after:w-full lg:after:scale-x-0 lg:hover:after:scale-x-100 
+    lg:after:transition-transform lg:after:duration-300 lg:after:origin-left
+    ${isActive ? 'lg:after:scale-x-100' : ''}`;
+
   return (
     <>
       <header className="flex shadow-md py-3 px-4 sm:px-10 bg-boxlms-navbar min-h-[70px] tracking-wide relative z-50">
@@ -134,37 +151,101 @@ export default function AdminHeader({ hideNavigation = false }) {
                     </NavLink>
                   </li>
                   
-                  {[
-                    { to: '/admin/dashboard', label: 'Dashboard' },
-                    { to: '/admin/users', label: 'Users' },
-                    { to: '/admin/courses', label: 'Courses' },
-                    { to: '/admin/learning-pathways', label: 'Pathways' },
-                    { to: '/admin/reports', label: 'Reports' },
-                    { to: '/admin/automation', label: 'Automation' }
-                  ].map((link) => (
-                    <li key={link.to} className="nav-item relative group">
-                      <NavLink
-                        to={link.to}
-                        className={({ isActive }) =>
-                          `block text-[15px] font-medium relative transition-all duration-200
-                          ${isActive 
-                            ? 'text-boxlms-navbar-active' 
-                            : 'text-boxlms-navbar-txt hover:text-boxlms-navbar-active'
-                          }
-                          max-lg:py-3 max-lg:px-3
-                          lg:py-2 lg:px-1
-                          lg:after:content-[""] lg:after:block lg:after:absolute lg:after:h-0.5 
-                          lg:after:bg-boxlms-navbar-active lg:after:w-full lg:after:scale-x-0 lg:hover:after:scale-x-100 
-                          lg:after:transition-transform lg:after:duration-300 lg:after:origin-left
-                          ${isActive ? 'lg:after:scale-x-100' : ''}`
-                        }
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        {link.label}
-                      </NavLink>
-                      <span className={`lg:hidden absolute left-0 top-0 w-1 h-full bg-boxlms-navbar-active rounded-r transition-transform duration-200 ${link.to === window.location.pathname ? 'scale-y-100' : 'scale-y-0 group-hover:scale-y-100'}`} />
-                    </li>
-                  ))}
+                  {navItems.map((item) => {
+                    const children = item?.children?.length ? item.children : null;
+
+                    if (!children) {
+                      const link = item;
+                      return (
+                        <li key={link.to} className="nav-item relative group">
+                          <NavLink
+                            to={link.to}
+                            className={navLinkClass}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            {link.label}
+                          </NavLink>
+                          <span className={`lg:hidden absolute left-0 top-0 w-1 h-full bg-boxlms-navbar-active rounded-r transition-transform duration-200 ${link.to === window.location.pathname ? 'scale-y-100' : 'scale-y-0 group-hover:scale-y-100'}`} />
+                        </li>
+                      );
+                    }
+
+                    const groupKey = item.label;
+                    const isMobileGroupOpen = !!openMobileGroups[groupKey];
+
+                    return (
+                      <li key={groupKey} className="nav-item relative group">
+                        <div className="hidden lg:block">
+                          <button
+                            type="button"
+                            className="block text-[15px] font-medium relative transition-all duration-200 text-boxlms-navbar-txt hover:text-boxlms-navbar-active py-2 px-1"
+                          >
+                            <span className="inline-flex items-center gap-1">
+                              {item.label}
+                              <svg className="w-3 h-3 fill-current" viewBox="0 0 20 20" aria-hidden="true">
+                                <path d="M5.516 7.548a.625.625 0 0 1 .884 0L10 11.148l3.6-3.6a.625.625 0 1 1 .884.884l-4.042 4.042a.625.625 0 0 1-.884 0L5.516 8.432a.625.625 0 0 1 0-.884Z" />
+                              </svg>
+                            </span>
+                          </button>
+                          <div className="absolute left-0 top-full pt-2 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-150">
+                            <div className="bg-white border border-gray-200 rounded-lg shadow-lg min-w-56 py-2">
+                              {children.map((child) => (
+                                <NavLink
+                                  key={child.to}
+                                  to={child.to}
+                                  className={({ isActive }) =>
+                                    `block px-4 py-2 text-sm transition-colors ${
+                                      isActive ? 'text-boxlms-navbar-active bg-gray-50' : 'text-slate-700 hover:bg-gray-50 hover:text-boxlms-navbar-active'
+                                    }`
+                                  }
+                                >
+                                  {child.label}
+                                </NavLink>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="lg:hidden">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setOpenMobileGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }))
+                            }
+                            className="w-full text-left text-[15px] font-medium text-boxlms-navbar-txt hover:text-boxlms-navbar-active max-lg:py-3 max-lg:px-3 flex items-center justify-between"
+                          >
+                            <span>{item.label}</span>
+                            <svg
+                              className={`w-4 h-4 fill-current transition-transform ${isMobileGroupOpen ? 'rotate-180' : ''}`}
+                              viewBox="0 0 20 20"
+                              aria-hidden="true"
+                            >
+                              <path d="M5.516 7.548a.625.625 0 0 1 .884 0L10 11.148l3.6-3.6a.625.625 0 1 1 .884.884l-4.042 4.042a.625.625 0 0 1-.884 0L5.516 8.432a.625.625 0 0 1 0-.884Z" />
+                            </svg>
+                          </button>
+
+                          {isMobileGroupOpen && (
+                            <div className="pl-3 pb-2">
+                              {children.map((child) => (
+                                <NavLink
+                                  key={child.to}
+                                  to={child.to}
+                                  onClick={() => setIsMobileMenuOpen(false)}
+                                  className={({ isActive }) =>
+                                    `block max-lg:py-2 max-lg:px-3 text-[14px] font-medium rounded-md transition-colors ${
+                                      isActive ? 'text-boxlms-navbar-active bg-gray-50' : 'text-boxlms-navbar-txt hover:bg-gray-50 hover:text-boxlms-navbar-active'
+                                    }`
+                                  }
+                                >
+                                  {child.label}
+                                </NavLink>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
 

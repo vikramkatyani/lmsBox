@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
+import RatingSlider from './RatingSlider';
 
 /**
  * SurveyPlayer Component
  * Displays survey questions and collects responses
- * Supports question types: Text, MultipleChoice, Rating
+ * Supports question types: Text, MultipleChoice, SingleChoice, Rating, YesNo
  */
-export default function SurveyPlayer({ survey, onSubmit, onCancel, surveyType = 'pre' }) {
+export default function SurveyPlayer({ survey, onSubmit, onCancel, surveyType = 'pre', previewMode = false }) {
   const [responses, setResponses] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -28,13 +29,11 @@ export default function SurveyPlayer({ survey, onSubmit, onCancel, surveyType = 
     }
   }, [survey]);
 
-  // Debug: Log survey questions
-  React.useEffect(() => {
-    console.log('Survey data:', survey);
-    console.log('Questions:', survey?.questions);
-  }, [survey]);
+  const sortedQuestions = [...(survey?.questions || [])].sort(
+    (a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)
+  );
 
-  if (!survey || !survey.questions || survey.questions.length === 0) {
+  if (!survey || sortedQuestions.length === 0) {
     return (
       <div className="text-center py-8">
         <p className="text-gray-500">No questions available</p>
@@ -83,8 +82,15 @@ export default function SurveyPlayer({ survey, onSubmit, onCancel, surveyType = 
     }));
   };
 
+  const handleYesNoChange = (questionId, value) => {
+    setResponses(prev => ({
+      ...prev,
+      [questionId]: { questionId, answerText: value }
+    }));
+  };
+
   const validateResponses = () => {
-    const requiredQuestions = survey.questions.filter(q => q.isRequired);
+    const requiredQuestions = sortedQuestions.filter(q => q.isRequired);
     
     for (const question of requiredQuestions) {
       const response = responses[question.id];
@@ -109,6 +115,11 @@ export default function SurveyPlayer({ survey, onSubmit, onCancel, surveyType = 
         toast.error(`Please provide a rating for: ${question.questionText}`);
         return false;
       }
+
+      if (question.questionType === 'YesNo' && !response.answerText?.trim()) {
+        toast.error(`Please answer: ${question.questionText}`);
+        return false;
+      }
     }
 
     return true;
@@ -116,6 +127,11 @@ export default function SurveyPlayer({ survey, onSubmit, onCancel, surveyType = 
 
   const handleSubmit = async () => {
     if (!validateResponses()) return;
+
+    if (previewMode) {
+      toast.success('Preview only — responses were not submitted');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -131,9 +147,6 @@ export default function SurveyPlayer({ survey, onSubmit, onCancel, surveyType = 
 
   const renderQuestion = (question, index) => {
     const response = responses[question.id];
-    
-    // Debug: Log each question being rendered
-    console.log(`Rendering question ${index + 1}:`, question);
 
     switch (question.questionType) {
       case 'Text':
@@ -193,31 +206,51 @@ export default function SurveyPlayer({ survey, onSubmit, onCancel, surveyType = 
 
         return (
           <div key={question.id} className="mb-6 p-4 bg-white rounded-lg border">
+            <label className="block text-sm font-medium text-gray-900 mb-4">
+              {index + 1}. {question.questionText}
+              {question.isRequired && !isReadOnly && <span className="text-red-500 ml-1">*</span>}
+            </label>
+            <RatingSlider
+              min={minRating}
+              max={maxRating}
+              value={ratingValue}
+              onChange={(val) => handleRatingChange(question.id, val)}
+              disabled={isReadOnly}
+            />
+          </div>
+        );
+      }
+
+      case 'YesNo': {
+        const selectedAnswer = response?.answerText || '';
+
+        return (
+          <div key={question.id} className="mb-6 p-4 bg-white rounded-lg border">
             <label className="block text-sm font-medium text-gray-900 mb-3">
               {index + 1}. {question.questionText}
               {question.isRequired && !isReadOnly && <span className="text-red-500 ml-1">*</span>}
             </label>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500 mr-2">{minRating}</span>
-              {Array.from({ length: maxRating - minRating + 1 }, (_, i) => {
-                const value = minRating + i;
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => !isReadOnly && handleRatingChange(question.id, value)}
+            <div className="flex gap-4">
+              {['Yes', 'No'].map((option) => (
+                <label
+                  key={option}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border ${
+                    selectedAnswer === option
+                      ? 'border-[#2afeae] bg-[#e8fdf6]'
+                      : 'border-gray-300'
+                  } ${!isReadOnly ? 'cursor-pointer hover:bg-gray-50' : 'cursor-not-allowed'}`}
+                >
+                  <input
+                    type="radio"
+                    name={`question-${question.id}`}
+                    checked={selectedAnswer === option}
+                    onChange={() => handleYesNoChange(question.id, option)}
+                    className="w-4 h-4 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
                     disabled={isReadOnly}
-                    className={`w-10 h-10 rounded-full border-2 transition-all ${
-                      ratingValue === value
-                        ? 'bg-[#2afeae] text-[#1b365d] border-[#2afeae] scale-110'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
-                    } ${isReadOnly ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}
-                  >
-                    {value}
-                  </button>
-                );
-              })}
-              <span className="text-sm text-gray-500 ml-2">{maxRating}</span>
+                  />
+                  <span className="text-sm text-gray-700">{option}</span>
+                </label>
+              ))}
             </div>
           </div>
         );
@@ -235,7 +268,14 @@ export default function SurveyPlayer({ survey, onSubmit, onCancel, surveyType = 
         {survey.description && (
           <p className="text-gray-600 mt-2">{survey.description}</p>
         )}
-        {survey.isMandatory && !isReadOnly && (
+        {previewMode && (
+          <div className="mt-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <span className="font-medium">Preview mode.</span> This is how learners will see the survey. Responses are not saved.
+            </p>
+          </div>
+        )}
+        {survey.isMandatory && !isReadOnly && !previewMode && (
           <div className="mt-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
             <p className="text-sm text-amber-800">
               <span className="font-medium">⚠️ This survey is mandatory.</span> You must complete it to {surveyType === 'pre' ? 'access the course content' : 'receive your certificate'}.
@@ -252,7 +292,7 @@ export default function SurveyPlayer({ survey, onSubmit, onCancel, surveyType = 
       </div>
 
       <div className="space-y-4">
-        {survey.questions.map((question, index) => renderQuestion(question, index))}
+        {sortedQuestions.map((question, index) => renderQuestion(question, index))}
       </div>
 
       <div className="mt-8 flex justify-end gap-3">

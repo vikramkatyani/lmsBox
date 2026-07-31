@@ -6,17 +6,45 @@ import {
   archiveAutomationTask,
   createAutomationTask,
   getAutomationTask,
+  listAutomationDispatches,
   listAutomationLearningPathways,
   listAutomationTasks,
   pauseAutomationTask,
   previewAutomationAudience,
   publishAutomationTask,
+  retryAutomationDispatch,
   resumeAutomationTask,
   updateAutomationTask
 } from '../services/automation';
 
 const taskTypes = ['Notification', 'Reminder', 'Announcement'];
 const statusOptions = ['Draft', 'Published', 'Paused', 'Archived'];
+const emailTemplateVariables = [
+  {
+    token: '{{recipient_name}}',
+    label: 'Recipient Name',
+    description: 'Learner first and last name.',
+    availableFor: ['Notification', 'Reminder', 'Announcement']
+  },
+  {
+    token: '{{assignment_date}}',
+    label: 'Pathway Assignment Date',
+    description: 'Date when learner was assigned to the pathway.',
+    availableFor: ['Notification', 'Reminder']
+  },
+  {
+    token: '{{pathway_status}}',
+    label: 'Current Pathway Status',
+    description: 'Current pathway state such as Not Started, In Progress, or Completed.',
+    availableFor: ['Notification', 'Reminder']
+  },
+  {
+    token: '{{pathway_name}}',
+    label: 'Pathway Name',
+    description: 'Learning pathway title related to the trigger.',
+    availableFor: ['Notification', 'Reminder']
+  }
+];
 
 const emptyForm = {
   type: 'Notification',
@@ -42,7 +70,7 @@ function toDateTimeLocal(value) {
   return '';
 }
 
-function RichTextEditor({ value, onChange }) {
+function RichTextEditor({ value, onChange, automationType }) {
   const editorRef = React.useRef(null);
 
   useEffect(() => {
@@ -85,6 +113,21 @@ function RichTextEditor({ value, onChange }) {
         <button type="button" onClick={() => applyCommand('insertUnorderedList')} className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-100">Bullets</button>
         <button type="button" onClick={() => applyCommand('insertOrderedList')} className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-100">Numbered</button>
         <button type="button" onClick={addLink} className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-100">Link</button>
+        <select
+          className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700"
+          onChange={(e) => {
+            if (e.target.value) applyCommand('insertText', e.target.value);
+            e.target.value = '';
+          }}
+          defaultValue=""
+        >
+          <option value="" disabled>Insert Variable</option>
+          {emailTemplateVariables
+            .filter((item) => item.availableFor.includes(automationType))
+            .map((item) => (
+            <option key={item.token} value={item.token}>{item.label}</option>
+            ))}
+        </select>
         <button type="button" onClick={() => applyCommand('removeFormat')} className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-100">Clear</button>
       </div>
       <div
@@ -201,6 +244,60 @@ function SectionCard({ title, hint, children }) {
   );
 }
 
+function VariableHelper({ automationType }) {
+  const available = emailTemplateVariables.filter((item) => item.availableFor.includes(automationType));
+
+  const copyToken = async (token) => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(token);
+      } else {
+        const temp = document.createElement('textarea');
+        temp.value = token;
+        temp.setAttribute('readonly', '');
+        temp.style.position = 'absolute';
+        temp.style.left = '-9999px';
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand('copy');
+        document.body.removeChild(temp);
+      }
+
+      toast.success('Variable copied');
+    } catch {
+      toast.error('Unable to copy variable');
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Variable Helper</p>
+      <p className="mt-1 text-xs text-amber-900">Use these placeholders in subject or body. They are replaced automatically when the email is sent.</p>
+      <div className="mt-3 space-y-2">
+        {available.map((item) => (
+          <div key={item.token} className="rounded border border-amber-200 bg-white p-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded bg-gray-100 px-2 py-1 font-mono text-xs text-gray-800">{item.token}</span>
+                <span className="text-xs font-medium text-gray-900">{item.label}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => copyToken(item.token)}
+                className="rounded border border-amber-300 bg-white px-2 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100"
+              >
+                Copy
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-gray-600">{item.description}</p>
+            <p className="mt-1 text-xs text-gray-500">Available for: {item.availableFor.join(', ')}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TaskModal({
   isOpen,
   editingId,
@@ -210,7 +307,8 @@ function TaskModal({
   pathwaysLoading,
   onClose,
   onSaveDraft,
-  onPublish
+  onPublish,
+  onPreviewAudience
 }) {
   if (!isOpen) return null;
 
@@ -221,6 +319,9 @@ function TaskModal({
   const title = editingId ? `Edit ${form.type}` : `Create ${form.type}`;
 
   const setValue = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
+  const appendSubjectVariable = (token) => {
+    setValue('emailSubject', `${form.emailSubject || ''}${token}`);
+  };
 
   return (
     <div className="fixed inset-0 z-80 flex items-center justify-center bg-black/50 p-4">
@@ -297,7 +398,7 @@ function TaskModal({
                         onChange={(e) => {
                           const mode = e.target.value;
                           setValue('scheduleMode', mode);
-                          if (mode === 'StandardNotification') {
+                          if (mode === 'StandardNotification' || mode === 'Immediate') {
                             setValue('intervalMinutes', '');
                           }
                         }}
@@ -322,6 +423,9 @@ function TaskModal({
                       onChange={(e) => setValue('daysAfterAssignment', e.target.value)}
                       className="w-full rounded border border-gray-300 px-3 py-2"
                     />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Due reminders are queued for the daily scheduler run at 8:45 AM UTC.
+                    </p>
                   </div>
                 )}
               </div>
@@ -395,11 +499,25 @@ function TaskModal({
                 className="w-full rounded border border-gray-300 px-3 py-2"
                 placeholder="What recipients see in their inbox"
               />
+              <div className="mt-2 flex flex-wrap gap-2">
+                {emailTemplateVariables.filter((item) => item.availableFor.includes(form.type)).map((item) => (
+                  <button
+                    key={item.token}
+                    type="button"
+                    onClick={() => appendSubjectVariable(item.token)}
+                    className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                    title={`Insert ${item.label}`}
+                  >
+                    {item.token}
+                  </button>
+                ))}
+              </div>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Email Body</label>
-              <RichTextEditor value={form.emailBodyHtml} onChange={(html) => setValue('emailBodyHtml', html)} />
+              <RichTextEditor value={form.emailBodyHtml} onChange={(html) => setValue('emailBodyHtml', html)} automationType={form.type} />
             </div>
+            <VariableHelper automationType={form.type} />
           </SectionCard>
 
           <SectionCard
@@ -416,7 +534,18 @@ function TaskModal({
           </SectionCard>
         </div>
 
-        <div className="sticky bottom-0 flex items-center justify-end gap-2 border-t bg-white px-6 py-4">
+        <div className="sticky bottom-0 flex items-center justify-between gap-2 border-t bg-white px-6 py-4">
+          <div>
+            {isAnnouncement && (
+              <button
+                onClick={onPreviewAudience}
+                className="rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Preview Audience
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
           <button
             onClick={onSaveDraft}
             className="rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -429,6 +558,157 @@ function TaskModal({
           >
             Publish
           </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DispatchHistoryModal({
+  isOpen,
+  task,
+  loading,
+  items,
+  statusFilter,
+  onStatusFilterChange,
+  onRefresh,
+  onRetry,
+  onClose
+}) {
+  if (!isOpen || !task) return null;
+
+  return (
+    <div className="fixed inset-0 z-80 flex items-center justify-center bg-black/50 p-4">
+      <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-lg bg-white shadow-xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-6 py-4">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">Send History</h2>
+            <p className="text-sm text-gray-500">{task.title} (ID: {task.id})</p>
+          </div>
+          <button onClick={onClose} className="rounded px-3 py-1 text-sm text-gray-600 hover:bg-gray-100">Close</button>
+        </div>
+
+        <div className="space-y-4 p-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={statusFilter}
+              onChange={(e) => onStatusFilterChange(e.target.value)}
+              className="rounded border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="">All statuses</option>
+              <option value="Pending">Pending</option>
+              <option value="Processing">Processing</option>
+              <option value="Sent">Sent</option>
+              <option value="Failed">Failed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+            <button onClick={onRefresh} className="rounded border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Refresh</button>
+          </div>
+
+          <div className="overflow-x-auto rounded-lg border border-gray-200">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Recipient</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Attempts</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Scheduled</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Sent</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-sm text-gray-500">Loading dispatch history...</td>
+                  </tr>
+                ) : items.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-sm text-gray-500">No dispatch records found.</td>
+                  </tr>
+                ) : (
+                  items.map((dispatch) => (
+                    <tr key={dispatch.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm text-gray-700">{dispatch.recipientEmail}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        <span className="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">{dispatch.status}</span>
+                        {dispatch.lastError && (
+                          <p className="mt-1 max-w-xs text-xs text-red-600">{dispatch.lastError}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{dispatch.attempts}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{dispatch.scheduledForUtc ? new Date(dispatch.scheduledForUtc).toLocaleString() : 'N/A'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{dispatch.sentAtUtc ? new Date(dispatch.sentAtUtc).toLocaleString() : 'N/A'}</td>
+                      <td className="px-4 py-3 text-right">
+                        {(dispatch.status === 'Failed' || dispatch.status === 'Cancelled') && (
+                          <button
+                            onClick={() => onRetry(dispatch.id)}
+                            className="rounded bg-blue-50 px-2 py-1 text-xs text-blue-700 hover:bg-blue-100"
+                          >
+                            Retry
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AudiencePreviewModal({ isOpen, loading, data, onClose }) {
+  if (!isOpen) return null;
+
+  const recipients = data?.recipients || [];
+  const recipientCount = data?.recipientCount ?? 0;
+
+  return (
+    <div className="fixed inset-0 z-80 flex items-center justify-center bg-black/50 p-4">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white shadow-xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-6 py-4">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">Audience Preview</h2>
+            <p className="text-sm text-gray-500">Total recipients: {recipientCount}</p>
+          </div>
+          <button onClick={onClose} className="rounded px-3 py-1 text-sm text-gray-600 hover:bg-gray-100">Close</button>
+        </div>
+
+        <div className="space-y-4 p-6">
+          {loading ? (
+            <p className="text-sm text-gray-500">Loading audience...</p>
+          ) : recipients.length === 0 ? (
+            <p className="text-sm text-gray-500">No users found for this audience.</p>
+          ) : (
+            <>
+              <div className="overflow-x-auto rounded-lg border border-gray-200">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Name</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Email</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {recipients.map((user) => (
+                      <tr key={user.userId || user.email} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm text-gray-700">{user.name || 'N/A'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700">{user.email || 'N/A'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {recipientCount > recipients.length && (
+                <p className="text-xs text-gray-500">Showing first {recipients.length} users out of {recipientCount} recipients.</p>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -447,6 +727,14 @@ export default function AdminAutomation() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm);
+
+  const [historyTask, setHistoryTask] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyItems, setHistoryItems] = useState([]);
+  const [historyStatusFilter, setHistoryStatusFilter] = useState('');
+  const [audiencePreviewOpen, setAudiencePreviewOpen] = useState(false);
+  const [audiencePreviewLoading, setAudiencePreviewLoading] = useState(false);
+  const [audiencePreviewData, setAudiencePreviewData] = useState(null);
 
   const [pathways, setPathways] = useState([]);
   const [pathwaysLoading, setPathwaysLoading] = useState(false);
@@ -521,7 +809,9 @@ export default function AdminAutomation() {
         eventKey: task.eventKey || (task.type === 'Reminder' ? 'NotStarted' : 'LearningPathwayAssignment'),
         emailSubject: task.emailSubject || '',
         emailBodyHtml: task.emailBodyHtml || '',
-        scheduleMode: task.scheduleMode === 'Delayed' ? 'StandardNotification' : (task.scheduleMode || 'Immediate'),
+        scheduleMode: task.type === 'Notification' && task.scheduleMode === 'Delayed'
+          ? 'Immediate'
+          : (task.scheduleMode || 'Immediate'),
         intervalMinutes: task.intervalMinutes || '',
         daysAfterAssignment: task.daysAfterAssignment || '',
         audienceType: task.audienceType || 'AllUsers',
@@ -563,7 +853,9 @@ export default function AdminAutomation() {
     emailSubject: form.emailSubject,
     emailBodyHtml: form.emailBodyHtml,
     scheduleMode: form.scheduleMode,
-    intervalMinutes: form.scheduleMode === 'StandardNotification' ? null : (form.intervalMinutes ? Number(form.intervalMinutes) : null),
+    intervalMinutes: form.type === 'Notification'
+      ? null
+      : (form.intervalMinutes ? Number(form.intervalMinutes) : null),
     daysAfterAssignment: form.daysAfterAssignment ? Number(form.daysAfterAssignment) : null,
     audienceType: form.audienceType,
     learningPathwayIds: form.learningPathwayIds,
@@ -658,15 +950,65 @@ export default function AdminAutomation() {
   const previewAudience = async () => {
     if (form.type !== 'Announcement') return;
 
+    setAudiencePreviewData(null);
+    setAudiencePreviewLoading(true);
+    setAudiencePreviewOpen(true);
+
     try {
       const result = await previewAutomationAudience({
         audienceType: form.audienceType,
         learningPathwayIds: form.learningPathwayIds
       });
-      toast.success(`Audience preview: ${result.recipientCount} users`);
+      setAudiencePreviewData(result);
     } catch (error) {
+      setAudiencePreviewOpen(false);
       toast.error(error?.response?.data?.message || 'Failed to preview audience');
+    } finally {
+      setAudiencePreviewLoading(false);
     }
+  };
+
+  const loadDispatchHistory = async (task, status = historyStatusFilter) => {
+    if (!task?.id) return;
+
+    setHistoryLoading(true);
+    try {
+      const result = await listAutomationDispatches(task.id, {
+        page: 1,
+        pageSize: 100,
+        status
+      });
+      setHistoryItems(result.items || []);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to load dispatch history');
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const openHistory = async (task) => {
+    setHistoryTask(task);
+    setHistoryStatusFilter('');
+    setHistoryItems([]);
+    await loadDispatchHistory(task, '');
+  };
+
+  const retryDispatch = async (dispatchId) => {
+    try {
+      await retryAutomationDispatch(dispatchId);
+      toast.success('Dispatch queued for retry');
+      if (historyTask) {
+        await loadDispatchHistory(historyTask, historyStatusFilter);
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to retry dispatch');
+    }
+  };
+
+  const closeHistory = () => {
+    setHistoryTask(null);
+    setHistoryItems([]);
+    setHistoryStatusFilter('');
   };
 
   return (
@@ -730,6 +1072,20 @@ export default function AdminAutomation() {
                         </div>
                       </div>
                       <div className="text-xs text-gray-500">ID: {task.id}</div>
+                      <div className="mt-2 grid max-w-[320px] grid-cols-3 gap-2 rounded border border-gray-200 bg-gray-50 p-2 text-xs">
+                        <div className="rounded bg-white px-2 py-1 text-center shadow-sm">
+                          <div className="font-medium text-gray-600">Pending</div>
+                          <div className="text-gray-900">{task.dispatchSummary?.pending ?? 0}</div>
+                        </div>
+                        <div className="rounded bg-white px-2 py-1 text-center shadow-sm">
+                          <div className="font-medium text-gray-600">Failed</div>
+                          <div className="text-red-700">{task.dispatchSummary?.failed ?? 0}</div>
+                        </div>
+                        <div className="rounded bg-white px-2 py-1 text-center shadow-sm">
+                          <div className="font-medium text-gray-600">Sent</div>
+                          <div className="text-green-700">{task.dispatchSummary?.sent ?? 0}</div>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">{task.type}</td>
                     <td className="px-4 py-3 text-sm text-gray-700">{task.eventKey || task.audienceType}</td>
@@ -739,6 +1095,7 @@ export default function AdminAutomation() {
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-2">
                         <button onClick={() => openEdit(task.id)} className="rounded bg-info px-2 py-1 text-xs text-[#1b365d] hover:bg-[#d9e5f2]">Edit</button>
+                        <button onClick={() => openHistory(task)} className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-700 hover:bg-gray-200">History</button>
                         {task.status === 'Draft' && <button onClick={() => publishFromList(task.id)} className="rounded bg-green-50 px-2 py-1 text-xs text-green-700 hover:bg-green-100">Publish</button>}
                         {task.status === 'Published' && <button onClick={() => pauseFromList(task.id)} className="rounded bg-yellow-50 px-2 py-1 text-xs text-yellow-700 hover:bg-yellow-100">Pause</button>}
                         {task.status === 'Paused' && <button onClick={() => resumeFromList(task.id)} className="rounded bg-blue-50 px-2 py-1 text-xs text-blue-700 hover:bg-blue-100">Resume</button>}
@@ -763,16 +1120,39 @@ export default function AdminAutomation() {
         onClose={closeModal}
         onSaveDraft={saveDraft}
         onPublish={publishFromModal}
+        onPreviewAudience={previewAudience}
       />
 
-      {isModalOpen && form.type === 'Announcement' && (
-        <button
-          onClick={previewAudience}
-          className="fixed bottom-5 right-5 rounded-full bg-boxlms-primary-btn px-4 py-2 text-sm font-medium text-boxlms-primary-btn-txt shadow-lg hover:brightness-90"
-        >
-          Preview Audience
-        </button>
-      )}
+      <DispatchHistoryModal
+        isOpen={!!historyTask}
+        task={historyTask}
+        loading={historyLoading}
+        items={historyItems}
+        statusFilter={historyStatusFilter}
+        onStatusFilterChange={async (value) => {
+          setHistoryStatusFilter(value);
+          if (historyTask) {
+            await loadDispatchHistory(historyTask, value);
+          }
+        }}
+        onRefresh={async () => {
+          if (historyTask) {
+            await loadDispatchHistory(historyTask, historyStatusFilter);
+          }
+        }}
+        onRetry={retryDispatch}
+        onClose={closeHistory}
+      />
+
+      <AudiencePreviewModal
+        isOpen={audiencePreviewOpen}
+        loading={audiencePreviewLoading}
+        data={audiencePreviewData}
+        onClose={() => {
+          setAudiencePreviewOpen(false);
+          setAudiencePreviewData(null);
+        }}
+      />
     </div>
   );
 }

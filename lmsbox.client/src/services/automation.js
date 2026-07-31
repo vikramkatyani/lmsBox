@@ -57,6 +57,29 @@ export async function archiveAutomationTask(id) {
   return response.data;
 }
 
+export async function listAutomationDispatches(taskId, params = {}) {
+  const {
+    page = 1,
+    pageSize = 20,
+    status = ''
+  } = params;
+
+  const query = new URLSearchParams({
+    page: String(page),
+    pageSize: String(pageSize)
+  });
+
+  if (status) query.append('status', status);
+
+  const response = await api.get(`/api/admin/automation/tasks/${taskId}/dispatches?${query.toString()}`);
+  return response.data;
+}
+
+export async function retryAutomationDispatch(dispatchId) {
+  const response = await api.post(`/api/admin/automation/dispatches/${dispatchId}/retry`);
+  return response.data;
+}
+
 export async function listAutomationLearningPathways(search = '') {
   const query = new URLSearchParams();
   if (search?.trim()) query.append('search', search.trim());

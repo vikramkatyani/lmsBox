@@ -5,6 +5,7 @@ import Pagination from '../components/Pagination';
 import toast from 'react-hot-toast';
 import { listUsers, deleteUser } from '../services/users';
 import { getUserId } from '../utils/auth';
+import { canManageUsersInUI } from '../config/adminFeatureFlags';
 import usePageTitle from '../hooks/usePageTitle';
 
 export default function AdminUsers() {
@@ -85,6 +86,9 @@ export default function AdminUsers() {
   }, [users]);
 
   const currentUserId = getUserId();
+  const canManageUsers = canManageUsersInUI();
+
+  const tableColCount = 6 + (canManageUsers ? 1 : 0);
 
   const handleSearch = () => {
     setPage(1); // Reset to first page on search
@@ -183,11 +187,13 @@ export default function AdminUsers() {
         
         <div className="bg-white rounded-lg shadow">
           <div className="px-6 py-4 border-b flex flex-wrap gap-3 items-center justify-end">
-            <div className="flex gap-2">
-              <button onClick={() => navigate('/admin/users/bulk-new')} className="px-4 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90 cursor-pointer">
-                Add User
-              </button>
-            </div>
+            {canManageUsers && (
+              <div className="flex gap-2">
+                <button onClick={() => navigate('/admin/users/bulk-new')} className="px-4 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90 cursor-pointer">
+                  Add User
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Controls */}
@@ -280,14 +286,16 @@ export default function AdminUsers() {
                       <SortIcon column="joinedDate" />
                     </div>
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  {canManageUsers && (
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {loading ? (
                   Array.from({ length: 3 }).map((_, idx) => (
                     <tr key={idx} className="animate-pulse">
-                      {Array.from({ length: 7 }).map((_, colIdx) => (
+                      {Array.from({ length: tableColCount }).map((_, colIdx) => (
                         <td key={colIdx} className="px-6 py-4">
                           <div className="h-4 bg-gray-200 rounded w-full"></div>
                         </td>
@@ -296,7 +304,7 @@ export default function AdminUsers() {
                   ))
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500">No users found.</td>
+                    <td colSpan={tableColCount} className="px-6 py-8 text-center text-gray-500">No users found.</td>
                   </tr>
                 ) : (
                   filtered.map((u) => (
@@ -341,28 +349,30 @@ export default function AdminUsers() {
                       <td className="px-6 py-4 text-sm text-gray-700">
                         {u.joinedDate ? new Date(u.joinedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex justify-end gap-2">
-                          <button 
-                            onClick={() => onEdit(u.id)} 
-                            className="px-3 py-1.5 text-sm bg-info text-[#1b365d] rounded hover:bg-[#d9e5f2]"
-                          >
-                            Edit
-                          </button>
-                          <button 
-                            onClick={() => onDelete(u.id)} 
-                            disabled={u.id === currentUserId}
-                            className={`px-3 py-1.5 text-sm rounded ${
-                              u.id === currentUserId 
-                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                                : 'bg-red-50 text-red-700 hover:bg-red-100'
-                            }`}
-                            title={u.id === currentUserId ? 'Cannot delete your own account' : 'Delete user'}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
+                      {canManageUsers && (
+                        <td className="px-6 py-4">
+                          <div className="flex justify-end gap-2">
+                            <button 
+                              onClick={() => onEdit(u.id)} 
+                              className="px-3 py-1.5 text-sm bg-info text-[#1b365d] rounded hover:bg-[#d9e5f2]"
+                            >
+                              Edit
+                            </button>
+                            <button 
+                              onClick={() => onDelete(u.id)} 
+                              disabled={u.id === currentUserId}
+                              className={`px-3 py-1.5 text-sm rounded ${
+                                u.id === currentUserId 
+                                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                                  : 'bg-red-50 text-red-700 hover:bg-red-100'
+                              }`}
+                              title={u.id === currentUserId ? 'Cannot delete your own account' : 'Delete user'}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}

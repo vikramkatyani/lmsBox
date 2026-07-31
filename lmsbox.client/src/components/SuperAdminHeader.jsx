@@ -98,6 +98,7 @@ export default function SuperAdminHeader() {
                 { to: '/superadmin/dashboard', label: 'Dashboard' },
                 { to: '/superadmin/organisations', label: 'Organisations' },
                 { to: '/superadmin/library', label: 'Library' },
+                { to: '/admin/question-bank/questions', label: 'Question Bank' },
                 { to: '/superadmin/reports', label: 'Reports' }
               ].map((link) => (
                 <li key={link.to} className="nav-item relative group">

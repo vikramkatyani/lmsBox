@@ -27,6 +27,7 @@ public class Lesson
 
     // For video lessons
     public string? VideoUrl { get; set; }
+    public string? CaptionUrl { get; set; }
     
     // Duration in seconds (applies to all content types)
     public int? DurationSeconds { get; set; }
@@ -46,6 +47,9 @@ public class Lesson
     // Reference to global library content if this lesson was imported from the global library
     public long? GlobalLibraryContentId { get; set; }
 
+    // For external lessons: learner-facing message while completion is pending
+    public string? ExternalPendingMessage { get; set; }
+
     // Optional flag
     public bool IsOptional { get; set; } = false;
 
@@ -55,4 +59,6 @@ public class Lesson
     public ApplicationUser? CreatedByUser { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public InteractiveLessonSettings? InteractiveLessonSettings { get; set; }
 }

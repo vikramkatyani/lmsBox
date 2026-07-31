@@ -155,6 +155,36 @@ namespace lmsbox.infrastructure.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("lmsbox.domain.Models.AnnouncementReadReceipt", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("AutomationTaskId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ReadAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AutomationTaskId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("AnnouncementReadReceipts");
+                });
+
             modelBuilder.Entity("lmsbox.domain.Models.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -197,6 +227,9 @@ namespace lmsbox.infrastructure.Migrations
 
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("bit");
+
+                    b.Property<string>("FavoriteReportIds")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
@@ -539,6 +572,12 @@ namespace lmsbox.infrastructure.Migrations
                     b.Property<long?>("PreCourseSurveyId")
                         .HasColumnType("bigint");
 
+                    b.Property<bool>("RequireSequentialLessons")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("ShowLessonNavigation")
+                        .HasColumnType("bit");
+
                     b.Property<string>("ShortDescription")
                         .HasColumnType("nvarchar(max)");
 
@@ -640,6 +679,67 @@ namespace lmsbox.infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("CourseCategories");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.CourseResource", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("CourseId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("CreatedByUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DocumentUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("HtmlContent")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("HtmlUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Ordinal")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ThumbnailUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("VideoUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CourseId");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.ToTable("CourseResources", (string)null);
                 });
 
             modelBuilder.Entity("lmsbox.domain.Models.Feedback", b =>
@@ -772,6 +872,136 @@ namespace lmsbox.infrastructure.Migrations
                     b.HasIndex("LearningGroupId");
 
                     b.ToTable("GroupCourses");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.InteractiveBlock", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("BlockType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CompletionRuleJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EditedHtml")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FormPayloadJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("GeneratedHtml")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long>("InteractiveLessonSettingsId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("MediaAssetsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Ordinal")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InteractiveLessonSettingsId");
+
+                    b.ToTable("InteractiveBlocks");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.InteractiveBlockProgress", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<long>("BlockId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsComplete")
+                        .HasColumnType("bit");
+
+                    b.Property<long>("LessonId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ProgressDataJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BlockId");
+
+                    b.HasIndex("LessonId");
+
+                    b.HasIndex("UserId", "BlockId")
+                        .IsUnique();
+
+                    b.ToTable("InteractiveBlockProgresses");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.InteractiveLessonSettings", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long>("LessonId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("LockNextBlockUntilComplete")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LessonId")
+                        .IsUnique();
+
+                    b.ToTable("InteractiveLessonSettings");
                 });
 
             modelBuilder.Entity("lmsbox.domain.Models.LearnerGroup", b =>
@@ -1100,6 +1330,9 @@ namespace lmsbox.infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<string>("CaptionUrl")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Content")
                         .HasColumnType("nvarchar(max)");
 
@@ -1121,6 +1354,10 @@ namespace lmsbox.infrastructure.Migrations
 
                     b.Property<int?>("DurationSeconds")
                         .HasColumnType("int");
+
+                    b.Property<string>("ExternalPendingMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<long?>("GlobalLibraryContentId")
                         .HasColumnType("bigint");
@@ -1376,6 +1613,220 @@ namespace lmsbox.infrastructure.Migrations
                     b.ToTable("PathwayCourses");
                 });
 
+            modelBuilder.Entity("lmsbox.domain.Models.QuestionBankCategory", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedByUserId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedByUserId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("QuestionBankCategories");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.QuestionBankQuestion", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Category")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedByUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Explanation")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsCriticalSafety")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Points")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Question")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Tags")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.ToTable("QuestionBankQuestions");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.QuestionBankQuestionOption", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("IsCorrect")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("int");
+
+                    b.Property<long>("QuestionBankQuestionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuestionBankQuestionId");
+
+                    b.ToTable("QuestionBankQuestionOptions");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.QuestionBankQuestionStatsCourse", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CorrectCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("CourseId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<long>("IncorrectCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("LastPresentedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("PresentedCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("QuestionBankQuestionId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuestionBankQuestionId");
+
+                    b.HasIndex("CourseId", "QuestionBankQuestionId")
+                        .IsUnique();
+
+                    b.ToTable("QuestionBankQuestionStatsCourse");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.QuestionBankQuestionStatsGlobal", b =>
+                {
+                    b.Property<long>("QuestionBankQuestionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("CorrectCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("IncorrectCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("LastPresentedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("PresentedCount")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("QuestionBankQuestionId");
+
+                    b.ToTable("QuestionBankQuestionStatsGlobal");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.QuestionBankQuestionStatsQuiz", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CorrectCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("IncorrectCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("LastPresentedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("PresentedCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("QuestionBankQuestionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("QuizId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuestionBankQuestionId");
+
+                    b.HasIndex("QuizId", "QuestionBankQuestionId")
+                        .IsUnique();
+
+                    b.ToTable("QuestionBankQuestionStatsQuiz");
+                });
+
             modelBuilder.Entity("lmsbox.domain.Models.Quiz", b =>
                 {
                     b.Property<string>("Id")
@@ -1385,7 +1836,6 @@ namespace lmsbox.infrastructure.Migrations
                         .HasColumnType("bit");
 
                     b.Property<string>("CourseId")
-                        .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<DateTime>("CreatedAt")
@@ -1398,6 +1848,12 @@ namespace lmsbox.infrastructure.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("IntroductionContent")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsQuestionBank")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsTimed")
                         .HasColumnType("bit");
 
@@ -1407,6 +1863,12 @@ namespace lmsbox.infrastructure.Migrations
                     b.Property<int>("PassingScore")
                         .HasColumnType("int");
 
+                    b.Property<int?>("QuestionsPerAttempt")
+                        .HasColumnType("int");
+
+                    b.Property<string>("QuestionsPerAttemptByCategoryJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("ShowResults")
                         .HasColumnType("bit");
 
@@ -1415,6 +1877,9 @@ namespace lmsbox.infrastructure.Migrations
 
                     b.Property<bool>("ShuffleQuestions")
                         .HasColumnType("bit");
+
+                    b.Property<string>("SourceQuestionBankQuizId")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("TimeLimit")
                         .HasColumnType("int");
@@ -1435,6 +1900,123 @@ namespace lmsbox.infrastructure.Migrations
                     b.ToTable("Quizzes");
                 });
 
+            modelBuilder.Entity("lmsbox.domain.Models.QuizAttempt", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DurationSeconds")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("FailedCriticalSafety")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("Passed")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("QuizId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("ScorePercent")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("QuizId", "UserId", "CompletedAt");
+
+                    b.ToTable("QuizAttempts");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.QuizAttemptAnswer", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("IsCorrect")
+                        .HasColumnType("bit");
+
+                    b.Property<long?>("QuestionBankQuestionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("QuizAttemptId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("QuizQuestionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("ResponseTimeMs")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("SelectedOptionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SelectedOptionIdsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SelectedQuestionBankOptionIdsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuizAttemptId");
+
+                    b.HasIndex("QuizQuestionId");
+
+                    b.ToTable("QuizAttemptAnswers");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.QuizAttemptQuestion", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("QuestionBankQuestionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("QuizAttemptId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("QuizQuestionId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuizQuestionId");
+
+                    b.HasIndex("QuizAttemptId", "QuizQuestionId")
+                        .IsUnique();
+
+                    b.ToTable("QuizAttemptQuestions", (string)null);
+                });
+
             modelBuilder.Entity("lmsbox.domain.Models.QuizQuestion", b =>
                 {
                     b.Property<long>("Id")
@@ -1443,8 +2025,14 @@ namespace lmsbox.infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<string>("Category")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Explanation")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsCriticalSafety")
+                        .HasColumnType("bit");
 
                     b.Property<int>("Order")
                         .HasColumnType("int");
@@ -1455,6 +2043,9 @@ namespace lmsbox.infrastructure.Migrations
                     b.Property<string>("Question")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("QuestionBankQuestionId")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("QuizId")
                         .IsRequired()
@@ -1484,6 +2075,9 @@ namespace lmsbox.infrastructure.Migrations
 
                     b.Property<int>("Order")
                         .HasColumnType("int");
+
+                    b.Property<long?>("QuestionBankQuestionOptionId")
+                        .HasColumnType("bigint");
 
                     b.Property<long>("QuizQuestionId")
                         .HasColumnType("bigint");
@@ -1580,6 +2174,10 @@ namespace lmsbox.infrastructure.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("QuestionType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ResponseVisibility")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -1850,6 +2448,17 @@ namespace lmsbox.infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("lmsbox.domain.Models.AnnouncementReadReceipt", b =>
+                {
+                    b.HasOne("lmsbox.domain.Models.AutomationTask", "AutomationTask")
+                        .WithMany()
+                        .HasForeignKey("AutomationTaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AutomationTask");
+                });
+
             modelBuilder.Entity("lmsbox.domain.Models.ApplicationUser", b =>
                 {
                     b.HasOne("lmsbox.domain.Models.Organisation", "Organisation")
@@ -1989,6 +2598,25 @@ namespace lmsbox.infrastructure.Migrations
                     b.Navigation("LearningGroup");
                 });
 
+            modelBuilder.Entity("lmsbox.domain.Models.CourseResource", b =>
+                {
+                    b.HasOne("lmsbox.domain.Models.Course", "Course")
+                        .WithMany("Resources")
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("lmsbox.domain.Models.ApplicationUser", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Course");
+
+                    b.Navigation("CreatedByUser");
+                });
+
             modelBuilder.Entity("lmsbox.domain.Models.Feedback", b =>
                 {
                     b.HasOne("lmsbox.domain.Models.Course", "Course")
@@ -2023,6 +2651,55 @@ namespace lmsbox.infrastructure.Migrations
                     b.Navigation("Course");
 
                     b.Navigation("LearningGroup");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.InteractiveBlock", b =>
+                {
+                    b.HasOne("lmsbox.domain.Models.InteractiveLessonSettings", "InteractiveLessonSettings")
+                        .WithMany("Blocks")
+                        .HasForeignKey("InteractiveLessonSettingsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("InteractiveLessonSettings");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.InteractiveBlockProgress", b =>
+                {
+                    b.HasOne("lmsbox.domain.Models.InteractiveBlock", "Block")
+                        .WithMany()
+                        .HasForeignKey("BlockId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("lmsbox.domain.Models.Lesson", "Lesson")
+                        .WithMany()
+                        .HasForeignKey("LessonId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("lmsbox.domain.Models.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Block");
+
+                    b.Navigation("Lesson");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.InteractiveLessonSettings", b =>
+                {
+                    b.HasOne("lmsbox.domain.Models.Lesson", "Lesson")
+                        .WithOne("InteractiveLessonSettings")
+                        .HasForeignKey("lmsbox.domain.Models.InteractiveLessonSettings", "LessonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Lesson");
                 });
 
             modelBuilder.Entity("lmsbox.domain.Models.LearnerGroup", b =>
@@ -2182,13 +2859,66 @@ namespace lmsbox.infrastructure.Migrations
                     b.Navigation("LearningPathway");
                 });
 
+            modelBuilder.Entity("lmsbox.domain.Models.QuestionBankQuestion", b =>
+                {
+                    b.HasOne("lmsbox.domain.Models.ApplicationUser", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByUser");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.QuestionBankQuestionOption", b =>
+                {
+                    b.HasOne("lmsbox.domain.Models.QuestionBankQuestion", "QuestionBankQuestion")
+                        .WithMany("Options")
+                        .HasForeignKey("QuestionBankQuestionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("QuestionBankQuestion");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.QuestionBankQuestionStatsCourse", b =>
+                {
+                    b.HasOne("lmsbox.domain.Models.QuestionBankQuestion", "Question")
+                        .WithMany()
+                        .HasForeignKey("QuestionBankQuestionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Question");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.QuestionBankQuestionStatsGlobal", b =>
+                {
+                    b.HasOne("lmsbox.domain.Models.QuestionBankQuestion", "Question")
+                        .WithMany()
+                        .HasForeignKey("QuestionBankQuestionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Question");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.QuestionBankQuestionStatsQuiz", b =>
+                {
+                    b.HasOne("lmsbox.domain.Models.QuestionBankQuestion", "Question")
+                        .WithMany()
+                        .HasForeignKey("QuestionBankQuestionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Question");
+                });
+
             modelBuilder.Entity("lmsbox.domain.Models.Quiz", b =>
                 {
                     b.HasOne("lmsbox.domain.Models.Course", "Course")
                         .WithMany("Quizzes")
-                        .HasForeignKey("CourseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("CourseId");
 
                     b.HasOne("lmsbox.domain.Models.ApplicationUser", "CreatedByUser")
                         .WithMany()
@@ -2199,6 +2929,63 @@ namespace lmsbox.infrastructure.Migrations
                     b.Navigation("Course");
 
                     b.Navigation("CreatedByUser");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.QuizAttempt", b =>
+                {
+                    b.HasOne("lmsbox.domain.Models.Quiz", "Quiz")
+                        .WithMany()
+                        .HasForeignKey("QuizId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("lmsbox.domain.Models.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Quiz");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.QuizAttemptAnswer", b =>
+                {
+                    b.HasOne("lmsbox.domain.Models.QuizAttempt", "QuizAttempt")
+                        .WithMany("Answers")
+                        .HasForeignKey("QuizAttemptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("lmsbox.domain.Models.QuizQuestion", "QuizQuestion")
+                        .WithMany()
+                        .HasForeignKey("QuizQuestionId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("QuizAttempt");
+
+                    b.Navigation("QuizQuestion");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.QuizAttemptQuestion", b =>
+                {
+                    b.HasOne("lmsbox.domain.Models.QuizAttempt", "QuizAttempt")
+                        .WithMany("AttemptQuestions")
+                        .HasForeignKey("QuizAttemptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("lmsbox.domain.Models.QuizQuestion", "QuizQuestion")
+                        .WithMany()
+                        .HasForeignKey("QuizQuestionId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("QuizAttempt");
+
+                    b.Navigation("QuizQuestion");
                 });
 
             modelBuilder.Entity("lmsbox.domain.Models.QuizQuestion", b =>
@@ -2377,6 +3164,13 @@ namespace lmsbox.infrastructure.Migrations
                     b.Navigation("Lessons");
 
                     b.Navigation("Quizzes");
+
+                    b.Navigation("Resources");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.InteractiveLessonSettings", b =>
+                {
+                    b.Navigation("Blocks");
                 });
 
             modelBuilder.Entity("lmsbox.domain.Models.LearningGroup", b =>
@@ -2393,14 +3187,31 @@ namespace lmsbox.infrastructure.Migrations
                     b.Navigation("PathwayCourses");
                 });
 
+            modelBuilder.Entity("lmsbox.domain.Models.Lesson", b =>
+                {
+                    b.Navigation("InteractiveLessonSettings");
+                });
+
             modelBuilder.Entity("lmsbox.domain.Models.Organisation", b =>
                 {
                     b.Navigation("Users");
                 });
 
+            modelBuilder.Entity("lmsbox.domain.Models.QuestionBankQuestion", b =>
+                {
+                    b.Navigation("Options");
+                });
+
             modelBuilder.Entity("lmsbox.domain.Models.Quiz", b =>
                 {
                     b.Navigation("Questions");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.QuizAttempt", b =>
+                {
+                    b.Navigation("Answers");
+
+                    b.Navigation("AttemptQuestions");
                 });
 
             modelBuilder.Entity("lmsbox.domain.Models.QuizQuestion", b =>

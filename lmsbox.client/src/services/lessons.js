@@ -25,6 +25,15 @@ const lessonsService = {
     return response.data;
   },
 
+  // Update caption only (allowed on published courses)
+  updateCaption: async (courseId, lessonId, captionUrl) => {
+    const response = await api.put(
+      `/api/admin/courses/${courseId}/lessons/${lessonId}/caption`,
+      { captionUrl: captionUrl || null }
+    );
+    return response.data;
+  },
+
   // Delete a lesson
   deleteLesson: async (courseId, lessonId) => {
     const response = await api.delete(`/api/admin/courses/${courseId}/lessons/${lessonId}`);
@@ -38,6 +47,28 @@ const lessonsService = {
 
     const response = await api.post(
       `/api/admin/courses/${courseId}/lessons/upload-video`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: (progressEvent) => {
+          if (onUploadProgress) {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            onUploadProgress(percentCompleted);
+          }
+        },
+      }
+    );
+    return response.data;
+  },
+
+  uploadCaption: async (courseId, captionFile, onUploadProgress) => {
+    const formData = new FormData();
+    formData.append('caption', captionFile);
+
+    const response = await api.post(
+      `/api/admin/courses/${courseId}/lessons/upload-caption`,
       formData,
       {
         headers: {

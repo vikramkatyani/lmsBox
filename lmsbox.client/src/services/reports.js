@@ -517,6 +517,64 @@ export async function getUserCourseProgressReport(search, courseId, status, star
   return getUserCourseProgressReportCombined({ search, courseId, status, startDate, endDate });
 }
 
+export async function getUserLessonProgressReportSummary(params = {}) {
+  const {
+    search,
+    courseId,
+    lessonId,
+    lessonType,
+    status,
+    startDate,
+    endDate
+  } = params;
+
+  const queryParams = new URLSearchParams();
+
+  if (search) queryParams.append('search', search);
+  if (courseId) queryParams.append('courseId', courseId);
+  if (lessonId) queryParams.append('lessonId', lessonId.toString());
+  if (lessonType) queryParams.append('lessonType', lessonType);
+  if (status) queryParams.append('status', status);
+  if (startDate) queryParams.append('startDate', startDate);
+  if (endDate) queryParams.append('endDate', endDate);
+
+  const res = await api.get(`/api/admin/reports/user-lesson-progress/summary?${queryParams}`);
+  return res.data;
+}
+
+export async function getUserLessonProgressReportRecords(params = {}) {
+  const {
+    search,
+    courseId,
+    lessonId,
+    lessonType,
+    status,
+    startDate,
+    endDate,
+    pageNumber = 1,
+    pageSize = 25,
+    sortBy = 'lastAccessedAt',
+    sortDirection = 'desc'
+  } = params;
+
+  const queryParams = new URLSearchParams();
+
+  if (search) queryParams.append('search', search);
+  if (courseId) queryParams.append('courseId', courseId);
+  if (lessonId) queryParams.append('lessonId', lessonId.toString());
+  if (lessonType) queryParams.append('lessonType', lessonType);
+  if (status) queryParams.append('status', status);
+  if (startDate) queryParams.append('startDate', startDate);
+  if (endDate) queryParams.append('endDate', endDate);
+  queryParams.append('pageNumber', pageNumber.toString());
+  queryParams.append('pageSize', pageSize.toString());
+  if (sortBy) queryParams.append('sortBy', sortBy);
+  if (sortDirection) queryParams.append('sortDirection', sortDirection);
+
+  const res = await api.get(`/api/admin/reports/user-lesson-progress/records?${queryParams}`);
+  return res.data;
+}
+
 // Administrative Reports
 export async function getContentUsageReport(params = {}) {
   const {
@@ -622,4 +680,219 @@ export function exportToJSON(data, filename) {
   link.href = URL.createObjectURL(blob);
   link.download = `${filename}_${new Date().toISOString().split('T')[0]}.json`;
   link.click();
+}
+
+export async function getLessonProgressEditDetails(progressId) {
+  const res = await api.get(`/api/admin/learner-progress/lessons/${progressId}`);
+  return res.data;
+}
+
+export async function getLessonProgressEditDetailsByAssignment(userId, courseId, lessonId) {
+  const res = await api.get(
+    `/api/admin/learner-progress/users/${encodeURIComponent(userId)}/courses/${encodeURIComponent(courseId)}/lessons/${lessonId}`
+  );
+  return res.data;
+}
+
+export async function updateUserLessonProgress(progressId, { status, completedAt, quiz }) {
+  const payload = { status };
+  if (completedAt) {
+    payload.completedAt = completedAt;
+  }
+  if (quiz) {
+    payload.quiz = quiz;
+  }
+
+  const res = await api.put(`/api/admin/learner-progress/lessons/${progressId}`, payload);
+  return res.data;
+}
+
+export async function upsertUserLessonProgressByAssignment(userId, courseId, lessonId, { status, completedAt, quiz }) {
+  const payload = { status };
+  if (completedAt) {
+    payload.completedAt = completedAt;
+  }
+  if (quiz) {
+    payload.quiz = quiz;
+  }
+
+  const res = await api.put(
+    `/api/admin/learner-progress/users/${encodeURIComponent(userId)}/courses/${encodeURIComponent(courseId)}/lessons/${lessonId}`,
+    payload
+  );
+  return res.data;
+}
+
+// Quiz Attempts Report
+function buildQuizAttemptsQueryParams(params = {}) {
+  const {
+    courseId,
+    quizId,
+    startDate,
+    endDate,
+    search,
+    passStatus,
+    recordScope,
+    includeScopeCounts,
+    latestOnly,
+    pageNumber,
+    pageSize,
+    sortBy,
+    sortDirection
+  } = params;
+  const queryParams = new URLSearchParams();
+
+  if (courseId) queryParams.append('courseId', courseId);
+  if (quizId) queryParams.append('quizId', quizId);
+  if (startDate) queryParams.append('startDate', startDate);
+  if (endDate) queryParams.append('endDate', endDate);
+  if (search) queryParams.append('search', search);
+  if (passStatus) queryParams.append('passStatus', passStatus);
+  if (recordScope) queryParams.append('recordScope', recordScope);
+  if (includeScopeCounts) queryParams.append('includeScopeCounts', 'true');
+  if (latestOnly) queryParams.append('latestOnly', 'true');
+  if (pageNumber != null) queryParams.append('pageNumber', pageNumber.toString());
+  if (pageSize != null) queryParams.append('pageSize', pageSize.toString());
+  if (sortBy) queryParams.append('sortBy', sortBy);
+  if (sortDirection) queryParams.append('sortDirection', sortDirection);
+
+  return queryParams;
+}
+
+export async function getQuizAttemptsReportAnalytics() {
+  const res = await api.get('/api/admin/reports/quiz-attempts/analytics');
+  return res.data;
+}
+
+export async function getQuizQuestionStats(quizId) {
+  const res = await api.get(`/api/admin/reports/quiz-attempts/quizzes/${quizId}/question-stats`);
+  return res.data;
+}
+
+export async function getAssessmentDifficultyOverview(params = {}) {
+  const {
+    search,
+    pageNumber,
+    pageSize,
+    sortBy,
+    sortDirection
+  } = params;
+  const queryParams = new URLSearchParams();
+  if (search) queryParams.append('search', search);
+  if (pageNumber != null) queryParams.append('pageNumber', pageNumber.toString());
+  if (pageSize != null) queryParams.append('pageSize', pageSize.toString());
+  if (sortBy) queryParams.append('sortBy', sortBy);
+  if (sortDirection) queryParams.append('sortDirection', sortDirection);
+  const res = await api.get(`/api/admin/reports/quiz-attempts/assessment-difficulty/overview?${queryParams}`);
+  return res.data;
+}
+
+export async function getQuizAttemptRecordScopes() {
+  try {
+    const res = await api.get('/api/admin/reports/quiz-attempts/record-scopes');
+    return res.data;
+  } catch (err) {
+    if (err.response?.status !== 404) throw err;
+    const fallback = await api.get(
+      '/api/admin/reports/quiz-attempts?includeScopeCounts=true&pageNumber=1&pageSize=1&recordScope=all'
+    );
+    return fallback.data?.scopeCounts ?? fallback.data;
+  }
+}
+
+export async function getQuizAttemptsReportSummary() {
+  return getQuizAttemptsReportAnalytics();
+}
+
+export async function getQuizAttemptsReport(params = {}) {
+  const queryParams = buildQuizAttemptsQueryParams({
+    pageNumber: 1,
+    pageSize: 50,
+    sortBy: 'completedAt',
+    sortDirection: 'desc',
+    ...params
+  });
+  const res = await api.get(`/api/admin/reports/quiz-attempts?${queryParams}`);
+  return res.data;
+}
+
+export async function getQuizAttemptDetail(attemptId) {
+  const res = await api.get(`/api/admin/reports/quiz-attempts/${attemptId}`);
+  return res.data;
+}
+
+export async function getQuizAttemptHistory(userId, quizId) {
+  const params = new URLSearchParams({ userId, quizId });
+  const res = await api.get(`/api/admin/reports/quiz-attempts/history?${params}`);
+  return res.data;
+}
+
+function buildSurveyReportQueryParams(params = {}) {
+  const {
+    courseId,
+    surveyType,
+    startDate,
+    endDate,
+    search,
+    pageNumber,
+    pageSize,
+    sortBy,
+    sortDirection
+  } = params;
+  const queryParams = new URLSearchParams();
+
+  if (courseId) queryParams.append('courseId', courseId);
+  if (surveyType) queryParams.append('surveyType', surveyType);
+  if (startDate) queryParams.append('startDate', startDate);
+  if (endDate) queryParams.append('endDate', endDate);
+  if (search) queryParams.append('search', search);
+  if (pageNumber != null) queryParams.append('pageNumber', pageNumber.toString());
+  if (pageSize != null) queryParams.append('pageSize', pageSize.toString());
+  if (sortBy) queryParams.append('sortBy', sortBy);
+  if (sortDirection) queryParams.append('sortDirection', sortDirection);
+
+  return queryParams;
+}
+
+export async function getSurveyReportOverview(params = {}) {
+  const {
+    search,
+    pageNumber = 1,
+    pageSize = 25,
+    sortBy = 'courseTitle',
+    sortDirection = 'asc'
+  } = params;
+  const queryParams = new URLSearchParams();
+  if (search) queryParams.append('search', search);
+  queryParams.append('pageNumber', pageNumber.toString());
+  queryParams.append('pageSize', pageSize.toString());
+  if (sortBy) queryParams.append('sortBy', sortBy);
+  if (sortDirection) queryParams.append('sortDirection', sortDirection);
+  const res = await api.get(`/api/admin/reports/surveys/overview?${queryParams}`);
+  return res.data;
+}
+
+export async function getSurveyReportSummary(surveyId, params = {}) {
+  const queryParams = buildSurveyReportQueryParams(params);
+  const suffix = queryParams.toString() ? `?${queryParams}` : '';
+  const res = await api.get(`/api/admin/reports/surveys/${surveyId}/summary${suffix}`);
+  return res.data;
+}
+
+export async function getSurveyReportAnalytics(surveyId, params = {}) {
+  const queryParams = buildSurveyReportQueryParams(params);
+  const suffix = queryParams.toString() ? `?${queryParams}` : '';
+  const res = await api.get(`/api/admin/reports/surveys/${surveyId}/analytics${suffix}`);
+  return res.data;
+}
+
+export async function getSurveyReportResponses(surveyId, params = {}) {
+  const queryParams = buildSurveyReportQueryParams({
+    pageNumber: 1,
+    pageSize: 25,
+    ...params
+  });
+  const suffix = queryParams.toString() ? `?${queryParams}` : '';
+  const res = await api.get(`/api/admin/reports/surveys/${surveyId}/responses${suffix}`);
+  return res.data;
 }

@@ -1,10 +1,15 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
+import { adminFeatureFlags, isSuperAdmin } from '../config/adminFeatureFlags';
 
 const GlobalAIButton = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  if (!adminFeatureFlags.showAdminAiAssistant || !isSuperAdmin()) {
+    return null;
+  }
 
   // Only show on admin pages, not on course editor page (which already has AI assistant)
   const isAdminPage = location.pathname.startsWith('/admin');

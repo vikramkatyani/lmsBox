@@ -23,9 +23,24 @@ namespace lmsbox.infrastructure.Data
         public DbSet<Course> Courses { get; set; } = null!;
         public DbSet<CourseCategory> CourseCategories { get; set; } = null!;
         public DbSet<Lesson> Lessons { get; set; } = null!;
+        public DbSet<InteractiveLessonSettings> InteractiveLessonSettings { get; set; } = null!;
+        public DbSet<InteractiveBlock> InteractiveBlocks { get; set; } = null!;
+        public DbSet<InteractiveBlockProgress> InteractiveBlockProgresses { get; set; } = null!;
+        public DbSet<CourseResource> CourseResources { get; set; } = null!;
         public DbSet<Quiz> Quizzes { get; set; } = null!;
         public DbSet<QuizQuestion> QuizQuestions { get; set; } = null!;
         public DbSet<QuizQuestionOption> QuizQuestionOptions { get; set; } = null!;
+        public DbSet<QuizAttempt> QuizAttempts { get; set; } = null!;
+        public DbSet<QuizAttemptAnswer> QuizAttemptAnswers { get; set; } = null!;
+        public DbSet<QuizAttemptQuestion> QuizAttemptQuestions { get; set; } = null!;
+
+        // Question bank (global questions, SuperAdmin)
+        public DbSet<QuestionBankQuestion> QuestionBankQuestions { get; set; } = null!;
+        public DbSet<QuestionBankQuestionOption> QuestionBankQuestionOptions { get; set; } = null!;
+        public DbSet<QuestionBankQuestionStatsGlobal> QuestionBankQuestionStatsGlobal { get; set; } = null!;
+        public DbSet<QuestionBankQuestionStatsCourse> QuestionBankQuestionStatsCourse { get; set; } = null!;
+        public DbSet<QuestionBankQuestionStatsQuiz> QuestionBankQuestionStatsQuiz { get; set; } = null!;
+        public DbSet<QuestionBankCategory> QuestionBankCategories { get; set; } = null!;
 
         // Learner Grouping
         public DbSet<LearningGroup> LearningGroups { get; set; } = null!;
@@ -69,6 +84,7 @@ namespace lmsbox.infrastructure.Data
        // Automation
        public DbSet<AutomationTask> AutomationTasks { get; set; } = null!;
        public DbSet<AutomationDispatch> AutomationDispatches { get; set; } = null!;
+       public DbSet<AnnouncementReadReceipt> AnnouncementReadReceipts { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -76,6 +92,7 @@ namespace lmsbox.infrastructure.Data
             // Additional EF configuration (indexes, FK constraints) lives here.
             builder.ApplyConfiguration(new CourseConfiguration());
             builder.ApplyConfiguration(new LessonConfiguration());
+            builder.ApplyConfiguration(new CourseResourceConfiguration());
             builder.ApplyConfiguration(new CourseAssignmentConfiguration());
             builder.ApplyConfiguration(new LearningGroupConfiguration());
             builder.ApplyConfiguration(new LearningPathwayConfiguration());
@@ -137,6 +154,10 @@ namespace lmsbox.infrastructure.Data
                    .HasIndex(cc => cc.Name)
                    .IsUnique();
 
+            builder.Entity<QuestionBankCategory>()
+                   .HasIndex(c => c.Name)
+                   .IsUnique();
+
             builder.Entity<AutomationTask>()
                    .HasIndex(a => new { a.OrganisationId, a.Status, a.Type });
 
@@ -169,6 +190,105 @@ namespace lmsbox.infrastructure.Data
                    .HasOne(d => d.User)
                    .WithMany()
                    .HasForeignKey(d => d.UserId)
+                   .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<AnnouncementReadReceipt>()
+                   .HasIndex(r => new { r.AutomationTaskId, r.UserId })
+                   .IsUnique();
+
+            builder.Entity<QuizAttempt>()
+                   .HasIndex(a => new { a.QuizId, a.UserId, a.CompletedAt });
+
+            builder.Entity<QuizAttempt>()
+                   .HasOne(a => a.Quiz)
+                   .WithMany()
+                   .HasForeignKey(a => a.QuizId)
+                   .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<QuizAttempt>()
+                   .HasOne(a => a.User)
+                   .WithMany()
+                   .HasForeignKey(a => a.UserId)
+                   .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<QuizAttemptAnswer>()
+                   .HasOne(a => a.QuizAttempt)
+                   .WithMany(at => at.Answers)
+                   .HasForeignKey(a => a.QuizAttemptId)
+                   .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<QuizAttemptAnswer>()
+                   .HasOne(a => a.QuizQuestion)
+                   .WithMany()
+                   .HasForeignKey(a => a.QuizQuestionId)
+                   .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<QuizAttemptQuestion>()
+                   .ToTable("QuizAttemptQuestions");
+
+            builder.Entity<QuizAttemptQuestion>()
+                   .HasIndex(aq => new { aq.QuizAttemptId, aq.QuizQuestionId })
+                   .IsUnique();
+
+            builder.Entity<QuizAttemptQuestion>()
+                   .HasOne(aq => aq.QuizAttempt)
+                   .WithMany(a => a.AttemptQuestions)
+                   .HasForeignKey(aq => aq.QuizAttemptId)
+                   .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<QuizAttemptQuestion>()
+                   .HasOne(aq => aq.QuizQuestion)
+                   .WithMany()
+                   .HasForeignKey(aq => aq.QuizQuestionId)
+                   .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<QuestionBankQuestion>()
+                   .HasIndex(q => q.CreatedAt);
+
+            builder.Entity<QuestionBankQuestionStatsCourse>()
+                   .HasIndex(s => new { s.CourseId, s.QuestionBankQuestionId })
+                   .IsUnique();
+
+            builder.Entity<QuestionBankQuestionStatsQuiz>()
+                   .HasIndex(s => new { s.QuizId, s.QuestionBankQuestionId })
+                   .IsUnique();
+
+            builder.Entity<QuestionBankQuestionOption>()
+                   .HasOne(o => o.QuestionBankQuestion)
+                   .WithMany(q => q.Options)
+                   .HasForeignKey(o => o.QuestionBankQuestionId)
+                   .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<InteractiveLessonSettings>()
+                   .HasIndex(s => s.LessonId)
+                   .IsUnique();
+
+            builder.Entity<InteractiveLessonSettings>()
+                   .HasOne(s => s.Lesson)
+                   .WithOne(l => l.InteractiveLessonSettings)
+                   .HasForeignKey<InteractiveLessonSettings>(s => s.LessonId)
+                   .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<InteractiveBlock>()
+                   .HasOne(b => b.InteractiveLessonSettings)
+                   .WithMany(s => s.Blocks)
+                   .HasForeignKey(b => b.InteractiveLessonSettingsId)
+                   .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<InteractiveBlockProgress>()
+                   .HasIndex(p => new { p.UserId, p.BlockId })
+                   .IsUnique();
+
+            builder.Entity<InteractiveBlockProgress>()
+                   .HasOne(p => p.Block)
+                   .WithMany()
+                   .HasForeignKey(p => p.BlockId)
+                   .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<InteractiveBlockProgress>()
+                   .HasOne(p => p.Lesson)
+                   .WithMany()
+                   .HasForeignKey(p => p.LessonId)
                    .OnDelete(DeleteBehavior.NoAction);
         }
     }

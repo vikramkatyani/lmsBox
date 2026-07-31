@@ -10,13 +10,14 @@ import {
 } from '@heroicons/react/24/outline';
 import lessonsService from '../services/lessons';
 
-export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, onSave }) {
+export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, onSave, captionOnly = false }) {
   const [formData, setFormData] = useState({
     title: '',
     content: '',
     ordinal: 1,
     type: 'video',
     videoUrl: '',
+    captionUrl: '',
     videoDurationSeconds: null,
     isOptional: false,
   });
@@ -25,6 +26,10 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
+  const [captionFileName, setCaptionFileName] = useState('');
+  const [captionUploadProgress, setCaptionUploadProgress] = useState(0);
+  const [isCaptionUploading, setIsCaptionUploading] = useState(false);
+  const [captionUploadError, setCaptionUploadError] = useState(null);
   const [libraryVideos, setLibraryVideos] = useState([]);
   const [selectedLibraryVideo, setSelectedLibraryVideo] = useState(null);
   const [isLoadingLibrary, setIsLoadingLibrary] = useState(false);
@@ -57,17 +62,19 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
         ordinal: lesson.ordinal || 1,
         type: 'video',
         videoUrl: lesson.videoUrl || '',
-        videoDurationSeconds: lesson.videoDurationSeconds || null,
+        captionUrl: lesson.captionUrl || '',
+        videoDurationSeconds: lesson.durationSeconds || lesson.videoDurationSeconds || null,
         isOptional: lesson.isOptional || false,
       });
+      setCaptionFileName(lesson.captionUrl ? lesson.captionUrl.split('?')[0].split('/').pop() : '');
       
-      // Don't show source selector if editing existing video
-      setShowSourceSelector(!lesson.videoUrl);
+      // Don't show source selector if editing existing video or caption-only mode
+      setShowSourceSelector(captionOnly ? false : !lesson.videoUrl);
     } else {
       // New lesson - show source selector
       setShowSourceSelector(true);
     }
-  }, [lesson]);
+  }, [lesson, captionOnly]);
 
   useEffect(() => {
     if (isOpen && videoSource === 'library') {
@@ -156,6 +163,57 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
     }
   };
 
+  const handleCaptionUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const extension = file.name.toLowerCase().split('.').pop();
+    if (extension !== 'vtt') {
+      setCaptionUploadError('Invalid caption format. Please upload a WebVTT (.vtt) file.');
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setCaptionUploadError('Caption file exceeds 5MB limit.');
+      return;
+    }
+
+    setIsCaptionUploading(true);
+    setCaptionUploadError(null);
+    setCaptionUploadProgress(0);
+
+    try {
+      const response = await lessonsService.uploadCaption(
+        courseId,
+        file,
+        (progress) => setCaptionUploadProgress(progress)
+      );
+
+      setFormData(prev => ({
+        ...prev,
+        captionUrl: response.captionUrl
+      }));
+      setCaptionFileName(response.originalFileName || file.name);
+    } catch (error) {
+      console.error('Caption upload error:', error);
+      setCaptionUploadError(error.response?.data?.message || 'Failed to upload caption. Please try again.');
+    } finally {
+      setIsCaptionUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveCaption = () => {
+    setFormData(prev => ({
+      ...prev,
+      captionUrl: ''
+    }));
+    setCaptionFileName('');
+    setCaptionUploadError(null);
+    setCaptionUploadProgress(0);
+  };
+
   const handleLibraryVideoSelect = (video) => {
     setSelectedLibraryVideo(video);
     setFormData(prev => ({
@@ -166,6 +224,26 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (captionOnly) {
+      if (!lesson?.id) {
+        alert('Lesson not found');
+        return;
+      }
+
+      setIsSaving(true);
+      try {
+        await lessonsService.updateCaption(courseId, lesson.id, formData.captionUrl || null);
+        onSave?.();
+        handleClose();
+      } catch (error) {
+        console.error('Error saving caption:', error);
+        alert(error.response?.data?.message || 'Failed to save caption');
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
 
     if (!formData.title.trim()) {
       alert('Please enter a lesson title');
@@ -180,10 +258,21 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
     setIsSaving(true);
 
     try {
+      const payload = {
+        title: formData.title,
+        content: formData.content,
+        ordinal: formData.ordinal,
+        type: formData.type,
+        videoUrl: formData.videoUrl,
+        captionUrl: formData.captionUrl || null,
+        durationSeconds: formData.videoDurationSeconds,
+        isOptional: formData.isOptional,
+      };
+
       if (lesson) {
-        await lessonsService.updateLesson(courseId, lesson.id, formData);
+        await lessonsService.updateLesson(courseId, lesson.id, payload);
       } else {
-        await lessonsService.createLesson(courseId, formData);
+        await lessonsService.createLesson(courseId, payload);
       }
 
       onSave?.();
@@ -203,6 +292,7 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
       ordinal: 1,
       type: 'video',
       videoUrl: '',
+      captionUrl: '',
       videoDurationSeconds: null,
       isOptional: false,
     });
@@ -210,6 +300,10 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
     setUploadProgress(0);
     setIsUploading(false);
     setUploadError(null);
+    setCaptionFileName('');
+    setCaptionUploadProgress(0);
+    setIsCaptionUploading(false);
+    setCaptionUploadError(null);
     setLibraryVideos([]);
     setSelectedLibraryVideo(null);
     onClose();
@@ -245,7 +339,11 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
             <div className="flex items-center">
               <VideoCameraIcon className="h-6 w-6 text-white mr-2" />
               <h3 className="text-lg font-semibold text-white">
-                {lesson ? 'Edit Video Lesson' : 'Create Video Lesson'}
+                {captionOnly
+                  ? 'Manage Video Captions'
+                  : lesson
+                    ? 'Edit Video Lesson'
+                    : 'Create Video Lesson'}
               </h3>
             </div>
             <button
@@ -259,7 +357,14 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
           {/* Form */}
           <form onSubmit={handleSubmit}>
             <div className="bg-white px-6 py-4 max-h-[70vh] overflow-y-auto">
+              {captionOnly && (
+                <div className="mb-4 bg-info border border-info rounded-lg p-3 text-sm text-[#1b365d]">
+                  This course is published. You can add, replace, or remove the caption file for this video lesson.
+                </div>
+              )}
+
               {/* Basic Info */}
+              {!captionOnly && (
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -320,8 +425,10 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
                   </label>
                 </div>
               </div>
+              )}
 
               {/* Video Source Selection */}
+              {!captionOnly && (
               <div className="mt-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Video Source *
@@ -417,6 +524,76 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
                   </div>
                 )}
               </div>
+              )}
+
+              {captionOnly && formData.title && (
+                <div className="mb-2">
+                  <p className="text-sm text-gray-500">Lesson</p>
+                  <p className="text-base font-medium text-gray-900">{formData.title}</p>
+                </div>
+              )}
+
+              {/* Captions */}
+              <div className={captionOnly ? 'mt-2' : 'mt-6'}>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Captions (English VTT{captionOnly ? '' : ', Optional'})
+                </label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                  {formData.captionUrl ? (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center text-green-600">
+                        <CheckCircleIcon className="h-5 w-5 mr-2" />
+                        <span className="text-sm font-medium">{captionFileName || 'Caption file added'}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemoveCaption}
+                        className="text-sm text-red-600 hover:text-red-800 font-medium"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      {!isCaptionUploading ? (
+                        <label className="cursor-pointer">
+                          <span className="block text-sm font-medium text-gray-900">
+                            Click to upload caption file
+                          </span>
+                          <span className="mt-1 block text-xs text-gray-500">
+                            WebVTT (.vtt) only (Max 5MB)
+                          </span>
+                          <input
+                            type="file"
+                            accept=".vtt,text/vtt"
+                            onChange={handleCaptionUpload}
+                            className="hidden"
+                          />
+                        </label>
+                      ) : (
+                        <div className="mt-2">
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-[#2afeae] h-2 rounded-full transition-all"
+                              style={{ width: `${captionUploadProgress}%` }}
+                            ></div>
+                          </div>
+                          <p className="text-sm text-gray-600 mt-2">
+                            Uploading caption... {captionUploadProgress}%
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {captionUploadError && (
+                    <div className="flex items-center justify-center text-red-600 mt-4">
+                      <ExclamationCircleIcon className="h-5 w-5 mr-2" />
+                      <span className="text-sm">{captionUploadError}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Footer */}
@@ -425,16 +602,22 @@ export default function VideoLessonModal({ isOpen, onClose, courseId, lesson, on
                 type="button"
                 onClick={handleClose}
                 className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                disabled={isSaving || isUploading}
+                disabled={isSaving || isUploading || isCaptionUploading}
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-[#1b365d] bg-[#2afeae] hover:bg-[#25e89e] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2afeae] disabled:opacity-50"
-                disabled={isSaving || isUploading || !formData.videoUrl}
+                disabled={isSaving || isUploading || isCaptionUploading || (!captionOnly && !formData.videoUrl)}
               >
-                {isSaving ? 'Saving...' : lesson ? 'Update Lesson' : 'Create Lesson'}
+                {isSaving
+                  ? 'Saving...'
+                  : captionOnly
+                    ? 'Save Captions'
+                    : lesson
+                      ? 'Update Lesson'
+                      : 'Create Lesson'}
               </button>
             </div>
           </form>

@@ -4,6 +4,7 @@ import AdminHeader from '../components/AdminHeader';
 import toast from 'react-hot-toast';
 import { adminSurveyService } from '../services/surveys';
 import usePageTitle from '../hooks/usePageTitle';
+import { getUserRole } from '../utils/auth';
 
 export default function AdminSurveyEditor() {
   const navigate = useNavigate();
@@ -11,6 +12,7 @@ export default function AdminSurveyEditor() {
   const [searchParams] = useSearchParams();
   const isNew = !surveyId;
   const isPreviewMode = searchParams.get('preview') === 'true';
+  const userRole = getUserRole();
 
   usePageTitle(isNew ? 'Create Survey' : isPreviewMode ? 'Preview Survey' : 'Edit Survey');
 
@@ -30,7 +32,8 @@ export default function AdminSurveyEditor() {
     options: [],
     isRequired: true,
     minRating: 1,
-    maxRating: 5
+    maxRating: 5,
+    responseVisibility: 'All'
   });
 
   useEffect(() => {
@@ -107,7 +110,8 @@ export default function AdminSurveyEditor() {
         options: [],
         isRequired: true,
         minRating: 1,
-        maxRating: 5
+        maxRating: 5,
+        responseVisibility: 'All'
       });
       setEditingQuestion(null);
       loadSurvey();
@@ -125,7 +129,8 @@ export default function AdminSurveyEditor() {
       options: question.options || [],
       isRequired: question.isRequired,
       minRating: question.minRating || 1,
-      maxRating: question.maxRating || 5
+      maxRating: question.maxRating || 5,
+      responseVisibility: question.responseVisibility || 'All'
     });
   };
 
@@ -292,6 +297,9 @@ export default function AdminSurveyEditor() {
                               {q.questionType === 'Rating' && (
                                 <span className="text-xs text-gray-500">Range: {q.minRating}-{q.maxRating}</span>
                               )}
+                              {q.responseVisibility === 'SuperAdminOnly' && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">Super Admin only</span>
+                              )}
                             </div>
                           </div>
                           {surveyStatus !== 'Published' && !isPreviewMode && (
@@ -332,7 +340,7 @@ export default function AdminSurveyEditor() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className={`grid grid-cols-1 ${userRole === 'SuperAdmin' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-4`}>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Question Type</label>
                         <select
@@ -347,6 +355,20 @@ export default function AdminSurveyEditor() {
                           <option value="YesNo">Yes/No</option>
                         </select>
                       </div>
+
+                      {userRole === 'SuperAdmin' && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Response Visibility</label>
+                          <select
+                            value={questionForm.responseVisibility}
+                            onChange={(e) => setQuestionForm(prev => ({ ...prev, responseVisibility: e.target.value }))}
+                            className="w-full border border-gray-300 rounded px-3 py-2"
+                          >
+                            <option value="All">All admins</option>
+                            <option value="SuperAdminOnly">Super Admin only</option>
+                          </select>
+                        </div>
+                      )}
 
                       <div>
                         <label className="inline-flex items-center gap-2 mt-6">

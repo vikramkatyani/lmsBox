@@ -1,11 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
-import AIAssistant from '../components/AIAssistant';
 import toast from 'react-hot-toast';
-import { getQuiz, saveQuiz as saveQuizApi } from '../services/quizzes';
+import { createQuizFromBank, getQuiz, updateQuizFromBank } from '../services/quizzes';
 import usePageTitle from '../hooks/usePageTitle';
-import { Sparkles } from 'lucide-react';
+import { listQuestionBankQuestionsForQuiz } from '../services/questionBankQuestions';
+import SlideOver from '../components/SlideOver';
+import Pagination from '../components/Pagination';
+import { quizFeatureFlags } from '../config/quizFeatureFlags';
 
 export default function QuizCreator() {
   const navigate = useNavigate();
@@ -15,15 +17,12 @@ export default function QuizCreator() {
   const returnTo = params.get('returnTo');
   const isEdit = !!quizId;
   
-  usePageTitle(isEdit ? 'Edit Quiz' : 'Create Quiz');
-  
-  const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
-  
-  usePageTitle(isEdit ? 'Edit Quiz' : 'Create Quiz');
+  usePageTitle(isEdit ? 'Edit Assessment' : 'Create Assessment');
   
   const [quizData, setQuizData] = useState({
     title: '',
     description: '',
+    introductionContent: '',
     passingScore: 70,
     isTimed: false,
     timeLimit: 30,
@@ -32,139 +31,45 @@ export default function QuizCreator() {
     showResults: true,
     allowRetake: true,
     maxAttempts: 3,
+    questionsPerAttempt: '',
+    questionsPerAttemptByCategory: {},
     courseId: courseId || ''
   });
 
   const [questions, setQuestions] = useState([]);
-  const [currentQuestion, setCurrentQuestion] = useState({
-    type: 'mc_single',
-    question: '',
-    points: 1,
-    options: [
-      { text: '', isCorrect: false },
-      { text: '', isCorrect: false },
-      { text: '', isCorrect: false },
-      { text: '', isCorrect: false }
-    ],
-    explanation: ''
-  });
+  const [bankLoading, setBankLoading] = useState(false);
+  const [bankItems, setBankItems] = useState([]);
+  const [bankSearchInput, setBankSearchInput] = useState('');
+  const [bankTagsInput, setBankTagsInput] = useState('');
+  const [bankSearchQuery, setBankSearchQuery] = useState('');
+  const [bankTagsQuery, setBankTagsQuery] = useState('');
+  const [bankPanelOpen, setBankPanelOpen] = useState(false);
+  const [bankPage, setBankPage] = useState(1);
+  const [bankPageSize, setBankPageSize] = useState(20);
+  const [bankTotal, setBankTotal] = useState(0);
+  const [bankSelectedIds, setBankSelectedIds] = useState(() => new Set());
+  const [bankBulkAdding, setBankBulkAdding] = useState(false);
 
-  const [isAddingQuestion, setIsAddingQuestion] = useState(false);
-  const [editingIndex, setEditingIndex] = useState(null);
+  const addedBankIds = useMemo(
+    () => new Set(questions.map((q) => q.questionBankQuestionId).filter(Boolean)),
+    [questions]
+  );
 
-  const questionTypes = [
-    { value: 'mc_single', label: 'Multiple Choice (Single Answer)' },
-    { value: 'mc_multi', label: 'Multiple Choice (Multiple Answers)' }
-  ];
+  const bankTotalPages = Math.max(1, Math.ceil(bankTotal / bankPageSize) || 1);
+
+  useEffect(() => {
+    setBankSelectedIds((prev) => {
+      let changed = false;
+      const next = new Set(prev);
+      for (const id of addedBankIds) {
+        if (next.delete(id)) changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [addedBankIds]);
 
   const handleQuizInfoChange = (field, value) => {
     setQuizData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleQuestionChange = (field, value) => {
-    setCurrentQuestion(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleOptionChange = (index, value) => {
-    const newOptions = [...currentQuestion.options];
-    newOptions[index] = { ...newOptions[index], text: value };
-    setCurrentQuestion(prev => ({ ...prev, options: newOptions }));
-  };
-
-  const addOption = () => {
-    setCurrentQuestion(prev => ({
-      ...prev,
-      options: [...prev.options, { text: '', isCorrect: false }]
-    }));
-  };
-
-  const removeOption = (index) => {
-    if (currentQuestion.options.length <= 2) {
-      toast.error('At least 2 options are required');
-      return;
-    }
-    const newOptions = currentQuestion.options.filter((_, i) => i !== index);
-    setCurrentQuestion(prev => ({
-      ...prev,
-      options: newOptions
-    }));
-  };
-
-  const handleCorrectChange = (index, checked = true) => {
-    setCurrentQuestion(prev => {
-      const newOptions = prev.options.map((opt, i) => {
-        if (prev.type === 'mc_single') {
-          // Only one correct option allowed
-          return { ...opt, isCorrect: i === index };
-        }
-        // Multiple correct allowed
-        if (i === index) {
-          return { ...opt, isCorrect: !!checked };
-        }
-        return opt;
-      });
-      return { ...prev, options: newOptions };
-    });
-  };
-
-  const saveQuestion = () => {
-    // Validation
-    if (!currentQuestion.question.trim()) {
-      toast.error('Question text is required');
-      return;
-    }
-
-    if (currentQuestion.type === 'mc_single' || currentQuestion.type === 'mc_multi') {
-      const validOptions = currentQuestion.options.filter(opt => opt.text.trim());
-      if (validOptions.length < 2) {
-        toast.error('At least 2 options are required');
-        return;
-      }
-      const correctCount = currentQuestion.options.filter(opt => opt.isCorrect && opt.text.trim()).length;
-      if (correctCount === 0) {
-        toast.error('Select at least one correct answer');
-        return;
-      }
-      if (currentQuestion.type === 'mc_single' && correctCount !== 1) {
-        toast.error('Exactly one correct answer is required');
-        return;
-      }
-    }
-
-    if (editingIndex !== null) {
-      const updatedQuestions = [...questions];
-      updatedQuestions[editingIndex] = { ...currentQuestion };
-      setQuestions(updatedQuestions);
-      toast.success('Question updated');
-    } else {
-      setQuestions(prev => [...prev, { ...currentQuestion }]);
-      toast.success('Question added');
-    }
-
-    resetQuestionForm();
-  };
-
-  const resetQuestionForm = () => {
-    setCurrentQuestion({
-      type: 'mc_single',
-      question: '',
-      points: 1,
-      options: [
-        { text: '', isCorrect: false },
-        { text: '', isCorrect: false },
-        { text: '', isCorrect: false },
-        { text: '', isCorrect: false }
-      ],
-      explanation: ''
-    });
-    setIsAddingQuestion(false);
-    setEditingIndex(null);
-  };
-
-  const editQuestion = (index) => {
-    setCurrentQuestion({ ...questions[index] });
-    setEditingIndex(index);
-    setIsAddingQuestion(true);
   };
 
   const deleteQuestion = (index) => {
@@ -191,26 +96,192 @@ export default function QuizCreator() {
         setQuizData({
           title: q.title,
           description: q.description,
+          introductionContent: q.introductionContent || '',
           passingScore: q.passingScore,
+          isTimed: q.isTimed,
           timeLimit: q.timeLimit,
           shuffleQuestions: q.shuffleQuestions,
           shuffleAnswers: q.shuffleAnswers,
           showResults: q.showResults,
           allowRetake: q.allowRetake,
           maxAttempts: q.maxAttempts,
+          questionsPerAttempt: q.questionsPerAttempt ?? '',
+          questionsPerAttemptByCategory: q.questionsPerAttemptByCategory || {},
           courseId: q.courseId
         });
         setQuestions(q.questions || []);
       } catch (e) {
         console.error('Failed to load quiz', e);
-        toast.error('Failed to load quiz');
+        toast.error('Failed to load assessment');
       }
     })();
   }, [isEdit, quizId]);
 
+  const fetchBankItems = async () => {
+    try {
+      setBankLoading(true);
+      const data = await listQuestionBankQuestionsForQuiz({
+        search: bankSearchQuery,
+        tags: bankTagsQuery,
+        page: bankPage,
+        pageSize: bankPageSize,
+      });
+      const total = Number(data.total) || 0;
+      const pages = Math.max(1, Math.ceil(total / bankPageSize) || 1);
+      if (bankPage > pages && total > 0) {
+        setBankPage(pages);
+        return;
+      }
+      setBankItems(Array.isArray(data.items) ? data.items : []);
+      setBankTotal(total);
+    } catch (e) {
+      console.error('Failed to load question bank questions', e);
+      toast.error('Failed to load Question Bank');
+      setBankItems([]);
+      setBankTotal(0);
+    } finally {
+      setBankLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBankItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bankSearchQuery, bankTagsQuery, bankPage, bankPageSize]);
+
+  const applyBankFilters = () => {
+    setBankSearchQuery(bankSearchInput.trim());
+    setBankTagsQuery(bankTagsInput.trim());
+    setBankPage(1);
+  };
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setBankSearchQuery(bankSearchInput.trim());
+      setBankTagsQuery(bankTagsInput.trim());
+      setBankPage(1);
+    }, 250);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bankSearchInput, bankTagsInput]);
+
+  const addBankQuestion = (item) => {
+    const exists = questions.some((q) => q.questionBankQuestionId === item.id);
+    if (exists) {
+      toast.error('Question already added');
+      return;
+    }
+    setQuestions((prev) => [
+      ...prev,
+      {
+        questionBankQuestionId: item.id,
+        type: item.type,
+        question: item.question,
+        points: item.points ?? 1,
+        category: item.category || '',
+        isCriticalSafety: quizFeatureFlags.enableCriticalSafetyQuestions && !!item.isCriticalSafety,
+        options: [],
+        explanation: '',
+        tags: item.tags || [],
+      },
+    ]);
+    toast.success('Question added from bank');
+  };
+
+  const toggleBankSelected = (id, checked) => {
+    if (addedBankIds.has(id)) return;
+    setBankSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const selectAllOnPage = () => {
+    setBankSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const item of bankItems) {
+        if (!addedBankIds.has(item.id)) next.add(item.id);
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => {
+    setBankSelectedIds(new Set());
+  };
+
+  const addQuestionsFromItems = (items) => {
+    const existing = new Set(questions.map((q) => q.questionBankQuestionId));
+    const toAdd = [];
+    for (const item of items) {
+      if (existing.has(item.id)) continue;
+      toAdd.push({
+        questionBankQuestionId: item.id,
+        type: item.type,
+        question: item.question,
+        points: item.points ?? 1,
+        category: item.category || '',
+        isCriticalSafety: quizFeatureFlags.enableCriticalSafetyQuestions && !!item.isCriticalSafety,
+        options: [],
+        explanation: '',
+        tags: item.tags || [],
+      });
+      existing.add(item.id);
+    }
+    if (toAdd.length === 0) return 0;
+    setQuestions((prev) => [...prev, ...toAdd]);
+    return toAdd.length;
+  };
+
+  const addSelectedFromCurrentPage = () => {
+    const selectedOnPage = bankItems.filter(
+      (i) => bankSelectedIds.has(i.id) && !addedBankIds.has(i.id)
+    );
+    if (selectedOnPage.length === 0) {
+      toast.error('Select at least one question');
+      return;
+    }
+    const added = addQuestionsFromItems(selectedOnPage);
+    toast.success(added ? `${added} question(s) added` : 'All selected questions were already added');
+  };
+
+  const addAllMatching = async () => {
+    try {
+      setBankBulkAdding(true);
+      const pageSize = 200; // server max
+      const first = await listQuestionBankQuestionsForQuiz({
+        search: bankSearchQuery,
+        tags: bankTagsQuery,
+        page: 1,
+        pageSize,
+      });
+      const total = Number(first.total) || 0;
+      const all = Array.isArray(first.items) ? [...first.items] : [];
+      const pages = Math.max(1, Math.ceil(total / pageSize));
+      for (let p = 2; p <= pages; p++) {
+        const res = await listQuestionBankQuestionsForQuiz({
+          search: bankSearchQuery,
+          tags: bankTagsQuery,
+          page: p,
+          pageSize,
+        });
+        if (Array.isArray(res.items)) all.push(...res.items);
+      }
+      const added = addQuestionsFromItems(all);
+      toast.success(added ? `${added} question(s) added` : 'All matching questions were already added');
+    } catch (e) {
+      console.error('Failed to add all matching questions', e);
+      toast.error('Failed to add all matching questions');
+    } finally {
+      setBankBulkAdding(false);
+    }
+  };
+
   const saveQuiz = async () => {
     if (!quizData.title.trim()) {
-      toast.error('Quiz title is required');
+      toast.error('Assessment title is required');
       return;
     }
 
@@ -224,17 +295,88 @@ export default function QuizCreator() {
       return;
     }
 
+    const missingBankRef = questions.some((q) => !q.questionBankQuestionId);
+    if (missingBankRef) {
+      toast.error('This assessment contains legacy questions. Phase 2 assessments must use Question Bank questions.');
+      return;
+    }
+
+    const perAttemptRaw = quizData.questionsPerAttempt;
+    const perAttempt = perAttemptRaw === '' || perAttemptRaw == null
+      ? null
+      : parseInt(perAttemptRaw, 10);
+
+    if (perAttempt != null && (Number.isNaN(perAttempt) || perAttempt < 1 || perAttempt >= questions.length)) {
+      toast.error(
+        perAttempt >= questions.length
+          ? `Questions per attempt must be less than the pool size (${questions.length}). Leave empty to show all questions.`
+          : 'Questions per attempt must be a positive number, or leave empty to show all questions.'
+      );
+      return;
+    }
+
+    // Validate per-category config (optional)
+    const byCat = quizData.questionsPerAttemptByCategory || {};
+    const hasByCat = byCat && Object.keys(byCat).some((k) => Number(byCat[k]) > 0);
+    if (hasByCat) {
+      if (perAttempt == null) {
+        toast.error('Set "Questions per attempt" before configuring per-category counts.');
+        return;
+      }
+
+      const available = {};
+      for (const q of questions) {
+        const c = (q.category || '').trim();
+        if (!c) continue;
+        available[c] = (available[c] || 0) + 1;
+      }
+
+      let sum = 0;
+      for (const [cat, raw] of Object.entries(byCat)) {
+        const n = raw === '' || raw == null ? 0 : parseInt(raw, 10);
+        if (Number.isNaN(n) || n < 0) {
+          toast.error('Per-category counts must be 0 or greater.');
+          return;
+        }
+        const max = available[cat] || 0;
+        if (n > max) {
+          toast.error(`"${cat}" has only ${max} question(s) in the pool.`);
+          return;
+        }
+        sum += n;
+      }
+
+      if (sum !== perAttempt) {
+        toast.error(`Sum of per-category counts must equal Questions per attempt (${perAttempt}).`);
+        return;
+      }
+    }
+
     try {
-      const quizPayload = {
-        id: quizId,
-        ...quizData,
-        questions,
-        totalPoints: questions.reduce((sum, q) => sum + q.points, 0)
+      const payload = {
+        title: quizData.title,
+        description: quizData.description,
+        introductionContent: quizData.introductionContent,
+        passingScore: quizData.passingScore,
+        isTimed: quizData.isTimed,
+        timeLimit: quizData.timeLimit,
+        shuffleQuestions: quizData.shuffleQuestions,
+        shuffleAnswers: quizData.shuffleAnswers,
+        showResults: quizData.showResults,
+        allowRetake: quizData.allowRetake,
+        maxAttempts: quizData.maxAttempts,
+        questionsPerAttempt: perAttempt,
+        questionsPerAttemptByCategory: hasByCat ? byCat : null,
+        courseId: quizData.courseId,
+        questionBankQuestionIds: questions.map((q) => q.questionBankQuestionId),
       };
 
-      console.log(isEdit ? 'Updating quiz:' : 'Creating quiz:', quizPayload);
-      await saveQuizApi(quizPayload, isEdit);
-      toast.success(isEdit ? 'Quiz updated successfully' : 'Quiz created successfully');
+      if (isEdit) {
+        await updateQuizFromBank(quizId, payload);
+      } else {
+        await createQuizFromBank(payload);
+      }
+      toast.success(isEdit ? 'Assessment updated successfully' : 'Assessment created successfully');
 
       if (returnTo) {
         try {
@@ -252,67 +394,22 @@ export default function QuizCreator() {
       }
     } catch (error) {
       console.error('Error saving quiz:', error);
-      toast.error('Failed to save quiz');
-    }
-  };
-
-  const handleApplyAIQuestions = (content) => {
-    try {
-      // Strip markdown code blocks if present
-      let cleanContent = content.trim();
-      if (cleanContent.startsWith('```')) {
-        cleanContent = cleanContent.replace(/^```json\n/, '').replace(/^```\n/, '').replace(/\n```$/, '');
+      const data = error.response?.data;
+      let message = data?.message || 'Failed to save assessment';
+      if (data?.errors?.length) {
+        const details = data.errors
+          .flatMap((e) => e.errors || [])
+          .filter(Boolean)
+          .join('; ');
+        if (details) message = `${message}: ${details}`;
       }
-      
-      const parsed = JSON.parse(cleanContent);
-      
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        // Transform AI format to quiz format
-        const transformedQuestions = parsed.map((q, index) => ({
-          type: q.options && q.options.length > 0 ? 'mc_single' : 'mc_single',
-          question: q.question || '',
-          points: 1,
-          options: q.options && Array.isArray(q.options) 
-            ? q.options.map(opt => ({
-                text: opt.text || opt,
-                isCorrect: opt.isCorrect || false
-              }))
-            : [
-                { text: '', isCorrect: false },
-                { text: '', isCorrect: false },
-                { text: '', isCorrect: false },
-                { text: '', isCorrect: false }
-              ],
-          explanation: q.explanation || ''
-        }));
-        
-        setQuestions(prev => [...prev, ...transformedQuestions]);
-        toast.success(`${transformedQuestions.length} questions added from AI!`);
-      } else {
-        toast.error('Invalid question format from AI');
-      }
-    } catch (e) {
-      console.error('Failed to parse AI content:', e);
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(content);
-        toast('Content copied to clipboard for manual use', { icon: 'ℹ️' });
-      } else {
-        toast.error('Could not parse AI-generated questions');
-      }
+      toast.error(message);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
       <AdminHeader />
-      <AIAssistant 
-        mode="slideIn"
-        isOpen={aiAssistantOpen}
-        onClose={() => setAiAssistantOpen(false)}
-        context={quizData.title ? `Creating quiz: ${quizData.title}` : 'Creating a new quiz'}
-        onApplyContent={handleApplyAIQuestions}
-        defaultTab="quiz"
-      />
       
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
@@ -327,33 +424,29 @@ export default function QuizCreator() {
               </svg>
               Back
             </button>
-            <h1 className="text-3xl font-bold text-gray-900">{isEdit ? 'Edit Quiz' : 'Create Quiz'}</h1>
-            <p className="text-gray-600 mt-2">{isEdit ? 'Update questions and settings of this quiz' : 'Build an interactive quiz for your course'}</p>
+            <h1 className="text-3xl font-bold text-gray-900">{isEdit ? 'Edit Assessment' : 'Create Assessment'}</h1>
+            <p className="text-gray-600 mt-2">{isEdit ? 'Update questions and settings of this assessment' : 'Build an interactive assessment for your course'}</p>
           </div>
           
-          <button
-            onClick={() => setAiAssistantOpen(true)}
-            className="bg-[#2afeae] text-[#1b365d] px-4 py-2 rounded-lg hover:shadow-lg transition-all duration-200 flex items-center gap-2"
-          >
-            <Sparkles className="w-5 h-5" />
-            AI Assistant
-          </button>
+          <div className="text-sm text-gray-500">
+            Build assessments by selecting questions from the Question Bank.
+          </div>
         </div>
 
-        {/* Quiz Information */}
+        {/* Assessment Information */}
         <div className="bg-white rounded-lg shadow mb-6">
           <div className="px-6 py-4 border-b">
-            <h2 className="text-xl font-semibold text-gray-900">Quiz Information</h2>
+            <h2 className="text-xl font-semibold text-gray-900">Assessment Information</h2>
           </div>
           <div className="p-6 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Quiz Title *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Assessment Title *</label>
               <input
                 type="text"
                 value={quizData.title}
                 onChange={(e) => handleQuizInfoChange('title', e.target.value)}
                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter quiz title"
+                placeholder="Enter assessment title"
               />
             </div>
 
@@ -364,7 +457,21 @@ export default function QuizCreator() {
                 onChange={(e) => handleQuizInfoChange('description', e.target.value)}
                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 rows="3"
-                placeholder="Enter quiz description"
+                placeholder="Enter assessment description"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Introduction Page Content</label>
+              <p className="text-xs text-gray-500 mb-2">
+                Shown to learners before they start the assessment. Supports HTML (e.g. instructions, rules).
+              </p>
+              <textarea
+                value={quizData.introductionContent}
+                onChange={(e) => handleQuizInfoChange('introductionContent', e.target.value)}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+                rows="8"
+                placeholder="Enter instructions, rules, or welcome message for the introduction page..."
               />
             </div>
 
@@ -401,7 +508,7 @@ export default function QuizCreator() {
                     onChange={(e) => handleQuizInfoChange('isTimed', e.target.checked)}
                     className="rounded"
                   />
-                  Timed Quiz
+                  Timed Assessment
                 </label>
                 {quizData.isTimed && (
                   <input
@@ -431,6 +538,85 @@ export default function QuizCreator() {
                 />
               </div>
             </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Questions per attempt (random subset)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max={Math.max(1, questions.length - 1)}
+                value={quizData.questionsPerAttempt}
+                onChange={(e) => handleQuizInfoChange('questionsPerAttempt', e.target.value)}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder={`All ${questions.length} questions (default)`}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Leave empty to show every question each attempt. Enter a number smaller than the pool
+                ({questions.length} questions) to show a random subset per attempt.
+              </p>
+            </div>
+
+            {(() => {
+              const perAttemptRaw = quizData.questionsPerAttempt;
+              const perAttempt = perAttemptRaw === '' || perAttemptRaw == null ? null : parseInt(perAttemptRaw, 10);
+              const isSubset = perAttempt != null && !Number.isNaN(perAttempt) && perAttempt > 0 && perAttempt < questions.length;
+              if (!isSubset) return null;
+
+              const categoryCounts = {};
+              for (const q of questions) {
+                const c = (q.category || '').trim();
+                if (!c) continue;
+                categoryCounts[c] = (categoryCounts[c] || 0) + 1;
+              }
+              const categories = Object.keys(categoryCounts).sort((a, b) => a.localeCompare(b));
+              if (categories.length === 0) return null;
+
+              const current = quizData.questionsPerAttemptByCategory || {};
+              const sum = categories.reduce((acc, c) => acc + (parseInt(current[c] ?? 0, 10) || 0), 0);
+              return (
+                <div className="border rounded-lg p-4 bg-gray-50">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">Per-category questions per attempt</div>
+                      <div className="text-xs text-gray-500">
+                        Configure how many questions to draw from each category. Total must equal {perAttempt}.
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-600">Selected: {sum} / {perAttempt}</div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {categories.map((cat) => (
+                      <div key={cat} className="flex items-center justify-between gap-3 border rounded-lg bg-white px-3 py-2">
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-gray-900 truncate">{cat}</div>
+                          <div className="text-xs text-gray-500">{categoryCounts[cat]} in pool</div>
+                        </div>
+                        <input
+                          type="number"
+                          min="0"
+                          max={categoryCounts[cat]}
+                          value={current[cat] ?? 0}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setQuizData((prev) => ({
+                              ...prev,
+                              questionsPerAttemptByCategory: {
+                                ...(prev.questionsPerAttemptByCategory || {}),
+                                [cat]: v === '' ? '' : parseInt(v, 10),
+                              },
+                            }));
+                          }}
+                          className="w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <label className="flex items-center space-x-2">
@@ -476,155 +662,26 @@ export default function QuizCreator() {
           </div>
         </div>
 
-        {/* Questions List */}
+        {/* Selected Questions */}
         <div className="bg-white rounded-lg shadow mb-6">
           <div className="px-6 py-4 border-b flex justify-between items-center">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">Questions ({questions.length})</h2>
-              <p className="text-sm text-gray-600">Total Points: {questions.reduce((sum, q) => sum + q.points, 0)}</p>
+              <p className="text-sm text-gray-600">Total Points: {questions.reduce((sum, q) => sum + (q.points ?? 0), 0)}</p>
             </div>
-            {!isAddingQuestion && (
-              <button
-                onClick={() => setIsAddingQuestion(true)}
-                className="px-4 py-2 bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e]"
-              >
-                Add Question
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setBankPanelOpen(true)}
+              className="px-4 py-2 bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e]"
+            >
+              Add Question
+            </button>
           </div>
 
-          {/* Question Form */}
-          {isAddingQuestion && (
-            <div className="p-6 border-b bg-gray-50">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                {editingIndex !== null ? 'Edit Question' : 'Add New Question'}
-              </h3>
-
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Question Type</label>
-                    <select
-                      value={currentQuestion.type}
-                      onChange={(e) => handleQuestionChange('type', e.target.value)}
-                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      {questionTypes.map(type => (
-                        <option key={type.value} value={type.value}>{type.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Points</label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={currentQuestion.points}
-                      onChange={(e) => handleQuestionChange('points', parseInt(e.target.value))}
-                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Question *</label>
-                  <textarea
-                    value={currentQuestion.question}
-                    onChange={(e) => handleQuestionChange('question', e.target.value)}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    rows="3"
-                    placeholder="Enter your question"
-                  />
-                </div>
-
-                {/* Options for Multiple Choice (Single or Multiple) */}
-                {(currentQuestion.type === 'mc_single' || currentQuestion.type === 'mc_multi') && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Answer Options</label>
-                    <div className="space-y-2">
-                      {currentQuestion.options.map((option, index) => (
-                        <div key={index} className="flex items-center space-x-2">
-                          {currentQuestion.type === 'mc_single' ? (
-                            <input
-                              type="radio"
-                              name="correctAnswer"
-                              checked={!!option.isCorrect}
-                              onChange={() => handleCorrectChange(index, true)}
-                              className="text-green-600 focus:ring-green-500"
-                            />
-                          ) : (
-                            <input
-                              type="checkbox"
-                              checked={!!option.isCorrect}
-                              onChange={(e) => handleCorrectChange(index, e.target.checked)}
-                              className="rounded text-green-600 focus:ring-green-500"
-                            />
-                          )}
-                          <input
-                            type="text"
-                            value={option.text}
-                            onChange={(e) => handleOptionChange(index, e.target.value)}
-                            className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder={`Option ${index + 1}`}
-                          />
-                          {currentQuestion.options.length > 2 && (
-                            <button
-                              onClick={() => removeOption(index)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded"
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                      <button
-                        onClick={addOption}
-                        className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                      >
-                        Add Option
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Explanation (Optional)</label>
-                  <textarea
-                    value={currentQuestion.explanation}
-                    onChange={(e) => handleQuestionChange('explanation', e.target.value)}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    rows="2"
-                    placeholder="Provide an explanation for the answer"
-                  />
-                </div>
-
-                <div className="flex space-x-2">
-                  <button
-                    onClick={saveQuestion}
-                    className="px-4 py-2 bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e]"
-                  >
-                    {editingIndex !== null ? 'Update Question' : 'Save Question'}
-                  </button>
-                  <button
-                    onClick={resetQuestionForm}
-                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Questions List */}
           <div className="divide-y">
             {questions.length === 0 ? (
               <div className="p-8 text-center text-gray-500">
-                No questions added yet. Click "Add Question" to get started.
+                No questions added yet. Use the Question Bank above to add questions.
               </div>
             ) : (
               questions.map((q, index) => (
@@ -636,21 +693,23 @@ export default function QuizCreator() {
                           Q{index + 1}
                         </span>
                         <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs font-medium rounded">
-                          {questionTypes.find(t => t.value === q.type)?.label}
+                          {q.type === 'mc_multi' ? 'Multiple Choice (Multiple Answers)' : 'Multiple Choice (Single Answer)'}
                         </span>
                         <span className="text-sm text-gray-600">{q.points} point{q.points !== 1 ? 's' : ''}</span>
+                        {q.category && (
+                          <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded">
+                            {q.category}
+                          </span>
+                        )}
+                        {quizFeatureFlags.enableCriticalSafetyQuestions && q.isCriticalSafety && (
+                          <span className="px-2 py-1 bg-red-100 text-red-800 text-xs font-medium rounded">
+                            Critical Safety
+                          </span>
+                        )}
                       </div>
                       <p className="text-gray-900 font-medium mb-2">{q.question}</p>
-                      {(q.type === 'mc_single' || q.type === 'mc_multi') && (
-                        <div className="ml-4 space-y-1">
-                          {q.options.map((opt, i) => (
-                            <div key={i} className="flex items-center space-x-2">
-                              <span className={`text-sm ${opt.isCorrect ? 'text-green-600 font-medium' : 'text-gray-600'}`}>
-                                {opt.isCorrect && '✓ '}{opt.text}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
+                      {q.questionBankQuestionId && (
+                        <div className="text-xs text-gray-400">Bank ID: {q.questionBankQuestionId}</div>
                       )}
                     </div>
                     <div className="flex items-center space-x-2 ml-4">
@@ -658,6 +717,7 @@ export default function QuizCreator() {
                         onClick={() => moveQuestion(index, 'up')}
                         disabled={index === 0}
                         className="p-1 text-gray-600 hover:text-gray-900 disabled:opacity-30"
+                        type="button"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
@@ -667,22 +727,16 @@ export default function QuizCreator() {
                         onClick={() => moveQuestion(index, 'down')}
                         disabled={index === questions.length - 1}
                         className="p-1 text-gray-600 hover:text-gray-900 disabled:opacity-30"
+                        type="button"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                         </svg>
                       </button>
                       <button
-                        onClick={() => editQuestion(index)}
-                        className="p-1 text-blue-600 hover:text-blue-700"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                      <button
                         onClick={() => deleteQuestion(index)}
                         className="p-1 text-red-600 hover:text-red-700"
+                        type="button"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -696,7 +750,147 @@ export default function QuizCreator() {
           </div>
         </div>
 
-        {/* Save Quiz */}
+        <SlideOver
+          isOpen={bankPanelOpen}
+          title="Add questions from Question Bank"
+          onClose={() => setBankPanelOpen(false)}
+          widthClass="max-w-3xl"
+        >
+          <div className="p-6 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                <input
+                  type="text"
+                  value={bankSearchInput}
+                  onChange={(e) => setBankSearchInput(e.target.value)}
+                  placeholder="Search question text, category, explanation..."
+                  className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma separated)</label>
+                <input
+                  type="text"
+                  value={bankTagsInput}
+                  onChange={(e) => setBankTagsInput(e.target.value)}
+                  placeholder="e.g. fall protection, ppe"
+                  className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="text-xs text-gray-500">
+                {bankTotal ? `Total matches: ${bankTotal}` : ' '}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={clearSelection}
+                  className="px-3 py-2 rounded border text-sm"
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  onClick={selectAllOnPage}
+                  className="px-3 py-2 rounded border text-sm"
+                >
+                  Select page
+                </button>
+                <button
+                  type="button"
+                  onClick={addSelectedFromCurrentPage}
+                  className="px-3 py-2 rounded-md shadow-sm text-sm font-medium bg-[#2afeae] text-[#1b365d] hover:bg-[#25e89e]"
+                >
+                  Add selected
+                </button>
+                <button
+                  type="button"
+                  onClick={addAllMatching}
+                  disabled={bankBulkAdding || bankLoading}
+                  className="px-3 py-2 rounded-md shadow-sm text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60"
+                  title="Adds all questions that match current filters"
+                >
+                  {bankBulkAdding ? 'Adding…' : 'Add all matches'}
+                </button>
+              </div>
+            </div>
+
+            {bankLoading ? (
+              <div className="text-sm text-gray-500">Loading…</div>
+            ) : bankItems.length === 0 ? (
+              <div className="text-sm text-gray-500">No matching questions found.</div>
+            ) : (
+              <div className="divide-y border rounded-lg overflow-hidden">
+                {bankItems.map((item) => {
+                  const isAdded = addedBankIds.has(item.id);
+                  return (
+                  <div
+                    key={item.id}
+                    className={`p-4 flex items-start justify-between gap-4 ${isAdded ? 'bg-gray-50 opacity-60' : ''}`}
+                  >
+                    <div className="pt-1">
+                      <input
+                        type="checkbox"
+                        checked={!isAdded && bankSelectedIds.has(item.id)}
+                        disabled={isAdded}
+                        onChange={(e) => toggleBankSelected(item.id, e.target.checked)}
+                        className="h-4 w-4 disabled:cursor-not-allowed"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-gray-900 line-clamp-2">{item.question}</div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        ID: {item.id}
+                        {item.category ? ` • ${item.category}` : ''}
+                        {quizFeatureFlags.enableCriticalSafetyQuestions && item.isCriticalSafety ? ' • Critical' : ''}
+                        {item.optionCount != null ? ` • ${item.optionCount} options` : ''}
+                        {isAdded ? ' • Already in assessment' : ''}
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {(item.tags || []).slice(0, 6).map((t) => (
+                          <span key={t} className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700">
+                            {t}
+                          </span>
+                        ))}
+                        {(item.tags || []).length > 6 && (
+                          <span className="text-xs text-gray-400">+{item.tags.length - 6} more</span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => addBankQuestion(item)}
+                      disabled={isAdded}
+                      className="px-3 py-2 rounded whitespace-nowrap disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500 bg-[#2afeae] text-[#1b365d] hover:bg-[#25e89e] disabled:hover:bg-gray-200"
+                    >
+                      {isAdded ? 'Added' : 'Add'}
+                    </button>
+                  </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {!bankLoading && bankTotal > 0 && (
+              <Pagination
+                currentPage={bankPage}
+                totalPages={bankTotalPages}
+                pageSize={bankPageSize}
+                totalCount={bankTotal}
+                onPageChange={setBankPage}
+                onPageSizeChange={(size) => {
+                  setBankPageSize(size);
+                  setBankPage(1);
+                }}
+              />
+            )}
+          </div>
+        </SlideOver>
+
+        {/* Save Assessment */}
         <div className="flex justify-end space-x-4">
           <button
             onClick={() => navigate(-1)}
@@ -708,7 +902,7 @@ export default function QuizCreator() {
             onClick={saveQuiz}
             className="px-6 py-3 bg-[#2afeae] text-[#1b365d] rounded-lg hover:bg-[#25e89e]"
           >
-            {isEdit ? 'Update Quiz' : 'Save Quiz'}
+            {isEdit ? 'Update Assessment' : 'Save Assessment'}
           </button>
         </div>
       </div>

@@ -4,8 +4,14 @@ import tenants from './tenants.json';
 const ThemeContext = createContext();
 
 function getTenantConfig() {
+  const tenantKey = import.meta.env.VITE_APP_TENANT;
+  if (tenantKey && tenants[tenantKey]) {
+    return tenants[tenantKey];
+  }
+
   const hostname = window.location.hostname;
   // Map hostname to tenant key
+  if (hostname.includes('glc')) return tenants.glc;
   if (hostname.includes('acme')) return tenants.acme;
   if (hostname.includes('globex')) return tenants.globex;
   return tenants.default;

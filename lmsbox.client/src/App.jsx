@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'react-hot-toast';
 import AdminProfile from './pages/AdminProfile';
 import LearnerProfile from './pages/LearnerProfile';
+import Notifications from './pages/Notifications';
 import Login from './pages/Login';
 import VerifyLogin from './pages/VerifyLogin';
 import EmailNotRegistered from './pages/EmailNotRegistered';
@@ -15,12 +16,24 @@ import AdminCourses from './pages/AdminCourses';
 import AdminSurveys from './pages/AdminSurveys';
 import AdminReports from './pages/AdminReports';
 import AdminCourseEditor from './pages/AdminCourseEditor';
+import AdminCoursePreview from './pages/AdminCoursePreview';
 import AdminLessonLibrary from './pages/AdminLessonLibrary';
 import AdminAutomation from './pages/AdminAutomation';
 import AdminUserGroups from './pages/AdminUserGroups';
 import AdminUserGroupEditor from './pages/AdminUserGroupEditor';
 import AdminUserEditor from './pages/AdminUserEditor';
 import QuizCreator from './pages/QuizCreator';
+import InteractiveLessonEditor from './pages/InteractiveLessonEditor';
+import InteractiveLessonPreview from './pages/InteractiveLessonPreview';
+import QuestionBankQuizCreator from './pages/QuestionBankQuizCreator';
+import QuestionBankQuizList from './pages/QuestionBankQuizList';
+import QuestionBankQuestionList from './pages/QuestionBankQuestionList';
+import QuestionBankQuestionCreator from './pages/QuestionBankQuestionCreator';
+import QuizAttemptsReport from './pages/QuizAttemptsReport';
+import AssessmentDifficultyReport from './pages/AssessmentDifficultyReport';
+import SurveyReport from './pages/SurveyReport';
+import SuperAdminActivityLogs from './pages/SuperAdminActivityLogs';
+import UserLessonProgressReport from './pages/UserLessonProgressReport';
 import AdminSurveyEditor from './pages/AdminSurveyEditor';
 import UserActivityReport from './pages/UserActivityReport';
 import UserProgressReport from './pages/UserProgressReport';
@@ -94,6 +107,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <LearnerProfile />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute>
+                <Notifications />
               </ProtectedRoute>
             }
           />
@@ -203,6 +225,14 @@ function App() {
             element={
               <AdminRoute>
                 <AdminCourseEditor />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/courses/:courseId/preview"
+            element={
+              <AdminRoute>
+                <AdminCoursePreview />
               </AdminRoute>
             }
           />
@@ -335,6 +365,14 @@ function App() {
             }
           />
           <Route
+            path="/admin/reports/user-lesson-progress"
+            element={
+              <AdminRoute>
+                <UserLessonProgressReport />
+              </AdminRoute>
+            }
+          />
+          <Route
             path="/admin/reports/custom-builder"
             element={
               <AdminRoute>
@@ -395,6 +433,110 @@ function App() {
             element={
               <AdminRoute>
                 <QuizCreator />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/interactive/create/:courseId"
+            element={
+              <AdminRoute>
+                <InteractiveLessonEditor />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/interactive/edit/:lessonId"
+            element={
+              <AdminRoute>
+                <InteractiveLessonEditor />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/interactive/preview/:lessonId"
+            element={
+              <AdminRoute>
+                <InteractiveLessonPreview />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/question-bank/quizzes/create"
+            element={
+              <AdminRoute>
+                <QuestionBankQuizCreator />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/question-bank/quizzes"
+            element={
+              <AdminRoute>
+                <QuestionBankQuizList />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/question-bank/quizzes/edit/:quizId"
+            element={
+              <AdminRoute>
+                <QuestionBankQuizCreator />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/question-bank/questions"
+            element={
+              <AdminRoute>
+                <QuestionBankQuestionList />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/question-bank/questions/create"
+            element={
+              <AdminRoute>
+                <QuestionBankQuestionCreator />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/question-bank/questions/edit/:questionId"
+            element={
+              <AdminRoute>
+                <QuestionBankQuestionCreator />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/reports/quiz-attempts"
+            element={
+              <AdminRoute>
+                <QuizAttemptsReport />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/reports/assessment-difficulty"
+            element={
+              <AdminRoute>
+                <AssessmentDifficultyReport />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/reports/surveys"
+            element={
+              <AdminRoute>
+                <SurveyReport />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/reports/activity-logs"
+            element={
+              <AdminRoute>
+                <SuperAdminActivityLogs />
               </AdminRoute>
             }
           />

@@ -11,6 +11,7 @@ public class LessonConfiguration : IEntityTypeConfiguration<Lesson>
         builder.HasKey(l => l.Id);
 
         builder.Property(l => l.Title).IsRequired().HasMaxLength(500);
+        builder.Property(l => l.ExternalPendingMessage).HasMaxLength(2000);
         builder.Property(l => l.ScormVersion).HasMaxLength(20);
         builder.Property(l => l.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
 

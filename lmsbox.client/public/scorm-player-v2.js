@@ -831,52 +831,6 @@
         var iframe = document.getElementById('scorm-iframe');
         var loading = document.getElementById('loading');
         
-        // Setup fullscreen controls
-        var fullscreenBtn = document.getElementById('fullscreen-btn');
-        var minimizeBtn = document.getElementById('minimize-btn');
-        
-        if (fullscreenBtn) {
-            fullscreenBtn.addEventListener('click', function() {
-                if (document.body.requestFullscreen) {
-                    document.body.requestFullscreen();
-                } else if (document.body.webkitRequestFullscreen) {
-                    document.body.webkitRequestFullscreen();
-                } else if (document.body.mozRequestFullScreen) {
-                    document.body.mozRequestFullScreen();
-                } else if (document.body.msRequestFullscreen) {
-                    document.body.msRequestFullscreen();
-                }
-            });
-        }
-        
-        if (minimizeBtn) {
-            minimizeBtn.addEventListener('click', function() {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                } else if (document.webkitExitFullscreen) {
-                    document.webkitExitFullscreen();
-                } else if (document.mozCancelFullScreen) {
-                    document.mozCancelFullScreen();
-                } else if (document.msExitFullscreen) {
-                    document.msExitFullscreen();
-                }
-            });
-        }
-        
-        // Listen for fullscreen changes to toggle buttons
-        document.addEventListener('fullscreenchange', toggleButtons);
-        document.addEventListener('webkitfullscreenchange', toggleButtons);
-        document.addEventListener('mozfullscreenchange', toggleButtons);
-        document.addEventListener('MSFullscreenChange', toggleButtons);
-        
-        function toggleButtons() {
-            var isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || 
-                                 document.mozFullScreenElement || document.msFullscreenElement);
-            
-            if (fullscreenBtn) fullscreenBtn.style.display = isFullscreen ? 'none' : 'flex';
-            if (minimizeBtn) minimizeBtn.style.display = isFullscreen ? 'flex' : 'none';
-        }
-        
         if (scormUrl) {
             // First load saved SCORM data, then load the content
             loadSavedScormData().then(function() {

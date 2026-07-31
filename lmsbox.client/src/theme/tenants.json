@@ -4,6 +4,11 @@
     "primaryColor": "#1b365d",
     "logo": "/assets/lmsbox-logo.png"
   },
+  "glc": {
+    "name": "GLC LMS",
+    "primaryColor": "#0f4c5c",
+    "logo": "/assets/glc-logo.png"
+  },
   "acme": {
     "name": "Acme Corp",
     "primaryColor": "#e11d48",

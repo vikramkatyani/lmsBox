@@ -87,7 +87,16 @@ export const adminCourseService = {
   async addCategory(categoryName) {
     const response = await api.post('/api/course-categories', { name: categoryName });
     return response.data;
-  }
+  },
+
+  openCoursePreview(courseId, lessonId = null) {
+    const params = new URLSearchParams();
+    if (lessonId) {
+      params.set('lessonId', lessonId);
+    }
+    const query = params.toString();
+    window.open(`/admin/courses/${courseId}/preview${query ? `?${query}` : ''}`, '_blank');
+  },
 };
 
 // Helper functions for course data transformation
@@ -106,7 +115,9 @@ export const courseHelpers = {
       preCourseSurveyId: formData.preCourseSurveyId || null,
       postCourseSurveyId: formData.postCourseSurveyId || null,
       isPreSurveyMandatory: formData.isPreSurveyMandatory || false,
-      isPostSurveyMandatory: formData.isPostSurveyMandatory || false
+      isPostSurveyMandatory: formData.isPostSurveyMandatory || false,
+      requireSequentialLessons: formData.requireSequentialLessons || false,
+      showLessonNavigation: formData.showLessonNavigation || false
     };
   },
 
@@ -125,7 +136,9 @@ export const courseHelpers = {
       preCourseSurveyId: courseData.preCourseSurveyId || null,
       postCourseSurveyId: courseData.postCourseSurveyId || null,
       isPreSurveyMandatory: courseData.isPreSurveyMandatory || false,
-      isPostSurveyMandatory: courseData.isPostSurveyMandatory || false
+      isPostSurveyMandatory: courseData.isPostSurveyMandatory || false,
+      requireSequentialLessons: courseData.requireSequentialLessons || false,
+      showLessonNavigation: courseData.showLessonNavigation || false
     };
   },
 

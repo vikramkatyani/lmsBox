@@ -1,0 +1,315 @@
+<div class="lmsbox-interactive-block" data-block-id="{{BLOCK_ID}}" data-block-type="questionnaire" role="region" aria-label="Lesson questionnaire">
+  <style>
+    .lmsbox-interactive-block[data-block-type="questionnaire"] {
+      --lmsbox-primary: #1b365d;
+      --lmsbox-focus: #1b365d;
+      --lmsbox-text: #0f172a;
+      --lmsbox-muted: #334155;
+      --lmsbox-surface: #f8fafc;
+      --lmsbox-border: #64748b;
+      --lmsbox-ok: #14532d;
+      --lmsbox-bad: #991b1b;
+      --lmsbox-on-primary: #ffffff;
+      box-sizing: border-box;
+      width: 100%;
+      margin: 0;
+      padding: 1rem 0 1.25rem;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 1rem;
+      line-height: 1.5;
+      color: var(--lmsbox-text);
+      background: transparent;
+    }
+    .lmsbox-interactive-block[data-block-type="questionnaire"] *,
+    .lmsbox-interactive-block[data-block-type="questionnaire"] *::before,
+    .lmsbox-interactive-block[data-block-type="questionnaire"] *::after {
+      box-sizing: border-box;
+    }
+    .lmsbox-quiz__progress {
+      margin: 0 0 1rem;
+      font-size: 0.875rem;
+      line-height: 1.5;
+      color: var(--lmsbox-muted);
+    }
+    .lmsbox-quiz__list {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    .lmsbox-quiz__item {
+      padding: 0 0 1.25rem;
+      border-bottom: 1px solid var(--lmsbox-border);
+    }
+    .lmsbox-quiz__item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+    .lmsbox-quiz__qtext {
+      margin: 0 0 0.75rem;
+      font-size: 1.125rem;
+      font-weight: 700;
+      line-height: 1.4;
+      color: var(--lmsbox-text);
+    }
+    .lmsbox-quiz__options {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .lmsbox-quiz__option {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.65rem;
+      min-height: 44px;
+      padding: 0.65rem 0.75rem;
+      border: 1px solid var(--lmsbox-border);
+      background: var(--lmsbox-surface);
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1.5;
+      color: var(--lmsbox-text);
+    }
+    .lmsbox-quiz__option:hover {
+      border-color: var(--lmsbox-primary);
+    }
+    .lmsbox-quiz__option:focus-within {
+      outline: 3px solid var(--lmsbox-focus);
+      outline-offset: 2px;
+    }
+    .lmsbox-quiz__option input {
+      margin-top: 0.15rem;
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+      accent-color: var(--lmsbox-primary);
+    }
+    .lmsbox-quiz__text {
+      width: 100%;
+      min-height: 88px;
+      padding: 0.75rem;
+      border: 1px solid var(--lmsbox-border);
+      background: #fff;
+      font: inherit;
+      font-size: 1rem;
+      line-height: 1.5;
+      color: var(--lmsbox-text);
+      resize: vertical;
+    }
+    .lmsbox-quiz__text:focus {
+      outline: 3px solid var(--lmsbox-focus);
+      outline-offset: 2px;
+    }
+    .lmsbox-quiz__actions {
+      margin-top: 0.75rem;
+    }
+    .lmsbox-quiz__btn {
+      min-height: 44px;
+      padding: 0.55rem 1rem;
+      border: none;
+      background: var(--lmsbox-primary);
+      color: var(--lmsbox-on-primary);
+      font: inherit;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .lmsbox-quiz__btn:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+    .lmsbox-quiz__btn:focus-visible {
+      outline: 3px solid var(--lmsbox-focus);
+      outline-offset: 2px;
+    }
+    .lmsbox-quiz__feedback {
+      margin-top: 0.65rem;
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+    .lmsbox-quiz__feedback--ok { color: var(--lmsbox-ok); }
+    .lmsbox-quiz__feedback--bad { color: var(--lmsbox-bad); }
+    .lmsbox-quiz__feedback[hidden] { display: none !important; }
+  </style>
+
+  <p class="lmsbox-quiz__progress" data-quiz-progress aria-live="polite"></p>
+  <div class="lmsbox-quiz__list" data-quiz-root></div>
+
+  <script type="application/json" id="lmsbox-questionnaire-data-{{BLOCK_ID}}">{{QUESTIONNAIRE_JSON}}</script>
+  <script>
+  (function () {
+    var root = document.querySelector('.lmsbox-interactive-block[data-block-type="questionnaire"][data-block-id="{{BLOCK_ID}}"]');
+    if (!root || root.getAttribute('data-questionnaire-ready') === '1') return;
+    root.setAttribute('data-questionnaire-ready', '1');
+
+    var blockId = root.getAttribute('data-block-id');
+    var dataEl = document.getElementById('lmsbox-questionnaire-data-{{BLOCK_ID}}');
+    var config = { showFeedbackPerQuestion: true, questions: [] };
+    try { config = JSON.parse(dataEl ? dataEl.textContent : '{}') || config; } catch (e) {}
+    var questions = Array.isArray(config.questions) ? config.questions : [];
+    var showFeedback = !!config.showFeedbackPerQuestion;
+    if (!questions.length) return;
+
+    var listEl = root.querySelector('[data-quiz-root]');
+    var progressEl = root.querySelector('[data-quiz-progress]');
+    var answered = {};
+    var completed = false;
+
+    function notifyComplete() {
+      if (completed) return;
+      completed = true;
+      var payload = { type: 'interactive-block-complete', blockId: Number(blockId) };
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, '*');
+      }
+      if (window.lmsboxInteractive && typeof window.lmsboxInteractive.notifyComplete === 'function') {
+        window.lmsboxInteractive.notifyComplete(Number(blockId));
+      }
+    }
+
+    function updateProgress() {
+      var count = 0;
+      for (var i = 0; i < questions.length; i++) if (answered[i]) count++;
+      progressEl.textContent = count + ' of ' + questions.length + ' answered';
+      if (count === questions.length) notifyComplete();
+    }
+
+    function markAnswered(index) {
+      answered[index] = true;
+      updateProgress();
+    }
+
+    function isChoiceCorrect(question, selectedIndexes) {
+      var options = question.options || [];
+      var correct = [];
+      for (var i = 0; i < options.length; i++) {
+        if (options[i] && options[i].isCorrect) correct.push(i);
+      }
+      if (!correct.length) return null;
+      if (selectedIndexes.length !== correct.length) return false;
+      selectedIndexes.sort();
+      correct.sort();
+      for (var j = 0; j < correct.length; j++) {
+        if (selectedIndexes[j] !== correct[j]) return false;
+      }
+      return true;
+    }
+
+    questions.forEach(function (question, qIndex) {
+      var type = (question.type || 'single').toLowerCase();
+      var item = document.createElement('div');
+      item.className = 'lmsbox-quiz__item';
+
+      var qtext = document.createElement('h3');
+      qtext.className = 'lmsbox-quiz__qtext';
+      qtext.textContent = (qIndex + 1) + '. ' + (question.text || '');
+      item.appendChild(qtext);
+
+      var feedback = document.createElement('div');
+      feedback.className = 'lmsbox-quiz__feedback';
+      feedback.hidden = true;
+
+      if (type === 'text') {
+        var textarea = document.createElement('textarea');
+        textarea.className = 'lmsbox-quiz__text';
+        textarea.setAttribute('aria-label', 'Answer for question ' + (qIndex + 1));
+        textarea.placeholder = 'Type your answer';
+        textarea.addEventListener('input', function () {
+          if (textarea.value.trim()) markAnswered(qIndex);
+        });
+        item.appendChild(textarea);
+        if (showFeedback) {
+          var textActions = document.createElement('div');
+          textActions.className = 'lmsbox-quiz__actions';
+          var textBtn = document.createElement('button');
+          textBtn.type = 'button';
+          textBtn.className = 'lmsbox-quiz__btn';
+          textBtn.textContent = 'Save answer';
+          textBtn.addEventListener('click', function () {
+            if (!textarea.value.trim()) {
+              feedback.hidden = false;
+              feedback.className = 'lmsbox-quiz__feedback lmsbox-quiz__feedback--bad';
+              feedback.textContent = 'Please enter an answer.';
+              return;
+            }
+            markAnswered(qIndex);
+            feedback.hidden = false;
+            feedback.className = 'lmsbox-quiz__feedback lmsbox-quiz__feedback--ok';
+            feedback.textContent = 'Answer saved.';
+          });
+          textActions.appendChild(textBtn);
+          item.appendChild(textActions);
+        }
+      } else {
+        var options = question.options || [];
+        var optionsEl = document.createElement('div');
+        optionsEl.className = 'lmsbox-quiz__options';
+        var inputName = 'lmsbox-q-{{BLOCK_ID}}-' + qIndex;
+        var inputType = type === 'multiple' ? 'checkbox' : 'radio';
+
+        options.forEach(function (option, oIndex) {
+          var label = document.createElement('label');
+          label.className = 'lmsbox-quiz__option';
+          var input = document.createElement('input');
+          input.type = inputType;
+          input.name = inputName;
+          input.value = String(oIndex);
+          input.addEventListener('change', function () {
+            if (!showFeedback) markAnswered(qIndex);
+          });
+          var span = document.createElement('span');
+          span.textContent = option.text || '';
+          label.appendChild(input);
+          label.appendChild(span);
+          optionsEl.appendChild(label);
+        });
+        item.appendChild(optionsEl);
+
+        if (showFeedback) {
+          var actions = document.createElement('div');
+          actions.className = 'lmsbox-quiz__actions';
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'lmsbox-quiz__btn';
+          btn.textContent = 'Check answer';
+          btn.addEventListener('click', function () {
+            var selected = [];
+            var inputs = optionsEl.querySelectorAll('input');
+            for (var i = 0; i < inputs.length; i++) {
+              if (inputs[i].checked) selected.push(Number(inputs[i].value));
+            }
+            if (!selected.length) {
+              feedback.hidden = false;
+              feedback.className = 'lmsbox-quiz__feedback lmsbox-quiz__feedback--bad';
+              feedback.textContent = 'Please select an option.';
+              return;
+            }
+            markAnswered(qIndex);
+            var result = isChoiceCorrect(question, selected.slice());
+            feedback.hidden = false;
+            if (result === null) {
+              feedback.className = 'lmsbox-quiz__feedback lmsbox-quiz__feedback--ok';
+              feedback.textContent = 'Answer recorded.';
+            } else if (result) {
+              feedback.className = 'lmsbox-quiz__feedback lmsbox-quiz__feedback--ok';
+              feedback.textContent = 'Correct.';
+            } else {
+              feedback.className = 'lmsbox-quiz__feedback lmsbox-quiz__feedback--bad';
+              feedback.textContent = 'Not quite — review the options and try again.';
+            }
+          });
+          actions.appendChild(btn);
+          item.appendChild(actions);
+        }
+      }
+
+      item.appendChild(feedback);
+      listEl.appendChild(item);
+    });
+
+    updateProgress();
+  })();
+  </script>
+</div>
