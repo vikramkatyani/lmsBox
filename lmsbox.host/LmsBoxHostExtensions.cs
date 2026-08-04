@@ -301,6 +301,15 @@ public static class LmsBoxHostExtensions
             try
             {
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var pending = db.Database.GetPendingMigrations().ToList();
+                if (pending.Count > 0)
+                {
+                    logger.LogWarning(
+                        "Applying {Count} pending EF migrations: {Migrations}",
+                        pending.Count,
+                        string.Join(", ", pending));
+                }
+
                 db.Database.Migrate();
                 logger.LogInformation("Database migrated successfully.");
 
@@ -312,8 +321,11 @@ public static class LmsBoxHostExtensions
             }
             catch (Exception ex)
             {
-                logger.LogCritical(ex, "Database migration failed. Stopping application.");
-                throw;
+                // Log the full failure but keep the host alive so Azure does not stick on 500.30
+                // and stdout / App Insights can capture the migration error for diagnosis.
+                logger.LogCritical(
+                    ex,
+                    "Database migration failed. App will continue starting so diagnostics remain available. Fix the schema, then restart.");
             }
         }
 

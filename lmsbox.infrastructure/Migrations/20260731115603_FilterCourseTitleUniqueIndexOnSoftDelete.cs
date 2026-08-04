@@ -11,7 +11,7 @@ namespace lmsbox.infrastructure.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             // Conditional so production does not 500.30 when the legacy unique index is
-            // missing, already filtered, or a previous attempt partially applied.
+            // missing, already filtered, or duplicate active titles block a unique recreate.
             migrationBuilder.Sql(@"
 IF EXISTS (
     SELECT 1
@@ -28,6 +28,13 @@ IF NOT EXISTS (
     FROM sys.indexes
     WHERE name = N'UX_Course_OrganisationId_Title'
       AND object_id = OBJECT_ID(N'dbo.Courses')
+)
+AND NOT EXISTS (
+    SELECT 1
+    FROM dbo.Courses
+    WHERE IsDeleted = 0
+    GROUP BY OrganisationId, Title
+    HAVING COUNT(*) > 1
 )
 BEGIN
     CREATE UNIQUE INDEX [UX_Course_OrganisationId_Title]
@@ -56,6 +63,12 @@ IF NOT EXISTS (
     FROM sys.indexes
     WHERE name = N'UX_Course_OrganisationId_Title'
       AND object_id = OBJECT_ID(N'dbo.Courses')
+)
+AND NOT EXISTS (
+    SELECT 1
+    FROM dbo.Courses
+    GROUP BY OrganisationId, Title
+    HAVING COUNT(*) > 1
 )
 BEGIN
     CREATE UNIQUE INDEX [UX_Course_OrganisationId_Title]

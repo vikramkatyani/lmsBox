@@ -1,5 +1,4 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -11,134 +10,119 @@ namespace lmsbox.infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateTable(
-                name: "InteractiveLessonSettings",
-                columns: table => new
-                {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    LessonId = table.Column<long>(type: "bigint", nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    LockNextBlockUntilComplete = table.Column<bool>(type: "bit", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_InteractiveLessonSettings", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_InteractiveLessonSettings_Lessons_LessonId",
-                        column: x => x.LessonId,
-                        principalTable: "Lessons",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+            migrationBuilder.Sql(@"
+IF OBJECT_ID(N'[dbo].[InteractiveLessonSettings]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[InteractiveLessonSettings] (
+        [Id] bigint NOT NULL IDENTITY(1,1),
+        [LessonId] bigint NOT NULL,
+        [Description] nvarchar(max) NULL,
+        [LockNextBlockUntilComplete] bit NOT NULL,
+        [CreatedAt] datetime2 NOT NULL,
+        [UpdatedAt] datetime2 NOT NULL,
+        CONSTRAINT [PK_InteractiveLessonSettings] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_InteractiveLessonSettings_Lessons_LessonId]
+            FOREIGN KEY ([LessonId]) REFERENCES [dbo].[Lessons] ([Id]) ON DELETE CASCADE
+    );
+END
 
-            migrationBuilder.CreateTable(
-                name: "InteractiveBlocks",
-                columns: table => new
-                {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    InteractiveLessonSettingsId = table.Column<long>(type: "bigint", nullable: false),
-                    Ordinal = table.Column<int>(type: "int", nullable: false),
-                    BlockType = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Title = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    FormPayloadJson = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    GeneratedHtml = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    EditedHtml = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    CompletionRuleJson = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    MediaAssetsJson = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ApprovedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_InteractiveBlocks", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_InteractiveBlocks_InteractiveLessonSettings_InteractiveLessonSettingsId",
-                        column: x => x.InteractiveLessonSettingsId,
-                        principalTable: "InteractiveLessonSettings",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = N'IX_InteractiveLessonSettings_LessonId'
+      AND object_id = OBJECT_ID(N'dbo.InteractiveLessonSettings')
+)
+    CREATE UNIQUE INDEX [IX_InteractiveLessonSettings_LessonId]
+        ON [dbo].[InteractiveLessonSettings] ([LessonId]);
 
-            migrationBuilder.CreateTable(
-                name: "InteractiveBlockProgresses",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    LessonId = table.Column<long>(type: "bigint", nullable: false),
-                    BlockId = table.Column<long>(type: "bigint", nullable: false),
-                    IsComplete = table.Column<bool>(type: "bit", nullable: false),
-                    CompletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    ProgressDataJson = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_InteractiveBlockProgresses", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_InteractiveBlockProgresses_AspNetUsers_UserId",
-                        column: x => x.UserId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_InteractiveBlockProgresses_InteractiveBlocks_BlockId",
-                        column: x => x.BlockId,
-                        principalTable: "InteractiveBlocks",
-                        principalColumn: "Id");
-                    table.ForeignKey(
-                        name: "FK_InteractiveBlockProgresses_Lessons_LessonId",
-                        column: x => x.LessonId,
-                        principalTable: "Lessons",
-                        principalColumn: "Id");
-                });
+IF OBJECT_ID(N'[dbo].[InteractiveBlocks]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[InteractiveBlocks] (
+        [Id] bigint NOT NULL IDENTITY(1,1),
+        [InteractiveLessonSettingsId] bigint NOT NULL,
+        [Ordinal] int NOT NULL,
+        [BlockType] nvarchar(max) NOT NULL,
+        [Title] nvarchar(max) NOT NULL,
+        [Status] nvarchar(max) NOT NULL,
+        [FormPayloadJson] nvarchar(max) NULL,
+        [GeneratedHtml] nvarchar(max) NULL,
+        [EditedHtml] nvarchar(max) NULL,
+        [CompletionRuleJson] nvarchar(max) NULL,
+        [MediaAssetsJson] nvarchar(max) NULL,
+        [CreatedAt] datetime2 NOT NULL,
+        [UpdatedAt] datetime2 NOT NULL,
+        [ApprovedAt] datetime2 NULL,
+        CONSTRAINT [PK_InteractiveBlocks] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_InteractiveBlocks_InteractiveLessonSettings_InteractiveLessonSettingsId]
+            FOREIGN KEY ([InteractiveLessonSettingsId]) REFERENCES [dbo].[InteractiveLessonSettings] ([Id]) ON DELETE CASCADE
+    );
+END
 
-            migrationBuilder.CreateIndex(
-                name: "IX_InteractiveBlockProgresses_BlockId",
-                table: "InteractiveBlockProgresses",
-                column: "BlockId");
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = N'IX_InteractiveBlocks_InteractiveLessonSettingsId'
+      AND object_id = OBJECT_ID(N'dbo.InteractiveBlocks')
+)
+    CREATE INDEX [IX_InteractiveBlocks_InteractiveLessonSettingsId]
+        ON [dbo].[InteractiveBlocks] ([InteractiveLessonSettingsId]);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_InteractiveBlockProgresses_LessonId",
-                table: "InteractiveBlockProgresses",
-                column: "LessonId");
+IF OBJECT_ID(N'[dbo].[InteractiveBlockProgresses]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[InteractiveBlockProgresses] (
+        [Id] int NOT NULL IDENTITY(1,1),
+        [UserId] nvarchar(450) NOT NULL,
+        [LessonId] bigint NOT NULL,
+        [BlockId] bigint NOT NULL,
+        [IsComplete] bit NOT NULL,
+        [CompletedAt] datetime2 NULL,
+        [ProgressDataJson] nvarchar(max) NULL,
+        [UpdatedAt] datetime2 NOT NULL,
+        CONSTRAINT [PK_InteractiveBlockProgresses] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_InteractiveBlockProgresses_AspNetUsers_UserId]
+            FOREIGN KEY ([UserId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_InteractiveBlockProgresses_InteractiveBlocks_BlockId]
+            FOREIGN KEY ([BlockId]) REFERENCES [dbo].[InteractiveBlocks] ([Id]),
+        CONSTRAINT [FK_InteractiveBlockProgresses_Lessons_LessonId]
+            FOREIGN KEY ([LessonId]) REFERENCES [dbo].[Lessons] ([Id])
+    );
+END
 
-            migrationBuilder.CreateIndex(
-                name: "IX_InteractiveBlockProgresses_UserId_BlockId",
-                table: "InteractiveBlockProgresses",
-                columns: new[] { "UserId", "BlockId" },
-                unique: true);
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = N'IX_InteractiveBlockProgresses_BlockId'
+      AND object_id = OBJECT_ID(N'dbo.InteractiveBlockProgresses')
+)
+    CREATE INDEX [IX_InteractiveBlockProgresses_BlockId]
+        ON [dbo].[InteractiveBlockProgresses] ([BlockId]);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_InteractiveBlocks_InteractiveLessonSettingsId",
-                table: "InteractiveBlocks",
-                column: "InteractiveLessonSettingsId");
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = N'IX_InteractiveBlockProgresses_LessonId'
+      AND object_id = OBJECT_ID(N'dbo.InteractiveBlockProgresses')
+)
+    CREATE INDEX [IX_InteractiveBlockProgresses_LessonId]
+        ON [dbo].[InteractiveBlockProgresses] ([LessonId]);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_InteractiveLessonSettings_LessonId",
-                table: "InteractiveLessonSettings",
-                column: "LessonId",
-                unique: true);
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = N'IX_InteractiveBlockProgresses_UserId_BlockId'
+      AND object_id = OBJECT_ID(N'dbo.InteractiveBlockProgresses')
+)
+    CREATE UNIQUE INDEX [IX_InteractiveBlockProgresses_UserId_BlockId]
+        ON [dbo].[InteractiveBlockProgresses] ([UserId], [BlockId]);
+");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "InteractiveBlockProgresses");
-
-            migrationBuilder.DropTable(
-                name: "InteractiveBlocks");
-
-            migrationBuilder.DropTable(
-                name: "InteractiveLessonSettings");
+            migrationBuilder.Sql(@"
+IF OBJECT_ID(N'[dbo].[InteractiveBlockProgresses]', N'U') IS NOT NULL
+    DROP TABLE [dbo].[InteractiveBlockProgresses];
+IF OBJECT_ID(N'[dbo].[InteractiveBlocks]', N'U') IS NOT NULL
+    DROP TABLE [dbo].[InteractiveBlocks];
+IF OBJECT_ID(N'[dbo].[InteractiveLessonSettings]', N'U') IS NOT NULL
+    DROP TABLE [dbo].[InteractiveLessonSettings];
+");
         }
     }
 }

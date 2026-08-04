@@ -11,387 +11,263 @@ namespace lmsbox.infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Drop only if present — some environments renamed or already removed this FK.
+            // Fully guarded SQL — production has drifted indexes/FKs and partial applies.
             migrationBuilder.Sql(@"
+DECLARE @fk sysname;
+DECLARE fk_cursor CURSOR LOCAL FAST_FORWARD FOR
+    SELECT fk.name
+    FROM sys.foreign_keys fk
+    INNER JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id = fk.object_id
+    INNER JOIN sys.columns c ON c.object_id = fkc.parent_object_id AND c.column_id = fkc.parent_column_id
+    WHERE fk.parent_object_id = OBJECT_ID(N'dbo.Quizzes')
+      AND c.name = N'CourseId';
+OPEN fk_cursor;
+FETCH NEXT FROM fk_cursor INTO @fk;
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    EXEC(N'ALTER TABLE [dbo].[Quizzes] DROP CONSTRAINT [' + REPLACE(@fk, ']', ']]') + N']');
+    FETCH NEXT FROM fk_cursor INTO @fk;
+END
+CLOSE fk_cursor;
+DEALLOCATE fk_cursor;
+
 IF EXISTS (
-    SELECT 1
-    FROM sys.foreign_keys
-    WHERE name = N'FK_Quizzes_Courses_CourseId'
-      AND parent_object_id = OBJECT_ID(N'dbo.Quizzes')
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'dbo.Quizzes') AND name = N'CourseId' AND is_nullable = 0
 )
-    ALTER TABLE [dbo].[Quizzes] DROP CONSTRAINT [FK_Quizzes_Courses_CourseId];
-");
+    ALTER TABLE [dbo].[Quizzes] ALTER COLUMN [CourseId] nvarchar(450) NULL;
 
-            migrationBuilder.AlterColumn<string>(
-                name: "CourseId",
-                table: "Quizzes",
-                type: "nvarchar(450)",
-                nullable: true,
-                oldClrType: typeof(string),
-                oldType: "nvarchar(450)");
+IF COL_LENGTH('dbo.Quizzes', 'IntroductionContent') IS NULL
+    ALTER TABLE [dbo].[Quizzes] ADD [IntroductionContent] nvarchar(max) NULL;
+IF COL_LENGTH('dbo.Quizzes', 'IsQuestionBank') IS NULL
+    ALTER TABLE [dbo].[Quizzes] ADD [IsQuestionBank] bit NOT NULL CONSTRAINT [DF_Quizzes_IsQuestionBank] DEFAULT(0);
+IF COL_LENGTH('dbo.Quizzes', 'QuestionsPerAttempt') IS NULL
+    ALTER TABLE [dbo].[Quizzes] ADD [QuestionsPerAttempt] int NULL;
+IF COL_LENGTH('dbo.Quizzes', 'QuestionsPerAttemptByCategoryJson') IS NULL
+    ALTER TABLE [dbo].[Quizzes] ADD [QuestionsPerAttemptByCategoryJson] nvarchar(max) NULL;
+IF COL_LENGTH('dbo.Quizzes', 'SourceQuestionBankQuizId') IS NULL
+    ALTER TABLE [dbo].[Quizzes] ADD [SourceQuestionBankQuizId] nvarchar(max) NULL;
 
-            migrationBuilder.AddColumn<string>(
-                name: "IntroductionContent",
-                table: "Quizzes",
-                type: "nvarchar(max)",
-                nullable: true);
+IF COL_LENGTH('dbo.QuizQuestions', 'Category') IS NULL
+    ALTER TABLE [dbo].[QuizQuestions] ADD [Category] nvarchar(max) NULL;
+IF COL_LENGTH('dbo.QuizQuestions', 'IsCriticalSafety') IS NULL
+    ALTER TABLE [dbo].[QuizQuestions] ADD [IsCriticalSafety] bit NOT NULL CONSTRAINT [DF_QuizQuestions_IsCriticalSafety] DEFAULT(0);
+IF COL_LENGTH('dbo.QuizQuestions', 'QuestionBankQuestionId') IS NULL
+    ALTER TABLE [dbo].[QuizQuestions] ADD [QuestionBankQuestionId] bigint NULL;
 
-            migrationBuilder.AddColumn<bool>(
-                name: "IsQuestionBank",
-                table: "Quizzes",
-                type: "bit",
-                nullable: false,
-                defaultValue: false);
+IF COL_LENGTH('dbo.QuizQuestionOptions', 'QuestionBankQuestionOptionId') IS NULL
+    ALTER TABLE [dbo].[QuizQuestionOptions] ADD [QuestionBankQuestionOptionId] bigint NULL;
 
-            migrationBuilder.AddColumn<int>(
-                name: "QuestionsPerAttempt",
-                table: "Quizzes",
-                type: "int",
-                nullable: true);
+IF OBJECT_ID(N'[dbo].[QuestionBankCategories]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[QuestionBankCategories] (
+        [Id] bigint NOT NULL IDENTITY(1,1),
+        [Name] nvarchar(100) NOT NULL,
+        [Description] nvarchar(500) NULL,
+        [CreatedAt] datetime2 NOT NULL,
+        [CreatedByUserId] nvarchar(max) NULL,
+        [UpdatedAt] datetime2 NULL,
+        [UpdatedByUserId] nvarchar(max) NULL,
+        CONSTRAINT [PK_QuestionBankCategories] PRIMARY KEY ([Id])
+    );
+END
 
-            migrationBuilder.AddColumn<string>(
-                name: "QuestionsPerAttemptByCategoryJson",
-                table: "Quizzes",
-                type: "nvarchar(max)",
-                nullable: true);
+IF OBJECT_ID(N'[dbo].[QuestionBankQuestions]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[QuestionBankQuestions] (
+        [Id] bigint NOT NULL IDENTITY(1,1),
+        [Question] nvarchar(max) NOT NULL,
+        [Type] nvarchar(max) NOT NULL,
+        [Points] int NOT NULL,
+        [Explanation] nvarchar(max) NULL,
+        [Category] nvarchar(max) NULL,
+        [IsCriticalSafety] bit NOT NULL,
+        [IsArchived] bit NOT NULL,
+        [Tags] nvarchar(max) NULL,
+        [CreatedByUserId] nvarchar(450) NOT NULL,
+        [CreatedAt] datetime2 NOT NULL,
+        [UpdatedAt] datetime2 NULL,
+        CONSTRAINT [PK_QuestionBankQuestions] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_QuestionBankQuestions_AspNetUsers_CreatedByUserId]
+            FOREIGN KEY ([CreatedByUserId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE CASCADE
+    );
+END
 
-            migrationBuilder.AddColumn<string>(
-                name: "SourceQuestionBankQuizId",
-                table: "Quizzes",
-                type: "nvarchar(max)",
-                nullable: true);
+IF OBJECT_ID(N'[dbo].[QuizAttempts]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[QuizAttempts] (
+        [Id] bigint NOT NULL IDENTITY(1,1),
+        [QuizId] nvarchar(450) NOT NULL,
+        [UserId] nvarchar(450) NOT NULL,
+        [StartedAt] datetime2 NOT NULL,
+        [CompletedAt] datetime2 NOT NULL,
+        [DurationSeconds] int NOT NULL,
+        [ScorePercent] int NOT NULL,
+        [Passed] bit NOT NULL,
+        [FailedCriticalSafety] bit NOT NULL,
+        [IsCompleted] bit NOT NULL,
+        CONSTRAINT [PK_QuizAttempts] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_QuizAttempts_AspNetUsers_UserId]
+            FOREIGN KEY ([UserId]) REFERENCES [dbo].[AspNetUsers] ([Id]),
+        CONSTRAINT [FK_QuizAttempts_Quizzes_QuizId]
+            FOREIGN KEY ([QuizId]) REFERENCES [dbo].[Quizzes] ([Id]) ON DELETE CASCADE
+    );
+END
 
-            migrationBuilder.AddColumn<string>(
-                name: "Category",
-                table: "QuizQuestions",
-                type: "nvarchar(max)",
-                nullable: true);
+IF OBJECT_ID(N'[dbo].[QuestionBankQuestionOptions]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[QuestionBankQuestionOptions] (
+        [Id] bigint NOT NULL IDENTITY(1,1),
+        [Text] nvarchar(max) NOT NULL,
+        [IsCorrect] bit NOT NULL,
+        [QuestionBankQuestionId] bigint NOT NULL,
+        [Order] int NOT NULL,
+        CONSTRAINT [PK_QuestionBankQuestionOptions] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_QuestionBankQuestionOptions_QuestionBankQuestions_QuestionBankQuestionId]
+            FOREIGN KEY ([QuestionBankQuestionId]) REFERENCES [dbo].[QuestionBankQuestions] ([Id]) ON DELETE CASCADE
+    );
+END
 
-            migrationBuilder.AddColumn<bool>(
-                name: "IsCriticalSafety",
-                table: "QuizQuestions",
-                type: "bit",
-                nullable: false,
-                defaultValue: false);
+IF OBJECT_ID(N'[dbo].[QuestionBankQuestionStatsCourse]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[QuestionBankQuestionStatsCourse] (
+        [Id] bigint NOT NULL IDENTITY(1,1),
+        [CourseId] nvarchar(450) NOT NULL,
+        [QuestionBankQuestionId] bigint NOT NULL,
+        [PresentedCount] bigint NOT NULL,
+        [CorrectCount] bigint NOT NULL,
+        [IncorrectCount] bigint NOT NULL,
+        [LastPresentedAt] datetime2 NULL,
+        CONSTRAINT [PK_QuestionBankQuestionStatsCourse] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_QuestionBankQuestionStatsCourse_QuestionBankQuestions_QuestionBankQuestionId]
+            FOREIGN KEY ([QuestionBankQuestionId]) REFERENCES [dbo].[QuestionBankQuestions] ([Id]) ON DELETE CASCADE
+    );
+END
 
-            migrationBuilder.AddColumn<long>(
-                name: "QuestionBankQuestionId",
-                table: "QuizQuestions",
-                type: "bigint",
-                nullable: true);
+IF OBJECT_ID(N'[dbo].[QuestionBankQuestionStatsGlobal]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[QuestionBankQuestionStatsGlobal] (
+        [QuestionBankQuestionId] bigint NOT NULL,
+        [PresentedCount] bigint NOT NULL,
+        [CorrectCount] bigint NOT NULL,
+        [IncorrectCount] bigint NOT NULL,
+        [LastPresentedAt] datetime2 NULL,
+        CONSTRAINT [PK_QuestionBankQuestionStatsGlobal] PRIMARY KEY ([QuestionBankQuestionId]),
+        CONSTRAINT [FK_QuestionBankQuestionStatsGlobal_QuestionBankQuestions_QuestionBankQuestionId]
+            FOREIGN KEY ([QuestionBankQuestionId]) REFERENCES [dbo].[QuestionBankQuestions] ([Id]) ON DELETE CASCADE
+    );
+END
 
-            migrationBuilder.AddColumn<long>(
-                name: "QuestionBankQuestionOptionId",
-                table: "QuizQuestionOptions",
-                type: "bigint",
-                nullable: true);
+IF OBJECT_ID(N'[dbo].[QuestionBankQuestionStatsQuiz]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[QuestionBankQuestionStatsQuiz] (
+        [Id] bigint NOT NULL IDENTITY(1,1),
+        [QuizId] nvarchar(450) NOT NULL,
+        [QuestionBankQuestionId] bigint NOT NULL,
+        [PresentedCount] bigint NOT NULL,
+        [CorrectCount] bigint NOT NULL,
+        [IncorrectCount] bigint NOT NULL,
+        [LastPresentedAt] datetime2 NULL,
+        CONSTRAINT [PK_QuestionBankQuestionStatsQuiz] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_QuestionBankQuestionStatsQuiz_QuestionBankQuestions_QuestionBankQuestionId]
+            FOREIGN KEY ([QuestionBankQuestionId]) REFERENCES [dbo].[QuestionBankQuestions] ([Id]) ON DELETE CASCADE
+    );
+END
 
-            migrationBuilder.CreateTable(
-                name: "QuestionBankCategories",
-                columns: table => new
-                {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CreatedByUserId = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    UpdatedByUserId = table.Column<string>(type: "nvarchar(max)", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_QuestionBankCategories", x => x.Id);
-                });
+IF OBJECT_ID(N'[dbo].[QuizAttemptAnswers]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[QuizAttemptAnswers] (
+        [Id] bigint NOT NULL IDENTITY(1,1),
+        [QuizAttemptId] bigint NOT NULL,
+        [QuizQuestionId] bigint NOT NULL,
+        [QuestionBankQuestionId] bigint NULL,
+        [SelectedOptionId] bigint NULL,
+        [SelectedOptionIdsJson] nvarchar(max) NULL,
+        [SelectedQuestionBankOptionIdsJson] nvarchar(max) NULL,
+        [IsCorrect] bit NOT NULL,
+        [ResponseTimeMs] int NOT NULL,
+        CONSTRAINT [PK_QuizAttemptAnswers] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_QuizAttemptAnswers_QuizAttempts_QuizAttemptId]
+            FOREIGN KEY ([QuizAttemptId]) REFERENCES [dbo].[QuizAttempts] ([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_QuizAttemptAnswers_QuizQuestions_QuizQuestionId]
+            FOREIGN KEY ([QuizQuestionId]) REFERENCES [dbo].[QuizQuestions] ([Id])
+    );
+END
 
-            migrationBuilder.CreateTable(
-                name: "QuestionBankQuestions",
-                columns: table => new
-                {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Question = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Type = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Points = table.Column<int>(type: "int", nullable: false),
-                    Explanation = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Category = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    IsCriticalSafety = table.Column<bool>(type: "bit", nullable: false),
-                    IsArchived = table.Column<bool>(type: "bit", nullable: false),
-                    Tags = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    CreatedByUserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_QuestionBankQuestions", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_QuestionBankQuestions_AspNetUsers_CreatedByUserId",
-                        column: x => x.CreatedByUserId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+IF OBJECT_ID(N'[dbo].[QuizAttemptQuestions]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[QuizAttemptQuestions] (
+        [Id] bigint NOT NULL IDENTITY(1,1),
+        [QuizAttemptId] bigint NOT NULL,
+        [QuizQuestionId] bigint NOT NULL,
+        [QuestionBankQuestionId] bigint NULL,
+        [DisplayOrder] int NOT NULL,
+        CONSTRAINT [PK_QuizAttemptQuestions] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_QuizAttemptQuestions_QuizAttempts_QuizAttemptId]
+            FOREIGN KEY ([QuizAttemptId]) REFERENCES [dbo].[QuizAttempts] ([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_QuizAttemptQuestions_QuizQuestions_QuizQuestionId]
+            FOREIGN KEY ([QuizQuestionId]) REFERENCES [dbo].[QuizQuestions] ([Id])
+    );
+END
 
-            migrationBuilder.CreateTable(
-                name: "QuizAttempts",
-                columns: table => new
-                {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    QuizId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    StartedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CompletedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    DurationSeconds = table.Column<int>(type: "int", nullable: false),
-                    ScorePercent = table.Column<int>(type: "int", nullable: false),
-                    Passed = table.Column<bool>(type: "bit", nullable: false),
-                    FailedCriticalSafety = table.Column<bool>(type: "bit", nullable: false),
-                    IsCompleted = table.Column<bool>(type: "bit", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_QuizAttempts", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_QuizAttempts_AspNetUsers_UserId",
-                        column: x => x.UserId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id");
-                    table.ForeignKey(
-                        name: "FK_QuizAttempts_Quizzes_QuizId",
-                        column: x => x.QuizId,
-                        principalTable: "Quizzes",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+IF OBJECT_ID(N'dbo.QuestionBankCategories', N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_QuestionBankCategories_Name' AND object_id = OBJECT_ID(N'dbo.QuestionBankCategories'))
+    CREATE UNIQUE INDEX [IX_QuestionBankCategories_Name] ON [dbo].[QuestionBankCategories] ([Name]);
 
-            migrationBuilder.CreateTable(
-                name: "QuestionBankQuestionOptions",
-                columns: table => new
-                {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Text = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    IsCorrect = table.Column<bool>(type: "bit", nullable: false),
-                    QuestionBankQuestionId = table.Column<long>(type: "bigint", nullable: false),
-                    Order = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_QuestionBankQuestionOptions", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_QuestionBankQuestionOptions_QuestionBankQuestions_QuestionBankQuestionId",
-                        column: x => x.QuestionBankQuestionId,
-                        principalTable: "QuestionBankQuestions",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+IF OBJECT_ID(N'dbo.QuestionBankQuestionOptions', N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_QuestionBankQuestionOptions_QuestionBankQuestionId' AND object_id = OBJECT_ID(N'dbo.QuestionBankQuestionOptions'))
+    CREATE INDEX [IX_QuestionBankQuestionOptions_QuestionBankQuestionId] ON [dbo].[QuestionBankQuestionOptions] ([QuestionBankQuestionId]);
 
-            migrationBuilder.CreateTable(
-                name: "QuestionBankQuestionStatsCourse",
-                columns: table => new
-                {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    CourseId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    QuestionBankQuestionId = table.Column<long>(type: "bigint", nullable: false),
-                    PresentedCount = table.Column<long>(type: "bigint", nullable: false),
-                    CorrectCount = table.Column<long>(type: "bigint", nullable: false),
-                    IncorrectCount = table.Column<long>(type: "bigint", nullable: false),
-                    LastPresentedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_QuestionBankQuestionStatsCourse", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_QuestionBankQuestionStatsCourse_QuestionBankQuestions_QuestionBankQuestionId",
-                        column: x => x.QuestionBankQuestionId,
-                        principalTable: "QuestionBankQuestions",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+IF OBJECT_ID(N'dbo.QuestionBankQuestions', N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_QuestionBankQuestions_CreatedAt' AND object_id = OBJECT_ID(N'dbo.QuestionBankQuestions'))
+    CREATE INDEX [IX_QuestionBankQuestions_CreatedAt] ON [dbo].[QuestionBankQuestions] ([CreatedAt]);
 
-            migrationBuilder.CreateTable(
-                name: "QuestionBankQuestionStatsGlobal",
-                columns: table => new
-                {
-                    QuestionBankQuestionId = table.Column<long>(type: "bigint", nullable: false),
-                    PresentedCount = table.Column<long>(type: "bigint", nullable: false),
-                    CorrectCount = table.Column<long>(type: "bigint", nullable: false),
-                    IncorrectCount = table.Column<long>(type: "bigint", nullable: false),
-                    LastPresentedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_QuestionBankQuestionStatsGlobal", x => x.QuestionBankQuestionId);
-                    table.ForeignKey(
-                        name: "FK_QuestionBankQuestionStatsGlobal_QuestionBankQuestions_QuestionBankQuestionId",
-                        column: x => x.QuestionBankQuestionId,
-                        principalTable: "QuestionBankQuestions",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+IF OBJECT_ID(N'dbo.QuestionBankQuestions', N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_QuestionBankQuestions_CreatedByUserId' AND object_id = OBJECT_ID(N'dbo.QuestionBankQuestions'))
+    CREATE INDEX [IX_QuestionBankQuestions_CreatedByUserId] ON [dbo].[QuestionBankQuestions] ([CreatedByUserId]);
 
-            migrationBuilder.CreateTable(
-                name: "QuestionBankQuestionStatsQuiz",
-                columns: table => new
-                {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    QuizId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    QuestionBankQuestionId = table.Column<long>(type: "bigint", nullable: false),
-                    PresentedCount = table.Column<long>(type: "bigint", nullable: false),
-                    CorrectCount = table.Column<long>(type: "bigint", nullable: false),
-                    IncorrectCount = table.Column<long>(type: "bigint", nullable: false),
-                    LastPresentedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_QuestionBankQuestionStatsQuiz", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_QuestionBankQuestionStatsQuiz_QuestionBankQuestions_QuestionBankQuestionId",
-                        column: x => x.QuestionBankQuestionId,
-                        principalTable: "QuestionBankQuestions",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+IF OBJECT_ID(N'dbo.QuestionBankQuestionStatsCourse', N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_QuestionBankQuestionStatsCourse_CourseId_QuestionBankQuestionId' AND object_id = OBJECT_ID(N'dbo.QuestionBankQuestionStatsCourse'))
+    CREATE UNIQUE INDEX [IX_QuestionBankQuestionStatsCourse_CourseId_QuestionBankQuestionId] ON [dbo].[QuestionBankQuestionStatsCourse] ([CourseId], [QuestionBankQuestionId]);
 
-            migrationBuilder.CreateTable(
-                name: "QuizAttemptAnswers",
-                columns: table => new
-                {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    QuizAttemptId = table.Column<long>(type: "bigint", nullable: false),
-                    QuizQuestionId = table.Column<long>(type: "bigint", nullable: false),
-                    QuestionBankQuestionId = table.Column<long>(type: "bigint", nullable: true),
-                    SelectedOptionId = table.Column<long>(type: "bigint", nullable: true),
-                    SelectedOptionIdsJson = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    SelectedQuestionBankOptionIdsJson = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    IsCorrect = table.Column<bool>(type: "bit", nullable: false),
-                    ResponseTimeMs = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_QuizAttemptAnswers", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_QuizAttemptAnswers_QuizAttempts_QuizAttemptId",
-                        column: x => x.QuizAttemptId,
-                        principalTable: "QuizAttempts",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_QuizAttemptAnswers_QuizQuestions_QuizQuestionId",
-                        column: x => x.QuizQuestionId,
-                        principalTable: "QuizQuestions",
-                        principalColumn: "Id");
-                });
+IF OBJECT_ID(N'dbo.QuestionBankQuestionStatsCourse', N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_QuestionBankQuestionStatsCourse_QuestionBankQuestionId' AND object_id = OBJECT_ID(N'dbo.QuestionBankQuestionStatsCourse'))
+    CREATE INDEX [IX_QuestionBankQuestionStatsCourse_QuestionBankQuestionId] ON [dbo].[QuestionBankQuestionStatsCourse] ([QuestionBankQuestionId]);
 
-            migrationBuilder.CreateTable(
-                name: "QuizAttemptQuestions",
-                columns: table => new
-                {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    QuizAttemptId = table.Column<long>(type: "bigint", nullable: false),
-                    QuizQuestionId = table.Column<long>(type: "bigint", nullable: false),
-                    QuestionBankQuestionId = table.Column<long>(type: "bigint", nullable: true),
-                    DisplayOrder = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_QuizAttemptQuestions", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_QuizAttemptQuestions_QuizAttempts_QuizAttemptId",
-                        column: x => x.QuizAttemptId,
-                        principalTable: "QuizAttempts",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_QuizAttemptQuestions_QuizQuestions_QuizQuestionId",
-                        column: x => x.QuizQuestionId,
-                        principalTable: "QuizQuestions",
-                        principalColumn: "Id");
-                });
+IF OBJECT_ID(N'dbo.QuestionBankQuestionStatsQuiz', N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_QuestionBankQuestionStatsQuiz_QuestionBankQuestionId' AND object_id = OBJECT_ID(N'dbo.QuestionBankQuestionStatsQuiz'))
+    CREATE INDEX [IX_QuestionBankQuestionStatsQuiz_QuestionBankQuestionId] ON [dbo].[QuestionBankQuestionStatsQuiz] ([QuestionBankQuestionId]);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_QuestionBankCategories_Name",
-                table: "QuestionBankCategories",
-                column: "Name",
-                unique: true);
+IF OBJECT_ID(N'dbo.QuestionBankQuestionStatsQuiz', N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_QuestionBankQuestionStatsQuiz_QuizId_QuestionBankQuestionId' AND object_id = OBJECT_ID(N'dbo.QuestionBankQuestionStatsQuiz'))
+    CREATE UNIQUE INDEX [IX_QuestionBankQuestionStatsQuiz_QuizId_QuestionBankQuestionId] ON [dbo].[QuestionBankQuestionStatsQuiz] ([QuizId], [QuestionBankQuestionId]);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_QuestionBankQuestionOptions_QuestionBankQuestionId",
-                table: "QuestionBankQuestionOptions",
-                column: "QuestionBankQuestionId");
+IF OBJECT_ID(N'dbo.QuizAttemptAnswers', N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_QuizAttemptAnswers_QuizAttemptId' AND object_id = OBJECT_ID(N'dbo.QuizAttemptAnswers'))
+    CREATE INDEX [IX_QuizAttemptAnswers_QuizAttemptId] ON [dbo].[QuizAttemptAnswers] ([QuizAttemptId]);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_QuestionBankQuestions_CreatedAt",
-                table: "QuestionBankQuestions",
-                column: "CreatedAt");
+IF OBJECT_ID(N'dbo.QuizAttemptAnswers', N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_QuizAttemptAnswers_QuizQuestionId' AND object_id = OBJECT_ID(N'dbo.QuizAttemptAnswers'))
+    CREATE INDEX [IX_QuizAttemptAnswers_QuizQuestionId] ON [dbo].[QuizAttemptAnswers] ([QuizQuestionId]);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_QuestionBankQuestions_CreatedByUserId",
-                table: "QuestionBankQuestions",
-                column: "CreatedByUserId");
+IF OBJECT_ID(N'dbo.QuizAttemptQuestions', N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_QuizAttemptQuestions_QuizAttemptId_QuizQuestionId' AND object_id = OBJECT_ID(N'dbo.QuizAttemptQuestions'))
+    CREATE UNIQUE INDEX [IX_QuizAttemptQuestions_QuizAttemptId_QuizQuestionId] ON [dbo].[QuizAttemptQuestions] ([QuizAttemptId], [QuizQuestionId]);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_QuestionBankQuestionStatsCourse_CourseId_QuestionBankQuestionId",
-                table: "QuestionBankQuestionStatsCourse",
-                columns: new[] { "CourseId", "QuestionBankQuestionId" },
-                unique: true);
+IF OBJECT_ID(N'dbo.QuizAttemptQuestions', N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_QuizAttemptQuestions_QuizQuestionId' AND object_id = OBJECT_ID(N'dbo.QuizAttemptQuestions'))
+    CREATE INDEX [IX_QuizAttemptQuestions_QuizQuestionId] ON [dbo].[QuizAttemptQuestions] ([QuizQuestionId]);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_QuestionBankQuestionStatsCourse_QuestionBankQuestionId",
-                table: "QuestionBankQuestionStatsCourse",
-                column: "QuestionBankQuestionId");
+IF OBJECT_ID(N'dbo.QuizAttempts', N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_QuizAttempts_QuizId_UserId_CompletedAt' AND object_id = OBJECT_ID(N'dbo.QuizAttempts'))
+    CREATE INDEX [IX_QuizAttempts_QuizId_UserId_CompletedAt] ON [dbo].[QuizAttempts] ([QuizId], [UserId], [CompletedAt]);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_QuestionBankQuestionStatsQuiz_QuestionBankQuestionId",
-                table: "QuestionBankQuestionStatsQuiz",
-                column: "QuestionBankQuestionId");
+IF OBJECT_ID(N'dbo.QuizAttempts', N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_QuizAttempts_UserId' AND object_id = OBJECT_ID(N'dbo.QuizAttempts'))
+    CREATE INDEX [IX_QuizAttempts_UserId] ON [dbo].[QuizAttempts] ([UserId]);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_QuestionBankQuestionStatsQuiz_QuizId_QuestionBankQuestionId",
-                table: "QuestionBankQuestionStatsQuiz",
-                columns: new[] { "QuizId", "QuestionBankQuestionId" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_QuizAttemptAnswers_QuizAttemptId",
-                table: "QuizAttemptAnswers",
-                column: "QuizAttemptId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_QuizAttemptAnswers_QuizQuestionId",
-                table: "QuizAttemptAnswers",
-                column: "QuizQuestionId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_QuizAttemptQuestions_QuizAttemptId_QuizQuestionId",
-                table: "QuizAttemptQuestions",
-                columns: new[] { "QuizAttemptId", "QuizQuestionId" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_QuizAttemptQuestions_QuizQuestionId",
-                table: "QuizAttemptQuestions",
-                column: "QuizQuestionId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_QuizAttempts_QuizId_UserId_CompletedAt",
-                table: "QuizAttempts",
-                columns: new[] { "QuizId", "UserId", "CompletedAt" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_QuizAttempts_UserId",
-                table: "QuizAttempts",
-                column: "UserId");
-
-            migrationBuilder.Sql(@"
 IF NOT EXISTS (
-    SELECT 1
-    FROM sys.foreign_keys
+    SELECT 1 FROM sys.foreign_keys
     WHERE name = N'FK_Quizzes_Courses_CourseId'
       AND parent_object_id = OBJECT_ID(N'dbo.Quizzes')
 )

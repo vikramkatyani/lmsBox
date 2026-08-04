@@ -1,5 +1,4 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -11,58 +10,54 @@ namespace lmsbox.infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateTable(
-                name: "CourseResources",
-                columns: table => new
-                {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    CourseId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    Title = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Ordinal = table.Column<int>(type: "int", nullable: false),
-                    Type = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    VideoUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    DocumentUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    HtmlContent = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    HtmlUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    ThumbnailUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    CreatedByUserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_CourseResources", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_CourseResources_AspNetUsers_CreatedByUserId",
-                        column: x => x.CreatedByUserId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_CourseResources_Courses_CourseId",
-                        column: x => x.CourseId,
-                        principalTable: "Courses",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+            migrationBuilder.Sql(@"
+IF OBJECT_ID(N'[dbo].[CourseResources]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[CourseResources] (
+        [Id] bigint NOT NULL IDENTITY(1,1),
+        [CourseId] nvarchar(450) NOT NULL,
+        [Title] nvarchar(500) NOT NULL,
+        [Description] nvarchar(max) NULL,
+        [Ordinal] int NOT NULL,
+        [Type] nvarchar(20) NOT NULL,
+        [VideoUrl] nvarchar(max) NULL,
+        [DocumentUrl] nvarchar(max) NULL,
+        [HtmlContent] nvarchar(max) NULL,
+        [HtmlUrl] nvarchar(max) NULL,
+        [ThumbnailUrl] nvarchar(max) NULL,
+        [CreatedByUserId] nvarchar(450) NOT NULL,
+        [CreatedAt] datetime2 NOT NULL CONSTRAINT [DF_CourseResources_CreatedAt] DEFAULT (GETUTCDATE()),
+        CONSTRAINT [PK_CourseResources] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_CourseResources_AspNetUsers_CreatedByUserId]
+            FOREIGN KEY ([CreatedByUserId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_CourseResources_Courses_CourseId]
+            FOREIGN KEY ([CourseId]) REFERENCES [dbo].[Courses] ([Id]) ON DELETE CASCADE
+    );
+END
 
-            migrationBuilder.CreateIndex(
-                name: "IX_CourseResources_CourseId",
-                table: "CourseResources",
-                column: "CourseId");
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = N'IX_CourseResources_CourseId'
+      AND object_id = OBJECT_ID(N'dbo.CourseResources')
+)
+    CREATE INDEX [IX_CourseResources_CourseId] ON [dbo].[CourseResources] ([CourseId]);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_CourseResources_CreatedByUserId",
-                table: "CourseResources",
-                column: "CreatedByUserId");
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = N'IX_CourseResources_CreatedByUserId'
+      AND object_id = OBJECT_ID(N'dbo.CourseResources')
+)
+    CREATE INDEX [IX_CourseResources_CreatedByUserId] ON [dbo].[CourseResources] ([CreatedByUserId]);
+");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "CourseResources");
+            migrationBuilder.Sql(@"
+IF OBJECT_ID(N'[dbo].[CourseResources]', N'U') IS NOT NULL
+    DROP TABLE [dbo].[CourseResources];
+");
         }
     }
 }

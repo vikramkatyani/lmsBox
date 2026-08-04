@@ -16,19 +16,26 @@ namespace lmsbox.infrastructure.Migrations
                     WHERE name = 'IX_LearnerProgresses_CourseId'
                       AND object_id = OBJECT_ID(N'LearnerProgresses')
                 )
-                DROP INDEX [IX_LearnerProgresses_CourseId] ON [LearnerProgresses];");
+                DROP INDEX [IX_LearnerProgresses_CourseId] ON [LearnerProgresses];
 
-            migrationBuilder.CreateIndex(
-                name: "IX_LearnerProgresses_Completed_ProgressPercent_LastAccessedAt_StartedAt_CompletedAt",
-                table: "LearnerProgresses",
-                columns: new[] { "Completed", "ProgressPercent", "LastAccessedAt", "StartedAt", "CompletedAt" },
-                filter: "[LessonId] IS NULL AND [CourseId] IS NOT NULL");
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE name = 'IX_LearnerProgresses_Completed_ProgressPercent_LastAccessedAt_StartedAt_CompletedAt'
+                      AND object_id = OBJECT_ID(N'LearnerProgresses')
+                )
+                CREATE INDEX [IX_LearnerProgresses_Completed_ProgressPercent_LastAccessedAt_StartedAt_CompletedAt]
+                    ON [LearnerProgresses] ([Completed], [ProgressPercent], [LastAccessedAt], [StartedAt], [CompletedAt])
+                    WHERE [LessonId] IS NULL AND [CourseId] IS NOT NULL;
 
-            migrationBuilder.CreateIndex(
-                name: "IX_LearnerProgresses_CourseId_Completed_ProgressPercent_CompletedAt",
-                table: "LearnerProgresses",
-                columns: new[] { "CourseId", "Completed", "ProgressPercent", "CompletedAt" },
-                filter: "[LessonId] IS NULL AND [CourseId] IS NOT NULL");
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE name = 'IX_LearnerProgresses_CourseId_Completed_ProgressPercent_CompletedAt'
+                      AND object_id = OBJECT_ID(N'LearnerProgresses')
+                )
+                CREATE INDEX [IX_LearnerProgresses_CourseId_Completed_ProgressPercent_CompletedAt]
+                    ON [LearnerProgresses] ([CourseId], [Completed], [ProgressPercent], [CompletedAt])
+                    WHERE [LessonId] IS NULL AND [CourseId] IS NOT NULL;
+");
         }
 
         /// <inheritdoc />
