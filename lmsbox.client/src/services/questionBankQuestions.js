@@ -1,10 +1,17 @@
 import api from '../utils/api';
+import { isSuperAdmin } from '../config/adminFeatureFlags';
+
+const questionsBasePath = () =>
+  isSuperAdmin()
+    ? '/api/superadmin/question-bank/questions'
+    : '/api/admin/question-bank/questions';
 
 export async function listQuestionBankQuestions({
   search = '',
   tags = '',
   page = 1,
   pageSize = 50,
+  includeArchived = false,
 } = {}) {
   const s = (search || '').trim();
   const t = (tags || '').trim();
@@ -13,12 +20,13 @@ export async function listQuestionBankQuestions({
   if (t) params.push(`tags=${encodeURIComponent(t)}`);
   params.push(`page=${encodeURIComponent(page)}`);
   params.push(`pageSize=${encodeURIComponent(pageSize)}`);
-  const url = `/api/superadmin/question-bank/questions?${params.join('&')}`;
+  if (includeArchived) params.push('includeArchived=true');
+  const url = `${questionsBasePath()}?${params.join('&')}`;
   const res = await api.get(url);
   return res.data;
 }
 
-// For quiz composition (Admin/OrgAdmin) - read-only list of non-archived questions
+// For quiz composition - includes global platform questions for org admins.
 export async function listQuestionBankQuestionsForQuiz({ search = '', tags = '', page = 1, pageSize = 50 } = {}) {
   const s = (search || '').trim();
   const t = (tags || '').trim();
@@ -27,6 +35,7 @@ export async function listQuestionBankQuestionsForQuiz({ search = '', tags = '',
   if (t) params.push(`tags=${encodeURIComponent(t)}`);
   params.push(`page=${encodeURIComponent(page)}`);
   params.push(`pageSize=${encodeURIComponent(pageSize)}`);
+  if (!isSuperAdmin()) params.push('includeGlobal=true');
   const url = `/api/admin/question-bank/questions?${params.join('&')}`;
   const res = await api.get(url);
   return res.data;
@@ -38,30 +47,29 @@ export async function getQuestionBankQuestionForQuiz(id) {
 }
 
 export async function getQuestionBankQuestion(id) {
-  const res = await api.get(`/api/superadmin/question-bank/questions/${encodeURIComponent(id)}`);
+  const res = await api.get(`${questionsBasePath()}/${encodeURIComponent(id)}`);
   return res.data;
 }
 
 export async function createQuestionBankQuestion(payload) {
-  const res = await api.post('/api/superadmin/question-bank/questions', payload);
+  const res = await api.post(questionsBasePath(), payload);
   return res.data;
 }
 
 export async function updateQuestionBankQuestion(id, payload) {
-  const res = await api.put(`/api/superadmin/question-bank/questions/${encodeURIComponent(id)}`, payload);
+  const res = await api.put(`${questionsBasePath()}/${encodeURIComponent(id)}`, payload);
   return res.data;
 }
 
 export async function deleteQuestionBankQuestion(id) {
-  const res = await api.delete(`/api/superadmin/question-bank/questions/${encodeURIComponent(id)}`);
+  const res = await api.delete(`${questionsBasePath()}/${encodeURIComponent(id)}`);
   return res.data;
 }
 
 export async function setQuestionBankQuestionArchived(id, isArchived) {
   const res = await api.patch(
-    `/api/superadmin/question-bank/questions/${encodeURIComponent(id)}/archive`,
+    `${questionsBasePath()}/${encodeURIComponent(id)}/archive`,
     { isArchived: !!isArchived }
   );
   return res.data;
 }
-

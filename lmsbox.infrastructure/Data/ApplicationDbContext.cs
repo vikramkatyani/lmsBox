@@ -34,7 +34,7 @@ namespace lmsbox.infrastructure.Data
         public DbSet<QuizAttemptAnswer> QuizAttemptAnswers { get; set; } = null!;
         public DbSet<QuizAttemptQuestion> QuizAttemptQuestions { get; set; } = null!;
 
-        // Question bank (global questions, SuperAdmin)
+        // Question bank (global + organisation-scoped questions)
         public DbSet<QuestionBankQuestion> QuestionBankQuestions { get; set; } = null!;
         public DbSet<QuestionBankQuestionOption> QuestionBankQuestionOptions { get; set; } = null!;
         public DbSet<QuestionBankQuestionStatsGlobal> QuestionBankQuestionStatsGlobal { get; set; } = null!;
@@ -155,7 +155,7 @@ namespace lmsbox.infrastructure.Data
                    .IsUnique();
 
             builder.Entity<QuestionBankCategory>()
-                   .HasIndex(c => c.Name)
+                   .HasIndex(c => new { c.OrganisationId, c.Name })
                    .IsUnique();
 
             builder.Entity<AutomationTask>()
@@ -244,6 +244,9 @@ namespace lmsbox.infrastructure.Data
 
             builder.Entity<QuestionBankQuestion>()
                    .HasIndex(q => q.CreatedAt);
+
+            builder.Entity<QuestionBankQuestion>()
+                   .HasIndex(q => q.OrganisationId);
 
             builder.Entity<QuestionBankQuestionStatsCourse>()
                    .HasIndex(s => new { s.CourseId, s.QuestionBankQuestionId })

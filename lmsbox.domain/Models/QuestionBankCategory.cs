@@ -1,11 +1,11 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace lmsbox.domain.Models;
 
 /// <summary>
-/// Shared question categories for the global question bank (SuperAdmin managed).
-/// Questions still store Category as a string for simplicity/compatibility.
+/// Question categories for the question bank. OrganisationId null = global (SuperAdmin managed).
 /// </summary>
 public class QuestionBankCategory
 {
@@ -18,6 +18,13 @@ public class QuestionBankCategory
 
     [StringLength(500)]
     public string? Description { get; set; }
+
+    /// <summary>
+    /// Null = global platform categories. Set = organisation-owned categories.
+    /// </summary>
+    public long? OrganisationId { get; set; }
+    [ForeignKey(nameof(OrganisationId))]
+    public Organisation? Organisation { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string? CreatedByUserId { get; set; }

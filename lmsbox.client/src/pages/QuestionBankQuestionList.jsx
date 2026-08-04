@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import SuperAdminLayout from '../components/SuperAdminLayout';
+import AdminHeader from '../components/AdminHeader';
 import Pagination from '../components/Pagination';
 import usePageTitle from '../hooks/usePageTitle';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { isSuperAdmin } from '../config/adminFeatureFlags';
 import {
   deleteQuestionBankQuestion,
   listQuestionBankQuestions,
@@ -16,6 +17,7 @@ import { MagnifyingGlassIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/ou
 export default function QuestionBankQuestionList() {
   usePageTitle('Question Bank - Questions');
   const navigate = useNavigate();
+  const isGlobalBank = isSuperAdmin();
 
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
@@ -213,14 +215,17 @@ export default function QuestionBankQuestionList() {
   };
 
   return (
-    <SuperAdminLayout>
+    <div className="min-h-screen bg-gray-50">
+      <AdminHeader />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Question Bank</h1>
               <p className="mt-2 text-sm text-gray-600">
-                Manage global questions. Filter by tags and reuse later when composing assessments.
+                {isGlobalBank
+                  ? 'Manage global questions. Filter by tags and reuse later when composing assessments.'
+                  : 'Manage your organisation question bank. Filter by tags and reuse questions when composing assessments.'}
               </p>
             </div>
             <button
@@ -289,7 +294,9 @@ export default function QuestionBankQuestionList() {
           <div className="text-center py-12 bg-white rounded-lg shadow">
             <h3 className="mt-2 text-sm font-medium text-gray-900">No questions found</h3>
             <p className="mt-1 text-sm text-gray-500">
-              Create your first global question to start building your question bank.
+              {isGlobalBank
+                ? 'Create your first global question to start building your question bank.'
+                : 'Create your first organisation question to start building your question bank.'}
             </p>
             <div className="mt-6">
               <button
@@ -434,7 +441,7 @@ export default function QuestionBankQuestionList() {
         title="Archive Question"
         message={`Are you sure you want to archive "${archiveDialog.title}"? Archived questions cannot be edited and will not be available when composing assessments.`}
       />
-    </SuperAdminLayout>
+    </div>
   );
 }
 

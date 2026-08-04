@@ -397,6 +397,7 @@ namespace lmsBox.Server.Controllers
                     AllowRetake = bankQuiz.AllowRetake,
                     MaxAttempts = bankQuiz.MaxAttempts,
                     QuestionsPerAttempt = bankQuiz.QuestionsPerAttempt,
+                    QuestionsPerAttemptByCategoryJson = bankQuiz.QuestionsPerAttemptByCategoryJson,
                     CourseId = courseId,
                     IsQuestionBank = false,
                     SourceQuestionBankQuizId = bankQuiz.Id,
@@ -516,7 +517,8 @@ namespace lmsBox.Server.Controllers
                 MaxAttempts = request.MaxAttempts,
                 CourseId = request.CourseId,
                 CreatedByUserId = user.Id,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
             };
 
             var bankQuestionIds = (request.QuestionBankQuestionIds ?? Array.Empty<long>())
@@ -543,6 +545,15 @@ namespace lmsBox.Server.Controllers
             if (bankQuestions.Any(q => q.IsArchived))
             {
                 return BadRequest(new { message = "Archived Question Bank questions cannot be added to assessments." });
+            }
+
+            if (User.IsInRole("OrgAdmin"))
+            {
+                var accessError = ValidateQuestionBankAccessForOrgAdmin(bankQuestions, user.OrganisationID);
+                if (accessError != null)
+                {
+                    return BadRequest(new { message = accessError });
+                }
             }
 
             var orderedBankQuestions = bankQuestionIds
@@ -858,6 +869,16 @@ namespace lmsBox.Server.Controllers
                 return BadRequest(new { message = "Archived Question Bank questions cannot be added to assessments." });
             }
 
+            if (User.IsInRole("OrgAdmin"))
+            {
+                var currentUser = await _userManager.GetUserAsync(User);
+                var accessError = ValidateQuestionBankAccessForOrgAdmin(bankQuestions, currentUser?.OrganisationID);
+                if (accessError != null)
+                {
+                    return BadRequest(new { message = accessError });
+                }
+            }
+
             quiz.Title = request.Title;
             quiz.Description = request.Description;
             quiz.IntroductionContent = request.IntroductionContent;
@@ -1097,6 +1118,22 @@ namespace lmsBox.Server.Controllers
             }
 
             quiz.QuestionsPerAttemptByCategoryJson = JsonSerializer.Serialize(normalized);
+            return null;
+        }
+
+        private static string? ValidateQuestionBankAccessForOrgAdmin(
+            IReadOnlyCollection<QuestionBankQuestion> bankQuestions,
+            long? organisationId)
+        {
+            if (!organisationId.HasValue) return null;
+
+            var forbidden = bankQuestions.Any(q =>
+                q.OrganisationId != null && q.OrganisationId != organisationId.Value);
+            if (forbidden)
+            {
+                return "Some Question Bank questions belong to another organisation.";
+            }
+
             return null;
         }
     }

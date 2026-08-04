@@ -41,6 +41,7 @@ public class QuestionBankQuestionsController : ControllerBase
         [FromQuery] int pageSize = 50)
     {
         var query = _context.QuestionBankQuestions
+            .Where(q => q.OrganisationId == null)
             .Include(q => q.CreatedByUser)
             .Include(q => q.Options.OrderBy(o => o.Order))
             .AsQueryable();
@@ -133,6 +134,7 @@ public class QuestionBankQuestionsController : ControllerBase
     public async Task<IActionResult> Get(long id)
     {
         var q = await _context.QuestionBankQuestions
+            .Where(x => x.OrganisationId == null)
             .Include(x => x.Options.OrderBy(o => o.Order))
             .FirstOrDefaultAsync(x => x.Id == id);
 
@@ -157,7 +159,7 @@ public class QuestionBankQuestionsController : ControllerBase
     [HttpPatch("{id:long}/archive")]
     public async Task<IActionResult> SetArchived(long id, [FromBody] SetArchiveRequest request)
     {
-        var entity = await _context.QuestionBankQuestions.FirstOrDefaultAsync(q => q.Id == id);
+        var entity = await _context.QuestionBankQuestions.FirstOrDefaultAsync(q => q.Id == id && q.OrganisationId == null);
         if (entity == null) return NotFound(new { message = "Question not found" });
 
         var user = await _userManager.GetUserAsync(User);
@@ -209,6 +211,7 @@ public class QuestionBankQuestionsController : ControllerBase
             Category = string.IsNullOrWhiteSpace(request.Category) ? null : request.Category.Trim(),
             IsCriticalSafety = _quizFeatures.ResolveCriticalSafety(request.IsCriticalSafety),
             Tags = NormalizeTagsToJson(request.Tags),
+            OrganisationId = null,
             CreatedByUserId = user.Id,
             CreatedAt = DateTime.UtcNow,
         };
@@ -243,6 +246,7 @@ public class QuestionBankQuestionsController : ControllerBase
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
         var entity = await _context.QuestionBankQuestions
+            .Where(q => q.OrganisationId == null)
             .Include(q => q.Options)
             .FirstOrDefaultAsync(q => q.Id == id);
 
@@ -309,7 +313,7 @@ public class QuestionBankQuestionsController : ControllerBase
     [HttpDelete("{id:long}")]
     public async Task<IActionResult> Delete(long id)
     {
-        var entity = await _context.QuestionBankQuestions.FirstOrDefaultAsync(q => q.Id == id);
+        var entity = await _context.QuestionBankQuestions.FirstOrDefaultAsync(q => q.Id == id && q.OrganisationId == null);
         if (entity == null) return NotFound(new { message = "Question not found" });
 
         var isReferencedByQuiz = await _context.QuizQuestions.AnyAsync(qq => qq.QuestionBankQuestionId == id);

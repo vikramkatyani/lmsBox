@@ -194,8 +194,10 @@ export default function AdminHeader({ hideNavigation = false }) {
                                   key={child.to}
                                   to={child.to}
                                   className={({ isActive }) =>
-                                    `block px-4 py-2 text-sm transition-colors ${
-                                      isActive ? 'text-boxlms-navbar-active bg-gray-50' : 'text-slate-700 hover:bg-gray-50 hover:text-boxlms-navbar-active'
+                                    `block px-4 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-boxlms-primary-btn ${
+                                      isActive
+                                        ? 'bg-boxlms-primary-btn/20 text-boxlms-primary-body-txt font-semibold'
+                                        : 'text-slate-700 hover:bg-boxlms-primary-btn/15 hover:text-boxlms-primary-body-txt'
                                     }`
                                   }
                                 >
@@ -232,8 +234,10 @@ export default function AdminHeader({ hideNavigation = false }) {
                                   to={child.to}
                                   onClick={() => setIsMobileMenuOpen(false)}
                                   className={({ isActive }) =>
-                                    `block max-lg:py-2 max-lg:px-3 text-[14px] font-medium rounded-md transition-colors ${
-                                      isActive ? 'text-boxlms-navbar-active bg-gray-50' : 'text-boxlms-navbar-txt hover:bg-gray-50 hover:text-boxlms-navbar-active'
+                                    `block max-lg:py-2 max-lg:px-3 text-[14px] font-medium rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-boxlms-primary-btn ${
+                                      isActive
+                                        ? 'bg-boxlms-primary-btn/20 text-boxlms-primary-body-txt'
+                                        : 'text-boxlms-navbar-txt hover:bg-white/10 hover:text-boxlms-navbar-active'
                                     }`
                                   }
                                 >

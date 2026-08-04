@@ -9,6 +9,7 @@ export default function Modal({
   children,
   footer,
   size = 'lg',
+  maxWidthClass,
   zIndexClass = 'z-50',
 }) {
   useEffect(() => {
@@ -31,7 +32,7 @@ export default function Modal({
   if (!isOpen) return null;
   if (typeof document === 'undefined' || !document.body) return null;
 
-  const sizeClass = {
+  const sizeClass = maxWidthClass || {
     md: 'sm:max-w-2xl',
     lg: 'sm:max-w-4xl',
     xl: 'sm:max-w-6xl',

@@ -15,9 +15,15 @@ export const isSuperAdmin = () => getUserRole() === 'SuperAdmin';
 
 const orgAdminNavLinks = [
   { to: '/admin/dashboard', label: 'Dashboard' },
+  {
+    label: 'Learning',
+    children: [
+      { to: '/admin/courses', label: 'Courses', flag: 'showCoursesNav' },
+      { to: '/admin/learning-pathways', label: 'Pathways', flag: 'showPathwaysNav' },
+      { to: '/admin/question-bank/questions', label: 'Question Bank' },
+    ],
+  },
   { to: '/admin/users', label: 'Users' },
-  { to: '/admin/courses', label: 'Courses', flag: 'showCoursesNav' },
-  { to: '/admin/learning-pathways', label: 'Pathways', flag: 'showPathwaysNav' },
   { to: '/admin/reports', label: 'Reports' },
   { to: '/admin/automation', label: 'Automation' },
 ];
@@ -28,6 +34,7 @@ const superAdminNavLinks = [
     label: 'Learning',
     children: [
       { to: '/admin/question-bank/questions', label: 'Question Bank' },
+      { to: '/admin/question-bank/quizzes', label: 'Bank Assessments' },
       { to: '/admin/courses', label: 'Courses' },
       { to: '/admin/learning-pathways', label: 'Pathways' },
       { to: '/admin/surveys', label: 'Surveys' },
@@ -38,18 +45,32 @@ const superAdminNavLinks = [
   { to: '/admin/automation', label: 'Automation' },
 ];
 
+const filterNavLinks = (links) =>
+  links
+    .map((item) => {
+      if (item.children?.length) {
+        const children = item.children.filter(
+          (child) => !child.flag || adminFeatureFlags[child.flag]
+        );
+        return children.length ? { ...item, children } : null;
+      }
+      if (item.flag && !adminFeatureFlags[item.flag]) {
+        return null;
+      }
+      return item;
+    })
+    .filter(Boolean);
+
 /** Primary admin header navigation (role-aware). */
 export const getAdminNavLinks = () => {
   if (isSuperAdmin()) {
-    return superAdminNavLinks;
+    return filterNavLinks(superAdminNavLinks);
   }
-  return orgAdminNavLinks.filter((link) => !link.flag || adminFeatureFlags[link.flag]);
+  return filterNavLinks(orgAdminNavLinks);
 };
 
 /** @deprecated Use getAdminNavLinks() */
-export const adminNavLinks = orgAdminNavLinks.filter(
-  (link) => !link.flag || adminFeatureFlags[link.flag]
-);
+export const adminNavLinks = filterNavLinks(orgAdminNavLinks);
 
 /** OrgAdmin can list users; create/edit/delete stay API-only when false. */
 export const canManageUsersInUI = () => {

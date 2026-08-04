@@ -31,6 +31,13 @@ public class QuestionBankQuestion
     /// </summary>
     public string? Tags { get; set; }
 
+    /// <summary>
+    /// Null = global platform question bank (SuperAdmin). Set = organisation-owned bank.
+    /// </summary>
+    public long? OrganisationId { get; set; }
+    [ForeignKey(nameof(OrganisationId))]
+    public Organisation? Organisation { get; set; }
+
     public string CreatedByUserId { get; set; } = null!;
     [ForeignKey(nameof(CreatedByUserId))]
     public ApplicationUser? CreatedByUser { get; set; }

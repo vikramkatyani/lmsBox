@@ -11,6 +11,7 @@ import {
   updateQuestionBankQuestion,
 } from '../services/questionBankQuestions';
 import { createQuestionBankCategory, listQuestionBankCategories } from '../services/questionBankCategories';
+import { isSuperAdmin } from '../config/adminFeatureFlags';
 import { quizFeatureFlags } from '../config/quizFeatureFlags';
 
 export default function QuestionBankQuestionCreator() {
@@ -20,6 +21,7 @@ export default function QuestionBankQuestionCreator() {
   const params = new URLSearchParams(location.search);
   const returnTo = params.get('returnTo');
   const isEdit = !!questionId;
+  const isGlobalBank = isSuperAdmin();
 
   usePageTitle(isEdit ? 'Edit Question Bank Question' : 'Create Question Bank Question');
 
@@ -252,7 +254,11 @@ export default function QuestionBankQuestionCreator() {
             <h1 className="text-3xl font-bold text-gray-900">
               {isEdit ? 'Edit Question Bank Question' : 'Create Question Bank Question'}
             </h1>
-            <p className="text-gray-600 mt-2">Create global questions and tag them for filtering.</p>
+            <p className="text-gray-600 mt-2">
+              {isGlobalBank
+                ? 'Create global questions and tag them for filtering.'
+                : 'Create organisation questions and tag them for filtering.'}
+            </p>
           </div>
         </div>
 

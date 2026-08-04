@@ -161,7 +161,6 @@ public class QuestionBankQuizzesController : ControllerBase
             ShowResults = request.ShowResults,
             AllowRetake = request.AllowRetake,
             MaxAttempts = request.MaxAttempts,
-            QuestionsPerAttempt = request.QuestionsPerAttempt,
             CourseId = null,
             IsQuestionBank = true,
             CreatedByUserId = user.Id,
@@ -202,6 +201,13 @@ public class QuestionBankQuizzesController : ControllerBase
 
                 quiz.Questions.Add(question);
             }
+        }
+
+        quiz.QuestionsPerAttempt = NormalizeQuestionsPerAttempt(request.QuestionsPerAttempt, quiz.Questions.Count);
+        var questionsPerAttemptError = ValidateQuestionsPerAttempt(quiz.QuestionsPerAttempt, quiz.Questions.Count);
+        if (questionsPerAttemptError != null)
+        {
+            return BadRequest(new { message = questionsPerAttemptError });
         }
 
         _context.Quizzes.Add(quiz);
@@ -247,7 +253,6 @@ public class QuestionBankQuizzesController : ControllerBase
         quiz.ShowResults = request.ShowResults;
         quiz.AllowRetake = request.AllowRetake;
         quiz.MaxAttempts = request.MaxAttempts;
-        quiz.QuestionsPerAttempt = request.QuestionsPerAttempt;
         quiz.UpdatedAt = DateTime.UtcNow;
 
         _context.QuizQuestions.RemoveRange(quiz.Questions);
@@ -287,6 +292,13 @@ public class QuestionBankQuizzesController : ControllerBase
 
                 quiz.Questions.Add(question);
             }
+        }
+
+        quiz.QuestionsPerAttempt = NormalizeQuestionsPerAttempt(request.QuestionsPerAttempt, quiz.Questions.Count);
+        var questionsPerAttemptError = ValidateQuestionsPerAttempt(quiz.QuestionsPerAttempt, quiz.Questions.Count);
+        if (questionsPerAttemptError != null)
+        {
+            return BadRequest(new { message = questionsPerAttemptError });
         }
 
         await _context.SaveChangesAsync();
@@ -334,6 +346,31 @@ public class QuestionBankQuizzesController : ControllerBase
         }
 
         return Ok(new { message = "Question bank assessment deleted successfully" });
+    }
+
+    private static int? NormalizeQuestionsPerAttempt(int? value, int poolSize)
+    {
+        if (value == null || value <= 0 || poolSize <= 0 || value >= poolSize)
+        {
+            return null;
+        }
+
+        return value;
+    }
+
+    private static string? ValidateQuestionsPerAttempt(int? value, int poolSize)
+    {
+        if (poolSize == 0)
+        {
+            return null;
+        }
+
+        if (value != null && (value <= 0 || value >= poolSize))
+        {
+            return $"Questions per attempt must be between 1 and {poolSize - 1} when using a random subset, or leave empty to show all questions.";
+        }
+
+        return null;
     }
 }
 

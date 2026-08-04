@@ -1852,7 +1852,7 @@ export default function AdminCourseEditor() {
               )}
               
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">Course Quizzes</h2>
+                <h2 className="text-xl font-semibold text-gray-900">Course Assessments</h2>
                 <button
                   onClick={() => navigate(`/admin/quiz/create/${courseId}`)}
                   disabled={isNew || form.status === 'Published'}
@@ -1862,17 +1862,17 @@ export default function AdminCourseEditor() {
                       : 'bg-boxlms-primary-btn text-boxlms-primary-btn-txt hover:brightness-90 cursor-pointer'
                   }`}
                 >
-                  Create New Quiz
+                  Create New Assessment
                 </button>
               </div>
 
               {quizzesLoading ? (
                 <div className="text-center py-8">
-                  <div className="text-gray-500">Loading quizzes...</div>
+                  <div className="text-gray-500">Loading assessments...</div>
                 </div>
               ) : courseQuizzes.length === 0 ? (
                 <div className="text-center py-8">
-                  <div className="text-gray-500 mb-4">No quizzes created for this course yet.</div>
+                  <div className="text-gray-500 mb-4">No assessments created for this course yet.</div>
                   <button
                     onClick={() => navigate(`/admin/quiz/create/${courseId}`)}
                     disabled={isNew || form.status === 'Published'}
@@ -1882,7 +1882,7 @@ export default function AdminCourseEditor() {
                         : 'bg-boxlms-primary-btn text-boxlms-primary-btn-txt hover:brightness-90 cursor-pointer'
                     }`}
                   >
-                    Create First Quiz
+                    Create First Assessment
                   </button>
                 </div>
               ) : (
