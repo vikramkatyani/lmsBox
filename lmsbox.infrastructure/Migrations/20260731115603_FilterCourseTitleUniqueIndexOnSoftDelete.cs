@@ -10,30 +10,58 @@ namespace lmsbox.infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "UX_Course_OrganisationId_Title",
-                table: "Courses");
+            // Conditional so production does not 500.30 when the legacy unique index is
+            // missing, already filtered, or a previous attempt partially applied.
+            migrationBuilder.Sql(@"
+IF EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = N'UX_Course_OrganisationId_Title'
+      AND object_id = OBJECT_ID(N'dbo.Courses')
+)
+BEGIN
+    DROP INDEX [UX_Course_OrganisationId_Title] ON [dbo].[Courses];
+END
 
-            migrationBuilder.CreateIndex(
-                name: "UX_Course_OrganisationId_Title",
-                table: "Courses",
-                columns: new[] { "OrganisationId", "Title" },
-                unique: true,
-                filter: "[IsDeleted] = 0");
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = N'UX_Course_OrganisationId_Title'
+      AND object_id = OBJECT_ID(N'dbo.Courses')
+)
+BEGIN
+    CREATE UNIQUE INDEX [UX_Course_OrganisationId_Title]
+        ON [dbo].[Courses] ([OrganisationId], [Title])
+        WHERE [IsDeleted] = 0;
+END
+");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "UX_Course_OrganisationId_Title",
-                table: "Courses");
+            migrationBuilder.Sql(@"
+IF EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = N'UX_Course_OrganisationId_Title'
+      AND object_id = OBJECT_ID(N'dbo.Courses')
+)
+BEGIN
+    DROP INDEX [UX_Course_OrganisationId_Title] ON [dbo].[Courses];
+END
 
-            migrationBuilder.CreateIndex(
-                name: "UX_Course_OrganisationId_Title",
-                table: "Courses",
-                columns: new[] { "OrganisationId", "Title" },
-                unique: true);
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = N'UX_Course_OrganisationId_Title'
+      AND object_id = OBJECT_ID(N'dbo.Courses')
+)
+BEGIN
+    CREATE UNIQUE INDEX [UX_Course_OrganisationId_Title]
+        ON [dbo].[Courses] ([OrganisationId], [Title]);
+END
+");
         }
     }
 }

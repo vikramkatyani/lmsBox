@@ -11,9 +11,16 @@ namespace lmsbox.infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_Quizzes_Courses_CourseId",
-                table: "Quizzes");
+            // Drop only if present — some environments renamed or already removed this FK.
+            migrationBuilder.Sql(@"
+IF EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = N'FK_Quizzes_Courses_CourseId'
+      AND parent_object_id = OBJECT_ID(N'dbo.Quizzes')
+)
+    ALTER TABLE [dbo].[Quizzes] DROP CONSTRAINT [FK_Quizzes_Courses_CourseId];
+");
 
             migrationBuilder.AlterColumn<string>(
                 name: "CourseId",
@@ -381,20 +388,31 @@ namespace lmsbox.infrastructure.Migrations
                 table: "QuizAttempts",
                 column: "UserId");
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_Quizzes_Courses_CourseId",
-                table: "Quizzes",
-                column: "CourseId",
-                principalTable: "Courses",
-                principalColumn: "Id");
+            migrationBuilder.Sql(@"
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = N'FK_Quizzes_Courses_CourseId'
+      AND parent_object_id = OBJECT_ID(N'dbo.Quizzes')
+)
+    ALTER TABLE [dbo].[Quizzes] WITH CHECK
+        ADD CONSTRAINT [FK_Quizzes_Courses_CourseId]
+        FOREIGN KEY ([CourseId]) REFERENCES [dbo].[Courses] ([Id]);
+");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_Quizzes_Courses_CourseId",
-                table: "Quizzes");
+            migrationBuilder.Sql(@"
+IF EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = N'FK_Quizzes_Courses_CourseId'
+      AND parent_object_id = OBJECT_ID(N'dbo.Quizzes')
+)
+    ALTER TABLE [dbo].[Quizzes] DROP CONSTRAINT [FK_Quizzes_Courses_CourseId];
+");
 
             migrationBuilder.DropTable(
                 name: "QuestionBankCategories");
@@ -469,13 +487,18 @@ namespace lmsbox.infrastructure.Migrations
                 oldType: "nvarchar(450)",
                 oldNullable: true);
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_Quizzes_Courses_CourseId",
-                table: "Quizzes",
-                column: "CourseId",
-                principalTable: "Courses",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+            migrationBuilder.Sql(@"
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = N'FK_Quizzes_Courses_CourseId'
+      AND parent_object_id = OBJECT_ID(N'dbo.Quizzes')
+)
+    ALTER TABLE [dbo].[Quizzes] WITH CHECK
+        ADD CONSTRAINT [FK_Quizzes_Courses_CourseId]
+        FOREIGN KEY ([CourseId]) REFERENCES [dbo].[Courses] ([Id])
+        ON DELETE CASCADE;
+");
         }
     }
 }
