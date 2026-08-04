@@ -1,9 +1,21 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+import themeCss from '../styles/lmsbox-theme.css?raw';
+import blocksCss from '../styles/lmsbox-interactive-blocks.css?raw';
+import { API_BASE } from './apiBase';
+
+/** Permissions needed for HTML5 video, YouTube/Vimeo embeds, and block scripts. */
+export const INTERACTIVE_BLOCK_IFRAME_SANDBOX =
+  'allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox allow-forms';
+
+export const INTERACTIVE_BLOCK_IFRAME_ALLOW =
+  'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen';
 
 /**
  * Builds a srcDoc document for interactive block HTML.
  * Height reporting measures the content root only (not body/html),
  * so parent iframe resizing cannot create a feedback loop.
+ *
+ * Design-system CSS is inlined so blocks inherit LMSbox styling without
+ * depending on an external stylesheet fetch inside the srcDoc iframe.
  */
 export function buildInteractiveBlockSrcDoc(html) {
   if (!html) return '';
@@ -60,8 +72,14 @@ export function buildInteractiveBlockSrcDoc(html) {
 })();
 </script>`;
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
-html,body{margin:0;padding:0;background:transparent;height:auto!important;min-height:0!important;overflow:hidden;}
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;padding:0;background:transparent!important;height:auto!important;min-height:0!important;overflow:hidden;}
+${themeCss}
+${blocksCss}
 </style></head><body>${html}${runtimeScript}${resizeScript}</body></html>`;
 }
 

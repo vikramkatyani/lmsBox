@@ -1,0 +1,83 @@
+<div class="lmsbox-interactive-block" data-block-id="{{BLOCK_ID}}" data-block-type="timeline" role="region" aria-label="Timeline">
+
+  <p class="lmsbox-accordion__progress" data-timeline-progress aria-live="polite"></p>
+  {{HINT_HTML}}
+  <div class="lms-timeline" data-timeline-root>
+    {{STAGES_HTML}}
+  </div>
+
+  <script>
+  (function () {
+    var root = document.querySelector('.lmsbox-interactive-block[data-block-type="timeline"][data-block-id="{{BLOCK_ID}}"]');
+    if (!root || root.getAttribute('data-timeline-ready') === '1') return;
+    root.setAttribute('data-timeline-ready', '1');
+
+    var blockId = root.getAttribute('data-block-id');
+    var stages = Array.prototype.slice.call(root.querySelectorAll('[data-timeline-item]'));
+    var progressEl = root.querySelector('[data-timeline-progress]');
+    var hintEl = root.querySelector('[data-timeline-hint]');
+    if (stages.length === 0) return;
+
+    var opened = {};
+    var completed = false;
+
+    function notifyComplete() {
+      if (completed) return;
+      completed = true;
+      var payload = { type: 'interactive-block-complete', blockId: Number(blockId) };
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, '*');
+      }
+      if (window.lmsboxInteractive && typeof window.lmsboxInteractive.notifyComplete === 'function') {
+        window.lmsboxInteractive.notifyComplete(Number(blockId));
+      }
+    }
+
+    function updateProgress() {
+      var count = 0;
+      for (var i = 0; i < stages.length; i++) if (opened[i]) count++;
+      if (progressEl) progressEl.textContent = count + ' of ' + stages.length + ' stages opened';
+      if (count === stages.length) notifyComplete();
+    }
+
+    function setOpen(stage, open) {
+      var trigger = stage.querySelector('.lms-timeline__trigger');
+      var body = stage.querySelector('.lms-timeline__body');
+      stage.classList.toggle('is-open', open);
+      if (trigger) trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (body) body.style.maxHeight = open ? body.scrollHeight + 'px' : '0px';
+    }
+
+    stages.forEach(function (stage, index) {
+      var trigger = stage.querySelector('.lms-timeline__trigger');
+      if (!trigger) return;
+
+      trigger.addEventListener('click', function () {
+        var open = stage.classList.contains('is-open');
+
+        // Exclusive open: one stage at a time keeps the sequence readable.
+        stages.forEach(function (other) {
+          if (other !== stage) setOpen(other, false);
+        });
+        setOpen(stage, !open);
+
+        if (!open) {
+          opened[index] = true;
+          if (hintEl) hintEl.classList.add('is-gone');
+          updateProgress();
+        }
+      });
+    });
+
+    window.addEventListener('resize', function () {
+      stages.forEach(function (stage) {
+        if (!stage.classList.contains('is-open')) return;
+        var body = stage.querySelector('.lms-timeline__body');
+        if (body) body.style.maxHeight = body.scrollHeight + 'px';
+      });
+    });
+
+    updateProgress();
+  })();
+  </script>
+</div>

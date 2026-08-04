@@ -1,0 +1,98 @@
+<div class="lmsbox-interactive-block" data-block-id="{{BLOCK_ID}}" data-block-type="process" role="region" aria-label="Process flow">
+
+  <section class="lms-process" data-process>
+    <div class="lms-process__stage">
+      {{NODES_HTML}}
+    </div>
+    <div class="lms-process__steps">
+      {{STEPS_HTML}}
+    </div>
+    <div class="lms-process__controls">
+      <button
+        type="button"
+        class="lms-button lms-button--primary lms-process__next"
+        data-process-next
+        data-label-start="{{START_LABEL}}"
+      >{{START_LABEL}}</button>
+      <button type="button" class="lms-button lms-button--ghost lms-process__reset" data-process-reset hidden>Replay</button>
+      <span class="lms-process__progress" data-process-progress role="status" aria-live="polite"></span>
+    </div>
+    {{FINISH_HTML}}
+  </section>
+
+  <script>
+  (function () {
+    var root = document.querySelector('.lmsbox-interactive-block[data-block-type="process"][data-block-id="{{BLOCK_ID}}"]');
+    if (!root || root.getAttribute('data-process-ready') === '1') return;
+    root.setAttribute('data-process-ready', '1');
+
+    var blockId = root.getAttribute('data-block-id');
+    var wrap = root.querySelector('[data-process]');
+    if (!wrap) return;
+
+    var nextBtn = wrap.querySelector('[data-process-next]');
+    var resetBtn = wrap.querySelector('[data-process-reset]');
+    var progressEl = wrap.querySelector('[data-process-progress]');
+    var finishEl = wrap.querySelector('[data-process-finish]');
+    var steps = Array.prototype.slice.call(wrap.querySelectorAll('.lms-process__step'));
+    var nodes = Array.prototype.slice.call(wrap.querySelectorAll('.lms-process__node'));
+    var total = steps.length;
+    if (total === 0) return;
+
+    var startLabel = (nextBtn && nextBtn.getAttribute('data-label-start')) || 'Start the sequence';
+    var current = 0;
+    var completed = false;
+
+    function notifyComplete() {
+      if (completed) return;
+      completed = true;
+      var payload = { type: 'interactive-block-complete', blockId: Number(blockId) };
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, '*');
+      }
+      if (window.lmsboxInteractive && typeof window.lmsboxInteractive.notifyComplete === 'function') {
+        window.lmsboxInteractive.notifyComplete(Number(blockId));
+      }
+    }
+
+    function render() {
+      steps.forEach(function (step, index) {
+        step.classList.toggle('is-show', index < current);
+      });
+
+      nodes.forEach(function (node, index) {
+        node.classList.toggle('is-on', current > 0 && index === Math.min(current, nodes.length) - 1);
+      });
+
+      if (progressEl) progressEl.textContent = 'Step ' + current + ' of ' + total;
+
+      if (nextBtn) {
+        nextBtn.hidden = current >= total;
+        nextBtn.textContent = current === 0 ? startLabel : 'Reveal step ' + (current + 1);
+      }
+
+      if (resetBtn) resetBtn.hidden = current < total;
+      if (finishEl) finishEl.hidden = current < total;
+
+      if (current >= total) notifyComplete();
+    }
+
+    if (nextBtn) {
+      nextBtn.addEventListener('click', function () {
+        if (current >= total) return;
+        current++;
+        render();
+      });
+    }
+
+    if (resetBtn) {
+      resetBtn.addEventListener('click', function () {
+        current = 0;
+        render();
+      });
+    }
+
+    render();
+  })();
+  </script>
+</div>

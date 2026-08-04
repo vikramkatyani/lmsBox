@@ -1,86 +1,18 @@
-<div class="lmsbox-interactive-block" data-block-id="{{BLOCK_ID}}" data-block-type="video" role="region" aria-label="Lesson video">
-  <style>
-    .lmsbox-interactive-block[data-block-type="video"] {
-      --lmsbox-primary: #1b365d;
-      --lmsbox-focus: #1b365d;
-      --lmsbox-text: #0f172a;
-      --lmsbox-muted: #334155;
-      box-sizing: border-box;
-      width: 100%;
-      margin: 0;
-      padding: 1rem 0 1.25rem;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      font-size: 1rem;
-      line-height: 1.5;
-      color: var(--lmsbox-text);
-      background: transparent;
-    }
-    .lmsbox-interactive-block[data-block-type="video"] *,
-    .lmsbox-interactive-block[data-block-type="video"] *::before,
-    .lmsbox-interactive-block[data-block-type="video"] *::after {
-      box-sizing: border-box;
-    }
-    .lmsbox-video {
-      width: 100%;
-      max-width: 56rem;
-    }
-    .lmsbox-video__title {
-      margin: 0 0 0.75rem;
-      color: var(--lmsbox-primary);
-      font-size: 1.5rem;
-      font-weight: 700;
-      line-height: 1.3;
-    }
-    .lmsbox-video__title:empty {
-      display: none;
-    }
-    .lmsbox-video__player-wrap {
-      width: 100%;
-      background: #0f172a;
-      border-radius: 0.5rem;
-      overflow: hidden;
-    }
-    .lmsbox-video__player {
-      display: block;
-      width: 100%;
-      max-height: 70vh;
-      background: #0f172a;
-      vertical-align: top;
-    }
-    .lmsbox-video__description {
-      margin: 0.75rem 0 0;
-      color: var(--lmsbox-text);
-      font-size: 1rem;
-      line-height: 1.65;
-      white-space: pre-wrap;
-    }
-    .lmsbox-video__description:empty {
-      display: none;
-    }
-    .lmsbox-video__status {
-      margin: 0.85rem 0 0;
-      font-size: 0.875rem;
-      line-height: 1.5;
-      color: var(--lmsbox-muted);
-    }
-  </style>
+<div class="lmsbox-interactive-block" data-block-id="{{BLOCK_ID}}" data-block-type="video" data-player-kind="{{PLAYER_KIND}}" role="region" aria-label="Lesson video">
 
   <div class="lmsbox-video">
-    <h2 class="lmsbox-video__title">{{TITLE}}</h2>
-    <div class="lmsbox-video__player-wrap">
-      <video
-        class="lmsbox-video__player"
-        data-video-player
-        controls
-        playsinline
-        preload="metadata"
-        src="{{VIDEO_URL}}"
-      >
-        Your browser does not support embedded video.
-      </video>
+    <div class="lmsbox-video__header">
+      <p class="lmsbox-video__kicker">Video</p>
+      <h2 class="lmsbox-video__title">{{TITLE}}</h2>
     </div>
-    <p class="lmsbox-video__description">{{DESCRIPTION}}</p>
-    <p class="lmsbox-video__status" data-video-status aria-live="polite">Watch the full video to continue.</p>
+    <div class="lmsbox-video__player-wrap">
+      {{PLAYER_HTML}}
+    </div>
+    <div class="lmsbox-video__footer">
+      <p class="lmsbox-video__description">{{DESCRIPTION}}</p>
+      <p class="lmsbox-video__status" data-video-status aria-live="polite">Watch the full video to continue.</p>
+      <button type="button" class="lmsbox-video__continue" data-video-continue>Mark video complete</button>
+    </div>
   </div>
 
   <script>
@@ -90,14 +22,18 @@
     root.setAttribute('data-video-ready', '1');
 
     var blockId = root.getAttribute('data-block-id');
-    var player = root.querySelector('[data-video-player]');
+    var playerKind = root.getAttribute('data-player-kind') || 'file';
+    var filePlayer = root.querySelector('[data-video-player]');
+    var embedPlayer = root.querySelector('[data-video-embed]');
     var statusEl = root.querySelector('[data-video-status]');
+    var continueBtn = root.querySelector('[data-video-continue]');
     var completed = false;
 
     function notifyComplete() {
       if (completed) return;
       completed = true;
       if (statusEl) statusEl.textContent = 'Video complete';
+      if (continueBtn) continueBtn.classList.remove('is-visible');
       var payload = { type: 'interactive-block-complete', blockId: Number(blockId) };
       if (window.parent && window.parent !== window) {
         window.parent.postMessage(payload, '*');
@@ -107,17 +43,87 @@
       }
     }
 
-    if (!player) return;
-
-    player.addEventListener('ended', notifyComplete);
-
-    // Treat near-end as complete (some browsers skip exact ended on seek).
-    player.addEventListener('timeupdate', function () {
-      if (!player.duration || !isFinite(player.duration)) return;
-      if (player.currentTime >= player.duration - 0.4) {
-        notifyComplete();
+    function reportHeight() {
+      if (window.parent && window.parent !== window) {
+        var height = Math.ceil(root.getBoundingClientRect().height);
+        if (height > 0) {
+          window.parent.postMessage({ type: 'interactive-block-resize', height: height }, '*');
+        }
       }
-    });
+    }
+
+    if (continueBtn) {
+      continueBtn.addEventListener('click', notifyComplete);
+    }
+
+    if (filePlayer) {
+      filePlayer.addEventListener('loadedmetadata', reportHeight);
+      filePlayer.addEventListener('error', function () {
+        if (statusEl) {
+          statusEl.textContent = 'Video failed to load. Check the URL or try uploading again.';
+        }
+        if (continueBtn) continueBtn.classList.add('is-visible');
+        reportHeight();
+      });
+      filePlayer.addEventListener('ended', notifyComplete);
+      filePlayer.addEventListener('timeupdate', function () {
+        if (!filePlayer.duration || !isFinite(filePlayer.duration)) return;
+        if (filePlayer.currentTime >= filePlayer.duration - 0.4) {
+          notifyComplete();
+        }
+      });
+      reportHeight();
+      return;
+    }
+
+    if (embedPlayer) {
+      if (continueBtn) {
+        continueBtn.classList.add('is-visible');
+        if (statusEl) {
+          statusEl.textContent = playerKind === 'youtube' || playerKind === 'vimeo'
+            ? 'Watch the video, then mark it complete to continue.'
+            : 'Watch the full video to continue.';
+        }
+      }
+
+      window.addEventListener('message', function (event) {
+        if (completed) return;
+        var data = event.data;
+        try {
+          if (typeof data === 'string') data = JSON.parse(data);
+        } catch (e) {
+          return;
+        }
+        if (!data || typeof data !== 'object') return;
+
+        if (playerKind === 'youtube') {
+          if (data.event === 'onStateChange' && (data.info === 0 || data.info === '0')) {
+            notifyComplete();
+          }
+          return;
+        }
+
+        if (playerKind === 'vimeo') {
+          if (data.event === 'ended' || data.event === 'finish') {
+            notifyComplete();
+          }
+        }
+      });
+
+      if (playerKind === 'youtube') {
+        function bindYoutube() {
+          try {
+            if (embedPlayer.contentWindow) {
+              embedPlayer.contentWindow.postMessage(JSON.stringify({ event: 'listening', id: blockId }), '*');
+            }
+          } catch (e) { /* ignore */ }
+        }
+        embedPlayer.addEventListener('load', bindYoutube);
+        setTimeout(bindYoutube, 800);
+      }
+
+      reportHeight();
+    }
   })();
   </script>
 </div>

@@ -1,0 +1,38 @@
+<div class="lmsbox-interactive-block" data-block-id="{{BLOCK_ID}}" data-block-type="hero" role="region" aria-label="Lesson hero">
+
+  <section class="{{HERO_CLASS}}" aria-label="Lesson hero">
+    {{MEDIA_HTML}}
+    <div class="lms-hero__content">
+      {{KICKER_HTML}}
+      <h1 class="lms-hero__title">{{TITLE}}</h1>
+      {{INTRO_HTML}}
+      {{META_HTML}}
+    </div>
+  </section>
+
+  <script>
+  (function () {
+    var root = document.querySelector('.lmsbox-interactive-block[data-block-type="hero"][data-block-id="{{BLOCK_ID}}"]');
+    if (!root || root.getAttribute('data-hero-ready') === '1') return;
+    root.setAttribute('data-hero-ready', '1');
+
+    var blockId = root.getAttribute('data-block-id');
+    var completed = false;
+
+    function notifyComplete() {
+      if (completed) return;
+      completed = true;
+      var payload = { type: 'interactive-block-complete', blockId: Number(blockId) };
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, '*');
+      }
+      if (window.lmsboxInteractive && typeof window.lmsboxInteractive.notifyComplete === 'function') {
+        window.lmsboxInteractive.notifyComplete(Number(blockId));
+      }
+    }
+
+    // Auto-complete on view — no learner action required.
+    notifyComplete();
+  })();
+  </script>
+</div>

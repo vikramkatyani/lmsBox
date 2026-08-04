@@ -31,8 +31,6 @@ public static class InteractiveLessonHelper
         return list.Count > 0 && list.All(b => b.Status == "Approved");
     }
 
-    public static string? GetDisplayHtml(InteractiveBlock block)
-        => !string.IsNullOrWhiteSpace(block.EditedHtml) ? block.EditedHtml : block.GeneratedHtml;
 }
 
 [ApiController]
@@ -114,7 +112,7 @@ public class AdminInteractiveLessonsController : ControllerBase
         _context.InteractiveLessonSettings.Add(settings);
         await _context.SaveChangesAsync();
 
-        return Ok(MapToDetailDto(lesson, settings));
+        return Ok(await MapToDetailDtoAsync(lesson, settings));
     }
 
     [HttpGet("interactive-lessons/{lessonId:long}")]
@@ -132,7 +130,7 @@ public class AdminInteractiveLessonsController : ControllerBase
             return accessError;
         }
 
-        return Ok(MapToDetailDto(loaded.Value.Lesson, loaded.Value.Settings));
+        return Ok(await MapToDetailDtoAsync(loaded.Value.Lesson, loaded.Value.Settings));
     }
 
     [HttpPut("interactive-lessons/{lessonId:long}")]
@@ -176,7 +174,7 @@ public class AdminInteractiveLessonsController : ControllerBase
         loaded.Value.Settings.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
-        return Ok(MapToDetailDto(loaded.Value.Lesson, loaded.Value.Settings));
+        return Ok(await MapToDetailDtoAsync(loaded.Value.Lesson, loaded.Value.Settings));
     }
 
     [HttpGet("interactive-lessons/block-types")]
@@ -280,7 +278,7 @@ public class AdminInteractiveLessonsController : ControllerBase
     }
 
     [HttpPost("interactive-lessons/templates/{blockType}/render")]
-    public ActionResult<RenderInteractiveBlockTemplateResponse> RenderBlockTemplate(
+    public async Task<ActionResult<RenderInteractiveBlockTemplateResponse>> RenderBlockTemplate(
         string blockType,
         [FromBody] RenderInteractiveBlockTemplateRequest request)
     {
@@ -297,7 +295,8 @@ public class AdminInteractiveLessonsController : ControllerBase
         try
         {
             var blockId = request.BlockId is > 0 ? request.BlockId.Value : 0;
-            var (html, _) = _templateService.Render(blockType, blockId, request.FormPayloadJson);
+            var payload = await _displayService.SignMediaUrlsInPayloadAsync(blockType, request.FormPayloadJson);
+            var (html, _) = _templateService.Render(blockType, blockId, payload);
             return Ok(new RenderInteractiveBlockTemplateResponse { Html = html });
         }
         catch (ArgumentException ex)
@@ -422,7 +421,7 @@ public class AdminInteractiveLessonsController : ControllerBase
         _context.InteractiveBlocks.Add(block);
         await _context.SaveChangesAsync();
 
-        return Ok(MapBlockDto(block));
+        return Ok(await MapBlockDtoAsync(block));
     }
 
     [HttpPut("interactive-lessons/{lessonId:long}/blocks/{blockId:long}")]
@@ -482,7 +481,7 @@ public class AdminInteractiveLessonsController : ControllerBase
         block.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
-        return Ok(MapBlockDto(block));
+        return Ok(await MapBlockDtoAsync(block));
     }
 
     [HttpDelete("interactive-lessons/{lessonId:long}/blocks/{blockId:long}")]
@@ -549,7 +548,11 @@ public class AdminInteractiveLessonsController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        var ordered = blocks.Values.OrderBy(b => b.Ordinal).Select(MapBlockDto).ToList();
+        var ordered = new List<InteractiveBlockDto>();
+        foreach (var block in blocks.Values.OrderBy(b => b.Ordinal))
+        {
+            ordered.Add(await MapBlockDtoAsync(block));
+        }
         return Ok(ordered);
     }
 
@@ -611,7 +614,7 @@ public class AdminInteractiveLessonsController : ControllerBase
         block.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
-        return Ok(MapBlockDto(block));
+        return Ok(await MapBlockDtoAsync(block));
     }
 
     [HttpPost("interactive-lessons/{lessonId:long}/blocks/{blockId:long}/approve")]
@@ -630,7 +633,7 @@ public class AdminInteractiveLessonsController : ControllerBase
             return accessError;
         }
 
-        if (string.IsNullOrWhiteSpace(_displayService.GetDisplayHtml(block)))
+        if (string.IsNullOrWhiteSpace(await _displayService.GetDisplayHtmlAsync(block)))
         {
             return BadRequest(new { message = "Block must be generated before approval." });
         }
@@ -640,7 +643,7 @@ public class AdminInteractiveLessonsController : ControllerBase
         block.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
-        return Ok(MapBlockDto(block));
+        return Ok(await MapBlockDtoAsync(block));
     }
 
     [HttpPost("interactive-lessons/{lessonId:long}/blocks/{blockId:long}/unapprove")]
@@ -659,12 +662,12 @@ public class AdminInteractiveLessonsController : ControllerBase
             return accessError;
         }
 
-        block.Status = string.IsNullOrWhiteSpace(_displayService.GetDisplayHtml(block)) ? "Draft" : "Generated";
+        block.Status = string.IsNullOrWhiteSpace(await _displayService.GetDisplayHtmlAsync(block)) ? "Draft" : "Generated";
         block.ApprovedAt = null;
         block.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
-        return Ok(MapBlockDto(block));
+        return Ok(await MapBlockDtoAsync(block));
     }
 
     [HttpPost("interactive-lessons/{lessonId:long}/blocks/{blockId:long}/media")]
@@ -817,7 +820,7 @@ public class AdminInteractiveLessonsController : ControllerBase
             block.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
-            return Ok(MapBlockDto(block));
+            return Ok(await MapBlockDtoAsync(block));
         }
         catch (ArgumentException ex)
         {
@@ -895,9 +898,14 @@ public class AdminInteractiveLessonsController : ControllerBase
         return null;
     }
 
-    private InteractiveLessonDetailDto MapToDetailDto(Lesson lesson, InteractiveLessonSettings settings)
+    private async Task<InteractiveLessonDetailDto> MapToDetailDtoAsync(Lesson lesson, InteractiveLessonSettings settings)
     {
-        var blocks = settings.Blocks.OrderBy(b => b.Ordinal).Select(MapBlockDto).ToList();
+        var blocks = new List<InteractiveBlockDto>();
+        foreach (var block in settings.Blocks.OrderBy(b => b.Ordinal))
+        {
+            blocks.Add(await MapBlockDtoAsync(block));
+        }
+
         return new InteractiveLessonDetailDto
         {
             LessonId = lesson.Id,
@@ -912,7 +920,7 @@ public class AdminInteractiveLessonsController : ControllerBase
         };
     }
 
-    private InteractiveBlockDto MapBlockDto(InteractiveBlock block) => new()
+    private async Task<InteractiveBlockDto> MapBlockDtoAsync(InteractiveBlock block) => new()
     {
         Id = block.Id,
         Ordinal = block.Ordinal,
@@ -922,7 +930,7 @@ public class AdminInteractiveLessonsController : ControllerBase
         FormPayloadJson = block.FormPayloadJson,
         GeneratedHtml = block.GeneratedHtml,
         EditedHtml = block.EditedHtml,
-        DisplayHtml = _displayService.GetDisplayHtml(block),
+        DisplayHtml = await _displayService.GetDisplayHtmlAsync(block),
         CompletionRuleJson = block.CompletionRuleJson,
         MediaAssetsJson = block.MediaAssetsJson,
         CreatedAt = block.CreatedAt,

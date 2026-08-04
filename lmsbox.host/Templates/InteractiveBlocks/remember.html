@@ -1,0 +1,38 @@
+<div class="lmsbox-interactive-block" data-block-id="{{BLOCK_ID}}" data-block-type="remember" role="region" aria-label="Remember">
+
+  <aside class="lms-remember">
+    <span class="lms-remember__icon" aria-hidden="true">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5.9 1.2.9 1.9V16h5.2v-.2c0-.7.3-1.4.9-1.9A6 6 0 0 0 12 3z"/></svg>
+    </span>
+    <div>
+      <div class="lms-remember__label">{{LABEL}}</div>
+      {{BODY_HTML}}
+    </div>
+  </aside>
+
+  <script>
+  (function () {
+    var root = document.querySelector('.lmsbox-interactive-block[data-block-type="remember"][data-block-id="{{BLOCK_ID}}"]');
+    if (!root || root.getAttribute('data-remember-ready') === '1') return;
+    root.setAttribute('data-remember-ready', '1');
+
+    var blockId = root.getAttribute('data-block-id');
+    var completed = false;
+
+    function notifyComplete() {
+      if (completed) return;
+      completed = true;
+      var payload = { type: 'interactive-block-complete', blockId: Number(blockId) };
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, '*');
+      }
+      if (window.lmsboxInteractive && typeof window.lmsboxInteractive.notifyComplete === 'function') {
+        window.lmsboxInteractive.notifyComplete(Number(blockId));
+      }
+    }
+
+    // Auto-complete on view — no learner action required.
+    notifyComplete();
+  })();
+  </script>
+</div>

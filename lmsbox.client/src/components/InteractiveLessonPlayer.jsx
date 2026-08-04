@@ -1,14 +1,20 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import interactiveLessonsService from '../services/interactiveLessons';
-import { buildInteractiveBlockSrcDoc, nextIframeHeight } from '../utils/interactiveBlockIframe';
+import {
+  buildInteractiveBlockSrcDoc,
+  nextIframeHeight,
+  INTERACTIVE_BLOCK_IFRAME_ALLOW,
+  INTERACTIVE_BLOCK_IFRAME_SANDBOX,
+} from '../utils/interactiveBlockIframe';
 
 function BlockFrame({ block, onComplete }) {
   const iframeRef = useRef(null);
-  const [height, setHeight] = useState(420);
+  const initialHeight = block.blockType === 'hero' ? 420 : 200;
+  const [height, setHeight] = useState(initialHeight);
 
   useEffect(() => {
-    setHeight(420);
-  }, [block.id, block.html]);
+    setHeight(block.blockType === 'hero' ? 420 : 200);
+  }, [block.id, block.html, block.blockType]);
 
   useEffect(() => {
     const handleMessage = (event) => {
@@ -20,7 +26,8 @@ function BlockFrame({ block, onComplete }) {
       if (!data) return;
 
       if (data.type === 'interactive-block-resize') {
-        setHeight((prev) => nextIframeHeight(prev, data.height));
+        const minHeight = block.blockType === 'hero' ? 340 : 120;
+        setHeight((prev) => nextIframeHeight(prev, data.height, minHeight));
         return;
       }
 
@@ -31,7 +38,7 @@ function BlockFrame({ block, onComplete }) {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [onComplete]);
+  }, [onComplete, block.blockType]);
 
   if (block.isLocked) {
     return (
@@ -55,7 +62,13 @@ function BlockFrame({ block, onComplete }) {
       title={block.title || 'Interactive block'}
       className="w-full border-0 bg-transparent block"
       style={{ height: `${height}px` }}
-      sandbox="allow-scripts allow-same-origin"
+      // Video embeds (YouTube/Vimeo/file) fail under a restrictive sandbox; template HTML is server-authored.
+      {...(block.blockType === 'video'
+        ? {}
+        : { sandbox: INTERACTIVE_BLOCK_IFRAME_SANDBOX })}
+      allow={INTERACTIVE_BLOCK_IFRAME_ALLOW}
+      allowFullScreen
+      referrerPolicy="strict-origin-when-cross-origin"
       srcDoc={buildInteractiveBlockSrcDoc(block.html)}
     />
   );
@@ -133,7 +146,7 @@ export default function InteractiveLessonPlayer({
   }
 
   return (
-    <div className="w-full space-y-10">
+    <div className="mx-auto w-full max-w-[1080px] space-y-8">
       {lesson.blocks.map((block) => (
         <section key={block.id} className="w-full">
           <BlockFrame block={block} onComplete={handleBlockComplete} />

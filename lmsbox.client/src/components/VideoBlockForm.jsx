@@ -151,7 +151,7 @@ export default function VideoBlockForm({
         <p className="text-xs text-gray-500 mt-1">
           {pendingFile
             ? 'URL is set automatically after the file uploads.'
-            : 'Direct video file URL (MP4, WebM, etc.). Title and description are optional. Learners must watch to the end to complete this block.'}
+            : 'Supports Azure uploads, direct MP4/WebM URLs, and YouTube or Vimeo links. Title and description are optional.'}
         </p>
         {value.videoUrl && !pendingFile && (
           <p className="text-xs text-gray-500 mt-2 truncate" title={value.videoUrl}>

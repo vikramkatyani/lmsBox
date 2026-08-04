@@ -575,11 +575,11 @@ namespace lmsbox.infrastructure.Migrations
                     b.Property<bool>("RequireSequentialLessons")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("ShowLessonNavigation")
-                        .HasColumnType("bit");
-
                     b.Property<string>("ShortDescription")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("ShowLessonNavigation")
+                        .HasColumnType("bit");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -608,7 +608,8 @@ namespace lmsbox.infrastructure.Migrations
 
                     b.HasIndex("OrganisationId", "Title")
                         .IsUnique()
-                        .HasDatabaseName("UX_Course_OrganisationId_Title");
+                        .HasDatabaseName("UX_Course_OrganisationId_Title")
+                        .HasFilter("[IsDeleted] = 0");
 
                     b.ToTable("Courses", (string)null);
                 });

@@ -1,159 +1,11 @@
 <div class="lmsbox-interactive-block" data-block-id="{{BLOCK_ID}}" data-block-type="carousel" role="region" aria-roledescription="carousel" aria-label="Lesson carousel">
-  <style>
-    .lmsbox-interactive-block[data-block-type="carousel"] {
-      --lmsbox-primary: #1b365d;
-      --lmsbox-focus: #1b365d;
-      --lmsbox-text: #0f172a;
-      --lmsbox-muted: #334155;
-      --lmsbox-disabled: #64748b;
-      --lmsbox-track: #94a3b8;
-      --lmsbox-surface: #f8fafc;
-      box-sizing: border-box;
-      width: 100%;
-      margin: 0;
-      padding: 1.5rem 0 1.25rem;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      font-size: 1rem;
-      line-height: 1.5;
-      color: var(--lmsbox-text);
-      background: transparent;
-    }
-    .lmsbox-interactive-block[data-block-type="carousel"] *,
-    .lmsbox-interactive-block[data-block-type="carousel"] *::before,
-    .lmsbox-interactive-block[data-block-type="carousel"] *::after {
-      box-sizing: border-box;
-    }
-    .lmsbox-carousel {
-      display: flex;
-      flex-direction: column;
-      width: 100%;
-      min-height: 220px;
-      background: var(--lmsbox-surface);
-      border-radius: 0;
-    }
-    .lmsbox-carousel__stage {
-      flex: 1;
-      min-width: 0;
-      padding: 1rem 0.5rem;
-      text-align: center;
-    }
-    .lmsbox-carousel__footer {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 1rem;
-      padding: 0.5rem 0 0.75rem;
-    }
-    .lmsbox-carousel__nav {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 44px;
-      height: 44px;
-      margin: 0;
-      padding: 0;
-      border: 2px solid var(--lmsbox-primary);
-      border-radius: 50%;
-      background: transparent;
-      color: var(--lmsbox-primary);
-      cursor: pointer;
-      flex-shrink: 0;
-    }
-    .lmsbox-carousel__nav:hover:not(:disabled),
-    .lmsbox-carousel__nav:focus-visible {
-      outline: 3px solid var(--lmsbox-focus);
-      outline-offset: 2px;
-    }
-    .lmsbox-carousel__nav:disabled {
-      border-color: var(--lmsbox-disabled);
-      color: var(--lmsbox-disabled);
-      cursor: default;
-    }
-    .lmsbox-carousel__nav svg {
-      width: 18px;
-      height: 18px;
-      display: block;
-    }
-    .lmsbox-carousel__image-wrap {
-      margin: 0 auto 1.25rem;
-      max-width: 420px;
-    }
-    .lmsbox-carousel__image-wrap[hidden] {
-      display: none !important;
-    }
-    .lmsbox-carousel__image {
-      display: block;
-      width: 100%;
-      max-height: 240px;
-      object-fit: contain;
-      border-radius: 4px;
-    }
-    .lmsbox-carousel__title {
-      margin: 0 0 0.5rem;
-      font-size: 1.375rem;
-      font-weight: 700;
-      line-height: 1.35;
-      color: var(--lmsbox-text);
-    }
-    .lmsbox-carousel__body {
-      margin: 0 auto;
-      max-width: 36rem;
-      font-size: 1rem;
-      font-weight: 400;
-      line-height: 1.65;
-      color: var(--lmsbox-text);
-      white-space: pre-wrap;
-    }
-    .lmsbox-carousel__dots {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 0.4rem;
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      min-width: 0;
-    }
-    .lmsbox-carousel__dot {
-      width: 28px;
-      height: 3px;
-      padding: 0;
-      border: none;
-      border-radius: 1px;
-      background: var(--lmsbox-track);
-      cursor: pointer;
-    }
-    .lmsbox-carousel__dot[aria-current="true"] {
-      background: var(--lmsbox-primary);
-    }
-    .lmsbox-carousel__dot:focus-visible {
-      outline: 3px solid var(--lmsbox-focus);
-      outline-offset: 3px;
-    }
-    .lmsbox-carousel__sr {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
-    }
-    @media (max-width: 480px) {
-      .lmsbox-carousel__title { font-size: 1.25rem; }
-      .lmsbox-carousel__stage { padding: 0.75rem 0.25rem; }
-      .lmsbox-carousel__dot { width: 20px; }
-    }
-  </style>
 
   <div class="lmsbox-carousel">
     <div class="lmsbox-carousel__stage" aria-live="polite">
       <div class="lmsbox-carousel__image-wrap" data-carousel-image-wrap hidden>
         <img class="lmsbox-carousel__image" data-carousel-image alt="" />
       </div>
+      <p class="lmsbox-carousel__kicker" data-carousel-kicker></p>
       <h3 class="lmsbox-carousel__title" data-carousel-title></h3>
       <p class="lmsbox-carousel__body" data-carousel-body></p>
       <p class="lmsbox-carousel__sr" data-carousel-status aria-live="polite"></p>
@@ -196,6 +48,7 @@
     var index = 0;
     var viewed = {};
     var completed = false;
+    var kickerEl = root.querySelector('[data-carousel-kicker]');
     var titleEl = root.querySelector('[data-carousel-title]');
     var bodyEl = root.querySelector('[data-carousel-body]');
     var imageWrap = root.querySelector('[data-carousel-image-wrap]');
@@ -248,6 +101,7 @@
       var body = slide.body || '';
       var imageUrl = (slide.imageUrl || '').trim();
 
+      kickerEl.textContent = 'Slide ' + (index + 1) + ' of ' + slides.length;
       titleEl.textContent = title;
       bodyEl.textContent = body;
 

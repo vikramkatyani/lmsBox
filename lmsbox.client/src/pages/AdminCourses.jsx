@@ -145,8 +145,8 @@ export default function AdminCourses() {
       setDeleteDialog({ open: false, course: null });
     } catch (error) {
       console.error('Error deleting course:', error);
-      const message = error.response?.data?.message || 'Failed to delete course';
-      toast.error(message);
+      const { message, details } = error.response?.data || {};
+      toast.error([message || 'Failed to delete course', details].filter(Boolean).join(': '));
     }
   };
 
@@ -155,13 +155,16 @@ export default function AdminCourses() {
       return;
     }
 
+    const loadingToast = toast.loading('Duplicating course...');
     try {
-      const loadingToast = toast.loading('Duplicating course...');
-      await adminCourseService.duplicateCourse(course.id);
+      const copy = await adminCourseService.duplicateCourse(course.id);
       toast.dismiss(loadingToast);
-      toast.success(`Course "${course.title}" duplicated successfully!`);
+      toast.success(copy?.title
+        ? `Created "${copy.title}" as a draft.`
+        : `Course "${course.title}" duplicated successfully!`);
       loadCourses(); // Reload the list to show the new course
     } catch (error) {
+      toast.dismiss(loadingToast);
       console.error('Error duplicating course:', error);
       const message = error.response?.data?.message || 'Failed to duplicate course';
       toast.error(message);

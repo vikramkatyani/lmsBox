@@ -83,20 +83,21 @@ public class InteractiveLessonsController : ControllerBase
             .Where(p => p.UserId == userId && p.LessonId == lessonId)
             .ToDictionaryAsync(p => p.BlockId);
 
-        var blockDtos = blocks.OrderBy(b => b.Ordinal).Select(b =>
+        var blockDtos = new List<LearnerInteractiveBlockDto>();
+        foreach (var b in blocks.OrderBy(x => x.Ordinal))
         {
             blockProgress.TryGetValue(b.Id, out var progress);
-            return new LearnerInteractiveBlockDto
+            blockDtos.Add(new LearnerInteractiveBlockDto
             {
                 Id = b.Id,
                 Ordinal = b.Ordinal,
                 BlockType = b.BlockType,
                 Title = b.Title,
-                Html = _displayService.GetDisplayHtml(b),
+                Html = await _displayService.GetDisplayHtmlAsync(b),
                 IsComplete = progress?.IsComplete ?? false,
                 IsLocked = false
-            };
-        }).ToList();
+            });
+        }
 
         if (settings.LockNextBlockUntilComplete && !isAdminPreview)
         {

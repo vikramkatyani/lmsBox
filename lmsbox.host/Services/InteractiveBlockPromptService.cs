@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -38,6 +39,16 @@ You MUST follow these LMSBOX design and technical rules:
     {
         return new[]
         {
+            GetHeroSchema(),
+            GetCardsSchema(),
+            GetRevealSchema(),
+            GetFlipSchema(),
+            GetRememberSchema(),
+            GetWarningSchema(),
+            GetTimelineSchema(),
+            GetReflectionSchema(),
+            GetHotspotSchema(),
+            GetProcessSchema(),
             GetQuestionnaireSchema(),
             GetCarouselSchema(),
             GetAccordionSchema(),
@@ -50,6 +61,16 @@ You MUST follow these LMSBOX design and technical rules:
     {
         return blockType.ToLowerInvariant() switch
         {
+            "hero" => GetHeroSchema(),
+            "cards" => GetCardsSchema(),
+            "reveal" => GetRevealSchema(),
+            "flip" => GetFlipSchema(),
+            "remember" => GetRememberSchema(),
+            "warning" => GetWarningSchema(),
+            "timeline" => GetTimelineSchema(),
+            "reflection" => GetReflectionSchema(),
+            "hotspot" => GetHotspotSchema(),
+            "process" => GetProcessSchema(),
             "questionnaire" => GetQuestionnaireSchema(),
             "carousel" => GetCarouselSchema(),
             "accordion" => GetAccordionSchema(),
@@ -71,6 +92,36 @@ You MUST follow these LMSBOX design and technical rules:
 
         switch (blockType.ToLowerInvariant())
         {
+            case "hero":
+                ValidateHero(root);
+                break;
+            case "cards":
+                ValidateCards(root);
+                break;
+            case "reveal":
+                ValidateReveal(root);
+                break;
+            case "flip":
+                ValidateFlip(root);
+                break;
+            case "remember":
+                ValidateRemember(root);
+                break;
+            case "warning":
+                ValidateWarning(root);
+                break;
+            case "timeline":
+                ValidateTimeline(root);
+                break;
+            case "reflection":
+                ValidateReflection(root);
+                break;
+            case "hotspot":
+                ValidateHotspot(root);
+                break;
+            case "process":
+                ValidateProcess(root);
+                break;
             case "questionnaire":
                 ValidateQuestionnaire(root);
                 break;
@@ -104,11 +155,825 @@ You MUST follow these LMSBOX design and technical rules:
             "questionnaire" => BuildQuestionnairePrompt(blockTitle, formPayloadJson, mediaAssetsJson),
             "carousel" => BuildCarouselPrompt(blockTitle, formPayloadJson, mediaAssetsJson),
             "accordion" => BuildAccordionPrompt(blockTitle, formPayloadJson, mediaAssetsJson),
+            "hero" => throw new ArgumentException("Hero blocks use a fixed template and do not support AI HTML generation."),
+            "cards" => throw new ArgumentException("Information cards blocks use a fixed template and do not support AI HTML generation."),
+            "reveal" => throw new ArgumentException("Click reveal blocks use a fixed template and do not support AI HTML generation."),
+            "flip" => throw new ArgumentException("Flip card blocks use a fixed template and do not support AI HTML generation."),
+            "remember" => throw new ArgumentException("Remember blocks use a fixed template and do not support AI HTML generation."),
+            "warning" => throw new ArgumentException("Warning blocks use a fixed template and do not support AI HTML generation."),
+            "timeline" => throw new ArgumentException("Timeline blocks use a fixed template and do not support AI HTML generation."),
+            "reflection" => throw new ArgumentException("Reflection blocks use a fixed template and do not support AI HTML generation."),
+            "hotspot" => throw new ArgumentException("Hotspot blocks use a fixed template and do not support AI HTML generation."),
+            "process" => throw new ArgumentException("Process flow blocks use a fixed template and do not support AI HTML generation."),
             "text" => throw new ArgumentException("Text blocks use a fixed template and do not support AI HTML generation."),
             "video" => throw new ArgumentException("Video blocks use a fixed template and do not support AI HTML generation."),
             _ => throw new ArgumentException($"Unsupported block type: {blockType}")
         };
     }
+
+    private static InteractiveBlockTypeSchema GetHeroSchema()
+    {
+        return new InteractiveBlockTypeSchema
+        {
+            Type = "hero",
+            Label = "Hero",
+            Description = "Lesson introduction banner with kicker, title, intro, optional meta pills, and optional background image. Completes automatically when shown.",
+            Fields = new List<InteractiveBlockFormField>
+            {
+                new()
+                {
+                    Name = "kicker",
+                    Label = "Kicker",
+                    FieldType = "text",
+                    Required = false,
+                    HelpText = "Optional short label above the title (e.g. Module introduction)."
+                },
+                new()
+                {
+                    Name = "title",
+                    Label = "Title",
+                    FieldType = "text",
+                    Required = true,
+                    HelpText = "Main hero heading shown to learners."
+                },
+                new()
+                {
+                    Name = "intro",
+                    Label = "Intro",
+                    FieldType = "textarea",
+                    Required = false,
+                    HelpText = "Optional supporting sentence under the title."
+                },
+                new()
+                {
+                    Name = "metaPills",
+                    Label = "Meta pills",
+                    FieldType = "string-list",
+                    Required = false,
+                    HelpText = "Optional short labels shown under the intro (e.g. duration, format)."
+                },
+                new()
+                {
+                    Name = "backgroundImageUrl",
+                    Label = "Background image",
+                    FieldType = "image",
+                    Required = false,
+                    HelpText = "Optional background image URL, or upload an image when editing the block."
+                }
+            }
+        };
+    }
+
+    private static void ValidateHero(JsonObject root)
+    {
+        var kicker = root["kicker"]?.GetValue<string>();
+        if (!string.IsNullOrWhiteSpace(kicker) &&
+            kicker.Trim().Length > InteractiveLessonConstants.MaxHeroKickerLength)
+        {
+            throw new ArgumentException(
+                $"Kicker must be at most {InteractiveLessonConstants.MaxHeroKickerLength} characters.");
+        }
+
+        var title = root["title"]?.GetValue<string>();
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            throw new ArgumentException("Title is required.");
+        }
+
+        if (title.Trim().Length > InteractiveLessonConstants.MaxHeroTitleLength)
+        {
+            throw new ArgumentException(
+                $"Title must be at most {InteractiveLessonConstants.MaxHeroTitleLength} characters.");
+        }
+
+        var intro = root["intro"]?.GetValue<string>();
+        if (!string.IsNullOrWhiteSpace(intro) &&
+            intro.Trim().Length > InteractiveLessonConstants.MaxHeroIntroLength)
+        {
+            throw new ArgumentException(
+                $"Intro must be at most {InteractiveLessonConstants.MaxHeroIntroLength} characters.");
+        }
+
+        if (root["metaPills"] is JsonArray pills)
+        {
+            var nonEmptyCount = 0;
+            for (var i = 0; i < pills.Count; i++)
+            {
+                var pill = pills[i]?.GetValue<string>()?.Trim();
+                if (string.IsNullOrWhiteSpace(pill))
+                {
+                    continue;
+                }
+
+                nonEmptyCount++;
+                if (pill.Length > InteractiveLessonConstants.MaxHeroMetaPillLength)
+                {
+                    throw new ArgumentException(
+                        $"Meta pill {i + 1} must be at most {InteractiveLessonConstants.MaxHeroMetaPillLength} characters.");
+                }
+            }
+
+            if (nonEmptyCount > InteractiveLessonConstants.MaxHeroMetaPills)
+            {
+                throw new ArgumentException(
+                    $"A hero can have at most {InteractiveLessonConstants.MaxHeroMetaPills} meta pills.");
+            }
+        }
+
+        var imageUrl = root["backgroundImageUrl"]?.GetValue<string>()?.Trim();
+        if (!string.IsNullOrWhiteSpace(imageUrl))
+        {
+            if (imageUrl.Length > InteractiveLessonConstants.MaxHeroBackgroundImageUrlLength)
+            {
+                throw new ArgumentException(
+                    $"Background image URL must be at most {InteractiveLessonConstants.MaxHeroBackgroundImageUrlLength} characters.");
+            }
+
+            if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            {
+                throw new ArgumentException("Background image URL must be a valid http or https URL.");
+            }
+        }
+    }
+
+    private static InteractiveBlockTypeSchema GetCardsSchema()
+    {
+        return new InteractiveBlockTypeSchema
+        {
+            Type = "cards",
+            Label = "Information cards",
+            Description = "A grid of information cards with label, title, and body. Completes automatically when shown.",
+            Fields = new List<InteractiveBlockFormField>
+            {
+                new()
+                {
+                    Name = "cards",
+                    Label = "Cards",
+                    FieldType = "card-list",
+                    Required = true,
+                    HelpText = "Add cards with an optional label, title, body, and style variant (default, accent, or warn)."
+                }
+            }
+        };
+    }
+
+    private static void ValidateCards(JsonObject root)
+    {
+        if (root["cards"] is not JsonArray cards || cards.Count == 0)
+        {
+            throw new ArgumentException("At least one card is required.");
+        }
+
+        if (cards.Count > InteractiveLessonConstants.MaxCardsPerBlock)
+        {
+            throw new ArgumentException(
+                $"An information cards block can have at most {InteractiveLessonConstants.MaxCardsPerBlock} cards.");
+        }
+
+        for (var i = 0; i < cards.Count; i++)
+        {
+            var card = cards[i] as JsonObject;
+            var label = card?["label"]?.GetValue<string>();
+            if (!string.IsNullOrWhiteSpace(label) &&
+                label.Trim().Length > InteractiveLessonConstants.MaxCardLabelLength)
+            {
+                throw new ArgumentException(
+                    $"Card {i + 1} label must be at most {InteractiveLessonConstants.MaxCardLabelLength} characters.");
+            }
+
+            var title = card?["title"]?.GetValue<string>();
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                throw new ArgumentException($"Card {i + 1} title is required.");
+            }
+
+            if (title.Trim().Length > InteractiveLessonConstants.MaxCardTitleLength)
+            {
+                throw new ArgumentException(
+                    $"Card {i + 1} title must be at most {InteractiveLessonConstants.MaxCardTitleLength} characters.");
+            }
+
+            var body = card?["body"]?.GetValue<string>();
+            if (string.IsNullOrWhiteSpace(body))
+            {
+                throw new ArgumentException($"Card {i + 1} body is required.");
+            }
+
+            if (body.Trim().Length > InteractiveLessonConstants.MaxCardBodyLength)
+            {
+                throw new ArgumentException(
+                    $"Card {i + 1} body must be at most {InteractiveLessonConstants.MaxCardBodyLength} characters.");
+            }
+
+            var variant = card?["variant"]?.GetValue<string>()?.Trim().ToLowerInvariant() ?? "default";
+            if (variant is not ("default" or "accent" or "warn"))
+            {
+                throw new ArgumentException($"Card {i + 1} has an invalid style variant.");
+            }
+        }
+    }
+
+    private static InteractiveBlockTypeSchema GetRevealSchema()
+    {
+        return new InteractiveBlockTypeSchema
+        {
+            Type = "reveal",
+            Label = "Click reveal",
+            Description = "Hidden content learners open one panel at a time. Completes after every panel has been revealed.",
+            Fields = new List<InteractiveBlockFormField>
+            {
+                new()
+                {
+                    Name = "items",
+                    Label = "Reveal panels",
+                    FieldType = "reveal-item-list",
+                    Required = true,
+                    HelpText = "Add panels with a title, hidden body, optional prompt label, and style variant (default or warn)."
+                },
+                new()
+                {
+                    Name = "hint",
+                    Label = "Hint",
+                    FieldType = "text",
+                    Required = false,
+                    HelpText = "Optional nudge shown under the panels (e.g. Select the card to reveal the answer)."
+                }
+            }
+        };
+    }
+
+    private static void ValidateReveal(JsonObject root)
+    {
+        if (root["items"] is not JsonArray items || items.Count == 0)
+        {
+            throw new ArgumentException("At least one reveal panel is required.");
+        }
+
+        if (items.Count > InteractiveLessonConstants.MaxRevealItems)
+        {
+            throw new ArgumentException(
+                $"A click reveal block can have at most {InteractiveLessonConstants.MaxRevealItems} panels.");
+        }
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            var item = items[i] as JsonObject;
+
+            RequireText(
+                item?["title"],
+                $"Reveal panel {i + 1} title",
+                InteractiveLessonConstants.MaxRevealTitleLength);
+
+            RequireText(
+                item?["body"],
+                $"Reveal panel {i + 1} body",
+                InteractiveLessonConstants.MaxRevealBodyLength);
+
+            LimitOptionalText(
+                item?["label"],
+                $"Reveal panel {i + 1} label",
+                InteractiveLessonConstants.MaxRevealLabelLength);
+
+            var variant = item?["variant"]?.GetValue<string>()?.Trim().ToLowerInvariant() ?? "default";
+            if (variant is not ("default" or "warn"))
+            {
+                throw new ArgumentException($"Reveal panel {i + 1} has an invalid style variant.");
+            }
+        }
+
+        LimitOptionalText(root["hint"], "Hint", InteractiveLessonConstants.MaxRevealHintLength);
+    }
+
+    private static InteractiveBlockTypeSchema GetFlipSchema()
+    {
+        return new InteractiveBlockTypeSchema
+        {
+            Type = "flip",
+            Label = "Flip cards",
+            Description = "Two-sided cards learners flip to see the answer. Completes after every card has been flipped.",
+            Fields = new List<InteractiveBlockFormField>
+            {
+                new()
+                {
+                    Name = "cards",
+                    Label = "Flip cards",
+                    FieldType = "flip-card-list",
+                    Required = true,
+                    HelpText = "Add cards with a front title and back body, plus optional hint labels for each side."
+                }
+            }
+        };
+    }
+
+    private static void ValidateFlip(JsonObject root)
+    {
+        if (root["cards"] is not JsonArray cards || cards.Count == 0)
+        {
+            throw new ArgumentException("At least one flip card is required.");
+        }
+
+        if (cards.Count > InteractiveLessonConstants.MaxFlipCards)
+        {
+            throw new ArgumentException(
+                $"A flip cards block can have at most {InteractiveLessonConstants.MaxFlipCards} cards.");
+        }
+
+        for (var i = 0; i < cards.Count; i++)
+        {
+            var card = cards[i] as JsonObject;
+
+            RequireText(
+                card?["frontTitle"],
+                $"Flip card {i + 1} front title",
+                InteractiveLessonConstants.MaxFlipFrontTitleLength);
+
+            RequireText(
+                card?["backBody"],
+                $"Flip card {i + 1} back body",
+                InteractiveLessonConstants.MaxFlipBackBodyLength);
+
+            LimitOptionalText(
+                card?["frontHint"],
+                $"Flip card {i + 1} front hint",
+                InteractiveLessonConstants.MaxFlipHintLength);
+
+            LimitOptionalText(
+                card?["backHint"],
+                $"Flip card {i + 1} back hint",
+                InteractiveLessonConstants.MaxFlipHintLength);
+        }
+    }
+
+    private static InteractiveBlockTypeSchema GetRememberSchema()
+    {
+        return new InteractiveBlockTypeSchema
+        {
+            Type = "remember",
+            Label = "Remember box",
+            Description = "A highlighted takeaway learners should carry forward. Completes automatically when shown.",
+            Fields = new List<InteractiveBlockFormField>
+            {
+                new()
+                {
+                    Name = "label",
+                    Label = "Label",
+                    FieldType = "text",
+                    Required = false,
+                    DefaultValue = "Remember",
+                    HelpText = "Optional label above the message. Defaults to Remember."
+                },
+                new()
+                {
+                    Name = "body",
+                    Label = "Message",
+                    FieldType = "textarea",
+                    Required = true,
+                    HelpText = "The key point learners should remember."
+                }
+            }
+        };
+    }
+
+    private static void ValidateRemember(JsonObject root)
+    {
+        LimitOptionalText(root["label"], "Label", InteractiveLessonConstants.MaxRememberLabelLength);
+        RequireText(root["body"], "Message", InteractiveLessonConstants.MaxRememberBodyLength);
+    }
+
+    private static InteractiveBlockTypeSchema GetWarningSchema()
+    {
+        return new InteractiveBlockTypeSchema
+        {
+            Type = "warning",
+            Label = "Warning box",
+            Description = "A cautionary callout for limits, exclusions, or common mistakes. Completes automatically when shown.",
+            Fields = new List<InteractiveBlockFormField>
+            {
+                new()
+                {
+                    Name = "label",
+                    Label = "Label",
+                    FieldType = "text",
+                    Required = false,
+                    DefaultValue = "Warning",
+                    HelpText = "Optional label above the message. Defaults to Warning."
+                },
+                new()
+                {
+                    Name = "body",
+                    Label = "Message",
+                    FieldType = "textarea",
+                    Required = true,
+                    HelpText = "The caution learners need to be aware of."
+                }
+            }
+        };
+    }
+
+    private static void ValidateWarning(JsonObject root)
+    {
+        LimitOptionalText(root["label"], "Label", InteractiveLessonConstants.MaxWarningLabelLength);
+        RequireText(root["body"], "Message", InteractiveLessonConstants.MaxWarningBodyLength);
+    }
+
+    private static InteractiveBlockTypeSchema GetTimelineSchema()
+    {
+        return new InteractiveBlockTypeSchema
+        {
+            Type = "timeline",
+            Label = "Timeline",
+            Description = "Numbered stages learners expand in sequence. Completes after every stage has been expanded.",
+            Fields = new List<InteractiveBlockFormField>
+            {
+                new()
+                {
+                    Name = "stages",
+                    Label = "Stages",
+                    FieldType = "timeline-stage-list",
+                    Required = true,
+                    HelpText = "Add stages with a title and body. Stages are numbered automatically."
+                },
+                new()
+                {
+                    Name = "hint",
+                    Label = "Hint",
+                    FieldType = "text",
+                    Required = false,
+                    DefaultValue = "Select a stage to expand it",
+                    HelpText = "Optional nudge shown above the timeline."
+                }
+            }
+        };
+    }
+
+    private static void ValidateTimeline(JsonObject root)
+    {
+        if (root["stages"] is not JsonArray stages || stages.Count == 0)
+        {
+            throw new ArgumentException("At least one stage is required.");
+        }
+
+        if (stages.Count > InteractiveLessonConstants.MaxTimelineStages)
+        {
+            throw new ArgumentException(
+                $"A timeline can have at most {InteractiveLessonConstants.MaxTimelineStages} stages.");
+        }
+
+        for (var i = 0; i < stages.Count; i++)
+        {
+            var stage = stages[i] as JsonObject;
+
+            RequireText(
+                stage?["title"],
+                $"Stage {i + 1} title",
+                InteractiveLessonConstants.MaxTimelineTitleLength);
+
+            RequireText(
+                stage?["body"],
+                $"Stage {i + 1} body",
+                InteractiveLessonConstants.MaxTimelineBodyLength);
+        }
+
+        LimitOptionalText(root["hint"], "Hint", InteractiveLessonConstants.MaxTimelineHintLength);
+    }
+
+    private static InteractiveBlockTypeSchema GetReflectionSchema()
+    {
+        return new InteractiveBlockTypeSchema
+        {
+            Type = "reflection",
+            Label = "Reflection panel",
+            Description = "An open prompt learners answer in their own words. Completes when they save a non-empty reflection.",
+            Fields = new List<InteractiveBlockFormField>
+            {
+                new()
+                {
+                    Name = "label",
+                    Label = "Label",
+                    FieldType = "text",
+                    Required = false,
+                    DefaultValue = "Your reflection",
+                    HelpText = "Optional label above the question. Defaults to Your reflection."
+                },
+                new()
+                {
+                    Name = "title",
+                    Label = "Question",
+                    FieldType = "text",
+                    Required = true,
+                    HelpText = "The reflection question learners answer."
+                },
+                new()
+                {
+                    Name = "prompt",
+                    Label = "Prompt",
+                    FieldType = "textarea",
+                    Required = false,
+                    HelpText = "Optional supporting sentence (e.g. There is no right answer here)."
+                },
+                new()
+                {
+                    Name = "placeholder",
+                    Label = "Placeholder",
+                    FieldType = "text",
+                    Required = false,
+                    DefaultValue = "Write a few sentences…",
+                    HelpText = "Optional placeholder text shown inside the empty answer box."
+                }
+            }
+        };
+    }
+
+    private static void ValidateReflection(JsonObject root)
+    {
+        LimitOptionalText(root["label"], "Label", InteractiveLessonConstants.MaxReflectionLabelLength);
+        RequireText(root["title"], "Question", InteractiveLessonConstants.MaxReflectionTitleLength);
+        LimitOptionalText(root["prompt"], "Prompt", InteractiveLessonConstants.MaxReflectionPromptLength);
+        LimitOptionalText(
+            root["placeholder"],
+            "Placeholder",
+            InteractiveLessonConstants.MaxReflectionPlaceholderLength);
+    }
+
+    private static InteractiveBlockTypeSchema GetHotspotSchema()
+    {
+        return new InteractiveBlockTypeSchema
+        {
+            Type = "hotspot",
+            Label = "Hotspot diagram",
+            Description = "An image with numbered pins learners open to read detail. Completes after every pin has been opened.",
+            Fields = new List<InteractiveBlockFormField>
+            {
+                new()
+                {
+                    Name = "imageUrl",
+                    Label = "Diagram image",
+                    FieldType = "image",
+                    Required = true,
+                    HelpText = "The background image, or upload an image when editing the block."
+                },
+                new()
+                {
+                    Name = "imageAlt",
+                    Label = "Image description",
+                    FieldType = "text",
+                    Required = false,
+                    HelpText = "Alternative text describing the diagram for screen readers."
+                },
+                new()
+                {
+                    Name = "pins",
+                    Label = "Pins",
+                    FieldType = "hotspot-pin-list",
+                    Required = true,
+                    HelpText = "Add pins with a title, body, and position as a percentage from the top and left of the image."
+                }
+            }
+        };
+    }
+
+    private static void ValidateHotspot(JsonObject root)
+    {
+        var imageUrl = root["imageUrl"]?.GetValue<string>()?.Trim();
+        if (string.IsNullOrWhiteSpace(imageUrl))
+        {
+            throw new ArgumentException("Diagram image is required.");
+        }
+
+        if (imageUrl.Length > InteractiveLessonConstants.MaxHotspotImageUrlLength)
+        {
+            throw new ArgumentException(
+                $"Diagram image URL must be at most {InteractiveLessonConstants.MaxHotspotImageUrlLength} characters.");
+        }
+
+        if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            throw new ArgumentException("Diagram image URL must be a valid http or https URL.");
+        }
+
+        LimitOptionalText(
+            root["imageAlt"],
+            "Image description",
+            InteractiveLessonConstants.MaxHotspotImageAltLength);
+
+        if (root["pins"] is not JsonArray pins || pins.Count == 0)
+        {
+            throw new ArgumentException("At least one pin is required.");
+        }
+
+        if (pins.Count > InteractiveLessonConstants.MaxHotspotPins)
+        {
+            throw new ArgumentException(
+                $"A hotspot diagram can have at most {InteractiveLessonConstants.MaxHotspotPins} pins.");
+        }
+
+        for (var i = 0; i < pins.Count; i++)
+        {
+            var pin = pins[i] as JsonObject;
+
+            RequireText(
+                pin?["title"],
+                $"Pin {i + 1} title",
+                InteractiveLessonConstants.MaxHotspotPinTitleLength);
+
+            RequireText(
+                pin?["body"],
+                $"Pin {i + 1} body",
+                InteractiveLessonConstants.MaxHotspotPinBodyLength);
+
+            if (!TryReadPercent(pin?["topPercent"], out _))
+            {
+                throw new ArgumentException($"Pin {i + 1} top position must be a number between 0 and 100.");
+            }
+
+            if (!TryReadPercent(pin?["leftPercent"], out _))
+            {
+                throw new ArgumentException($"Pin {i + 1} left position must be a number between 0 and 100.");
+            }
+        }
+    }
+
+    private static InteractiveBlockTypeSchema GetProcessSchema()
+    {
+        return new InteractiveBlockTypeSchema
+        {
+            Type = "process",
+            Label = "Process flow",
+            Description = "A staged sequence learners step through one reveal at a time. Completes after the final step.",
+            Fields = new List<InteractiveBlockFormField>
+            {
+                new()
+                {
+                    Name = "steps",
+                    Label = "Steps",
+                    FieldType = "process-step-list",
+                    Required = true,
+                    HelpText = "Add steps with a title and body. Steps are revealed one at a time."
+                },
+                new()
+                {
+                    Name = "nodes",
+                    Label = "Stage labels",
+                    FieldType = "process-node-list",
+                    Required = false,
+                    HelpText = "Optional short labels for the diagram above the steps. Add one per step, or leave empty to derive them from the step titles."
+                },
+                new()
+                {
+                    Name = "startButtonLabel",
+                    Label = "Start button label",
+                    FieldType = "text",
+                    Required = false,
+                    DefaultValue = "Start the sequence",
+                    HelpText = "Optional label for the button that reveals the first step."
+                },
+                new()
+                {
+                    Name = "finishMessage",
+                    Label = "Finish message",
+                    FieldType = "textarea",
+                    Required = false,
+                    HelpText = "Optional takeaway shown once the learner has finished every step."
+                }
+            }
+        };
+    }
+
+    private static void ValidateProcess(JsonObject root)
+    {
+        if (root["steps"] is not JsonArray steps || steps.Count == 0)
+        {
+            throw new ArgumentException("At least one step is required.");
+        }
+
+        if (steps.Count > InteractiveLessonConstants.MaxProcessSteps)
+        {
+            throw new ArgumentException(
+                $"A process flow can have at most {InteractiveLessonConstants.MaxProcessSteps} steps.");
+        }
+
+        for (var i = 0; i < steps.Count; i++)
+        {
+            var step = steps[i] as JsonObject;
+
+            RequireText(
+                step?["title"],
+                $"Step {i + 1} title",
+                InteractiveLessonConstants.MaxProcessStepTitleLength);
+
+            RequireText(
+                step?["body"],
+                $"Step {i + 1} body",
+                InteractiveLessonConstants.MaxProcessStepBodyLength);
+        }
+
+        if (root["nodes"] is JsonArray nodes)
+        {
+            var labels = new List<string>();
+            for (var i = 0; i < nodes.Count; i++)
+            {
+                var label = ReadNodeLabel(nodes[i]);
+                if (string.IsNullOrWhiteSpace(label))
+                {
+                    continue;
+                }
+
+                if (label.Length > InteractiveLessonConstants.MaxProcessNodeLabelLength)
+                {
+                    throw new ArgumentException(
+                        $"Stage label {i + 1} must be at most {InteractiveLessonConstants.MaxProcessNodeLabelLength} characters.");
+                }
+
+                labels.Add(label);
+            }
+
+            if (labels.Count > 0 && labels.Count != steps.Count)
+            {
+                throw new ArgumentException(
+                    "Add one stage label per step, or leave the stage labels empty to derive them from the step titles.");
+            }
+
+            if (labels.Count > InteractiveLessonConstants.MaxProcessNodes)
+            {
+                throw new ArgumentException(
+                    $"A process flow can have at most {InteractiveLessonConstants.MaxProcessNodes} stage labels.");
+            }
+        }
+
+        LimitOptionalText(
+            root["startButtonLabel"],
+            "Start button label",
+            InteractiveLessonConstants.MaxProcessButtonLabelLength);
+
+        LimitOptionalText(
+            root["finishMessage"],
+            "Finish message",
+            InteractiveLessonConstants.MaxProcessFinishMessageLength);
+    }
+
+    /// <summary>Stage labels accept either a plain string or an object with a "label" property.</summary>
+    internal static string ReadNodeLabel(JsonNode? node)
+    {
+        return node is JsonObject obj ? ReadText(obj["label"]) : ReadText(node);
+    }
+
+    internal static bool TryReadPercent(JsonNode? node, out double percent)
+    {
+        percent = 0;
+
+        if (node is not JsonValue value)
+        {
+            return false;
+        }
+
+        if (value.TryGetValue<double>(out var number))
+        {
+            percent = number;
+        }
+        else if (value.TryGetValue<string>(out var text)
+                 && double.TryParse(
+                     text.Trim().TrimEnd('%'),
+                     NumberStyles.Float,
+                     CultureInfo.InvariantCulture,
+                     out var parsed))
+        {
+            percent = parsed;
+        }
+        else
+        {
+            return false;
+        }
+
+        return !double.IsNaN(percent) && !double.IsInfinity(percent) && percent is >= 0 and <= 100;
+    }
+
+    private static void RequireText(JsonNode? node, string fieldLabel, int maxLength)
+    {
+        var value = ReadText(node);
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException($"{fieldLabel} is required.");
+        }
+
+        if (value.Length > maxLength)
+        {
+            throw new ArgumentException($"{fieldLabel} must be at most {maxLength} characters.");
+        }
+    }
+
+    private static void LimitOptionalText(JsonNode? node, string fieldLabel, int maxLength)
+    {
+        var value = ReadText(node);
+        if (value.Length > maxLength)
+        {
+            throw new ArgumentException($"{fieldLabel} must be at most {maxLength} characters.");
+        }
+    }
+
+    private static string ReadText(JsonNode? node)
+        => node is JsonValue value && value.TryGetValue<string>(out var text) ? text.Trim() : "";
 
     private static InteractiveBlockTypeSchema GetQuestionnaireSchema()
     {
@@ -116,7 +981,7 @@ You MUST follow these LMSBOX design and technical rules:
         {
             Type = "questionnaire",
             Label = "Questionnaire",
-            Description = "A set of questions learners must answer to complete the block.",
+            Description = "Knowledge-check questions in the LMSbox question style. Completes when every question is answered.",
             Fields = new List<InteractiveBlockFormField>
             {
                 new()
@@ -475,11 +1340,19 @@ Return ONLY the HTML fragment.
                 },
                 new()
                 {
-                    Name = "body",
+                    Name = "bodyHtml",
                     Label = "Text content",
-                    FieldType = "textarea",
+                    FieldType = "richtext",
                     Required = true,
-                    HelpText = "Main body text for learners."
+                    HelpText = "Formatted body content for learners. Supports headings, lists, and links."
+                },
+                new()
+                {
+                    Name = "body",
+                    Label = "Text content (plain)",
+                    FieldType = "textarea",
+                    Required = false,
+                    HelpText = "Plain text version of the body, kept in sync with the formatted content."
                 },
                 new()
                 {
@@ -512,16 +1385,47 @@ Return ONLY the HTML fragment.
                 $"Subheading must be at most {InteractiveLessonConstants.MaxTextSubheadingLength} characters.");
         }
 
+        var bodyHtml = root["bodyHtml"]?.GetValue<string>();
         var body = root["body"]?.GetValue<string>();
-        if (string.IsNullOrWhiteSpace(body))
+
+        // Blocks authored before the rich text editor only carry the plain text body.
+        if (string.IsNullOrWhiteSpace(bodyHtml))
+        {
+            if (string.IsNullOrWhiteSpace(body))
+            {
+                throw new ArgumentException("Text content is required.");
+            }
+
+            if (body.Trim().Length > InteractiveLessonConstants.MaxTextBodyLength)
+            {
+                throw new ArgumentException(
+                    $"Text content must be at most {InteractiveLessonConstants.MaxTextBodyLength} characters.");
+            }
+
+            return;
+        }
+
+        if (bodyHtml.Length > InteractiveLessonConstants.MaxTextBodyHtmlLength)
+        {
+            throw new ArgumentException("Text content is too long. Please shorten the formatted content.");
+        }
+
+        var characters = InteractiveRichTextSanitizer.CountCharacters(bodyHtml);
+        if (characters == 0)
         {
             throw new ArgumentException("Text content is required.");
         }
 
-        if (body.Trim().Length > InteractiveLessonConstants.MaxTextBodyLength)
+        if (characters > InteractiveLessonConstants.MaxTextBodyLength)
         {
             throw new ArgumentException(
                 $"Text content must be at most {InteractiveLessonConstants.MaxTextBodyLength} characters.");
+        }
+
+        if (InteractiveRichTextSanitizer.TryFindUnsupportedLink(bodyHtml, out var href))
+        {
+            throw new ArgumentException(
+                $"Link \"{href}\" is not supported. Links must be a full http, https, or mailto address.");
         }
     }
 
@@ -548,7 +1452,7 @@ Return ONLY the HTML fragment.
                     Label = "Video URL",
                     FieldType = "text",
                     Required = true,
-                    HelpText = "Direct video file URL, or choose a video file to upload when saving the block."
+                    HelpText = "Direct MP4/WebM URL, YouTube/Vimeo link, or upload a video file when saving the block."
                 },
                 new()
                 {

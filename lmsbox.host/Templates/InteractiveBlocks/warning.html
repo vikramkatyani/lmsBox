@@ -1,0 +1,38 @@
+<div class="lmsbox-interactive-block" data-block-id="{{BLOCK_ID}}" data-block-type="warning" role="region" aria-label="Warning">
+
+  <aside class="lms-warning">
+    <span class="lms-warning__icon" aria-hidden="true">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg>
+    </span>
+    <div>
+      <div class="lms-warning__label">{{LABEL}}</div>
+      {{BODY_HTML}}
+    </div>
+  </aside>
+
+  <script>
+  (function () {
+    var root = document.querySelector('.lmsbox-interactive-block[data-block-type="warning"][data-block-id="{{BLOCK_ID}}"]');
+    if (!root || root.getAttribute('data-warning-ready') === '1') return;
+    root.setAttribute('data-warning-ready', '1');
+
+    var blockId = root.getAttribute('data-block-id');
+    var completed = false;
+
+    function notifyComplete() {
+      if (completed) return;
+      completed = true;
+      var payload = { type: 'interactive-block-complete', blockId: Number(blockId) };
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, '*');
+      }
+      if (window.lmsboxInteractive && typeof window.lmsboxInteractive.notifyComplete === 'function') {
+        window.lmsboxInteractive.notifyComplete(Number(blockId));
+      }
+    }
+
+    // Auto-complete on view — no learner action required.
+    notifyComplete();
+  })();
+  </script>
+</div>

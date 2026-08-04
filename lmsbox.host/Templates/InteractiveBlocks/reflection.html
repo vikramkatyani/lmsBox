@@ -1,0 +1,98 @@
+<div class="lmsbox-interactive-block" data-block-id="{{BLOCK_ID}}" data-block-type="reflection" role="region" aria-label="Reflection">
+
+  <section class="lms-reflection" data-reflection>
+    <div class="lms-reflection__label">{{LABEL}}</div>
+    <h2 class="lms-reflection__title">{{TITLE}}</h2>
+    {{PROMPT_HTML}}
+    <label class="lms-sr" for="lmsbox-reflection-input-{{BLOCK_ID}}">{{LABEL}}</label>
+    <textarea
+      id="lmsbox-reflection-input-{{BLOCK_ID}}"
+      class="lms-reflection__input"
+      data-reflection-input
+      placeholder="{{PLACEHOLDER}}"
+    ></textarea>
+    <div class="lms-reflection__footer">
+      <span class="lms-reflection__count" data-reflection-count>0 words</span>
+      <span class="lms-reflection__saved" data-reflection-status role="status" aria-live="polite">Saved on this device</span>
+      <button type="button" class="lms-button lms-button--primary" data-reflection-save>Save</button>
+    </div>
+  </section>
+
+  <script>
+  (function () {
+    var root = document.querySelector('.lmsbox-interactive-block[data-block-type="reflection"][data-block-id="{{BLOCK_ID}}"]');
+    if (!root || root.getAttribute('data-reflection-ready') === '1') return;
+    root.setAttribute('data-reflection-ready', '1');
+
+    var blockId = root.getAttribute('data-block-id');
+    var input = root.querySelector('[data-reflection-input]');
+    var countEl = root.querySelector('[data-reflection-count]');
+    var statusEl = root.querySelector('[data-reflection-status]');
+    var saveBtn = root.querySelector('[data-reflection-save]');
+    if (!input) return;
+
+    var storageKey = 'lmsbox-reflection-' + blockId;
+    var completed = false;
+    var statusTimer;
+
+    function notifyComplete() {
+      if (completed) return;
+      completed = true;
+      var payload = { type: 'interactive-block-complete', blockId: Number(blockId) };
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, '*');
+      }
+      if (window.lmsboxInteractive && typeof window.lmsboxInteractive.notifyComplete === 'function') {
+        window.lmsboxInteractive.notifyComplete(Number(blockId));
+      }
+    }
+
+    function updateCount() {
+      if (!countEl) return;
+      var text = (input.value || '').trim();
+      var words = text ? text.split(/\s+/).length : 0;
+      countEl.textContent = words + (words === 1 ? ' word' : ' words');
+    }
+
+    function showStatus(message) {
+      if (!statusEl) return;
+      statusEl.textContent = message;
+      statusEl.classList.add('is-on');
+      clearTimeout(statusTimer);
+      statusTimer = setTimeout(function () {
+        statusEl.classList.remove('is-on');
+      }, 2400);
+    }
+
+    try {
+      var existing = window.localStorage ? window.localStorage.getItem(storageKey) : null;
+      if (existing != null) input.value = existing;
+    } catch (e) {
+      /* private mode or storage disabled */
+    }
+
+    input.addEventListener('input', updateCount);
+    updateCount();
+
+    if (saveBtn) {
+      saveBtn.addEventListener('click', function () {
+        var text = (input.value || '').trim();
+        if (!text) {
+          showStatus('Write a few words before saving');
+          input.focus();
+          return;
+        }
+
+        try {
+          if (window.localStorage) window.localStorage.setItem(storageKey, input.value);
+        } catch (e) {
+          /* quota exceeded or storage disabled — completion still applies */
+        }
+
+        showStatus('Saved on this device');
+        notifyComplete();
+      });
+    }
+  })();
+  </script>
+</div>

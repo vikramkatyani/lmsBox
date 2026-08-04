@@ -252,3 +252,219 @@
     .lesson-unlock-pulse-ring--delay {
         animation-delay: 1.4s;
     }
+
+    /* Rich text editor for the interactive lesson text block.
+       Mirrors Templates/InteractiveBlocks/text.html so authors see the learner result. */
+    .lmsbox-rte__content {
+        min-height: 12rem;
+        max-height: 28rem;
+        overflow-y: auto;
+        padding: 0.75rem 0.875rem;
+        outline: none;
+        color: #575756;
+        font-family: "Poppins", Arial, Helvetica, sans-serif;
+        font-size: 1.03125rem;
+        font-weight: 300;
+        letter-spacing: -0.02em;
+        line-height: 1.78;
+    }
+
+    .lmsbox-rte__content > :first-child {
+        margin-top: 0;
+    }
+
+    .lmsbox-rte__content > :last-child {
+        margin-bottom: 0;
+    }
+
+    .lmsbox-rte__content p {
+        margin: 0 0 1rem;
+        color: #575756;
+    }
+
+    .lmsbox-rte__content h2,
+    .lmsbox-rte__content h3,
+    .lmsbox-rte__content h4 {
+        margin: 1.5rem 0 0.5rem;
+        color: #002e62;
+        font-family: "Poppins", Arial, Helvetica, sans-serif;
+        font-weight: 500;
+        letter-spacing: -0.025em;
+        line-height: 1.3;
+    }
+
+    .lmsbox-rte__content h2 {
+        font-size: 1.375rem;
+    }
+
+    .lmsbox-rte__content h3 {
+        font-size: 1.1875rem;
+    }
+
+    .lmsbox-rte__content h4 {
+        font-size: 1.0625rem;
+    }
+
+    .lmsbox-rte__content ul,
+    .lmsbox-rte__content ol {
+        margin: 0 0 1rem;
+        padding-left: 1.375rem;
+        color: #575756;
+        line-height: 1.95;
+    }
+
+    .lmsbox-rte__content ul {
+        list-style: disc;
+    }
+
+    .lmsbox-rte__content ol {
+        list-style: decimal;
+    }
+
+    .lmsbox-rte__content li {
+        margin: 0 0 0.35rem;
+    }
+
+    .lmsbox-rte__content li > ul,
+    .lmsbox-rte__content li > ol {
+        margin: 0.35rem 0 0;
+    }
+
+    .lmsbox-rte__content li > p {
+        margin: 0;
+    }
+
+    .lmsbox-rte__content a {
+        color: #0059a3;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+
+    .lmsbox-rte__content blockquote {
+        margin: 1.25rem 0;
+        padding: 0.35rem 0 0.35rem 1.5rem;
+        border-left: 4px solid #e74011;
+        color: #002e62;
+        font-size: 1.125rem;
+        font-weight: 400;
+        line-height: 1.42;
+    }
+
+    .lmsbox-rte__content code {
+        padding: 0.1rem 0.35rem;
+        border-radius: 0.35rem;
+        background: #f7f8fa;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.9375rem;
+    }
+
+    .lmsbox-rte__content pre {
+        margin: 0 0 1rem;
+        padding: 0.85rem 1rem;
+        border-radius: 14px;
+        background: #f7f8fa;
+        overflow-x: auto;
+    }
+
+    .lmsbox-rte__content pre code {
+        padding: 0;
+        background: none;
+    }
+
+    .lmsbox-rte__content hr {
+        margin: 1.5rem 0;
+        border: 0;
+        border-top: 1px solid rgba(0, 46, 98, 0.08);
+    }
+
+    .lmsbox-rte__content hr.ProseMirror-selectednode {
+        border-top-color: #0059a3;
+        outline: 2px solid #0059a3;
+    }
+
+    .lmsbox-rte__content strong,
+    .lmsbox-rte__content b {
+        color: #002e62;
+        font-weight: 500;
+    }
+
+    /* Tables. The wrapper is added by the table extension's node view. */
+    .lmsbox-rte__content .tableWrapper {
+        margin: 0 0 1rem;
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    .lmsbox-rte__content table {
+        width: 100%;
+        table-layout: fixed;
+        border-collapse: collapse;
+        border-spacing: 0;
+    }
+
+    .lmsbox-rte__content caption {
+        padding: 0 0 0.5rem;
+        color: #575756;
+        font-size: 0.875rem;
+        text-align: left;
+    }
+
+    .lmsbox-rte__content th,
+    .lmsbox-rte__content td {
+        position: relative;
+        min-width: 5rem;
+        padding: 0.65rem 0.85rem;
+        border: 1px solid rgba(0, 46, 98, 0.08);
+        vertical-align: top;
+        text-align: left;
+        overflow-wrap: break-word;
+    }
+
+    .lmsbox-rte__content th {
+        background: #f7f8fa;
+        color: #002e62;
+        font-weight: 500;
+    }
+
+    .lmsbox-rte__content th > p,
+    .lmsbox-rte__content td > p {
+        margin: 0;
+    }
+
+    .lmsbox-rte__content th > p + p,
+    .lmsbox-rte__content td > p + p {
+        margin-top: 0.5rem;
+    }
+
+    /* Cell selection highlight and the drag target for column resizing. */
+    .lmsbox-rte__content .selectedCell::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        background: rgba(0, 89, 163, 0.12);
+        pointer-events: none;
+    }
+
+    .lmsbox-rte__content .column-resize-handle {
+        position: absolute;
+        top: 0;
+        right: -2px;
+        bottom: 0;
+        width: 4px;
+        z-index: 20;
+        background: #0059a3;
+        pointer-events: none;
+    }
+
+    .lmsbox-rte__content.resize-cursor {
+        cursor: col-resize;
+    }
+
+    .lmsbox-rte__content p.is-editor-empty:first-child::before {
+        content: attr(data-placeholder);
+        float: left;
+        height: 0;
+        color: #c4c2b2;
+        pointer-events: none;
+    }

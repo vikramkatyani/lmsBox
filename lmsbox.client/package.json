@@ -12,6 +12,13 @@
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@tailwindcss/vite": "^4.1.16",
+    "@tiptap/extension-table": "^3.29.2",
+    "@tiptap/extension-text-align": "^3.29.2",
+    "@tiptap/extension-text-style": "^3.29.2",
+    "@tiptap/extensions": "^3.29.2",
+    "@tiptap/pm": "^3.29.2",
+    "@tiptap/react": "^3.29.2",
+    "@tiptap/starter-kit": "^3.29.2",
     "axios": "^1.12.2",
     "axios-rate-limit": "^1.4.0",
     "chart.js": "^4.5.1",

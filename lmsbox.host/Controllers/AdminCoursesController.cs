@@ -7,6 +7,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using lmsbox.domain.Utils;
 using lmsBox.Server.Services;
+using Microsoft.Data.SqlClient;
 
 namespace lmsBox.Server.Controllers;
 
@@ -21,6 +22,9 @@ public class AdminCoursesController : ControllerBase
     private readonly IStorageQuotaService _storageQuotaService;
     private readonly IEngagementTrackingService _engagementService;
 
+    /// <summary>Matches the max length configured for Course.Title.</summary>
+    private const int MaxCourseTitleLength = 250;
+
     public AdminCoursesController(
         ApplicationDbContext context, 
         ILogger<AdminCoursesController> logger,
@@ -34,6 +38,43 @@ public class AdminCoursesController : ControllerBase
         _storageQuotaService = storageQuotaService;
         _engagementService = engagementService;
     }
+
+    /// <summary>
+    /// Builds the first unused "(Copy)", "(Copy 2)", "(Copy 3)"... title for an organisation.
+    /// Only live courses are considered, matching the filtered unique index on Courses.
+    /// </summary>
+    private async Task<string> BuildCopyTitleAsync(long organisationId, string originalTitle)
+    {
+        var takenTitles = await _context.Courses
+            .Where(c => c.OrganisationId == organisationId && !c.IsDeleted)
+            .Select(c => c.Title)
+            .ToListAsync();
+
+        var taken = new HashSet<string>(takenTitles, StringComparer.OrdinalIgnoreCase);
+
+        // Every candidate is distinct and the taken set is finite, so this always terminates.
+        for (var copyNumber = 1; ; copyNumber++)
+        {
+            var suffix = copyNumber == 1 ? " (Copy)" : $" (Copy {copyNumber})";
+            var maxBaseLength = MaxCourseTitleLength - suffix.Length;
+            var baseTitle = originalTitle.Length > maxBaseLength
+                ? originalTitle[..maxBaseLength].TrimEnd()
+                : originalTitle;
+
+            var candidate = baseTitle + suffix;
+            if (!taken.Contains(candidate))
+            {
+                return candidate;
+            }
+        }
+    }
+
+    /// <summary>
+    /// True when SQL Server rejected a write because the course title is already used in the organisation.
+    /// </summary>
+    private static bool IsDuplicateCourseTitle(Exception ex) =>
+        ex.GetBaseException() is SqlException { Number: 2601 or 2627 } sqlEx
+        && sqlEx.Message.Contains("UX_Course_OrganisationId_Title", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Get courses for admin management (org admin sees only their org's courses)
@@ -584,6 +625,11 @@ public class AdminCoursesController : ControllerBase
 
             return CreatedAtAction(nameof(GetCourse), new { courseId = course.Id }, courseDetail);
         }
+        catch (Exception ex) when (IsDuplicateCourseTitle(ex))
+        {
+            _logger.LogWarning(ex, "Duplicate title conflict while creating course");
+            return Conflict(new { message = "A course with this title already exists in your organization. Please use a different title." });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating course");
@@ -635,6 +681,21 @@ public class AdminCoursesController : ControllerBase
             if (string.IsNullOrWhiteSpace(request.Title))
             {
                 return BadRequest(new { message = "Title is required" });
+            }
+
+            var requestedTitle = request.Title.Trim();
+            if (!string.Equals(course.Title, requestedTitle, StringComparison.OrdinalIgnoreCase))
+            {
+                var titleTaken = await _context.Courses
+                    .AnyAsync(c => c.OrganisationId == course.OrganisationId
+                        && c.Id != courseId
+                        && !c.IsDeleted
+                        && c.Title.ToLower() == requestedTitle.ToLower());
+
+                if (titleTaken)
+                {
+                    return Conflict(new { message = $"A course with the title '{requestedTitle}' already exists in your organization. Please use a different title." });
+                }
             }
 
             // Auto-create category if it doesn't exist and is being changed
@@ -813,6 +874,11 @@ public class AdminCoursesController : ControllerBase
 
             return Ok(courseDetail);
         }
+        catch (Exception ex) when (IsDuplicateCourseTitle(ex))
+        {
+            _logger.LogWarning(ex, "Duplicate title conflict while updating course {CourseId}", courseId);
+            return Conflict(new { message = "A course with this title already exists in your organization. Please use a different title." });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating course {CourseId}", courseId);
@@ -978,7 +1044,7 @@ public class AdminCoursesController : ControllerBase
             var newCourse = new Course
             {
                 Id = ShortGuid.Generate(),
-                Title = $"{originalCourse.Title} (Copy)",
+                Title = await BuildCopyTitleAsync(originalCourse.OrganisationId, originalCourse.Title),
                 Description = originalCourse.Description,
                 ShortDescription = originalCourse.ShortDescription,
                 Category = originalCourse.Category,
@@ -1251,10 +1317,15 @@ public class AdminCoursesController : ControllerBase
 
             return Ok(result);
         }
+        catch (Exception ex) when (IsDuplicateCourseTitle(ex))
+        {
+            _logger.LogWarning(ex, "Duplicate title conflict while duplicating course {CourseId}", courseId);
+            return Conflict(new { message = "A course with this copy's title already exists in your organization. Please rename the existing copy and try again." });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error duplicating course {CourseId}", courseId);
-            return StatusCode(500, new { message = "An error occurred while duplicating the course", details = ex.Message });
+            return StatusCode(500, new { message = "An error occurred while duplicating the course", details = ex.GetBaseException().Message });
         }
     }
 
@@ -1310,75 +1381,146 @@ public class AdminCoursesController : ControllerBase
             course.DeletedAt = DateTime.UtcNow;
             course.DeletedByUserId = userId;
 
-            // Delete all related learner progress records
-            var progressRecords = await _context.LearnerProgresses
-                .Where(lp => lp.CourseId == courseId)
-                .ToListAsync();
-            _context.LearnerProgresses.RemoveRange(progressRecords);
+            var lessonIds = course.Lessons.Select(l => l.Id).ToList();
+            var quizIds = course.Quizzes.Select(q => q.Id)
+                .Concat(course.Lessons
+                    .Where(l => !string.IsNullOrEmpty(l.QuizId))
+                    .Select(l => l.QuizId!))
+                .Distinct()
+                .ToList();
+
+            var lessonCount = lessonIds.Count;
+            var quizCount = quizIds.Count;
+
+            // The course row itself survives (soft delete), but lessons/quizzes are removed for real,
+            // so every row pointing at them has to go first and in dependency order.
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
+            if (lessonIds.Count > 0)
+            {
+                var settingsIds = await _context.InteractiveLessonSettings
+                    .Where(s => lessonIds.Contains(s.LessonId))
+                    .Select(s => s.Id)
+                    .ToListAsync();
+
+                await _context.InteractiveBlockProgresses
+                    .Where(p => lessonIds.Contains(p.LessonId))
+                    .ExecuteDeleteAsync();
+
+                if (settingsIds.Count > 0)
+                {
+                    var blockIds = await _context.InteractiveBlocks
+                        .Where(b => settingsIds.Contains(b.InteractiveLessonSettingsId))
+                        .Select(b => b.Id)
+                        .ToListAsync();
+
+                    if (blockIds.Count > 0)
+                    {
+                        await _context.InteractiveBlockProgresses
+                            .Where(p => blockIds.Contains(p.BlockId))
+                            .ExecuteDeleteAsync();
+
+                        await _context.InteractiveBlocks
+                            .Where(b => blockIds.Contains(b.Id))
+                            .ExecuteDeleteAsync();
+                    }
+
+                    await _context.InteractiveLessonSettings
+                        .Where(s => settingsIds.Contains(s.Id))
+                        .ExecuteDeleteAsync();
+                }
+            }
+
+            if (quizIds.Count > 0)
+            {
+                var attemptIds = await _context.QuizAttempts
+                    .Where(a => quizIds.Contains(a.QuizId))
+                    .Select(a => a.Id)
+                    .ToListAsync();
+
+                if (attemptIds.Count > 0)
+                {
+                    await _context.QuizAttemptAnswers
+                        .Where(a => attemptIds.Contains(a.QuizAttemptId))
+                        .ExecuteDeleteAsync();
+
+                    await _context.QuizAttemptQuestions
+                        .Where(aq => attemptIds.Contains(aq.QuizAttemptId))
+                        .ExecuteDeleteAsync();
+
+                    await _context.QuizAttempts
+                        .Where(a => attemptIds.Contains(a.Id))
+                        .ExecuteDeleteAsync();
+                }
+
+                await _context.QuestionBankQuestionStatsQuiz
+                    .Where(s => quizIds.Contains(s.QuizId))
+                    .ExecuteDeleteAsync();
+            }
+
+            await _context.QuestionBankQuestionStatsCourse
+                .Where(s => s.CourseId == courseId)
+                .ExecuteDeleteAsync();
+
+            // Delete all related learner progress records (course-level and lesson-level)
+            var deletedProgressCount = await _context.LearnerProgresses
+                .Where(lp => lp.CourseId == courseId
+                    || (lp.LessonId != null && lessonIds.Contains(lp.LessonId.Value)))
+                .ExecuteDeleteAsync();
 
             // Delete all feedback related to this course
-            var feedbackRecords = await _context.Feedbacks
+            var deletedFeedbackCount = await _context.Feedbacks
                 .Where(f => f.CourseId == courseId)
-                .ToListAsync();
-            _context.Feedbacks.RemoveRange(feedbackRecords);
+                .ExecuteDeleteAsync();
 
             // Delete all pathway course mappings
-            var pathwayCourses = await _context.PathwayCourses
+            await _context.PathwayCourses
                 .Where(pc => pc.CourseId == courseId)
-                .ToListAsync();
-            _context.PathwayCourses.RemoveRange(pathwayCourses);
+                .ExecuteDeleteAsync();
 
             // Delete all group course mappings
-            if (course.GroupCourses.Any())
-            {
-                _context.GroupCourses.RemoveRange(course.GroupCourses);
-            }
+            await _context.GroupCourses
+                .Where(gc => gc.CourseId == courseId)
+                .ExecuteDeleteAsync();
 
             // Delete all course assignments
-            if (course.CourseAssignments.Any())
-            {
-                _context.CourseAssignments.RemoveRange(course.CourseAssignments);
-            }
+            await _context.CourseAssignments
+                .Where(ca => ca.CourseId == courseId)
+                .ExecuteDeleteAsync();
 
-            // Delete all quiz questions and options for lessons
-            foreach (var lesson in course.Lessons.Where(l => l.Quiz != null))
+            if (quizIds.Count > 0)
             {
-                if (lesson.Quiz?.Questions != null)
+                var questionIds = await _context.QuizQuestions
+                    .Where(q => quizIds.Contains(q.QuizId))
+                    .Select(q => q.Id)
+                    .ToListAsync();
+
+                if (questionIds.Count > 0)
                 {
-                    foreach (var question in lesson.Quiz.Questions)
-                    {
-                        if (question.Options != null)
-                        {
-                            _context.QuizQuestionOptions.RemoveRange(question.Options);
-                        }
-                    }
-                    _context.QuizQuestions.RemoveRange(lesson.Quiz.Questions);
-                }
-                if (lesson.Quiz != null)
-                {
-                    _context.Quizzes.Remove(lesson.Quiz);
+                    await _context.QuizQuestionOptions
+                        .Where(o => questionIds.Contains(o.QuizQuestionId))
+                        .ExecuteDeleteAsync();
+
+                    await _context.QuizQuestions
+                        .Where(q => questionIds.Contains(q.Id))
+                        .ExecuteDeleteAsync();
                 }
             }
 
-            // Delete all standalone quizzes (not linked to lessons)
-            foreach (var quiz in course.Quizzes.Where(q => !course.Lessons.Any(l => l.QuizId == q.Id)))
+            // Lessons point at quizzes, so they must go before the quizzes themselves
+            if (lessonIds.Count > 0)
             {
-                if (quiz.Questions != null)
-                {
-                    foreach (var question in quiz.Questions)
-                    {
-                        if (question.Options != null)
-                        {
-                            _context.QuizQuestionOptions.RemoveRange(question.Options);
-                        }
-                    }
-                    _context.QuizQuestions.RemoveRange(quiz.Questions);
-                }
-                _context.Quizzes.Remove(quiz);
+                await _context.Lessons
+                    .Where(l => lessonIds.Contains(l.Id))
+                    .ExecuteDeleteAsync();
             }
 
-            // Delete all lessons
-            _context.Lessons.RemoveRange(course.Lessons);
+            if (quizIds.Count > 0)
+            {
+                await _context.Quizzes
+                    .Where(q => quizIds.Contains(q.Id))
+                    .ExecuteDeleteAsync();
+            }
 
             // Create audit log
             var auditLog = new AuditLog
@@ -1386,11 +1528,14 @@ public class AdminCoursesController : ControllerBase
                 Action = $"Course Deleted: {course.Title} (ID: {courseId})",
                 PerformedBy = $"{user.FirstName} {user.LastName} ({user.Email})",
                 PerformedAt = DateTime.UtcNow,
-                Details = $"Course ID: {courseId}, Course Title: {course.Title}, Organization: {course.OrganisationId}, Deleted Lessons: {course.Lessons.Count}, Deleted Quizzes: {course.Quizzes.Count}, Deleted Progress Records: {progressRecords.Count}, Deleted Feedback: {feedbackRecords.Count}"
+                Details = $"Course ID: {courseId}, Course Title: {course.Title}, Organization: {course.OrganisationId}, Deleted Lessons: {lessonCount}, Deleted Quizzes: {quizCount}, Deleted Progress Records: {deletedProgressCount}, Deleted Feedback: {deletedFeedbackCount}"
             };
             _context.AuditLogs.Add(auditLog);
 
+            // The loaded lessons/quizzes stay tracked as Unchanged, so SaveChanges only writes
+            // the soft-delete flags on the course plus the audit log.
             await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             _logger.LogInformation("Course {CourseId} soft deleted by user {UserId} ({UserEmail})", courseId, userId, user.Email);
 
@@ -1403,7 +1548,7 @@ public class AdminCoursesController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting course {CourseId}", courseId);
-            return StatusCode(500, new { message = "An error occurred while deleting the course" });
+            return StatusCode(500, new { message = "An error occurred while deleting the course", details = ex.GetBaseException().Message });
         }
     }
 

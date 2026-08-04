@@ -9,7 +9,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="AngleSharp" Version="1.6.0" />
     <PackageReference Include="Azure.Storage.Blobs" Version="12.26.0" />
+    <PackageReference Include="HtmlSanitizer" Version="9.1.974" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="9.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.MicrosoftAccount" Version="9.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.10" />

@@ -1,0 +1,102 @@
+<div class="lmsbox-interactive-block" data-block-id="{{BLOCK_ID}}" data-block-type="hotspot" role="region" aria-label="Hotspot diagram">
+
+  <p class="lmsbox-accordion__progress" data-hotspot-progress aria-live="polite"></p>
+  <section class="lms-hotspot" data-hotspot>
+    <img class="lms-hotspot__image" src="{{IMAGE_URL}}" alt="{{IMAGE_ALT}}">
+    {{PINS_HTML}}
+    {{PANELS_HTML}}
+  </section>
+
+  <script>
+  (function () {
+    var root = document.querySelector('.lmsbox-interactive-block[data-block-type="hotspot"][data-block-id="{{BLOCK_ID}}"]');
+    if (!root || root.getAttribute('data-hotspot-ready') === '1') return;
+    root.setAttribute('data-hotspot-ready', '1');
+
+    var blockId = root.getAttribute('data-block-id');
+    var wrap = root.querySelector('[data-hotspot]');
+    var progressEl = root.querySelector('[data-hotspot-progress]');
+    if (!wrap) return;
+
+    var pins = Array.prototype.slice.call(wrap.querySelectorAll('.lms-hotspot__pin'));
+    var panels = Array.prototype.slice.call(wrap.querySelectorAll('.lms-hotspot__panel'));
+    if (pins.length === 0) return;
+
+    var opened = {};
+    var completed = false;
+
+    function notifyComplete() {
+      if (completed) return;
+      completed = true;
+      var payload = { type: 'interactive-block-complete', blockId: Number(blockId) };
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, '*');
+      }
+      if (window.lmsboxInteractive && typeof window.lmsboxInteractive.notifyComplete === 'function') {
+        window.lmsboxInteractive.notifyComplete(Number(blockId));
+      }
+    }
+
+    function updateProgress() {
+      var count = 0;
+      for (var i = 0; i < pins.length; i++) if (opened[i]) count++;
+      if (progressEl) progressEl.textContent = count + ' of ' + pins.length + ' pins opened';
+      if (count === pins.length) notifyComplete();
+    }
+
+    function closeAll() {
+      pins.forEach(function (pin) {
+        pin.setAttribute('aria-expanded', 'false');
+      });
+      panels.forEach(function (panel) {
+        panel.classList.remove('is-open');
+        panel.setAttribute('data-open', '0');
+        panel.hidden = true;
+      });
+    }
+
+    closeAll();
+
+    pins.forEach(function (pin, index) {
+      var panel = panels[index] || null;
+      var targetId = pin.getAttribute('aria-controls');
+      if (targetId) {
+        panel = document.getElementById(targetId) || panel;
+      }
+
+      pin.addEventListener('click', function (event) {
+        event.stopPropagation();
+        var open = pin.getAttribute('aria-expanded') === 'true';
+        closeAll();
+        if (open || !panel) return;
+
+        pin.setAttribute('aria-expanded', 'true');
+        panel.hidden = false;
+        panel.classList.add('is-open');
+        panel.setAttribute('data-open', '1');
+
+        // Anchor the panel near its pin while keeping it inside the image.
+        var top = parseFloat(pin.style.top);
+        var left = parseFloat(pin.style.left);
+        if (!isNaN(top) && !isNaN(left)) {
+          panel.style.top = Math.min(top + 4, 72) + '%';
+          panel.style.left = Math.min(Math.max(left, 8), 55) + '%';
+        }
+
+        opened[index] = true;
+        updateProgress();
+      });
+    });
+
+    document.addEventListener('click', function (event) {
+      if (!wrap.contains(event.target)) closeAll();
+    });
+
+    wrap.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') closeAll();
+    });
+
+    updateProgress();
+  })();
+  </script>
+</div>

@@ -1,0 +1,57 @@
+<div class="lmsbox-interactive-block" data-block-id="{{BLOCK_ID}}" data-block-type="flip" role="region" aria-label="Flip cards">
+
+  <p class="lmsbox-accordion__progress" data-flip-progress aria-live="polite"></p>
+  <div class="{{GRID_CLASS}}" data-flip-root>
+    {{CARDS_HTML}}
+  </div>
+
+  <script>
+  (function () {
+    var root = document.querySelector('.lmsbox-interactive-block[data-block-type="flip"][data-block-id="{{BLOCK_ID}}"]');
+    if (!root || root.getAttribute('data-flip-ready') === '1') return;
+    root.setAttribute('data-flip-ready', '1');
+
+    var blockId = root.getAttribute('data-block-id');
+    var cards = Array.prototype.slice.call(root.querySelectorAll('[data-flip-card]'));
+    var progressEl = root.querySelector('[data-flip-progress]');
+    if (cards.length === 0) return;
+
+    var flipped = {};
+    var completed = false;
+
+    function notifyComplete() {
+      if (completed) return;
+      completed = true;
+      var payload = { type: 'interactive-block-complete', blockId: Number(blockId) };
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, '*');
+      }
+      if (window.lmsboxInteractive && typeof window.lmsboxInteractive.notifyComplete === 'function') {
+        window.lmsboxInteractive.notifyComplete(Number(blockId));
+      }
+    }
+
+    function updateProgress() {
+      var count = 0;
+      for (var i = 0; i < cards.length; i++) if (flipped[i]) count++;
+      if (progressEl) progressEl.textContent = count + ' of ' + cards.length + ' flipped';
+      if (count === cards.length) notifyComplete();
+    }
+
+    cards.forEach(function (card, index) {
+      card.addEventListener('click', function () {
+        var on = !card.classList.contains('is-flipped');
+        card.classList.toggle('is-flipped', on);
+        card.setAttribute('aria-pressed', on ? 'true' : 'false');
+
+        if (on) {
+          flipped[index] = true;
+          updateProgress();
+        }
+      });
+    });
+
+    updateProgress();
+  })();
+  </script>
+</div>

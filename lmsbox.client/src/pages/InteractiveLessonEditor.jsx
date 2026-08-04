@@ -7,6 +7,16 @@ import CarouselBlockForm from '../components/CarouselBlockForm';
 import AccordionBlockForm from '../components/AccordionBlockForm';
 import TextBlockForm from '../components/TextBlockForm';
 import VideoBlockForm from '../components/VideoBlockForm';
+import HeroBlockForm from '../components/HeroBlockForm';
+import CardsBlockForm from '../components/CardsBlockForm';
+import RevealBlockForm from '../components/RevealBlockForm';
+import FlipBlockForm from '../components/FlipBlockForm';
+import RememberBlockForm from '../components/RememberBlockForm';
+import WarningBlockForm from '../components/WarningBlockForm';
+import TimelineBlockForm from '../components/TimelineBlockForm';
+import ReflectionBlockForm from '../components/ReflectionBlockForm';
+import HotspotBlockForm from '../components/HotspotBlockForm';
+import ProcessBlockForm from '../components/ProcessBlockForm';
 import InteractiveBlockPreview from '../components/InteractiveBlockPreview';
 import interactiveLessonsService from '../services/interactiveLessons';
 import usePageTitle from '../hooks/usePageTitle';
@@ -17,7 +27,23 @@ import {
   normalizeQuestionnaireFormData,
 } from '../components/questionnaireFormHelpers';
 
-const TEMPLATE_BLOCK_TYPES = new Set(['carousel', 'accordion', 'questionnaire', 'text', 'video']);
+const TEMPLATE_BLOCK_TYPES = new Set([
+  'hero',
+  'cards',
+  'reveal',
+  'flip',
+  'remember',
+  'warning',
+  'timeline',
+  'reflection',
+  'hotspot',
+  'process',
+  'carousel',
+  'accordion',
+  'questionnaire',
+  'text',
+  'video',
+]);
 
 function usesFixedTemplate(blockType) {
   return TEMPLATE_BLOCK_TYPES.has(blockType);
@@ -38,6 +64,7 @@ const EMPTY_ACCORDION = {
 const EMPTY_TEXT = {
   heading: '',
   subheading: '',
+  bodyHtml: '',
   body: '',
   showContinueButton: true,
 };
@@ -48,7 +75,93 @@ const EMPTY_VIDEO = {
   videoUrl: '',
 };
 
+const EMPTY_HERO = {
+  kicker: '',
+  title: '',
+  intro: '',
+  metaPills: [],
+  backgroundImageUrl: '',
+};
+
+const EMPTY_CARDS = {
+  cards: [],
+};
+
+const EMPTY_REVEAL = {
+  items: [],
+  hint: '',
+};
+
+const EMPTY_FLIP = {
+  cards: [],
+};
+
+const EMPTY_REMEMBER = {
+  label: 'Remember',
+  body: '',
+};
+
+const EMPTY_WARNING = {
+  label: 'Warning',
+  body: '',
+};
+
+const EMPTY_TIMELINE = {
+  stages: [],
+  hint: 'Select a stage to expand it',
+};
+
+const EMPTY_REFLECTION = {
+  label: 'Your reflection',
+  title: '',
+  prompt: '',
+  placeholder: '',
+};
+
+const EMPTY_HOTSPOT = {
+  imageUrl: '',
+  imageAlt: '',
+  pins: [],
+};
+
+const EMPTY_PROCESS = {
+  nodes: [],
+  steps: [],
+  finishMessage: '',
+  startButtonLabel: 'Start the sequence',
+};
+
 function getEmptyFormData(blockType) {
+  if (blockType === 'hero') {
+    return { ...EMPTY_HERO, metaPills: [] };
+  }
+  if (blockType === 'cards') {
+    return { ...EMPTY_CARDS, cards: [] };
+  }
+  if (blockType === 'reveal') {
+    return { ...EMPTY_REVEAL, items: [] };
+  }
+  if (blockType === 'flip') {
+    return { ...EMPTY_FLIP, cards: [] };
+  }
+  if (blockType === 'remember') {
+    return { ...EMPTY_REMEMBER };
+  }
+  if (blockType === 'warning') {
+    return { ...EMPTY_WARNING };
+  }
+  if (blockType === 'timeline') {
+    return { ...EMPTY_TIMELINE, stages: [] };
+  }
+  if (blockType === 'reflection') {
+    return { ...EMPTY_REFLECTION };
+  }
+  if (blockType === 'hotspot') {
+    return { ...EMPTY_HOTSPOT, pins: [] };
+  }
+  if (blockType === 'process') {
+    return { ...EMPTY_PROCESS, nodes: [], steps: [] };
+  }
   if (blockType === 'carousel') {
     return { ...EMPTY_CAROUSEL, slides: [] };
   }
@@ -62,6 +175,20 @@ function getEmptyFormData(blockType) {
     return { ...EMPTY_VIDEO };
   }
   return { ...EMPTY_QUESTIONNAIRE, questions: [...EMPTY_QUESTIONNAIRE.questions] };
+}
+
+/**
+ * The process template only accepts stage labels when there is exactly one per step,
+ * so partly filled labels are dropped and the diagram falls back to the step titles.
+ */
+function normalizeProcessNodes(formData) {
+  const steps = Array.isArray(formData.steps) ? formData.steps : [];
+  const labels = (Array.isArray(formData.nodes) ? formData.nodes : []).map((node) =>
+    (typeof node === 'string' ? node : node?.label || '').trim()
+  );
+
+  const isComplete = steps.length > 0 && labels.length === steps.length && labels.every(Boolean);
+  return isComplete ? labels.map((label) => ({ label })) : [];
 }
 
 function parseFormPayload(json, blockType = 'questionnaire') {
@@ -223,6 +350,15 @@ export default function InteractiveLessonEditor() {
     try {
       const shouldUploadVideo = blockForm.blockType === 'video' && !!pendingVideoFile;
       let formData = { ...blockForm.formData };
+      if (blockForm.blockType === 'hero' && Array.isArray(formData.metaPills)) {
+        formData = {
+          ...formData,
+          metaPills: formData.metaPills.map((p) => (p || '').trim()).filter(Boolean),
+        };
+      }
+      if (blockForm.blockType === 'process') {
+        formData = { ...formData, nodes: normalizeProcessNodes(formData) };
+      }
       let mediaAssetsJson = blockForm.mediaAssetsJson;
 
       // New block without a pending video: create once and done.
@@ -401,10 +537,20 @@ export default function InteractiveLessonEditor() {
     if (usesFixedTemplate(block.blockType)) {
       const formData = parseFormPayload(block.formPayloadJson, block.blockType);
       const hasContent =
+        (block.blockType === 'hero' && formData.title?.trim()) ||
+        (block.blockType === 'cards' && formData.cards?.length) ||
+        (block.blockType === 'reveal' && formData.items?.length) ||
+        (block.blockType === 'flip' && formData.cards?.length) ||
+        (block.blockType === 'remember' && formData.body?.trim()) ||
+        (block.blockType === 'warning' && formData.body?.trim()) ||
+        (block.blockType === 'timeline' && formData.stages?.length) ||
+        (block.blockType === 'reflection' && formData.title?.trim()) ||
+        (block.blockType === 'hotspot' && formData.imageUrl?.trim() && formData.pins?.length) ||
+        (block.blockType === 'process' && formData.steps?.length) ||
         (block.blockType === 'carousel' && formData.slides?.length) ||
         (block.blockType === 'accordion' && formData.panels?.length) ||
         (block.blockType === 'questionnaire' && formData.questions?.length) ||
-        (block.blockType === 'text' && formData.body?.trim()) ||
+        (block.blockType === 'text' && (formData.bodyHtml?.trim() || formData.body?.trim())) ||
         (block.blockType === 'video' && formData.videoUrl?.trim());
 
       if (!hasContent) {
@@ -674,6 +820,80 @@ export default function InteractiveLessonEditor() {
               </div>
             </div>
 
+            {blockForm.blockType === 'hero' && (
+              <HeroBlockForm
+                value={blockForm.formData}
+                onChange={(formData) => setBlockForm((p) => ({ ...p, formData }))}
+                lessonId={lessonId}
+                blockId={editingBlock?.id}
+              />
+            )}
+
+            {blockForm.blockType === 'cards' && (
+              <CardsBlockForm
+                value={blockForm.formData}
+                onChange={(formData) => setBlockForm((p) => ({ ...p, formData }))}
+              />
+            )}
+
+            {blockForm.blockType === 'reveal' && (
+              <RevealBlockForm
+                value={blockForm.formData}
+                onChange={(formData) => setBlockForm((p) => ({ ...p, formData }))}
+              />
+            )}
+
+            {blockForm.blockType === 'flip' && (
+              <FlipBlockForm
+                value={blockForm.formData}
+                onChange={(formData) => setBlockForm((p) => ({ ...p, formData }))}
+              />
+            )}
+
+            {blockForm.blockType === 'remember' && (
+              <RememberBlockForm
+                value={blockForm.formData}
+                onChange={(formData) => setBlockForm((p) => ({ ...p, formData }))}
+              />
+            )}
+
+            {blockForm.blockType === 'warning' && (
+              <WarningBlockForm
+                value={blockForm.formData}
+                onChange={(formData) => setBlockForm((p) => ({ ...p, formData }))}
+              />
+            )}
+
+            {blockForm.blockType === 'timeline' && (
+              <TimelineBlockForm
+                value={blockForm.formData}
+                onChange={(formData) => setBlockForm((p) => ({ ...p, formData }))}
+              />
+            )}
+
+            {blockForm.blockType === 'reflection' && (
+              <ReflectionBlockForm
+                value={blockForm.formData}
+                onChange={(formData) => setBlockForm((p) => ({ ...p, formData }))}
+              />
+            )}
+
+            {blockForm.blockType === 'hotspot' && (
+              <HotspotBlockForm
+                value={blockForm.formData}
+                onChange={(formData) => setBlockForm((p) => ({ ...p, formData }))}
+                lessonId={lessonId}
+                blockId={editingBlock?.id}
+              />
+            )}
+
+            {blockForm.blockType === 'process' && (
+              <ProcessBlockForm
+                value={blockForm.formData}
+                onChange={(formData) => setBlockForm((p) => ({ ...p, formData }))}
+              />
+            )}
+
             {blockForm.blockType === 'questionnaire' && (
               <QuestionnaireBlockForm
                 value={blockForm.formData}
@@ -741,7 +961,8 @@ export default function InteractiveLessonEditor() {
             <InteractiveBlockPreview
               title={previewingBlock?.title}
               html={previewHtmlOverride ?? previewingBlock?.displayHtml}
-              minHeight={512}
+              blockType={previewingBlock?.blockType}
+              minHeight={previewingBlock?.blockType === 'hero' ? 420 : 160}
             />
           )}
         </Modal>

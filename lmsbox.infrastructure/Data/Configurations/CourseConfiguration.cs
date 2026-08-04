@@ -15,9 +15,11 @@ public class CourseConfiguration : IEntityTypeConfiguration<Course>
                .IsRequired()
                .HasMaxLength(250);
 
-        // Unique Title per Organisation
+        // Unique Title per Organisation, ignoring soft-deleted courses so a deleted
+        // course does not reserve its title forever.
         builder.HasIndex(c => new { c.OrganisationId, c.Title })
                .IsUnique()
+               .HasFilter("[IsDeleted] = 0")
                .HasDatabaseName("UX_Course_OrganisationId_Title");
 
         // Organisation FK: business choice; use Restrict to avoid accidental cascade deletes of org -> many entities

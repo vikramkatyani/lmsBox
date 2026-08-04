@@ -1392,7 +1392,7 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate, previewMo
         );
       case 'interactive':
         return (
-          <div className="w-full h-full bg-white p-4 overflow-auto">
+          <div className="w-full h-full overflow-auto bg-[#f7f8fa] px-4 py-6 sm:px-8">
             <InteractiveLessonPlayer
               courseId={_courseId}
               lessonId={lesson.id}
