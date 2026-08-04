@@ -371,5 +371,10 @@ lmsBox.Server/azure-logs-new.zip
 lmsBox.Server/azure-logs-latest.zip
 azure-logs.zip
 deploy.zip
+_publish_server/
+_publish_sol/
+_publish_test/
+tmp-*.html
+lmsbox-html-lesson-deployment.zip
 lmsBox.Server/wwwroot/index.html
 lmsBox.Server/Assets/test/

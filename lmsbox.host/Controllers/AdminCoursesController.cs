@@ -1462,6 +1462,13 @@ public class AdminCoursesController : ControllerBase
                 .Where(s => s.CourseId == courseId)
                 .ExecuteDeleteAsync();
 
+            // Engagement rows keep NoAction FKs to Course and Lesson; remove them before
+            // hard-deleting lessons (the course row itself is only soft-deleted).
+            await _context.UserEngagements
+                .Where(e => e.CourseId == courseId
+                    || (e.LessonId != null && lessonIds.Contains(e.LessonId.Value)))
+                .ExecuteDeleteAsync();
+
             // Delete all related learner progress records (course-level and lesson-level)
             var deletedProgressCount = await _context.LearnerProgresses
                 .Where(lp => lp.CourseId == courseId
