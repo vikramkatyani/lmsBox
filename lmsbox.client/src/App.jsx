@@ -61,7 +61,6 @@ import SuperAdminLibrary from './pages/SuperAdminLibrary';
 import SuperAdminLibraryCreate from './pages/SuperAdminLibraryCreate';
 import SuperAdminLibraryEdit from './pages/SuperAdminLibraryEdit';
 import OrganisationSettings from './pages/OrganisationSettings';
-import AdminImportEngine from './pages/AdminImportEngine';
 import { CohortsList, CohortSubmission } from './pages/Qualifications';
 
 function App() {
@@ -210,14 +209,6 @@ function App() {
             element={
               <AdminRoute>
                 <AdminCourses />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/import-engine"
-            element={
-              <AdminRoute>
-                <AdminImportEngine />
               </AdminRoute>
             }
           />
