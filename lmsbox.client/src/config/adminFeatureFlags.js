@@ -72,10 +72,11 @@ export const getAdminNavLinks = () => {
 /** @deprecated Use getAdminNavLinks() */
 export const adminNavLinks = filterNavLinks(orgAdminNavLinks);
 
-/** OrgAdmin can list users; create/edit/delete stay API-only when false. */
+/** Whether create/edit/delete user actions are shown in admin UI. */
 export const canManageUsersInUI = () => {
   const role = getUserRole();
-  return role !== 'OrgAdmin' && role !== 'OrgDA';
+  // CTA blocks OrgAdmin (API-managed users). In lmsBox, OrgAdmin manages users in UI.
+  return role !== 'OrgDA';
 };
 
 /** SuperAdmin and OrgAdmin can generate reusable admin login links from the user listing. */
