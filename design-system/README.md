@@ -19,11 +19,24 @@ always match the design system.
 
 Published copies also live in:
 
-- `lmsBox.Server/wwwroot/`
-- `lmsbox.client/public/`
+- `lmsBox.Server/wwwroot/` (theme CSS used by blocks)
+- `lmsBox.Server/wwwroot/design-system/` (hosted reference showcase)
+- `lmsbox.client/public/` (theme CSS)
+- `lmsbox.client/public/design-system/` (hosted reference showcase — shipped by Vite to `dist`)
 - `lmsbox.client/src/styles/` (imported by the iframe builder)
 
-When you change the theme, update `design-system/` then copy into those three locations.
+When you change the theme, update `design-system/` then copy into those locations.
+The deploy workflow also syncs `design-system/` → `lmsbox.client/public/design-system/` before the client build.
+
+### Hosted reference page
+
+After deploy, open the living component showcase at:
+
+`/design-system/examples/index.html`
+
+Example: `https://<your-lmsbox-host>/design-system/examples/index.html`
+
+No app menu entry — direct URL only. Useful while authoring Interactive lesson components.
 
 ---
 
@@ -430,6 +443,8 @@ Suggested template include:
 <link rel="stylesheet" href="/design-system/lmsbox-theme.css">
 <script src="/design-system/lmsbox-theme.js" defer></script>
 ```
+
+Reference markup: `/design-system/examples/index.html` (also under `examples/index.html` in this folder).
 
 ---
 

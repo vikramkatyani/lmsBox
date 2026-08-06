@@ -1,0 +1,18 @@
+[
+  {
+    "_id": "b-05",
+    "_parentId": "a-MISSING",
+    "_type": "block",
+    "_classes": "",
+    "title": "Orphan block",
+    "displayTitle": "Orphan block"
+  },
+  {
+    "_id": "b-05",
+    "_parentId": "a-05",
+    "_type": "block",
+    "_classes": "",
+    "title": "Duplicate id block",
+    "displayTitle": "Duplicate id block"
+  }
+]

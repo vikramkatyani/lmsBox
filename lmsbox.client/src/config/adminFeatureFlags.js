@@ -8,6 +8,8 @@ export const adminFeatureFlags = {
   showCoursesNav: true,
   showPathwaysNav: true,
   showAdminAiAssistant: false,
+  /** Sprint 1 developer tool — Evolve Package Inspector */
+  showImportEngineNav: true,
 };
 
 /** Platform admin (SuperAdmin) — system-wide access. */
@@ -21,6 +23,7 @@ const orgAdminNavLinks = [
       { to: '/admin/courses', label: 'Courses', flag: 'showCoursesNav' },
       { to: '/admin/learning-pathways', label: 'Pathways', flag: 'showPathwaysNav' },
       { to: '/admin/question-bank/questions', label: 'Question Bank' },
+      { to: '/admin/import-engine', label: 'Import Engine', flag: 'showImportEngineNav' },
     ],
   },
   { to: '/admin/users', label: 'Users' },
@@ -38,6 +41,7 @@ const superAdminNavLinks = [
       { to: '/admin/courses', label: 'Courses' },
       { to: '/admin/learning-pathways', label: 'Pathways' },
       { to: '/admin/surveys', label: 'Surveys' },
+      { to: '/admin/import-engine', label: 'Import Engine', flag: 'showImportEngineNav' },
     ],
   },
   { to: '/admin/users', label: 'Users' },

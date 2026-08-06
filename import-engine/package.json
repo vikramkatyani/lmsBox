@@ -1,0 +1,28 @@
+{
+  "name": "@lmsbox/import-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "LMSBox Import Engine — Sprint 1: Evolve Package Inspector (parse & understand only)",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./ui/*": "./ui/*"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  }
+}

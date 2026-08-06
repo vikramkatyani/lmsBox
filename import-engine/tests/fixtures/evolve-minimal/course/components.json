@@ -1,0 +1,81 @@
+[
+  {
+    "_id": "c-05",
+    "_parentId": "b-05",
+    "_type": "component",
+    "_component": "graphic",
+    "_classes": "",
+    "_layout": "full",
+    "title": "Welcome graphic",
+    "displayTitle": "Welcome graphic",
+    "body": "",
+    "_graphic": {
+      "src": "course/assets/welcome.png",
+      "alt": "Welcome",
+      "width": 800,
+      "height": 450
+    }
+  },
+  {
+    "_id": "c-10",
+    "_parentId": "b-05",
+    "_type": "component",
+    "_component": "text",
+    "_classes": "",
+    "_layout": "full",
+    "title": "Intro text",
+    "displayTitle": "Intro text",
+    "body": "<p>Welcome to employee wellness.</p>"
+  },
+  {
+    "_id": "c-15",
+    "_parentId": "b-10",
+    "_type": "component",
+    "_component": "accordion",
+    "_classes": "",
+    "_layout": "full",
+    "title": "Topics",
+    "displayTitle": "Topics",
+    "body": "",
+    "_items": [
+      { "title": "Nutrition", "body": "Eat well." },
+      { "title": "Exercise", "body": "Move daily." }
+    ]
+  },
+  {
+    "_id": "c-20",
+    "_parentId": "b-15",
+    "_type": "component",
+    "_component": "media",
+    "_classes": "",
+    "_layout": "full",
+    "title": "Feature video",
+    "displayTitle": "Feature video",
+    "_media": {
+      "mp4": "course/assets/features.mp4",
+      "poster": "course/assets/features-poster.jpg"
+    }
+  },
+  {
+    "_id": "c-25",
+    "_parentId": "b-20",
+    "_type": "component",
+    "_component": "text",
+    "_classes": "",
+    "_layout": "full",
+    "title": "Feature copy",
+    "displayTitle": "Feature copy",
+    "body": "<p>Key product features.</p>"
+  },
+  {
+    "_id": "c-30",
+    "_parentId": "b-20",
+    "_type": "component",
+    "_component": "customWidget",
+    "_classes": "",
+    "_layout": "full",
+    "title": "Unknown type sample",
+    "displayTitle": "Unknown type sample",
+    "body": "Used to exercise UNKNOWN_COMPONENT_TYPE validation."
+  }
+]

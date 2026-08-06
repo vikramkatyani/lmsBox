@@ -1,0 +1,20 @@
+[
+  {
+    "_id": "co-05",
+    "_parentId": "course",
+    "_type": "page",
+    "_classes": "",
+    "title": "Introduction",
+    "displayTitle": "Introduction",
+    "body": "Welcome to the course."
+  },
+  {
+    "_id": "co-10",
+    "_parentId": "course",
+    "_type": "page",
+    "_classes": "",
+    "title": "Product Features",
+    "displayTitle": "Product Features",
+    "body": ""
+  }
+]

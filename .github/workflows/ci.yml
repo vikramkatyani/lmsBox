@@ -66,6 +66,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Sync design-system showcase into client public
+        working-directory: .
+        run: |
+          mkdir -p lmsbox.client/public/design-system/examples
+          cp design-system/lmsbox-theme.css lmsbox.client/public/design-system/lmsbox-theme.css
+          cp design-system/lmsbox-theme.js lmsbox.client/public/design-system/lmsbox-theme.js
+          cp design-system/examples/index.html lmsbox.client/public/design-system/examples/index.html
+          cp design-system/examples/starter.html lmsbox.client/public/design-system/examples/starter.html
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:

@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LMSbox Design System — Component Examples</title>
+  <meta name="description" content="Reference examples for the LMSbox interactive learning design system.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../lmsbox-theme.css">
+  <style>
+    /* Showcase chrome only — not part of the design system */
+    .demo-nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 0;
+      margin: 0 -32px 24px;
+      padding-left: 32px;
+      padding-right: 32px;
+    }
+    .demo-nav ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+    }
+    .demo-nav a {
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--secondary);
+      text-decoration: none;
+    }
+    .demo-nav a:hover { color: var(--primary); }
+    .demo-label {
+      margin: 48px 0 8px;
+      font-size: 11.5px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+    }
+    @media (max-width: 900px) {
+      .demo-nav { margin: 0 -20px 20px; padding-left: 20px; padding-right: 20px; }
+    }
+  </style>
+</head>
+<body class="lms-root">
+<div class="lms-container">
+
+  <header class="lms-topbar">
+    <div class="lms-eyebrow">
+      <span class="lms-tag">Design System</span>
+      <span>Interactive Components</span>
+    </div>
+  </header>
+
+  <nav class="demo-nav" aria-label="Component examples">
+    <ul>
+      <li><a href="#hero">Hero</a></li>
+      <li><a href="#cards">Cards</a></li>
+      <li><a href="#reveal">Reveal</a></li>
+      <li><a href="#accordion">Accordion</a></li>
+      <li><a href="#flip">Flip</a></li>
+      <li><a href="#remember">Remember</a></li>
+      <li><a href="#warning">Warning</a></li>
+      <li><a href="#timeline">Timeline</a></li>
+      <li><a href="#reflection">Reflection</a></li>
+      <li><a href="#question">Question</a></li>
+      <li><a href="#hotspot">Hotspot</a></li>
+      <li><a href="#process">Process</a></li>
+      <li><a href="#type">Type</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <div class="lms-pagehead lms-animate-in">
+      <div class="lms-prompt">LMSbox theme</div>
+      <h1 class="lms-h1">Component examples</h1>
+      <p class="lms-lead">Every block below uses only <code>lmsbox-theme.css</code>. Drop these patterns into any learning page without extra styling.</p>
+    </div>
+
+    <!-- HERO -->
+    <p class="demo-label" id="hero">Hero</p>
+    <section class="lms-hero lms-animate-in" aria-label="Lesson hero">
+      <div class="lms-hero__scrim" aria-hidden="true"></div>
+      <div class="lms-hero__orbs" aria-hidden="true">
+        <span class="lms-hero__orb lms-hero__orb--a"></span>
+        <span class="lms-hero__orb lms-hero__orb--b"></span>
+      </div>
+      <div class="lms-hero__content">
+        <div class="lms-hero__kicker">Module introduction</div>
+        <h1 class="lms-hero__title">Build consistent learning experiences</h1>
+        <p class="lms-hero__intro">A shared visual language for every interactive HTML component in LMSbox.</p>
+        <div class="lms-hero__meta">
+          <span class="lms-pill">8–12 minutes</span>
+          <span class="lms-pill">Interactive</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- CARDS -->
+    <p class="demo-label" id="cards">Information cards</p>
+    <div class="lms-grid-3">
+      <article class="lms-card lms-card-hover lms-animate-in">
+        <div class="lms-card__label">Concept</div>
+        <h3 class="lms-card__title">Tokens first</h3>
+        <p class="lms-card__body">Colours, space and type all come from CSS variables — never hardcoded values.</p>
+      </article>
+      <article class="lms-card lms-card-hover lms-card--accent lms-animate-in">
+        <div class="lms-card__label">Pattern</div>
+        <h3 class="lms-card__title">Utilities</h3>
+        <p class="lms-card__body">Layout helpers like <span class="lms-highlight">.lms-grid</span> and <span class="lms-highlight">.lms-stack</span> keep pages consistent.</p>
+      </article>
+      <article class="lms-card lms-card-hover lms-card--warn lms-animate-in">
+        <div class="lms-card__label">Principle</div>
+        <h3 class="lms-card__title">No local CSS</h3>
+        <p class="lms-card__body">Components inherit identity from the theme. Override only when content truly requires it.</p>
+      </article>
+    </div>
+
+    <div class="lms-panel lms-animate-in lms-section">
+      <p class="lms-body">Use <strong>lms-panel</strong> for longer prose blocks. Strong text returns to the primary colour so key phrases stand out without breaking the calm reading rhythm.</p>
+      <p class="lms-body">Spacing between paragraphs is built in. Pair with <span class="lms-highlight">.lms-bullets</span> when you need a list.</p>
+      <ul class="lms-bullets">
+        <li>One stylesheet for every component</li>
+        <li>Keyboard and focus support included</li>
+        <li>Responsive from 320px to 1920px</li>
+      </ul>
+    </div>
+
+    <!-- REVEAL -->
+    <p class="demo-label" id="reveal">Click reveal</p>
+    <section class="lms-reveal lms-animate-in" data-lms-toggle>
+      <button class="lms-reveal__trigger" type="button" aria-expanded="false">
+        <span class="lms-reveal__icon" aria-hidden="true">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z"/></svg>
+        </span>
+        <span style="flex:1">
+          <span class="lms-reveal__label">Click to reveal</span>
+          <h2 class="lms-reveal__title">What should learners discover here?</h2>
+        </span>
+        <span class="lms-plus" aria-hidden="true"></span>
+      </button>
+      <div class="lms-reveal__body">
+        <div class="lms-reveal__inner">
+          <p><strong>Hidden content stays closed until the learner chooses to open it.</strong></p>
+          <p>Use this for key definitions, worked answers, or moments of discovery. The expand animation and plus-to-close rotation come from the theme.</p>
+        </div>
+      </div>
+    </section>
+    <p class="lms-hint lms-animate-in"><span class="lms-hint__pulse" aria-hidden="true"></span>Select the card to reveal the answer</p>
+
+    <section class="lms-reveal lms-reveal--warn lms-animate-in" data-lms-toggle>
+      <button class="lms-reveal__trigger" type="button" aria-expanded="false">
+        <span class="lms-reveal__icon" aria-hidden="true">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg>
+        </span>
+        <span style="flex:1">
+          <span class="lms-reveal__label">Click to reveal</span>
+          <h2 class="lms-reveal__title">Warning-style reveal</h2>
+        </span>
+        <span class="lms-plus" aria-hidden="true"></span>
+      </button>
+      <div class="lms-reveal__body">
+        <div class="lms-reveal__inner">
+          <p><strong>Use the warn modifier for cautionary content</strong> — limits, exclusions, or common mistakes.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ACCORDION -->
+    <p class="demo-label" id="accordion">Accordion</p>
+    <div class="lms-accordion">
+      <div class="lms-accordion__item" data-lms-toggle data-exclusive=".lms-accordion__item">
+        <button class="lms-accordion__trigger" type="button" aria-expanded="false">
+          <h3 class="lms-accordion__title">Why keep one theme for every block?</h3>
+          <span class="lms-plus lms-plus--sm" aria-hidden="true"></span>
+        </button>
+        <div class="lms-accordion__body">
+          <div class="lms-accordion__inner">
+            <p>Instructional designers can drag components onto a page and trust they will match — without writing CSS.</p>
+          </div>
+        </div>
+      </div>
+      <div class="lms-accordion__item" data-lms-toggle data-exclusive=".lms-accordion__item">
+        <button class="lms-accordion__trigger" type="button" aria-expanded="false">
+          <h3 class="lms-accordion__title">How does exclusive open work?</h3>
+          <span class="lms-plus lms-plus--sm" aria-hidden="true"></span>
+        </button>
+        <div class="lms-accordion__body">
+          <div class="lms-accordion__inner">
+            <p>Set <code>data-exclusive=".lms-accordion__item"</code> so only one panel is open at a time — useful for FAQs and “one question at a time” flows.</p>
+          </div>
+        </div>
+      </div>
+      <div class="lms-accordion__item" data-lms-toggle data-exclusive=".lms-accordion__item">
+        <button class="lms-accordion__trigger" type="button" aria-expanded="false">
+          <h3 class="lms-accordion__title">Is keyboard support included?</h3>
+          <span class="lms-plus lms-plus--sm" aria-hidden="true"></span>
+        </button>
+        <div class="lms-accordion__body">
+          <div class="lms-accordion__inner">
+            <p>Triggers are real buttons with <code>aria-expanded</code>. Focus rings use the accent colour for WCAG-visible focus.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FLIP -->
+    <p class="demo-label" id="flip">Flip card</p>
+    <div class="lms-grid-2">
+      <button class="lms-flip lms-animate-in" type="button" data-lms-flip aria-label="Flip card: Token">
+        <div class="lms-flip__inner">
+          <div class="lms-flip__face lms-flip__front">
+            <span class="lms-flip__hint">Tap to flip</span>
+            <h3 class="lms-flip__title">What is a design token?</h3>
+          </div>
+          <div class="lms-flip__face lms-flip__back">
+            <span class="lms-flip__hint">Definition</span>
+            <p class="lms-flip__body">A named variable — colour, space, radius, motion — that every component references so the system stays coherent.</p>
+          </div>
+        </div>
+      </button>
+      <button class="lms-flip lms-animate-in" type="button" data-lms-flip aria-label="Flip card: Utility">
+        <div class="lms-flip__inner">
+          <div class="lms-flip__face lms-flip__front">
+            <span class="lms-flip__hint">Tap to flip</span>
+            <h3 class="lms-flip__title">What is a utility class?</h3>
+          </div>
+          <div class="lms-flip__face lms-flip__back">
+            <span class="lms-flip__hint">Definition</span>
+            <p class="lms-flip__body">A small, reusable class such as <strong>.lms-stack</strong> or <strong>.lms-muted</strong> that applies one layout or type decision.</p>
+          </div>
+        </div>
+      </button>
+    </div>
+
+    <!-- REMEMBER / WARNING -->
+    <p class="demo-label" id="remember">Remember box</p>
+    <aside class="lms-remember lms-animate-in">
+      <span class="lms-remember__icon" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5.9 1.2.9 1.9V16h5.2v-.2c0-.7.3-1.4.9-1.9A6 6 0 0 0 12 3z"/></svg>
+      </span>
+      <div>
+        <div class="lms-remember__label">Remember</div>
+        <p>Cover follows responsibility. No established liability, no payment.</p>
+      </div>
+    </aside>
+
+    <p class="demo-label" id="warning">Warning box</p>
+    <aside class="lms-warning lms-animate-in">
+      <span class="lms-warning__icon" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg>
+      </span>
+      <div>
+        <div class="lms-warning__label">Warning</div>
+        <p>Do not invent local colours or radii inside a component. Change tokens in the theme if the brand needs to evolve.</p>
+      </div>
+    </aside>
+
+    <!-- TIMELINE -->
+    <p class="demo-label" id="timeline">Timeline</p>
+    <p class="lms-hint lms-animate-in"><span class="lms-hint__pulse" aria-hidden="true"></span>Select a stage to expand it</p>
+    <div class="lms-timeline">
+      <div class="lms-timeline__item" data-lms-toggle data-exclusive=".lms-timeline__item">
+        <button class="lms-timeline__trigger" type="button" aria-expanded="false">
+          <span class="lms-timeline__num">1</span>
+          <h3 class="lms-timeline__title">Author the content</h3>
+          <span class="lms-plus lms-plus--xs" aria-hidden="true"></span>
+        </button>
+        <div class="lms-timeline__body">
+          <div class="lms-timeline__inner">
+            <p>Write the learning objective and choose the interaction type.</p>
+            <ul>
+              <li>Reveal for discovery</li>
+              <li>Question for knowledge checks</li>
+              <li>Reflection for open thinking</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="lms-timeline__item" data-lms-toggle data-exclusive=".lms-timeline__item">
+        <button class="lms-timeline__trigger" type="button" aria-expanded="false">
+          <span class="lms-timeline__num">2</span>
+          <h3 class="lms-timeline__title">Apply theme classes</h3>
+          <span class="lms-plus lms-plus--xs" aria-hidden="true"></span>
+        </button>
+        <div class="lms-timeline__body">
+          <div class="lms-timeline__inner">
+            <p>Wrap content in the matching <code>lms-*</code> structure. Link the stylesheet once.</p>
+          </div>
+        </div>
+      </div>
+      <div class="lms-timeline__item" data-lms-toggle data-exclusive=".lms-timeline__item">
+        <button class="lms-timeline__trigger" type="button" aria-expanded="false">
+          <span class="lms-timeline__num">3</span>
+          <h3 class="lms-timeline__title">Ship to learners</h3>
+          <span class="lms-plus lms-plus--xs" aria-hidden="true"></span>
+        </button>
+        <div class="lms-timeline__body">
+          <div class="lms-timeline__inner">
+            <p>Every page inherits the same motion, type scale and colour contrast automatically.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REFLECTION -->
+    <p class="demo-label" id="reflection">Reflection panel</p>
+    <section class="lms-reflection lms-animate-in" data-lms-reflect data-storage-key="lmsbox-demo-reflection">
+      <div class="lms-reflection__label">Your reflection</div>
+      <h2 class="lms-reflection__title">Where will you use this design system first?</h2>
+      <p class="lms-reflection__prompt">There is no right answer here, and nothing is marked.</p>
+      <label class="lms-sr" for="reflect-demo">Your reflection</label>
+      <textarea id="reflect-demo" class="lms-reflection__input" placeholder="Write a few sentences…"></textarea>
+      <div class="lms-reflection__footer">
+        <span class="lms-reflection__count">0 words</span>
+        <span class="lms-reflection__saved">Saved on this device</span>
+        <button type="button" class="lms-button lms-button--primary" data-lms-reflect-save>Save</button>
+      </div>
+    </section>
+
+    <!-- QUESTION -->
+    <p class="demo-label" id="question">Multiple choice</p>
+    <section class="lms-question lms-animate-in" data-lms-quiz>
+      <div class="lms-question__head">
+        <span class="lms-question__mentor" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>
+        </span>
+        <div>
+          <div class="lms-question__meta-label">Knowledge check</div>
+          <div class="lms-question__meta-name">Quick check</div>
+        </div>
+      </div>
+      <div class="lms-question__body">
+        <p class="lms-question__prompt">Which statement best describes the LMSbox theme?</p>
+        <div class="lms-question__options">
+          <button class="lms-question__option" type="button" data-correct="false"
+            data-title="Close — but not quite"
+            data-text="Each component should <strong>not</strong> ship its own palette. The theme owns colour and type.">
+            <span class="lms-question__key">A</span>
+            <span>Every component ships its own colours and fonts.</span>
+          </button>
+          <button class="lms-question__option" type="button" data-correct="true"
+            data-title="Correct — one shared identity"
+            data-text="Components load <strong>lmsbox-theme.css</strong> and inherit tokens, utilities and patterns automatically.">
+            <span class="lms-question__key">B</span>
+            <span>One shared stylesheet defines tokens and component styles for all learning HTML.</span>
+          </button>
+          <button class="lms-question__option" type="button" data-correct="false"
+            data-title="Not required"
+            data-text="Inline styles fight the system. Prefer theme classes and tokens.">
+            <span class="lms-question__key">C</span>
+            <span>Designers must add inline styles on every page.</span>
+          </button>
+        </div>
+        <div class="lms-question__feedback" role="status" aria-live="polite">
+          <div class="lms-question__feedback-label">Feedback</div>
+          <h3 data-fb-title></h3>
+          <p data-fb-text></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOTSPOT -->
+    <p class="demo-label" id="hotspot">Hotspot diagram</p>
+    <section class="lms-hotspot lms-animate-in" data-lms-hotspot aria-label="Hotspot diagram example">
+      <svg class="lms-hotspot__image" viewBox="0 0 800 360" role="img" aria-label="Abstract diagram background">
+        <defs>
+          <linearGradient id="hsBg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#002e62"/>
+            <stop offset="100%" stop-color="#0059a3"/>
+          </linearGradient>
+        </defs>
+        <rect width="800" height="360" fill="url(#hsBg)"/>
+        <circle cx="220" cy="180" r="70" fill="rgba(255,255,255,0.08)"/>
+        <circle cx="520" cy="140" r="50" fill="rgba(238,114,3,0.25)"/>
+        <rect x="360" y="200" width="220" height="80" rx="16" fill="rgba(255,255,255,0.1)"/>
+        <text x="40" y="48" fill="rgba(255,255,255,0.75)" font-family="Poppins,sans-serif" font-size="18" font-weight="500">Example diagram surface</text>
+      </svg>
+      <button class="lms-hotspot__pin" type="button" style="top:50%;left:27.5%" aria-controls="hs-panel-1" aria-label="Hotspot 1">1</button>
+      <button class="lms-hotspot__pin" type="button" style="top:39%;left:65%" aria-controls="hs-panel-2" aria-label="Hotspot 2">2</button>
+      <button class="lms-hotspot__pin" type="button" style="top:67%;left:52%" aria-controls="hs-panel-3" aria-label="Hotspot 3">3</button>
+      <div id="hs-panel-1" class="lms-hotspot__panel" role="dialog" aria-label="Hotspot 1 detail" hidden>
+        <h3 class="lms-hotspot__panel-title">Tokens</h3>
+        <p class="lms-hotspot__panel-body">Brand colours and spacing live in <code>:root</code> as CSS variables.</p>
+      </div>
+      <div id="hs-panel-2" class="lms-hotspot__panel" role="dialog" aria-label="Hotspot 2 detail" hidden>
+        <h3 class="lms-hotspot__panel-title">Components</h3>
+        <p class="lms-hotspot__panel-body">Hero, reveal, quiz and more share one motion and type language.</p>
+      </div>
+      <div id="hs-panel-3" class="lms-hotspot__panel" role="dialog" aria-label="Hotspot 3 detail" hidden>
+        <h3 class="lms-hotspot__panel-title">Editor-ready</h3>
+        <p class="lms-hotspot__panel-body">Drag components into a lesson — styling arrives with the theme.</p>
+      </div>
+    </section>
+
+    <!-- PROCESS -->
+    <p class="demo-label" id="process">Process flow</p>
+    <section class="lms-process lms-animate-in" data-lms-process data-node-map="0,1,2,3">
+      <div class="lms-process__stage">
+        <div class="lms-process__node" data-node="1">
+          <span class="lms-process__disc" aria-hidden="true">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5h10v14"/><path d="M14 8h4l2 3v8h-6z"/></svg>
+          </span>
+          <span class="lms-process__lab">Author</span>
+        </div>
+        <span class="lms-process__arrow" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+        <div class="lms-process__node" data-node="2">
+          <span class="lms-process__disc" aria-hidden="true">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12h8M8 8h5"/></svg>
+          </span>
+          <span class="lms-process__lab">Compose</span>
+        </div>
+        <span class="lms-process__arrow" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+        <div class="lms-process__node" data-node="3">
+          <span class="lms-process__disc" aria-hidden="true">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12l5 5L20 7"/></svg>
+          </span>
+          <span class="lms-process__lab">Publish</span>
+        </div>
+      </div>
+      <div class="lms-process__steps">
+        <div class="lms-process__step" data-step="1">
+          <span class="lms-process__num">1</span>
+          <div>
+            <h3>Choose the interaction</h3>
+            <p>Pick reveal, accordion, quiz, timeline or reflection based on the learning objective.</p>
+          </div>
+        </div>
+        <div class="lms-process__step" data-step="2">
+          <span class="lms-process__num">2</span>
+          <div>
+            <h3>Drop in theme markup</h3>
+            <p>Use the documented HTML structure. Include <code>lmsbox-theme.css</code> once on the page.</p>
+          </div>
+        </div>
+        <div class="lms-process__step" data-step="3">
+          <span class="lms-process__num">3</span>
+          <div>
+            <h3>Preview and publish</h3>
+            <p>Check keyboard focus and mobile width — the theme already handles layout and motion.</p>
+          </div>
+        </div>
+      </div>
+      <div class="lms-process__controls">
+        <button type="button" class="lms-button lms-button--primary lms-process__next" data-lms-process-next>Start the sequence</button>
+        <button type="button" class="lms-button lms-button--ghost lms-process__reset" data-lms-process-reset hidden>Replay</button>
+        <span class="lms-process__progress" data-lms-process-progress>Step 0 of 3</span>
+      </div>
+      <div data-lms-process-finish hidden>
+        <aside class="lms-remember" style="margin-top:28px">
+          <span class="lms-remember__icon" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5.9 1.2.9 1.9V16h5.2v-.2c0-.7.3-1.4.9-1.9A6 6 0 0 0 12 3z"/></svg>
+          </span>
+          <div>
+            <div class="lms-remember__label">Remember</div>
+            <p>One theme. Many components. Zero local styling.</p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- TYPOGRAPHY -->
+    <p class="demo-label" id="type">Typography scale</p>
+    <div class="lms-panel lms-stack lms-stack--lg lms-animate-in">
+      <div>
+        <div class="lms-label">H1</div>
+        <p class="lms-h1">Learning that looks intentional</p>
+      </div>
+      <div>
+        <div class="lms-label">H2</div>
+        <p class="lms-h2">Section heading for objectives</p>
+      </div>
+      <div>
+        <div class="lms-label">H3</div>
+        <p class="lms-h3">Supporting heading inside cards</p>
+      </div>
+      <div>
+        <div class="lms-label">Lead</div>
+        <p class="lms-lead">A short supporting sentence under the page title sets context without crowding the first viewport.</p>
+      </div>
+      <div>
+        <div class="lms-label">Body</div>
+        <p class="lms-body">Body copy stays light weight with comfortable line-height. Use <span class="lms-highlight">highlight</span> for emphasis.</p>
+      </div>
+      <div>
+        <div class="lms-label">Small</div>
+        <p class="lms-small">Small text for secondary explanations and card descriptions.</p>
+      </div>
+      <div>
+        <div class="lms-label">Caption / muted</div>
+        <p class="lms-caption">Caption text for footnotes and metadata. <span class="lms-muted">Muted colour for counts.</span></p>
+      </div>
+      <blockquote class="lms-pullquote">Pullquotes mark a key takeaway the learner should carry forward.</blockquote>
+    </div>
+
+    <div class="lms-compare lms-animate-in">
+      <article class="lms-compare__card">
+        <h3>Do</h3>
+        <ul>
+          <li>Reference CSS variables</li>
+          <li>Use documented component classes</li>
+          <li>Keep interactions keyboard accessible</li>
+        </ul>
+      </article>
+      <article class="lms-compare__card lms-compare__card--alt">
+        <h3>Don’t</h3>
+        <ul>
+          <li>Hardcode brand colours</li>
+          <li>Invent one-off card styles</li>
+          <li>Skip focus states or labels</li>
+        </ul>
+      </article>
+    </div>
+
+    <hr class="lms-divider">
+
+    <div class="lms-row">
+      <a class="lms-button lms-button--primary" href="../README.md">Read the documentation</a>
+      <a class="lms-button lms-button--ghost" href="#hero">Back to top</a>
+    </div>
+  </main>
+
+  <footer class="lms-footnote">
+    <span>LMSbox Design System</span>
+    <span>Component examples</span>
+  </footer>
+</div>
+<script src="../lmsbox-theme.js" defer></script>
+</body>
+</html>

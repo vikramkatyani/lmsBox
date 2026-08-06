@@ -1,0 +1,23 @@
+[
+  {
+    "_id": "c-05",
+    "_parentId": "b-05",
+    "_type": "component",
+    "_component": "graphic",
+    "_classes": "",
+    "_layout": "full",
+    "title": "Missing image",
+    "_graphic": {
+      "src": "course/assets/does-not-exist.png",
+      "alt": "Missing"
+    }
+  },
+  {
+    "_id": "c-99",
+    "_parentId": "b-DOES-NOT-EXIST",
+    "_type": "component",
+    "_component": "mysteryPlugin",
+    "_classes": "",
+    "title": "Broken parent + unknown type"
+  }
+]

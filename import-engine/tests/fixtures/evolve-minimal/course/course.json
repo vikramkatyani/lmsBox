@@ -1,0 +1,8 @@
+{
+  "_id": "course",
+  "_type": "course",
+  "title": "Employee Wellness Sample",
+  "displayTitle": "Employee Wellness Sample",
+  "description": "A minimal Evolve package fixture for Import Engine Sprint 1.",
+  "body": ""
+}
