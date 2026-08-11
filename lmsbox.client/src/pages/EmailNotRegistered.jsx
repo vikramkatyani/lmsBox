@@ -14,7 +14,9 @@ export default function EmailNotRegistered() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-login-page-bg px-4">
       <div className="bg-login-box-bg p-8 rounded-xl shadow-xl max-w-md w-full mx-auto text-center border border-white/10">
-        <img src={logoSrc} alt={`${tenantName} Logo`} className="h-12 mx-auto mb-6" />
+        <div className="login-logo-frame inline-flex mx-auto mb-6">
+          <img src={logoSrc} alt={`${tenantName} Logo`} className="h-12 w-auto" />
+        </div>
 
         <div className="h-14 w-14 rounded-full bg-amber-400/15 text-amber-300 border border-amber-300/40 flex items-center justify-center mx-auto">
           <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">

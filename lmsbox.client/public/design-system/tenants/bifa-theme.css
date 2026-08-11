@@ -235,3 +235,55 @@ html[data-tenant="bifa"] .bifa-accent-environmental {
   --tenant-accent-stripe: var(--bifa-environmental);
   border-left: 4px solid var(--bifa-environmental);
 }
+
+/* --------------------------------------------------------------------------
+   5. Learner / admin chrome - transparent top banner
+   -------------------------------------------------------------------------- */
+
+html[data-tenant="bifa"] header.learner-header,
+html[data-tenant="bifa"] header.admin-header {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+html[data-tenant="bifa"] header.learner-header .text-boxlms-navbar-txt,
+html[data-tenant="bifa"] header.admin-header .text-boxlms-navbar-txt {
+  color: var(--primary);
+}
+
+html[data-tenant="bifa"] header.learner-header img,
+html[data-tenant="bifa"] header.admin-header img {
+  height: 3.25rem;
+  width: auto;
+}
+
+html[data-tenant="bifa"] header.learner-header button.relative svg,
+html[data-tenant="bifa"] header.admin-header button.relative svg {
+  fill: var(--primary);
+}
+
+html[data-tenant="bifa"] header.admin-header .fill-boxlms-navbar-txt {
+  fill: var(--primary);
+}
+
+/* Keep mobile drawer readable once nav text switches to navy */
+@media (max-width: 1023px) {
+  html[data-tenant="bifa"] header.admin-header .admin-nav-menu {
+    background-color: #ffffff;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   6. Login logo - white frame on dark login box
+   -------------------------------------------------------------------------- */
+
+html[data-tenant="bifa"] .login-logo-frame {
+  background-color: #ffffff;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+}
+
+html[data-tenant="bifa"] .login-logo-frame img {
+  height: 3.5rem;
+  width: auto;
+}

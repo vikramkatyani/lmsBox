@@ -158,7 +158,9 @@ export default function Login() {
         {/* Left: Login Form */}
         <div className="bg-login-box-bg p-8 rounded-lg shadow-lg max-w-md w-full mx-auto">
           <div className="mb-8 text-center">
-            <img src={logoSrc} alt={`${tenantName} Logo`} className="h-12 mx-auto mb-4" />
+            <div className="login-logo-frame inline-flex mx-auto mb-4">
+              <img src={logoSrc} alt={`${tenantName} Logo`} className="h-12 w-auto" />
+            </div>
             <h1 className="text-3xl font-semibold text-login-box-text">Sign in</h1>
             <p className="text-login-box-text text-sm mt-2">
               Enter your email address to receive a Login link for instant access.

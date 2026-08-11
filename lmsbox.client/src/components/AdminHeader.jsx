@@ -106,7 +106,7 @@ export default function AdminHeader({ hideNavigation = false }) {
 
   return (
     <>
-      <header className="flex shadow-md py-3 px-4 sm:px-10 bg-boxlms-navbar min-h-[70px] tracking-wide relative z-50">
+      <header className="admin-header flex shadow-md py-3 px-4 sm:px-10 bg-boxlms-navbar min-h-[70px] tracking-wide relative z-50">
         <div className="flex flex-wrap items-center justify-between lg:gap-y-4 gap-y-6 gap-x-4 w-full">
           <Link to="/admin/dashboard">
             <img src={theme.logo} alt="Logo" className="h-8 w-auto" />
@@ -138,7 +138,7 @@ export default function AdminHeader({ hideNavigation = false }) {
                 )}
 
                 <ul className={`
-                  lg:flex lg:gap-x-10 
+                  admin-nav-menu lg:flex lg:gap-x-10 
                   max-lg:fixed max-lg:top-0 max-lg:left-0 max-lg:h-full max-lg:w-72 max-lg:bg-boxlms-navbar 
                   max-lg:shadow-xl max-lg:overflow-y-auto max-lg:z-50 max-lg:p-6 max-lg:space-y-1
                   max-lg:transform max-lg:transition-transform max-lg:duration-300 max-lg:ease-in-out

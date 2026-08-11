@@ -148,10 +148,10 @@ export default function LearnerHeader() {
   };
 
   return (
-    <header className="flex shadow-md py-3 px-4 sm:px-10 bg-boxlms-navbar min-h-[70px] tracking-wide relative z-50">
+    <header className="learner-header flex shadow-md py-3 px-4 sm:px-10 bg-boxlms-navbar min-h-[70px] tracking-wide relative z-50">
       <div className="flex flex-wrap items-center justify-between lg:gap-y-4 gap-y-6 gap-x-4 w-full">
         <Link to="/courses/all" className="hidden lg:block">
-          <img src={theme.logo} alt="Logo" className="h-8 w-auto" />
+          <img src={theme.logo} alt={theme.name || 'Logo'} className="h-8 w-auto" />
         </Link>
 
         <div 
@@ -170,7 +170,7 @@ export default function LearnerHeader() {
           <ul className="lg:flex lg:gap-x-10 max-lg:space-y-3 fixed lg:relative bg-white lg:bg-transparent w-2/3 lg:w-auto min-w-[300px] lg:min-w-0 top-0 left-0 h-full lg:h-auto p-4 lg:p-0 shadow-md lg:shadow-none overflow-auto lg:overflow-visible z-50">
             <li className="mb-6 hidden max-lg:block">
               <NavLink to="/courses/all">
-                <img src={theme.logo} alt="Logo" className="h-8 w-auto" />
+                <img src={theme.logo} alt={theme.name || 'Logo'} className="h-8 w-auto" />
               </NavLink>
             </li>
             {/* {[
@@ -255,7 +255,7 @@ export default function LearnerHeader() {
                 <hr className="border-b-0 my-4 border-gray-300" />
                 <button
                   onClick={initiateLogout}
-                  className="w-full bg-logout-btn text-logout-btn-text hover:bg-logout-btn-text hover:text-white rounded-sm px-4 py-2 text-sm font-medium cursor-pointer"
+                  className="w-full bg-logout-btn text-logout-btn-text hover:brightness-90 rounded-sm px-4 py-2 text-sm font-medium cursor-pointer transition-all"
                 >
                   Logout
                 </button>
