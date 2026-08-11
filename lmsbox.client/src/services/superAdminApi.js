@@ -31,6 +31,79 @@ export const superAdminLogin = async (email, password) => {
   return response.json();
 };
 
+// Tenants
+export const getTenants = async () => {
+  const response = await fetch(`${API_BASE}/api/SuperAdmin/tenants`, {
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) throw new Error('Failed to fetch tenants');
+  return response.json();
+};
+
+export const getTenant = async (id) => {
+  const response = await fetch(`${API_BASE}/api/SuperAdmin/tenants/${id}`, {
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) throw new Error('Failed to fetch tenant');
+  return response.json();
+};
+
+export const createTenant = async (tenantData) => {
+  const response = await fetch(`${API_BASE}/api/SuperAdmin/tenants`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(tenantData)
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to create tenant');
+  }
+
+  return response.json();
+};
+
+export const updateTenant = async (id, tenantData) => {
+  const response = await fetch(`${API_BASE}/api/SuperAdmin/tenants/${id}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ ...tenantData, id: Number(id) })
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to update tenant');
+  }
+
+  return response.json();
+};
+
+export const getTenantOrganisations = async (tenantId) => {
+  const response = await fetch(`${API_BASE}/api/SuperAdmin/tenants/${tenantId}/organisations`, {
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) throw new Error('Failed to fetch tenant organisations');
+  return response.json();
+};
+
+export const createOrganisationUnderTenant = async (tenantId, orgData) => {
+  const response = await fetch(`${API_BASE}/api/SuperAdmin/tenants/${tenantId}/organisations`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(orgData)
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to create organisation');
+  }
+
+  return response.json();
+};
+
 // Organisations
 export const getOrganisations = async () => {
   const response = await fetch(`${API_BASE}/api/SuperAdmin/organisations`, {

@@ -13,7 +13,10 @@ public class ApplicationUser : IdentityUser
     public string? LastName { get; set; }
 
     [Column("OrganisationID")]
-    public long? OrganisationID { get; set; } // Nullable for SuperAdmin
+    public long? OrganisationID { get; set; } // Nullable for SuperAdmin / TenantAdmin
+
+    /// <summary>Owning tenant. Null for SuperAdmin.</summary>
+    public long? TenantId { get; set; }
 
     public DateTime CreatedOn { get; set; } = DateTime.UtcNow;
 
@@ -33,6 +36,8 @@ public class ApplicationUser : IdentityUser
     public string DeactivatedBy { get; set; } = null!;
 
     // Navigation
+    public Tenant? Tenant { get; set; }
+
     public Organisation? Organisation { get; set; }
 
     // Business roles (many-to-many via join entity)

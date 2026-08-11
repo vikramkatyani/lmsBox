@@ -9,7 +9,7 @@ namespace lmsBox.Server.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "OrgAdmin,SuperAdmin")]
+    [Authorize(Roles = "OrgAdmin,TenantAdmin,SuperAdmin")]
     public class EngagementAnalyticsController : ControllerBase
     {
         private readonly IEngagementTrackingService _engagementService;

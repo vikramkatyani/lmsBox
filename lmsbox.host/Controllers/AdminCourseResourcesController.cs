@@ -10,7 +10,7 @@ namespace lmsBox.Server.Controllers;
 
 [ApiController]
 [Route("api/admin/courses/{courseId}/resources")]
-[Authorize(Roles = "Admin,OrgAdmin,SuperAdmin")]
+[Authorize(Roles = "Admin,OrgAdmin,TenantAdmin,SuperAdmin")]
 public class AdminCourseResourcesController : ControllerBase
 {
     private readonly ApplicationDbContext _context;

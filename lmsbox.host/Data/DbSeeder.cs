@@ -22,18 +22,8 @@ public static class DbSeeder
         var userManager = provider.GetRequiredService<UserManager<ApplicationUser>>();
         var roleManager = provider.GetRequiredService<RoleManager<IdentityRole>>();
 
-        // Ensure simple lookups exist
-        if (!db.Organisations.Any())
-        {
-            var org = new Organisation { Name = "lmsBox-DevOrg", Description = "Development organisation" };
-            db.Organisations.Add(org);
-            await db.SaveChangesAsync();
-        }
-
-        var organisation = db.Organisations.First();
-
         // Ensure Identity roles
-        var roles = new[] { "SuperAdmin", "OrgAdmin", "Learner" };
+        var roles = new[] { "SuperAdmin", "TenantAdmin", "OrgAdmin", "Learner" };
         foreach (var r in roles)
         {
             if (!await roleManager.RoleExistsAsync(r))
@@ -43,7 +33,55 @@ public static class DbSeeder
             }
         }
 
-        // Create SuperAdmin user (no organisation)
+        // Ensure a default tenant + organisation exist for local development
+        Tenant? tenant = db.Tenants.FirstOrDefault();
+        if (tenant == null)
+        {
+            tenant = new Tenant
+            {
+                Name = "lmsBox-DevTenant",
+                Code = "lmsbox-dev",
+                Description = "Development tenant",
+                AllowsMultipleOrganisations = false,
+                MaxUsers = 100,
+                AllocatedStorageGB = 10,
+                IsActive = true,
+                CreatedOn = DateTime.UtcNow,
+                CreatedBy = "system"
+            };
+            db.Tenants.Add(tenant);
+            await db.SaveChangesAsync();
+        }
+
+        if (!db.Organisations.Any())
+        {
+            var org = new Organisation
+            {
+                TenantId = tenant.Id,
+                Name = "lmsBox-DevOrg",
+                Description = "Development organisation"
+            };
+            db.Organisations.Add(org);
+            await db.SaveChangesAsync();
+        }
+        else
+        {
+            // Backfill TenantId for any org missing it (should be covered by migration)
+            foreach (var orgWithoutTenant in db.Organisations.Where(o => o.TenantId == 0).ToList())
+            {
+                orgWithoutTenant.TenantId = tenant.Id;
+            }
+            await db.SaveChangesAsync();
+        }
+
+        var organisation = db.Organisations.First();
+        if (organisation.TenantId == 0)
+        {
+            organisation.TenantId = tenant.Id;
+            await db.SaveChangesAsync();
+        }
+
+        // Create SuperAdmin user (no organisation / tenant)
         var superAdminEmail = "superadmin@lmsbox.system";
         var superAdmin = await userManager.FindByEmailAsync(superAdminEmail);
         if (superAdmin == null)
@@ -55,7 +93,8 @@ public static class DbSeeder
                 EmailConfirmed = true,
                 FirstName = "Super",
                 LastName = "Admin",
-                OrganisationID = null, // SuperAdmin has no organisation
+                OrganisationID = null,
+                TenantId = null,
                 CreatedBy = "system",
                 ActivatedBy = "system",
                 DeactivatedBy = "system",
@@ -83,7 +122,7 @@ public static class DbSeeder
             logger.LogInformation("SuperAdmin user already exists: {Email}", superAdminEmail);
         }
 
-        // Create admin user for organisation
+        // Create admin user for organisation (TenantAdmin + OrgAdmin)
         var adminEmail = "admin@dev.local";
         var admin = await userManager.FindByEmailAsync(adminEmail);
         if (admin == null)
@@ -95,6 +134,7 @@ public static class DbSeeder
                 EmailConfirmed = true,
                 FirstName = "Admin",
                 LastName = "User",
+                TenantId = organisation.TenantId,
                 OrganisationID = organisation.Id,
                 CreatedBy = "system",
                 ActivatedBy = "system",
@@ -110,6 +150,7 @@ public static class DbSeeder
             }
             else 
             {
+                await userManager.AddToRoleAsync(admin, "TenantAdmin");
                 await userManager.AddToRoleAsync(admin, "OrgAdmin");
                 if (FavoriteReportDefaults.TryApplyDefaults(admin, "OrgAdmin"))
                 {
@@ -120,12 +161,159 @@ public static class DbSeeder
         }
         else
         {
+            // Ensure existing seed admin has TenantId
+            if (!admin.TenantId.HasValue)
+            {
+                admin.TenantId = organisation.TenantId;
+                await userManager.UpdateAsync(admin);
+            }
+            if (!await userManager.IsInRoleAsync(admin, "TenantAdmin"))
+            {
+                await userManager.AddToRoleAsync(admin, "TenantAdmin");
+            }
             logger.LogInformation("Admin user already exists: {Email}", adminEmail);
         }
+
+        await EnsureBifaTenantAsync(db, userManager, logger);
 
         // Skip creating courses, pathways, learners, and progress data
 
         logger.LogInformation("Seeding completed.");
+    }
+
+    /// <summary>
+    /// Ensures the BIFA tenant exists with Brand Guidelines v1.2 colours / logo, plus a TenantAdmin.
+    /// </summary>
+    private static async Task EnsureBifaTenantAsync(
+        ApplicationDbContext db,
+        UserManager<ApplicationUser> userManager,
+        ILogger logger)
+    {
+        const string themeJson =
+            "{\"name\":\"BIFA Learning\",\"strapline\":\"The leading body representing the UK international freight services industry\",\"primaryColor\":\"#002e62\",\"secondaryColor\":\"#0059a3\",\"accentColor\":\"#ee7203\",\"accentStrongColor\":\"#e74011\",\"grey\":\"#575756\",\"lightGrey\":\"#c4c2b2\",\"fontFamily\":\"Poppins, Arial, Helvetica, sans-serif\",\"css\":\"bifa\",\"logo\":\"/assets/bifa-logo.svg\",\"guidelineVersion\":\"1.2\"}";
+
+        var bifa = db.Tenants.FirstOrDefault(t => t.Code == "bifa");
+        if (bifa == null)
+        {
+            bifa = new Tenant
+            {
+                Name = "BIFA",
+                Code = "bifa",
+                Description = "British International Freight Association - training and development for the UK international freight services industry.",
+                AllowsMultipleOrganisations = false,
+                MaxUsers = 500,
+                AllocatedStorageGB = 50,
+                Domain = "bifa.org",
+                SupportEmail = "bifa@bifa.org",
+                ManagerName = "BIFA Communications",
+                ManagerEmail = "BIFAcomms@bifa.org",
+                BrandName = "BIFA Learning",
+                BannerUrl = "/assets/bifa-logo.svg",
+                FaviconUrl = "/assets/bifa-logo.svg",
+                ThemeSettings = themeJson,
+                IsActive = true,
+                CreatedOn = DateTime.UtcNow,
+                CreatedBy = "system"
+            };
+            db.Tenants.Add(bifa);
+            await db.SaveChangesAsync();
+            logger.LogInformation("BIFA tenant created");
+        }
+        else
+        {
+            bifa.BrandName = "BIFA Learning";
+            bifa.BannerUrl = "/assets/bifa-logo.svg";
+            bifa.FaviconUrl = "/assets/bifa-logo.svg";
+            bifa.ThemeSettings = themeJson;
+            bifa.Domain = "bifa.org";
+            bifa.SupportEmail = "bifa@bifa.org";
+            bifa.UpdatedOn = DateTime.UtcNow;
+            bifa.UpdatedBy = "system";
+            await db.SaveChangesAsync();
+        }
+
+        var bifaOrg = db.Organisations.FirstOrDefault(o => o.TenantId == bifa.Id);
+        if (bifaOrg == null)
+        {
+            bifaOrg = new Organisation
+            {
+                TenantId = bifa.Id,
+                Name = "BIFA Learning",
+                Description = "Primary organisation for BIFA Learning (inherits tenant branding).",
+                MaxUsers = 500,
+                AllocatedStorageGB = 50,
+                Domain = "bifa.org",
+                SupportEmail = "bifa@bifa.org",
+                ManagerName = "BIFA Communications",
+                ManagerEmail = "BIFAcomms@bifa.org",
+                UseTenantBranding = true,
+                IsActive = true,
+                CreatedOn = DateTime.UtcNow,
+                CreatedBy = "system"
+            };
+            db.Organisations.Add(bifaOrg);
+            await db.SaveChangesAsync();
+        }
+        else if (!bifaOrg.UseTenantBranding)
+        {
+            bifaOrg.UseTenantBranding = true;
+            await db.SaveChangesAsync();
+        }
+
+        var bifaAdminEmail = "admin@bifa.local";
+        var bifaAdmin = await userManager.FindByEmailAsync(bifaAdminEmail);
+        if (bifaAdmin == null)
+        {
+            bifaAdmin = new ApplicationUser
+            {
+                UserName = bifaAdminEmail,
+                Email = bifaAdminEmail,
+                EmailConfirmed = true,
+                FirstName = "BIFA",
+                LastName = "Admin",
+                TenantId = bifa.Id,
+                OrganisationID = bifaOrg.Id,
+                CreatedBy = "system",
+                ActivatedBy = "system",
+                DeactivatedBy = "system",
+                ActiveStatus = 1,
+                ActivatedOn = DateTime.UtcNow,
+                CreatedOn = DateTime.UtcNow
+            };
+            var create = await userManager.CreateAsync(bifaAdmin, "P@ssw0rd1!");
+            if (!create.Succeeded)
+            {
+                logger.LogWarning("BIFA admin creation failed: {Errors}", string.Join(",", create.Errors.Select(e => e.Description)));
+            }
+            else
+            {
+                await userManager.AddToRoleAsync(bifaAdmin, "TenantAdmin");
+                await userManager.AddToRoleAsync(bifaAdmin, "OrgAdmin");
+                if (FavoriteReportDefaults.TryApplyDefaults(bifaAdmin, "OrgAdmin"))
+                {
+                    await userManager.UpdateAsync(bifaAdmin);
+                }
+                logger.LogInformation("BIFA TenantAdmin created: {Email}", bifaAdminEmail);
+            }
+        }
+        else
+        {
+            if (bifaAdmin.TenantId != bifa.Id || bifaAdmin.OrganisationID != bifaOrg.Id)
+            {
+                bifaAdmin.TenantId = bifa.Id;
+                bifaAdmin.OrganisationID = bifaOrg.Id;
+                await userManager.UpdateAsync(bifaAdmin);
+            }
+            if (!await userManager.IsInRoleAsync(bifaAdmin, "TenantAdmin"))
+            {
+                await userManager.AddToRoleAsync(bifaAdmin, "TenantAdmin");
+            }
+            if (!await userManager.IsInRoleAsync(bifaAdmin, "OrgAdmin"))
+            {
+                await userManager.AddToRoleAsync(bifaAdmin, "OrgAdmin");
+            }
+            logger.LogInformation("BIFA admin already exists: {Email}", bifaAdminEmail);
+        }
     }
 
     private static async Task SeedCoursesAsync(ApplicationDbContext db, ApplicationUser admin, Organisation organisation, ILogger logger)

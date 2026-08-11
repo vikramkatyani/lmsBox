@@ -1,43 +1,36 @@
 # Super Admin Multi-Tenancy Setup Guide
 
 ## Overview
-This document describes the Super Admin functionality for managing multi-tenant LMS organisations. The Super Admin is a special user type that is **not associated with any organisation** and has full control over:
-- Creating and managing organisations (tenants)
-- Configuring organisation settings
-- Creating admin accounts for each organisation
-- Managing global content library
-- System-wide analytics and reporting
+lmsBox uses **shared-database multi-tenancy** in a single app. The Super Admin is **not associated with any tenant or organisation** and can:
+- Create and manage **Tenants**
+- Each tenant gets a **primary Organisation** and a **TenantAdmin** (also OrgAdmin on the primary org)
+- Toggle `AllowsMultipleOrganisations` for multi-org tenants
+- Manage the global content library
+- View system-wide analytics
+
+**Roles:** `SuperAdmin` → `TenantAdmin` → `OrgAdmin` → `Learner`
 
 ## Architecture
 
 ### Database Structure
 
-#### Organisation Model
-The `Organisation` table has been enhanced with comprehensive configuration fields:
-
+#### Tenant Model
 ```sql
-- Id (bigint)
-- Name (string)
-- Description (string, nullable)
-- MaxUsers (int, default 100)
-- AllocatedStorageGB (bigint, default 10)
-- Domain (string, nullable)
-- BannerUrl (string, nullable)
-- FaviconUrl (string, nullable)
-- ThemeSettings (string, nullable - JSON)
-- SmtpHost, SmtpPort, SmtpUsername, SmtpPassword, SmtpUseSsl, SendGridApiKey
-- FromEmail, FromName
-- SupportEmail
-- ManagerName, ManagerEmail, ManagerPhone
-- RenewalDate (datetime, nullable)
-- IsActive (bool, default true)
-- CreatedOn, CreatedBy, UpdatedOn, UpdatedBy
+- Id, Name, Code (unique), Description
+- AllowsMultipleOrganisations (bool)
+- MaxUsers, AllocatedStorageGB, Domain, contacts, RenewalDate
+- IsActive, CreatedOn, CreatedBy, UpdatedOn, UpdatedBy
 ```
 
-#### ApplicationUser Changes
-- `OrganisationID` is now **nullable** (long?)
-- SuperAdmin users have `OrganisationID = null`
-- Regular users and OrgAdmins have an OrganisationID
+#### Organisation Model
+Organisations belong to a tenant (`TenantId` required). Branding, SMTP, storage quotas remain organisation-scoped.
+
+#### ApplicationUser
+- `TenantId` nullable (null for SuperAdmin)
+- `OrganisationID` nullable (null for SuperAdmin; may be null for pure TenantAdmin)
+- SuperAdmin: both null
+- TenantAdmin: TenantId set; OrganisationID set when also OrgAdmin on primary org
+- OrgAdmin / Learner: both set
 
 #### GlobalLibraryContent Table
 New table for managing global content (PDFs and Videos):
@@ -77,7 +70,23 @@ elgdocstorage (Storage Account)
 ### Super Admin Authentication
 **POST** `/api/SuperAdmin/login`
 - Separate login endpoint for SuperAdmin
-- Only accepts users with `SuperAdmin` role and no OrganisationID
+- Only accepts users with `SuperAdmin` role and no OrganisationID / TenantId
+
+### Tenants
+- **GET** `/api/SuperAdmin/tenants`
+- **GET** `/api/SuperAdmin/tenants/{id}`
+- **POST** `/api/SuperAdmin/tenants` — creates tenant + primary organisation + TenantAdmin (also OrgAdmin)
+- **PUT** `/api/SuperAdmin/tenants/{id}`
+- **GET/POST** `/api/SuperAdmin/tenants/{tenantId}/organisations`
+
+### Tenant Admin
+- **GET** `/api/tenant/me`
+- **GET/POST** `/api/tenant/organisations`
+- **PUT** `/api/tenant/organisations/{id}`
+- **POST** `/api/tenant/organisations/{orgId}/admin`
+
+### Organisations (legacy SuperAdmin paths; prefer tenant-scoped create)
+**GET** `/api/SuperAdmin/organisations`
 - Returns JWT token with SuperAdmin role
 
 ### Organisation Management

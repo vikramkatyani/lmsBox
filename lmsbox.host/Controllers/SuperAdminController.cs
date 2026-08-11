@@ -51,9 +51,9 @@ public class SuperAdminController : ControllerBase
             return Unauthorized(new { error = "Invalid credentials" });
         }
 
-        // Verify user is SuperAdmin and has no organisation
+        // Verify user is SuperAdmin and has no organisation / tenant
         var roles = await _userManager.GetRolesAsync(user);
-        if (!roles.Contains("SuperAdmin") || user.OrganisationID.HasValue)
+        if (!roles.Contains("SuperAdmin") || user.OrganisationID.HasValue || user.TenantId.HasValue)
         {
             return Unauthorized(new { error = "Access denied" });
         }
@@ -77,6 +77,262 @@ public class SuperAdminController : ControllerBase
         });
     }
 
+    // ---------- Tenants ----------
+
+    [Authorize(Roles = "SuperAdmin")]
+    [HttpGet("tenants")]
+    public async Task<IActionResult> GetTenants()
+    {
+        var tenants = await _context.Tenants
+            .OrderBy(t => t.Name)
+            .ToListAsync();
+
+        var orgLookup = await _context.Organisations
+            .Include(o => o.Users)
+            .ToListAsync();
+
+        var tenantAdminEmails = await GetTenantAdminEmailsAsync(tenants.Select(t => t.Id).ToList());
+
+        var response = tenants.Select(t =>
+            TenantProvisioningService.ToResponse(
+                t,
+                orgLookup.Where(o => o.TenantId == t.Id),
+                tenantAdminEmails.GetValueOrDefault(t.Id)));
+
+        return Ok(response);
+    }
+
+    [Authorize(Roles = "SuperAdmin")]
+    [HttpGet("tenants/{id}")]
+    public async Task<IActionResult> GetTenant(long id)
+    {
+        var tenant = await _context.Tenants.FirstOrDefaultAsync(t => t.Id == id);
+        if (tenant == null)
+        {
+            return NotFound(new { error = "Tenant not found" });
+        }
+
+        var orgs = await _context.Organisations
+            .Include(o => o.Users)
+            .Where(o => o.TenantId == id)
+            .ToListAsync();
+
+        var adminEmails = await GetTenantAdminEmailsAsync(new List<long> { id });
+        return Ok(TenantProvisioningService.ToResponse(tenant, orgs, adminEmails.GetValueOrDefault(id)));
+    }
+
+    [Authorize(Roles = "SuperAdmin")]
+    [HttpPost("tenants")]
+    public async Task<IActionResult> CreateTenant([FromBody] CreateTenantRequest request)
+    {
+        var superAdminEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? "system";
+
+        try
+        {
+            var (tenant, org, admin) = await TenantProvisioningService.CreateTenantWithPrimaryOrgAsync(
+                _context, _userManager, request, superAdminEmail);
+
+            _logger.LogInformation(
+                "SuperAdmin {Email} created tenant {TenantName} (ID: {TenantId}) with primary org {OrgId} and TenantAdmin {AdminEmail}",
+                superAdminEmail, tenant.Name, tenant.Id, org.Id, admin.Email);
+
+            return CreatedAtAction(nameof(GetTenant), new { id = tenant.Id }, new
+            {
+                id = tenant.Id,
+                name = tenant.Name,
+                code = tenant.Code,
+                primaryOrganisationId = org.Id,
+                tenantAdminEmail = admin.Email
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [Authorize(Roles = "SuperAdmin")]
+    [HttpPut("tenants/{id}")]
+    public async Task<IActionResult> UpdateTenant(long id, [FromBody] UpdateTenantRequest request)
+    {
+        if (id != request.Id)
+        {
+            return BadRequest(new { error = "ID mismatch" });
+        }
+
+        var tenant = await _context.Tenants.FirstOrDefaultAsync(t => t.Id == id);
+        if (tenant == null)
+        {
+            return NotFound(new { error = "Tenant not found" });
+        }
+
+        if (!string.Equals(tenant.Code, request.Code, StringComparison.OrdinalIgnoreCase)
+            && await _context.Tenants.AnyAsync(t => t.Code == request.Code && t.Id != id))
+        {
+            return BadRequest(new { error = "Tenant code already in use" });
+        }
+
+        if (!request.AllowsMultipleOrganisations)
+        {
+            var orgCount = await _context.Organisations.CountAsync(o => o.TenantId == id);
+            if (orgCount > 1)
+            {
+                return BadRequest(new { error = "Cannot disable multiple organisations while more than one organisation exists" });
+            }
+        }
+
+        var superAdminEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? "system";
+        tenant.Name = request.Name;
+        tenant.Code = request.Code;
+        tenant.Description = request.Description;
+        tenant.AllowsMultipleOrganisations = request.AllowsMultipleOrganisations;
+        tenant.MaxUsers = request.MaxUsers;
+        tenant.AllocatedStorageGB = request.AllocatedStorageGB;
+        tenant.Domain = request.Domain;
+        tenant.SupportEmail = request.SupportEmail;
+        tenant.ManagerName = request.ManagerName;
+        tenant.ManagerEmail = request.ManagerEmail;
+        tenant.ManagerPhone = request.ManagerPhone;
+        tenant.RenewalDate = request.RenewalDate;
+        tenant.IsActive = request.IsActive;
+        tenant.BrandName = request.BrandName;
+        tenant.BannerUrl = request.BannerUrl;
+        tenant.FaviconUrl = request.FaviconUrl;
+        tenant.ThemeSettings = request.ThemeSettings;
+        tenant.UpdatedOn = DateTime.UtcNow;
+        tenant.UpdatedBy = superAdminEmail;
+
+        await _context.SaveChangesAsync();
+        return Ok(new { message = "Tenant updated successfully" });
+    }
+
+    [Authorize(Roles = "SuperAdmin")]
+    [HttpPut("tenants/{id}/branding")]
+    public async Task<IActionResult> UpdateTenantBranding(long id, [FromBody] UpdateTenantBrandingRequest request)
+    {
+        var tenant = await _context.Tenants.FirstOrDefaultAsync(t => t.Id == id);
+        if (tenant == null)
+        {
+            return NotFound(new { error = "Tenant not found" });
+        }
+
+        var superAdminEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? "system";
+        tenant.BrandName = request.BrandName?.Trim();
+        tenant.BannerUrl = request.BannerUrl?.Trim();
+        tenant.FaviconUrl = request.FaviconUrl?.Trim();
+        tenant.ThemeSettings = request.ThemeSettings;
+        tenant.UpdatedOn = DateTime.UtcNow;
+        tenant.UpdatedBy = superAdminEmail;
+
+        await _context.SaveChangesAsync();
+        return Ok(BrandingResolver.FromTenant(tenant));
+    }
+
+    [Authorize(Roles = "SuperAdmin")]
+    [HttpPost("tenants/{tenantId}/upload-asset")]
+    [RequestSizeLimit(10_485_760)]
+    public async Task<IActionResult> UploadTenantAsset(long tenantId, [FromForm] IFormFile file, [FromQuery] string assetType)
+    {
+        try
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(new { message = "No file provided" });
+            }
+
+            assetType = (assetType ?? "").ToLowerInvariant();
+            if (assetType is not ("banner" or "favicon"))
+            {
+                return BadRequest(new { message = "assetType must be 'banner' or 'favicon'" });
+            }
+
+            var tenant = await _context.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId);
+            if (tenant == null)
+            {
+                return NotFound(new { error = "Tenant not found" });
+            }
+
+            if (!_blobService.IsConfigured())
+            {
+                return StatusCode(500, new { message = "File storage is not configured" });
+            }
+
+            var folder = $"tenants/{tenant.Code}";
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            var fileName = $"{assetType}_{Guid.NewGuid():N}{extension}";
+
+            string url;
+            using (var stream = file.OpenReadStream())
+            {
+                url = await _blobService.UploadToBrandingContainerAsync(
+                    stream,
+                    fileName,
+                    folder,
+                    file.ContentType,
+                    organisationId: null);
+            }
+
+            if (assetType == "banner")
+            {
+                tenant.BannerUrl = url;
+            }
+            else
+            {
+                tenant.FaviconUrl = url;
+            }
+
+            tenant.UpdatedOn = DateTime.UtcNow;
+            tenant.UpdatedBy = User.FindFirst(ClaimTypes.Email)?.Value ?? "system";
+            await _context.SaveChangesAsync();
+
+            return Ok(new { url, assetType });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading tenant branding asset");
+            return StatusCode(500, new { message = "Upload failed" });
+        }
+    }
+
+    [Authorize(Roles = "SuperAdmin")]
+    [HttpPost("tenants/{tenantId}/organisations")]
+    public async Task<IActionResult> CreateOrganisationUnderTenant(long tenantId, [FromBody] CreateOrganisationRequest request)
+    {
+        var tenant = await _context.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId);
+        if (tenant == null)
+        {
+            return NotFound(new { error = "Tenant not found" });
+        }
+
+        var orgCount = await _context.Organisations.CountAsync(o => o.TenantId == tenantId);
+        if (!tenant.AllowsMultipleOrganisations && orgCount >= 1)
+        {
+            return BadRequest(new { error = "This tenant does not allow multiple organisations" });
+        }
+
+        request.TenantId = tenantId;
+        return await CreateOrganisation(request);
+    }
+
+    [Authorize(Roles = "SuperAdmin")]
+    [HttpGet("tenants/{tenantId}/organisations")]
+    public async Task<IActionResult> GetTenantOrganisations(long tenantId)
+    {
+        if (!await _context.Tenants.AnyAsync(t => t.Id == tenantId))
+        {
+            return NotFound(new { error = "Tenant not found" });
+        }
+
+        var orgs = await _context.Organisations
+            .Include(o => o.Users)
+            .Include(o => o.Tenant)
+            .Where(o => o.TenantId == tenantId)
+            .ToListAsync();
+
+        var response = orgs.Select(MapOrganisationResponse).ToList();
+        return Ok(response);
+    }
+
     // Get all organisations
     [Authorize(Roles = "SuperAdmin")]
     [HttpGet("organisations")]
@@ -84,29 +340,10 @@ public class SuperAdminController : ControllerBase
     {
         var orgs = await _context.Organisations
             .Include(o => o.Users)
+            .Include(o => o.Tenant)
             .ToListAsync();
 
-        var response = orgs.Select(o => new OrganisationResponse
-        {
-            Id = o.Id,
-            Name = o.Name,
-            Description = o.Description,
-            MaxUsers = o.MaxUsers,
-            AllocatedStorageGB = o.AllocatedStorageGB,
-            Domain = o.Domain,
-            BannerUrl = o.BannerUrl,
-            FaviconUrl = o.FaviconUrl,
-            ThemeSettings = o.ThemeSettings,
-            SupportEmail = o.SupportEmail,
-            ManagerName = o.ManagerName,
-            ManagerEmail = o.ManagerEmail,
-            ManagerPhone = o.ManagerPhone,
-            RenewalDate = o.RenewalDate,
-            IsActive = o.IsActive,
-            CreatedOn = o.CreatedOn,
-            TotalUsers = o.Users.Count,
-            AdminEmail = o.Users.FirstOrDefault()?.Email
-        }).ToList();
+        var response = orgs.Select(MapOrganisationResponse).ToList();
 
         return Ok(response);
     }
@@ -118,45 +355,44 @@ public class SuperAdminController : ControllerBase
     {
         var org = await _context.Organisations
             .Include(o => o.Users)
+            .Include(o => o.Tenant)
             .FirstOrDefaultAsync(o => o.Id == id);
 
         if (org == null)
             return NotFound(new { error = "Organisation not found" });
 
-        var response = new OrganisationResponse
-        {
-            Id = org.Id,
-            Name = org.Name,
-            Description = org.Description,
-            MaxUsers = org.MaxUsers,
-            AllocatedStorageGB = org.AllocatedStorageGB,
-            Domain = org.Domain,
-            BannerUrl = org.BannerUrl,
-            FaviconUrl = org.FaviconUrl,
-            ThemeSettings = org.ThemeSettings,
-            SupportEmail = org.SupportEmail,
-            ManagerName = org.ManagerName,
-            ManagerEmail = org.ManagerEmail,
-            ManagerPhone = org.ManagerPhone,
-            RenewalDate = org.RenewalDate,
-            IsActive = org.IsActive,
-            CreatedOn = org.CreatedOn,
-            TotalUsers = org.Users.Count,
-            AdminEmail = org.Users.FirstOrDefault()?.Email
-        };
+        var response = MapOrganisationResponse(org);
 
         return Ok(response);
     }
 
-    // Create new organisation
+    // Create new organisation (must belong to a tenant)
     [Authorize(Roles = "SuperAdmin")]
     [HttpPost("organisations")]
     public async Task<IActionResult> CreateOrganisation([FromBody] CreateOrganisationRequest request)
     {
+        if (!request.TenantId.HasValue)
+        {
+            return BadRequest(new { error = "TenantId is required. Create a tenant first, or POST /api/SuperAdmin/tenants/{tenantId}/organisations" });
+        }
+
+        var tenant = await _context.Tenants.FirstOrDefaultAsync(t => t.Id == request.TenantId.Value);
+        if (tenant == null)
+        {
+            return NotFound(new { error = "Tenant not found" });
+        }
+
+        var orgCount = await _context.Organisations.CountAsync(o => o.TenantId == tenant.Id);
+        if (!tenant.AllowsMultipleOrganisations && orgCount >= 1)
+        {
+            return BadRequest(new { error = "This tenant does not allow multiple organisations" });
+        }
+
         var superAdminEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? "system";
 
         var organisation = new Organisation
         {
+            TenantId = tenant.Id,
             Name = request.Name,
             Description = request.Description,
             MaxUsers = request.MaxUsers,
@@ -168,6 +404,7 @@ public class SuperAdminController : ControllerBase
             ManagerPhone = request.ManagerPhone,
             RenewalDate = request.RenewalDate,
             ThemeSettings = request.ThemeSettings,
+            UseTenantBranding = true,
             IsActive = true,
             CreatedOn = DateTime.UtcNow,
             CreatedBy = superAdminEmail
@@ -176,11 +413,11 @@ public class SuperAdminController : ControllerBase
         _context.Organisations.Add(organisation);
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("SuperAdmin {Email} created organisation {OrgName} (ID: {OrgId})", 
-            superAdminEmail, organisation.Name, organisation.Id);
+        _logger.LogInformation("SuperAdmin {Email} created organisation {OrgName} (ID: {OrgId}) under tenant {TenantId}", 
+            superAdminEmail, organisation.Name, organisation.Id, tenant.Id);
 
         return CreatedAtAction(nameof(GetOrganisation), new { id = organisation.Id }, 
-            new { id = organisation.Id, name = organisation.Name });
+            new { id = organisation.Id, name = organisation.Name, tenantId = tenant.Id });
     }
 
     // Update organisation
@@ -203,6 +440,8 @@ public class SuperAdminController : ControllerBase
         organisation.MaxUsers = request.MaxUsers;
         organisation.AllocatedStorageGB = request.AllocatedStorageGB;
         organisation.Domain = request.Domain;
+        organisation.UseTenantBranding = request.UseTenantBranding;
+        organisation.BrandName = request.BrandName;
         organisation.BannerUrl = request.BannerUrl;
         organisation.FaviconUrl = request.FaviconUrl;
         organisation.ThemeSettings = request.ThemeSettings;
@@ -257,6 +496,7 @@ public class SuperAdminController : ControllerBase
             EmailConfirmed = true,
             FirstName = request.FirstName,
             LastName = request.LastName,
+            TenantId = organisation.TenantId,
             OrganisationID = orgId,
             CreatedBy = superAdminEmail,
             ActivatedBy = superAdminEmail,
@@ -1053,31 +1293,67 @@ public class SuperAdminController : ControllerBase
     // Helper method to generate JWT token
     private string GenerateJwtToken(ApplicationUser user, string role)
     {
-        var jwtSection = _configuration.GetSection("Jwt");
-        var key = Encoding.UTF8.GetBytes(jwtSection["Key"] ?? "dev-secret-change-me-please-0123456789");
+        return JwtTokenHelper.CreateToken(_configuration, user, new[] { role });
+    }
 
-        var claims = new List<Claim>
+    private static OrganisationResponse MapOrganisationResponse(Organisation o)
+    {
+        var effective = BrandingResolver.Resolve(o, o.Tenant);
+        return new OrganisationResponse
         {
-            new Claim(ClaimTypes.NameIdentifier, user.Id),
-            new Claim(ClaimTypes.Email, user.Email!),
-            new Claim(ClaimTypes.Name, user.FirstName),
-            new Claim(ClaimTypes.Role, role)
+            Id = o.Id,
+            TenantId = o.TenantId,
+            Name = o.Name,
+            Description = o.Description,
+            MaxUsers = o.MaxUsers,
+            AllocatedStorageGB = o.AllocatedStorageGB,
+            Domain = o.Domain,
+            BannerUrl = o.BannerUrl,
+            FaviconUrl = o.FaviconUrl,
+            ThemeSettings = o.ThemeSettings,
+            BrandName = o.BrandName,
+            UseTenantBranding = o.UseTenantBranding,
+            EffectiveBrandName = effective.BrandName,
+            EffectiveBannerUrl = effective.BannerUrl,
+            EffectiveFaviconUrl = effective.FaviconUrl,
+            EffectiveThemeSettings = effective.ThemeSettings,
+            SupportEmail = o.SupportEmail,
+            ManagerName = o.ManagerName,
+            ManagerEmail = o.ManagerEmail,
+            ManagerPhone = o.ManagerPhone,
+            RenewalDate = o.RenewalDate,
+            IsActive = o.IsActive,
+            CreatedOn = o.CreatedOn,
+            TotalUsers = o.Users?.Count ?? 0,
+            AdminEmail = o.Users?.FirstOrDefault()?.Email
         };
+    }
 
-        var tokenDescriptor = new SecurityTokenDescriptor
+    private async Task<Dictionary<long, string?>> GetTenantAdminEmailsAsync(List<long> tenantIds)
+    {
+        var result = tenantIds.ToDictionary(id => id, _ => (string?)null);
+        if (tenantIds.Count == 0)
         {
-            Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.UtcNow.AddHours(8),
-            Issuer = jwtSection["Issuer"],
-            Audience = jwtSection["Audience"],
-            SigningCredentials = new SigningCredentials(
-                new SymmetricSecurityKey(key),
-                SecurityAlgorithms.HmacSha256Signature)
-        };
+            return result;
+        }
 
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var token = tokenHandler.CreateToken(tokenDescriptor);
-        return tokenHandler.WriteToken(token);
+        var users = await _context.Users
+            .Where(u => u.TenantId.HasValue && tenantIds.Contains(u.TenantId.Value))
+            .ToListAsync();
+
+        foreach (var group in users.GroupBy(u => u.TenantId!.Value))
+        {
+            foreach (var user in group)
+            {
+                if (await _userManager.IsInRoleAsync(user, "TenantAdmin"))
+                {
+                    result[group.Key] = user.Email;
+                    break;
+                }
+            }
+        }
+
+        return result;
     }
 
     private string GetContentType(string filePath)

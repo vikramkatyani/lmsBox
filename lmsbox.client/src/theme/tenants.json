@@ -9,6 +9,16 @@
     "primaryColor": "#0f4c5c",
     "logo": "/assets/glc-logo.png"
   },
+  "bifa": {
+    "name": "BIFA Learning",
+    "primaryColor": "#002e62",
+    "secondaryColor": "#0059a3",
+    "accentColor": "#ee7203",
+    "accentStrongColor": "#e74011",
+    "logo": "/assets/bifa-logo.svg",
+    "fontFamily": "Poppins, Arial, Helvetica, sans-serif",
+    "css": "bifa"
+  },
   "acme": {
     "name": "Acme Corp",
     "primaryColor": "#e11d48",

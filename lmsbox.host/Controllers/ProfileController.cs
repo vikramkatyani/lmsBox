@@ -145,7 +145,7 @@ public class ProfileController : ControllerBase
     }
 
     [HttpGet("favorite-reports")]
-    [Authorize(Roles = "Admin,OrgAdmin,SuperAdmin")]
+    [Authorize(Roles = "Admin,OrgAdmin,TenantAdmin,SuperAdmin")]
     public async Task<IActionResult> GetFavoriteReports()
     {
         var user = await GetCurrentUserAsync();
@@ -165,7 +165,7 @@ public class ProfileController : ControllerBase
     }
 
     [HttpPut("favorite-reports")]
-    [Authorize(Roles = "Admin,OrgAdmin,SuperAdmin")]
+    [Authorize(Roles = "Admin,OrgAdmin,TenantAdmin,SuperAdmin")]
     public async Task<IActionResult> UpdateFavoriteReports([FromBody] UpdateFavoriteReportsRequest request)
     {
         var user = await GetCurrentUserAsync();

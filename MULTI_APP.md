@@ -1,57 +1,42 @@
-# Multi-app layout (lmsBox + GLC)
+# Multi-tenancy (single app)
 
-This solution supports multiple branded deployments that share one core codebase.
+lmsBox is a **single application** with **shared-database multi-tenancy**.
 
-## Projects
+## Hierarchy
 
-| Project | Role |
-|---------|------|
-| `lmsbox.domain` | Shared entities and DTOs |
-| `lmsbox.infrastructure` | EF Core `ApplicationDbContext` and migrations |
-| `lmsbox.host` | Shared API controllers, services, email templates |
-| `lmsBox.Server` | lmsBox deployable host (config + `wwwroot`) |
-| `glc.Server` | GLC deployable host (config + `wwwroot`) |
-| `lmsbox.client` | lmsBox React UI |
-| `glc.client` | GLC React shell (reuses `lmsbox.client/src` via Vite alias) |
+```
+SuperAdmin (platform)
+  └── Tenant
+        ├── TenantAdmin
+        └── Organisation(s)  — one (default) or many when AllowsMultipleOrganisations
+              ├── OrgAdmin
+              └── Learners / courses / content
+```
+
+| Role | Scope |
+|------|--------|
+| SuperAdmin | No tenant/org. Creates tenants, global library. |
+| TenantAdmin | One tenant. Manages organisations and OrgAdmins. Also OrgAdmin on primary org for day-to-day admin. |
+| OrgAdmin | One organisation. |
+| Learner | One organisation. |
+
+## Deployable stack
+
+- API: `lmsBox.Server`
+- UI: `lmsbox.client`
+
+`glc.Server` / `glc.client` are **legacy multi-app hosts** and are not the tenancy model. Prefer creating a GLC (or any brand) as a **Tenant** in the shared lmsBox database. UI theme keys in `lmsbox.client/src/theme/tenants.json` are **branding only**, not data tenants.
 
 ## Local development
 
-**lmsBox**
-
 ```bash
-# API (port 5132)
 dotnet run --project lmsBox.Server
-
-# UI (port 5173/5175 per your setup)
 cd lmsbox.client && npm run dev
 ```
 
-**GLC**
+EF migrations run against the lmsBox database (`lmsbox.infrastructure`).
 
-```bash
-# API (port 5133) — creates/updates Database=glc on first run
-dotnet run --project glc.Server
+## Related docs
 
-# UI (port 5176)
-cd glc.client && npm install && npm run dev
-```
-
-Copy or align env vars from `lmsbox.client/.env` into `glc.client/.env.development` (at minimum `VITE_RECAPTCHA_SITE_KEY` for login).
-
-Configure secrets in `glc.Server/appsettings.Development.json` (storage, SendGrid, OAuth, etc.).
-
-## Deploying
-
-1. Build/publish the correct host: `lmsBox.Server` or `glc.Server`.
-2. Build the matching client into that host’s `wwwroot` (`npm run build` in `lmsbox.client` or `glc.client`).
-3. Run EF migrations against that app’s database (same migration assembly: `lmsbox.infrastructure`).
-
-## Customisation
-
-- **Shared behaviour**: edit `lmsbox.host` (or domain/infrastructure).
-- **Brand-only API/config**: `appsettings*.json` per `*.Server` project.
-- **Brand-only UI**: add pages under `glc.client/src` later, or extend `lmsbox.client/src/theme/tenants.json` and set `VITE_APP_TENANT=glc` in `glc.client/.env`.
-
-## Promoting GLC features to core
-
-Move implementation from `glc.client` / future `glc.*` extensions into `lmsbox.host` and `lmsbox.client`, then register for all hosts.
+- Super Admin / tenant setup: see `SUPERADMIN_SETUP.md`
+- Historical multi-app notes: projects remain in the solution for compatibility but tenancy is not per-host DB.

@@ -125,10 +125,25 @@ export const getUserRoles = () => {
 
 // Check if user is admin
 export const isAdmin = () => {
-  const role = getUserRole();
-  // Check for various admin role formats
-  return role === 'admin' || role === 'Admin' || role === 'OrgAdmin' || role === 'SuperAdmin';
+  const roles = getUserRoles();
+  return roles.some((role) =>
+    ['admin', 'Admin', 'OrgAdmin', 'TenantAdmin', 'SuperAdmin'].includes(role)
+  );
 };
+
+export const getTenantId = () => {
+  const token = getAuthToken();
+  if (!token) return null;
+  const decoded = decodeToken(token);
+  const raw = decoded?.tenant_id ?? decoded?.TenantId;
+  if (raw == null || raw === '') return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+};
+
+export const isTenantAdmin = () => getUserRoles().includes('TenantAdmin');
+export const isOrgAdmin = () => getUserRoles().includes('OrgAdmin');
+export const isSuperAdminRole = () => getUserRoles().includes('SuperAdmin');
 
 // Get user name from token
 export const getUserName = () => {

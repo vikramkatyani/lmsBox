@@ -7,6 +7,9 @@ public class Organisation
 {
     public long Id { get; set; }
 
+    /// <summary>Owning tenant. Required for all organisations.</summary>
+    public long TenantId { get; set; }
+
     [Required]
     public string Name { get; set; } = null!;
 
@@ -39,7 +42,13 @@ public class Organisation
     
     // Theme Settings (stored as JSON)
     public string? ThemeSettings { get; set; }
-    
+
+    /// <summary>
+    /// When true (default), effective branding comes from the parent tenant.
+    /// When false, organisation-specific BrandName/BannerUrl/FaviconUrl/ThemeSettings are used.
+    /// </summary>
+    public bool UseTenantBranding { get; set; } = true;
+
     // Email Configuration
     public string? SmtpHost { get; set; }
     
@@ -84,5 +93,7 @@ public class Organisation
     public string? UpdatedBy { get; set; }
 
     // Navigation
+    public Tenant Tenant { get; set; } = null!;
+
     public ICollection<ApplicationUser> Users { get; set; } = new List<ApplicationUser>();
 }

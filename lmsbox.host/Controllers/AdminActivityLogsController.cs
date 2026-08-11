@@ -7,7 +7,7 @@ namespace lmsBox.Server.Controllers;
 
 [ApiController]
 [Route("api/admin/activity-logs")]
-[Authorize(Roles = "Admin,OrgAdmin,SuperAdmin")]
+[Authorize(Roles = "Admin,OrgAdmin,TenantAdmin,SuperAdmin")]
 public class AdminActivityLogsController : ControllerBase
 {
     private readonly IActivityLogQueryService _activityLogQueryService;

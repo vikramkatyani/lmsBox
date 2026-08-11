@@ -60,6 +60,11 @@ import SuperAdminOrganisationForm from './pages/SuperAdminOrganisationForm';
 import SuperAdminLibrary from './pages/SuperAdminLibrary';
 import SuperAdminLibraryCreate from './pages/SuperAdminLibraryCreate';
 import SuperAdminLibraryEdit from './pages/SuperAdminLibraryEdit';
+import SuperAdminTenants from './pages/SuperAdminTenants';
+import SuperAdminTenantForm from './pages/SuperAdminTenantForm';
+import SuperAdminTenantDetail from './pages/SuperAdminTenantDetail';
+import TenantAdminOrganisations from './pages/TenantAdminOrganisations';
+import TenantAdminBranding from './pages/TenantAdminBranding';
 import OrganisationSettings from './pages/OrganisationSettings';
 import { CohortsList, CohortSubmission } from './pages/Qualifications';
 
@@ -71,6 +76,10 @@ function App() {
           {/* Super Admin routes - separate from regular users */}
           <Route path="/superadmin/login" element={<SuperAdminLogin />} />
           <Route path="/superadmin/dashboard" element={<SuperAdminDashboard />} />
+          <Route path="/superadmin/tenants" element={<SuperAdminTenants />} />
+          <Route path="/superadmin/tenants/create" element={<SuperAdminTenantForm />} />
+          <Route path="/superadmin/tenants/:id" element={<SuperAdminTenantDetail />} />
+          <Route path="/superadmin/tenants/:id/edit" element={<SuperAdminTenantForm />} />
           <Route path="/superadmin/organisations" element={<SuperAdminOrganisations />} />
           <Route path="/superadmin/organisations/create" element={<SuperAdminOrganisationForm />} />
           <Route path="/superadmin/organisations/:id/edit" element={<SuperAdminOrganisationForm />} />
@@ -91,6 +100,24 @@ function App() {
           <Route path="/auth/email-not-registered" element={<EmailNotRegistered />} />
           <Route path="/auth-test" element={<AuthTest />} />
           
+          {/* Tenant admin */}
+          <Route
+            path="/tenant/organisations"
+            element={
+              <AdminRoute>
+                <TenantAdminOrganisations />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/tenant/branding"
+            element={
+              <AdminRoute>
+                <TenantAdminBranding />
+              </AdminRoute>
+            }
+          />
+
           {/* Admin profile page */}
           <Route
             path="/admin/profile"

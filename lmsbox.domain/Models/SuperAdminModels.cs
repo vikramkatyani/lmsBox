@@ -26,6 +26,9 @@ public class SuperAdminLoginResponse
 // Organisation Management
 public class CreateOrganisationRequest
 {
+    /// <summary>Required when creating an organisation under an existing tenant.</summary>
+    public long? TenantId { get; set; }
+
     [Required]
     public string Name { get; set; } = null!;
 
@@ -99,11 +102,17 @@ public class UpdateOrganisationRequest
 
     public DateTime? RenewalDate { get; set; }
     public bool IsActive { get; set; }
+
+    /// <summary>When true (default), org uses tenant branding. When false, custom org branding applies.</summary>
+    public bool UseTenantBranding { get; set; } = true;
+
+    public string? BrandName { get; set; }
 }
 
 public class OrganisationResponse
 {
     public long Id { get; set; }
+    public long TenantId { get; set; }
     public string Name { get; set; } = null!;
     public string? Description { get; set; }
     public int MaxUsers { get; set; }
@@ -112,6 +121,12 @@ public class OrganisationResponse
     public string? BannerUrl { get; set; }
     public string? FaviconUrl { get; set; }
     public string? ThemeSettings { get; set; }
+    public string? BrandName { get; set; }
+    public bool UseTenantBranding { get; set; }
+    public string? EffectiveBrandName { get; set; }
+    public string? EffectiveBannerUrl { get; set; }
+    public string? EffectiveFaviconUrl { get; set; }
+    public string? EffectiveThemeSettings { get; set; }
     public string? SupportEmail { get; set; }
     public string? ManagerName { get; set; }
     public string? ManagerEmail { get; set; }

@@ -11,7 +11,7 @@ namespace lmsBox.Server.Controllers;
 
 [ApiController]
 [Route("api/admin/question-bank/questions")]
-[Authorize(Roles = "Admin,OrgAdmin,SuperAdmin")]
+[Authorize(Roles = "Admin,OrgAdmin,TenantAdmin,SuperAdmin")]
 public class AdminQuestionBankQuestionsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;

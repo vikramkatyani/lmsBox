@@ -14,6 +14,7 @@ export default function OrganisationSettings() {
   const [form, setForm] = useState({
     name: '',
     description: '',
+    useTenantBranding: true,
     brandName: '',
     logoUrl: '',
     supportName: '',
@@ -25,6 +26,7 @@ export default function OrganisationSettings() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [orgInfo, setOrgInfo] = useState(null);
+  const [tenantBranding, setTenantBranding] = useState(null);
   const [showCropModal, setShowCropModal] = useState(false);
 
   useEffect(() => {
@@ -36,9 +38,11 @@ export default function OrganisationSettings() {
       setLoading(true);
       const data = await getOrganisationSettings();
       setOrgInfo(data);
+      setTenantBranding(data.tenantBranding || null);
       setForm({
         name: data.name || '',
         description: data.description || '',
+        useTenantBranding: data.useTenantBranding !== false,
         brandName: data.brandName || '',
         logoUrl: data.logoUrl || '',
         supportName: data.supportName || '',
@@ -48,7 +52,6 @@ export default function OrganisationSettings() {
     } catch (e) {
       console.error(e);
       toast.error(e.message || 'Failed to load organisation settings');
-      // If forbidden, redirect to dashboard
       if (e.message && e.message.includes('Forbidden')) {
         navigate('/admin/dashboard');
       }
@@ -71,9 +74,18 @@ export default function OrganisationSettings() {
 
     try {
       setSaving(true);
-      await updateOrganisationSettings(form);
+      await updateOrganisationSettings({
+        name: form.name,
+        description: form.description,
+        useTenantBranding: form.useTenantBranding,
+        brandName: form.useTenantBranding ? undefined : form.brandName,
+        logoUrl: form.useTenantBranding ? undefined : form.logoUrl,
+        supportName: form.supportName,
+        supportEmail: form.supportEmail,
+        supportPhone: form.supportPhone
+      });
       toast.success('Organisation settings updated successfully');
-      await loadSettings(); // Reload to get latest data
+      await loadSettings();
     } catch (e) {
       console.error(e);
       toast.error(e.message || 'Failed to update organisation settings');
@@ -95,12 +107,12 @@ export default function OrganisationSettings() {
       const urlWithTimestamp = `${result.url}?t=${Date.now()}`;
       
       // Update the form with the new logo URL
-      setForm((prev) => ({ ...prev, logoUrl: urlWithTimestamp }));
+      setForm((prev) => ({ ...prev, logoUrl: urlWithTimestamp, useTenantBranding: false }));
       
       // Also update the orgInfo to reflect the change immediately
-      setOrgInfo((prev) => ({ ...prev, logoUrl: urlWithTimestamp }));
+      setOrgInfo((prev) => ({ ...prev, logoUrl: urlWithTimestamp, useTenantBranding: false }));
       
-      toast.success('Banner image uploaded successfully');
+      toast.success('Banner uploaded — switched to custom branding');
     } catch (e) {
       console.error(e);
       toast.error(e.message || 'Failed to upload banner image');
@@ -167,17 +179,68 @@ export default function OrganisationSettings() {
                 />
               </div>
 
+              {/* Branding mode */}
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 space-y-3">
+                <p className="text-sm font-medium text-gray-900">Branding</p>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="brandingMode"
+                    className="mt-1"
+                    checked={form.useTenantBranding}
+                    onChange={() => handleChange('useTenantBranding', true)}
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-gray-900">Apply tenant branding</span>
+                    <span className="block text-sm text-gray-500">
+                      Use the parent tenant brand (default). Organisations without custom branding inherit these settings.
+                    </span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="brandingMode"
+                    className="mt-1"
+                    checked={!form.useTenantBranding}
+                    onChange={() => handleChange('useTenantBranding', false)}
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-gray-900">Custom organisation branding</span>
+                    <span className="block text-sm text-gray-500">
+                      Override with organisation-specific brand name and banner.
+                    </span>
+                  </span>
+                </label>
+
+                {form.useTenantBranding && (
+                  <div className="mt-2 rounded-md border border-dashed border-gray-300 bg-white p-3 text-sm text-gray-600">
+                    <p className="font-medium text-gray-800 mb-1">Effective tenant branding</p>
+                    <p>Brand: {tenantBranding?.brandName || orgInfo?.effectiveBrandName || 'Not set'}</p>
+                    {(tenantBranding?.bannerUrl || orgInfo?.effectiveLogoUrl) && (
+                      <img
+                        src={tenantBranding?.bannerUrl || orgInfo?.effectiveLogoUrl}
+                        alt="Tenant branding preview"
+                        className="mt-2 w-full max-w-xl h-auto object-contain"
+                        style={{ aspectRatio: '37/9' }}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Brand Name */}
-              <div>
+              <div className={form.useTenantBranding ? 'opacity-50 pointer-events-none' : ''}>
                 <label htmlFor="brandName" className="block text-sm font-medium text-gray-700 mb-2">
                   Brand Name
                 </label>
                 <input
                   id="brandName"
                   type="text"
-                  value={form.brandName}
+                  value={form.useTenantBranding ? (tenantBranding?.brandName || '') : form.brandName}
                   onChange={(e) => handleChange('brandName', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={form.useTenantBranding}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
                   placeholder="Brand name for emails and communications"
                 />
                 <p className="mt-1 text-sm text-gray-500">
@@ -186,7 +249,7 @@ export default function OrganisationSettings() {
               </div>
 
               {/* Logo URL */}
-              <div>
+              <div className={form.useTenantBranding ? 'opacity-50' : ''}>
                 <label htmlFor="logoUrl" className="block text-sm font-medium text-gray-700 mb-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -196,7 +259,7 @@ export default function OrganisationSettings() {
                     <button
                       type="button"
                       onClick={() => setShowCropModal(true)}
-                      disabled={uploading}
+                      disabled={uploading || form.useTenantBranding}
                       className="px-3 py-1 text-sm bg-[#2afeae] text-[#1b365d] rounded-lg hover:bg-[#25e89e] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {uploading ? 'Uploading...' : 'Upload'}
@@ -206,21 +269,24 @@ export default function OrganisationSettings() {
                 <input
                   id="logoUrl"
                   type="url"
-                  value={form.logoUrl}
+                  value={form.useTenantBranding ? (tenantBranding?.bannerUrl || tenantBranding?.logoUrl || '') : form.logoUrl}
                   onChange={(e) => handleChange('logoUrl', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={form.useTenantBranding}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
                   placeholder="https://example.com/logo.png"
                 />
                 <p className="mt-1 text-sm text-gray-500">
-                  Upload an image (recommended) or paste a URL. Images will be cropped to 37:9 ratio.
+                  {form.useTenantBranding
+                    ? 'Switch to custom branding to upload an organisation banner.'
+                    : 'Upload an image (recommended) or paste a URL. Images will be cropped to 37:9 ratio.'}
                 </p>
-                {form.logoUrl && (
+                {((form.useTenantBranding ? (tenantBranding?.bannerUrl || tenantBranding?.logoUrl) : form.logoUrl)) && (
                   <div className="mt-3">
                     <p className="text-sm font-medium text-gray-700 mb-2">Banner Preview (37:9 ratio):</p>
                     <div className="border border-gray-200 rounded-lg p-2 bg-white">
                       <img 
-                        key={form.logoUrl}
-                        src={form.logoUrl} 
+                        key={form.useTenantBranding ? (tenantBranding?.bannerUrl || tenantBranding?.logoUrl) : form.logoUrl}
+                        src={form.useTenantBranding ? (tenantBranding?.bannerUrl || tenantBranding?.logoUrl) : form.logoUrl} 
                         alt="Banner preview" 
                         className="w-full max-w-2xl h-auto object-contain"
                         style={{ aspectRatio: '37/9' }}

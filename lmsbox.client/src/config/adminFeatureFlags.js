@@ -28,6 +28,23 @@ const orgAdminNavLinks = [
   { to: '/admin/automation', label: 'Automation' },
 ];
 
+const tenantAdminNavLinks = [
+  { to: '/admin/dashboard', label: 'Dashboard' },
+  { to: '/tenant/organisations', label: 'Organisations' },
+  { to: '/tenant/branding', label: 'Branding' },
+  {
+    label: 'Learning',
+    children: [
+      { to: '/admin/courses', label: 'Courses', flag: 'showCoursesNav' },
+      { to: '/admin/learning-pathways', label: 'Pathways', flag: 'showPathwaysNav' },
+      { to: '/admin/question-bank/questions', label: 'Question Bank' },
+    ],
+  },
+  { to: '/admin/users', label: 'Users' },
+  { to: '/admin/reports', label: 'Reports' },
+  { to: '/admin/automation', label: 'Automation' },
+];
+
 const superAdminNavLinks = [
   { to: '/admin/dashboard', label: 'Dashboard' },
   {
@@ -66,6 +83,10 @@ export const getAdminNavLinks = () => {
   if (isSuperAdmin()) {
     return filterNavLinks(superAdminNavLinks);
   }
+  const roles = getUserRoles();
+  if (roles.includes('TenantAdmin')) {
+    return filterNavLinks(tenantAdminNavLinks);
+  }
   return filterNavLinks(orgAdminNavLinks);
 };
 
@@ -82,5 +103,5 @@ export const canManageUsersInUI = () => {
 /** SuperAdmin and OrgAdmin can generate reusable admin login links from the user listing. */
 export const canGenerateLoginLinkInUI = () => {
   const roles = getUserRoles();
-  return roles.includes('SuperAdmin') || roles.includes('OrgAdmin');
+  return roles.includes('SuperAdmin') || roles.includes('TenantAdmin') || roles.includes('OrgAdmin');
 };

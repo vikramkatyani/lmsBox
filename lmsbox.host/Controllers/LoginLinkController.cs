@@ -163,6 +163,8 @@ namespace lmsBox.Server.Controllers
                         claims.Add(new Claim(ClaimTypes.Role, r));
                     }
 
+                    JwtTokenHelper.AddTenancyClaims(claims, user);
+
                     var creds = new SigningCredentials(new SymmetricSecurityKey(keyBytes), SecurityAlgorithms.HmacSha256);
                     var jwt = new JwtSecurityToken(
                         issuer: jwtSection["Issuer"],
@@ -471,6 +473,8 @@ namespace lmsBox.Server.Controllers
             {
                 claims.Add(new Claim(ClaimTypes.Role, role));
             }
+
+            JwtTokenHelper.AddTenancyClaims(claims, user);
 
             var creds = new SigningCredentials(new SymmetricSecurityKey(keyBytes), SecurityAlgorithms.HmacSha256);
             var jwt = new JwtSecurityToken(

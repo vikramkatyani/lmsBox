@@ -11,7 +11,7 @@ namespace lmsBox.Server.Controllers;
 
 [ApiController]
 [Route("api/admin/surveys")]
-[Authorize(Roles = "Admin,OrgAdmin,SuperAdmin")]
+[Authorize(Roles = "Admin,OrgAdmin,TenantAdmin,SuperAdmin")]
 public class AdminSurveysController : ControllerBase
 {
     private readonly ApplicationDbContext _context;

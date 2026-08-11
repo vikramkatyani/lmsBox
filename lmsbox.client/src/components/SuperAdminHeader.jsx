@@ -96,11 +96,11 @@ export default function SuperAdminHeader() {
               </li>
               {[
                 { to: '/superadmin/dashboard', label: 'Dashboard' },
-                { to: '/superadmin/organisations', label: 'Organisations' },
+                { to: '/superadmin/tenants', label: 'Tenants' },
                 { to: '/superadmin/library', label: 'Library' },
                 { to: '/admin/question-bank/questions', label: 'Question Bank' },
                 { to: '/admin/question-bank/quizzes', label: 'Bank Assessments' },
-                { to: '/superadmin/reports', label: 'Reports' }
+                { to: '/admin/reports/activity-logs', label: 'Reports' }
               ].map((link) => (
                 <li key={link.to} className="nav-item relative group">
                   <NavLink

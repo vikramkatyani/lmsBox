@@ -11,7 +11,7 @@ namespace lmsBox.Server.Controllers;
 
 [ApiController]
 [Route("api/admin/automation")]
-[Authorize(Roles = "OrgAdmin")]
+[Authorize(Roles = "OrgAdmin,TenantAdmin")]
 public class AdminAutomationController : ControllerBase
 {
     private static readonly Regex TemplateVariableRegex = new(@"\{\{\s*([a-zA-Z0-9_]+)\s*\}\}", RegexOptions.Compiled);

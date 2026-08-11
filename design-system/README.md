@@ -463,6 +463,20 @@ Override tokens on a host page or tenant wrapper — do not edit component HTML:
 
 All components follow.
 
+### Tenant themes
+
+Per-tenant brand CSS lives under `design-system/tenants/`. The React app sets
+`data-tenant="<key>"` on `<html>` and loads the matching stylesheet via
+`ThemeContext` when `VITE_APP_TENANT` (or hostname) selects that tenant.
+
+| Tenant | CSS | Activate |
+|--------|-----|----------|
+| BIFA | `tenants/bifa-theme.css` | `VITE_APP_TENANT=bifa` (or hostname containing `bifa`) |
+
+BIFA tokens follow Brand Guidelines v1.2 (primary navy/orange palette, Poppins).
+Keep copies in sync with `lmsbox.client/src/styles/tenants/` and
+`lmsbox.client/public/design-system/tenants/` when editing.
+
 ---
 
 ## Reference source

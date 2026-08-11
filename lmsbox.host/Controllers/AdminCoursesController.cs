@@ -13,7 +13,7 @@ namespace lmsBox.Server.Controllers;
 
 [ApiController]
 [Route("api/admin/courses")]
-[Authorize(Roles = "Admin,OrgAdmin,SuperAdmin")]
+[Authorize(Roles = "Admin,OrgAdmin,TenantAdmin,SuperAdmin")]
 public class AdminCoursesController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
@@ -120,12 +120,22 @@ public class AdminCoursesController : ControllerBase
                 .Where(c => !c.IsDeleted) // Exclude soft-deleted courses
                 .AsQueryable();
 
-            // Organization filtering: OrgAdmin can only see their org's courses
-            if (userRole == "OrgAdmin")
+            var scope = await AccessScope.ResolveAsync(User, _context);
+            if (!scope.IsSuperAdmin)
             {
-                query = query.Where(c => c.OrganisationId == user.OrganisationID);
+                if (scope.IsTenantAdmin && scope.TenantId.HasValue)
+                {
+                    query = query.Where(c => c.Organisation != null && c.Organisation.TenantId == scope.TenantId);
+                }
+                else if (scope.OrganisationId.HasValue)
+                {
+                    query = query.Where(c => c.OrganisationId == scope.OrganisationId);
+                }
+                else
+                {
+                    query = query.Where(_ => false);
+                }
             }
-            // SuperAdmin and Admin can see all courses (no additional filter)
 
             // Search filter
             if (!string.IsNullOrEmpty(search))
@@ -284,9 +294,19 @@ public class AdminCoursesController : ControllerBase
             }
 
             // Check organization access for OrgAdmin
-            if (userRole == "OrgAdmin" && course.OrganisationId != user.OrganisationID)
+            if (userRole == "OrgAdmin" || User.IsInRole("OrgAdmin") || User.IsInRole("TenantAdmin"))
             {
-                return Forbid("You can only access courses from your organization");
+                var scope = await AccessScope.ResolveAsync(User, _context);
+                if (scope.IsTenantAdmin && scope.TenantId.HasValue)
+                {
+                    var orgOk = await _context.Organisations.AnyAsync(o =>
+                        o.Id == course.OrganisationId && o.TenantId == scope.TenantId);
+                    if (!orgOk) return Forbid();
+                }
+                else if (course.OrganisationId != user.OrganisationID)
+                {
+                    return Forbid();
+                }
             }
 
             var courseDetail = new AdminCourseDetailDto
@@ -369,9 +389,19 @@ public class AdminCoursesController : ControllerBase
                 return NotFound(new { message = "Course not found" });
             }
 
-            if (userRole == "OrgAdmin" && course.OrganisationId != user.OrganisationID)
+            if (userRole == "OrgAdmin" || User.IsInRole("OrgAdmin") || User.IsInRole("TenantAdmin"))
             {
-                return Forbid("You can only preview courses from your organization");
+                var scope = await AccessScope.ResolveAsync(User, _context);
+                if (scope.IsTenantAdmin && scope.TenantId.HasValue)
+                {
+                    var orgOk = await _context.Organisations.AnyAsync(o =>
+                        o.Id == course.OrganisationId && o.TenantId == scope.TenantId);
+                    if (!orgOk) return Forbid();
+                }
+                else if (course.OrganisationId != user.OrganisationID)
+                {
+                    return Forbid();
+                }
             }
 
             var orderedLessons = course.Lessons.OrderBy(l => l.Ordinal).ToList();
@@ -672,9 +702,19 @@ public class AdminCoursesController : ControllerBase
             }
 
             // Check organization access for OrgAdmin
-            if (userRole == "OrgAdmin" && course.OrganisationId != user.OrganisationID)
+            if (userRole == "OrgAdmin" || User.IsInRole("OrgAdmin") || User.IsInRole("TenantAdmin"))
             {
-                return Forbid("You can only update courses from your organization");
+                var scope = await AccessScope.ResolveAsync(User, _context);
+                if (scope.IsTenantAdmin && scope.TenantId.HasValue)
+                {
+                    var orgOk = await _context.Organisations.AnyAsync(o =>
+                        o.Id == course.OrganisationId && o.TenantId == scope.TenantId);
+                    if (!orgOk) return Forbid();
+                }
+                else if (course.OrganisationId != user.OrganisationID)
+                {
+                    return Forbid();
+                }
             }
 
             // Validate required fields
@@ -920,9 +960,19 @@ public class AdminCoursesController : ControllerBase
             }
 
             // Check organization access for OrgAdmin
-            if (userRole == "OrgAdmin" && course.OrganisationId != user.OrganisationID)
+            if (userRole == "OrgAdmin" || User.IsInRole("OrgAdmin") || User.IsInRole("TenantAdmin"))
             {
-                return Forbid("You can only update courses from your organization");
+                var scope = await AccessScope.ResolveAsync(User, _context);
+                if (scope.IsTenantAdmin && scope.TenantId.HasValue)
+                {
+                    var orgOk = await _context.Organisations.AnyAsync(o =>
+                        o.Id == course.OrganisationId && o.TenantId == scope.TenantId);
+                    if (!orgOk) return Forbid();
+                }
+                else if (course.OrganisationId != user.OrganisationID)
+                {
+                    return Forbid();
+                }
             }
 
             // Validate status value
@@ -1034,10 +1084,20 @@ public class AdminCoursesController : ControllerBase
                 return NotFound(new { message = "Course not found" });
             }
 
-            // Check organization access for OrgAdmin
-            if (userRole == "OrgAdmin" && originalCourse.OrganisationId != user.OrganisationID)
+            // Check organization access for OrgAdmin / TenantAdmin
+            if (User.IsInRole("OrgAdmin") || User.IsInRole("TenantAdmin"))
             {
-                return Forbid("You can only duplicate courses from your organization");
+                var dupScope = await AccessScope.ResolveAsync(User, _context);
+                if (dupScope.IsTenantAdmin && dupScope.TenantId.HasValue)
+                {
+                    var orgOk = await _context.Organisations.AnyAsync(o =>
+                        o.Id == originalCourse.OrganisationId && o.TenantId == dupScope.TenantId);
+                    if (!orgOk) return Forbid();
+                }
+                else if (originalCourse.OrganisationId != user.OrganisationID)
+                {
+                    return Forbid();
+                }
             }
 
             // Create new course (copy)
@@ -1371,9 +1431,19 @@ public class AdminCoursesController : ControllerBase
             }
 
             // Check organization access for OrgAdmin
-            if (userRole == "OrgAdmin" && course.OrganisationId != user.OrganisationID)
+            if (userRole == "OrgAdmin" || User.IsInRole("OrgAdmin") || User.IsInRole("TenantAdmin"))
             {
-                return Forbid("You can only delete courses from your organization");
+                var scope = await AccessScope.ResolveAsync(User, _context);
+                if (scope.IsTenantAdmin && scope.TenantId.HasValue)
+                {
+                    var orgOk = await _context.Organisations.AnyAsync(o =>
+                        o.Id == course.OrganisationId && o.TenantId == scope.TenantId);
+                    if (!orgOk) return Forbid();
+                }
+                else if (course.OrganisationId != user.OrganisationID)
+                {
+                    return Forbid();
+                }
             }
 
             // Mark course as deleted (soft delete)

@@ -268,6 +268,9 @@ namespace lmsbox.infrastructure.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<long?>("TenantId")
+                        .HasColumnType("bigint");
+
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("bit");
 
@@ -284,6 +287,8 @@ namespace lmsbox.infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex")
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("OrganisationID", "ActiveStatus", "CreatedOn");
 
@@ -1551,6 +1556,9 @@ namespace lmsbox.infrastructure.Migrations
                     b.Property<string>("SupportEmail")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("ThemeSettings")
                         .HasColumnType("nvarchar(max)");
 
@@ -1563,7 +1571,12 @@ namespace lmsbox.infrastructure.Migrations
                     b.Property<DateTime?>("UpdatedOn")
                         .HasColumnType("datetime2");
 
+                    b.Property<bool>("UseTenantBranding")
+                        .HasColumnType("bit");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("Organisations");
                 });
@@ -2272,6 +2285,90 @@ namespace lmsbox.infrastructure.Migrations
                     b.ToTable("SurveyResponses");
                 });
 
+            modelBuilder.Entity("lmsbox.domain.Models.Tenant", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("AllocatedStorageGB")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("AllowsMultipleOrganisations")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("BannerUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BrandName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Domain")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FaviconUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ManagerEmail")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ManagerName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ManagerPhone")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("MaxUsers")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("RenewalDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SupportEmail")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ThemeSettings")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedOn")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("Tenants");
+                });
+
             modelBuilder.Entity("lmsbox.domain.Models.UserEngagement", b =>
                 {
                     b.Property<long>("Id")
@@ -2475,7 +2572,14 @@ namespace lmsbox.infrastructure.Migrations
                         .WithMany("Users")
                         .HasForeignKey("OrganisationID");
 
+                    b.HasOne("lmsbox.domain.Models.Tenant", "Tenant")
+                        .WithMany("Users")
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Organisation");
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("lmsbox.domain.Models.AutomationDispatch", b =>
@@ -2848,6 +2952,17 @@ namespace lmsbox.infrastructure.Migrations
                     b.HasOne("lmsbox.domain.Models.ApplicationUser", null)
                         .WithMany("LoginLinkTokens")
                         .HasForeignKey("ApplicationUserId");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.Organisation", b =>
+                {
+                    b.HasOne("lmsbox.domain.Models.Tenant", "Tenant")
+                        .WithMany("Organisations")
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("lmsbox.domain.Models.PathwayCourse", b =>
@@ -3259,6 +3374,13 @@ namespace lmsbox.infrastructure.Migrations
             modelBuilder.Entity("lmsbox.domain.Models.SurveyResponse", b =>
                 {
                     b.Navigation("QuestionResponses");
+                });
+
+            modelBuilder.Entity("lmsbox.domain.Models.Tenant", b =>
+                {
+                    b.Navigation("Organisations");
+
+                    b.Navigation("Users");
                 });
 
             modelBuilder.Entity("lmsbox.domain.Models.UserRole", b =>

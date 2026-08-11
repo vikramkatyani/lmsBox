@@ -48,16 +48,14 @@ public class OrganisationSettingsController : ControllerBase
                 return NotFound(new { message = "User not found" });
             }
 
-            // OrgAdmin can only view their own organisation
             long orgId;
             var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
-            
+
             if (roles.Contains("SuperAdmin"))
             {
-                // SuperAdmin should not access this endpoint
                 return Forbid();
             }
-            else if (roles.Contains("OrgAdmin"))
+            else if (roles.Contains("OrgAdmin") || roles.Contains("TenantAdmin"))
             {
                 if (!user.OrganisationID.HasValue)
                 {
@@ -67,11 +65,11 @@ public class OrganisationSettingsController : ControllerBase
             }
             else
             {
-                // Only OrgAdmin can access organisation settings
                 return Forbid();
             }
 
             var organisation = await _context.Organisations
+                .Include(o => o.Tenant)
                 .FirstOrDefaultAsync(o => o.Id == orgId);
 
             if (organisation == null)
@@ -79,14 +77,28 @@ public class OrganisationSettingsController : ControllerBase
                 return NotFound(new { message = "Organisation not found" });
             }
 
+            var effective = BrandingResolver.Resolve(organisation, organisation.Tenant);
+            var tenantBranding = organisation.Tenant != null
+                ? BrandingResolver.FromTenant(organisation.Tenant)
+                : null;
+
             var response = new
             {
                 id = organisation.Id,
+                tenantId = organisation.TenantId,
                 name = organisation.Name,
                 description = organisation.Description,
+                useTenantBranding = organisation.UseTenantBranding,
                 brandName = organisation.BrandName,
                 logoUrl = organisation.BannerUrl,
                 faviconUrl = organisation.FaviconUrl,
+                themeSettings = organisation.ThemeSettings,
+                effectiveBrandName = effective.BrandName,
+                effectiveLogoUrl = effective.LogoUrl,
+                effectiveFaviconUrl = effective.FaviconUrl,
+                effectiveThemeSettings = effective.ThemeSettings,
+                brandingSource = effective.Source,
+                tenantBranding,
                 supportName = organisation.ManagerName,
                 supportEmail = organisation.SupportEmail ?? organisation.ManagerEmail,
                 supportPhone = organisation.ManagerPhone,
@@ -125,15 +137,14 @@ public class OrganisationSettingsController : ControllerBase
                 return NotFound(new { message = "User not found" });
             }
 
-            // Only OrgAdmin can update organisation settings
             var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
-            
+
             if (roles.Contains("SuperAdmin"))
             {
                 return Forbid();
             }
-            
-            if (!roles.Contains("OrgAdmin"))
+
+            if (!roles.Contains("OrgAdmin") && !roles.Contains("TenantAdmin"))
             {
                 return Forbid();
             }
@@ -144,6 +155,7 @@ public class OrganisationSettingsController : ControllerBase
             }
 
             var organisation = await _context.Organisations
+                .Include(o => o.Tenant)
                 .FirstOrDefaultAsync(o => o.Id == user.OrganisationID.Value);
 
             if (organisation == null)
@@ -151,33 +163,58 @@ public class OrganisationSettingsController : ControllerBase
                 return NotFound(new { message = "Organisation not found" });
             }
 
-            // Update fields
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
                 organisation.Name = request.Name.Trim();
             }
 
             organisation.Description = request.Description?.Trim();
-            organisation.BrandName = request.BrandName?.Trim();
-            organisation.BannerUrl = request.LogoUrl?.Trim();
+            organisation.UseTenantBranding = request.UseTenantBranding;
+
+            if (request.UseTenantBranding)
+            {
+                // Keep stored custom fields but they are ignored while UseTenantBranding is true
+            }
+            else
+            {
+                organisation.BrandName = request.BrandName?.Trim();
+                organisation.BannerUrl = request.LogoUrl?.Trim();
+                if (request.FaviconUrl != null)
+                {
+                    organisation.FaviconUrl = request.FaviconUrl.Trim();
+                }
+                if (request.ThemeSettings != null)
+                {
+                    organisation.ThemeSettings = request.ThemeSettings;
+                }
+            }
+
             organisation.ManagerName = request.SupportName?.Trim();
             organisation.SupportEmail = request.SupportEmail?.Trim();
             organisation.ManagerEmail = request.SupportEmail?.Trim();
             organisation.ManagerPhone = request.SupportPhone?.Trim();
-            
+
             organisation.UpdatedOn = DateTime.UtcNow;
             organisation.UpdatedBy = userId;
 
             await _context.SaveChangesAsync();
 
+            var effective = BrandingResolver.Resolve(organisation, organisation.Tenant);
+
             var response = new
             {
                 id = organisation.Id,
+                tenantId = organisation.TenantId,
                 name = organisation.Name,
                 description = organisation.Description,
+                useTenantBranding = organisation.UseTenantBranding,
                 brandName = organisation.BrandName,
                 logoUrl = organisation.BannerUrl,
                 faviconUrl = organisation.FaviconUrl,
+                effectiveBrandName = effective.BrandName,
+                effectiveLogoUrl = effective.LogoUrl,
+                effectiveFaviconUrl = effective.FaviconUrl,
+                brandingSource = effective.Source,
                 supportName = organisation.ManagerName,
                 supportEmail = organisation.SupportEmail,
                 supportPhone = organisation.ManagerPhone,
@@ -215,9 +252,8 @@ public class OrganisationSettingsController : ControllerBase
                 return NotFound(new { message = "User not found" });
             }
 
-            // Only OrgAdmin can upload banner
             var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
-            if (!roles.Contains("OrgAdmin"))
+            if (!roles.Contains("OrgAdmin") && !roles.Contains("TenantAdmin"))
             {
                 return Forbid();
             }
@@ -232,7 +268,6 @@ public class OrganisationSettingsController : ControllerBase
                 return BadRequest(new { message = "No image file provided" });
             }
 
-            // Validate image file type
             var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
             var extension = Path.GetExtension(image.FileName).ToLower();
             if (!allowedExtensions.Contains(extension))
@@ -240,7 +275,6 @@ public class OrganisationSettingsController : ControllerBase
                 return BadRequest(new { message = $"Invalid image format. Allowed: {string.Join(", ", allowedExtensions)}" });
             }
 
-            // Validate file size (max 10 MB)
             if (image.Length > 10_485_760)
             {
                 return BadRequest(new { message = "Image file size must be less than 10 MB" });
@@ -251,7 +285,6 @@ public class OrganisationSettingsController : ControllerBase
                 return StatusCode(500, new { message = "File storage is not configured" });
             }
 
-            // Get organisation details first
             var organisation = await _context.Organisations
                 .FirstOrDefaultAsync(o => o.Id == user.OrganisationID.Value);
 
@@ -260,7 +293,6 @@ public class OrganisationSettingsController : ControllerBase
                 return NotFound(new { message = "Organisation not found" });
             }
 
-            // Upload to Azure Blob Storage in lms-content-brandui container
             var companyName = organisation.Name.Replace(" ", "").ToLower();
             var bannerId = Guid.NewGuid();
             var fileName = $"banner_{bannerId}{extension}";
@@ -270,21 +302,23 @@ public class OrganisationSettingsController : ControllerBase
             using (var stream = image.OpenReadStream())
             {
                 imageUrl = await _blobService.UploadToBrandingContainerAsync(
-                    stream, 
-                    fileName, 
-                    folderPath, 
+                    stream,
+                    fileName,
+                    folderPath,
                     image.ContentType,
                     organisation.Id
                 );
             }
 
             organisation.BannerUrl = imageUrl;
+            // Uploading custom branding implies switching off tenant branding
+            organisation.UseTenantBranding = false;
             organisation.UpdatedOn = DateTime.UtcNow;
             organisation.UpdatedBy = userId;
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { url = imageUrl, message = "Banner uploaded successfully" });
+            return Ok(new { url = imageUrl, message = "Banner uploaded successfully", useTenantBranding = false });
         }
         catch (Exception ex)
         {
@@ -298,10 +332,13 @@ public class UpdateOrganisationSettingsRequest
 {
     public string? Name { get; set; }
     public string? Description { get; set; }
+    /// <summary>Default true — apply tenant branding to this organisation.</summary>
+    public bool UseTenantBranding { get; set; } = true;
     public string? BrandName { get; set; }
     public string? LogoUrl { get; set; }
+    public string? FaviconUrl { get; set; }
+    public string? ThemeSettings { get; set; }
     public string? SupportName { get; set; }
     public string? SupportEmail { get; set; }
     public string? SupportPhone { get; set; }
 }
-

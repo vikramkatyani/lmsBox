@@ -13,6 +13,7 @@ namespace lmsbox.infrastructure.Data
         }
 
         // Core Entities
+        public DbSet<Tenant> Tenants { get; set; } = null!;
         public DbSet<Organisation> Organisations { get; set; } = null!;
 
         // Role & Access
@@ -148,6 +149,28 @@ namespace lmsbox.infrastructure.Data
 
             builder.Entity<ApplicationUser>()
                    .HasIndex(u => new { u.OrganisationID, u.ActiveStatus, u.CreatedOn });
+
+            builder.Entity<ApplicationUser>()
+                   .HasIndex(u => u.TenantId);
+
+            builder.Entity<Tenant>()
+                   .HasIndex(t => t.Code)
+                   .IsUnique();
+
+            builder.Entity<Tenant>()
+                   .HasMany(t => t.Organisations)
+                   .WithOne(o => o.Tenant)
+                   .HasForeignKey(o => o.TenantId)
+                   .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<Tenant>()
+                   .HasMany(t => t.Users)
+                   .WithOne(u => u.Tenant)
+                   .HasForeignKey(u => u.TenantId)
+                   .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<Organisation>()
+                   .HasIndex(o => o.TenantId);
             
             // Unique constraint for course category names (case-insensitive)
             builder.Entity<CourseCategory>()

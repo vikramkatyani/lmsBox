@@ -11,7 +11,7 @@ namespace lmsBox.Server.Controllers;
 
 [ApiController]
 [Route("api/admin/reports")]
-[Authorize(Roles = "Admin,OrgAdmin,SuperAdmin")]
+[Authorize(Roles = "Admin,OrgAdmin,TenantAdmin,SuperAdmin")]
 public partial class AdminReportsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
@@ -34,16 +34,56 @@ public partial class AdminReportsController : ControllerBase
     private Task<AdminUserScope> GetUserScope() =>
         AdminUserScope.ResolveAsync(User, _context);
 
-    // Helper to get org filter
+    // Helper to get org filter (null = all orgs the caller can access; combine with tenant filter)
     private async Task<long?> GetOrgIdFilter()
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
-        
-        if (User.IsInRole("OrgAdmin") && user != null)
-            return user.OrganisationID;
-        
+        var scope = await AccessScope.ResolveAsync(User, _context);
+        if (scope.IsSuperAdmin || scope.IsTenantAdmin)
+        {
+            return null;
+        }
+
+        if (scope.OrganisationId.HasValue)
+        {
+            return scope.OrganisationId;
+        }
+
         return null;
+    }
+
+    private async Task<List<long>?> GetAccessibleOrganisationIdsAsync()
+    {
+        var scope = await AccessScope.ResolveAsync(User, _context);
+        if (scope.IsSuperAdmin)
+        {
+            return null;
+        }
+
+        if (scope.IsTenantAdmin && scope.TenantId.HasValue)
+        {
+            return await _context.Organisations.AsNoTracking()
+                .Where(o => o.TenantId == scope.TenantId.Value)
+                .Select(o => o.Id)
+                .ToListAsync();
+        }
+
+        if (scope.OrganisationId.HasValue)
+        {
+            return new List<long> { scope.OrganisationId.Value };
+        }
+
+        return new List<long>();
+    }
+
+    private async Task<long?> GetTenantIdFilter()
+    {
+        var scope = await AccessScope.ResolveAsync(User, _context);
+        if (scope.IsSuperAdmin)
+        {
+            return null;
+        }
+
+        return scope.TenantId;
     }
 
     #region User Activity Report

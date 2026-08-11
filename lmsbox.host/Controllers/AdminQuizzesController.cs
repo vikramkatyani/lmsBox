@@ -16,7 +16,7 @@ namespace lmsBox.Server.Controllers
 {
     [ApiController]
     [Route("api/admin/quizzes")]
-    [Authorize(Roles = "Admin,OrgAdmin,SuperAdmin")]
+    [Authorize(Roles = "Admin,OrgAdmin,TenantAdmin,SuperAdmin")]
     public class AdminQuizzesController : ControllerBase
     {
         private readonly ApplicationDbContext _context;

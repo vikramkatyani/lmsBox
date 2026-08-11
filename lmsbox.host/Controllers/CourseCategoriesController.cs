@@ -9,7 +9,7 @@ namespace lmsBox.Server.Controllers;
 
 [ApiController]
 [Route("api/course-categories")]
-[Authorize(Roles = "Admin,OrgAdmin,SuperAdmin")]
+[Authorize(Roles = "Admin,OrgAdmin,TenantAdmin,SuperAdmin")]
 public class CourseCategoriesController : ControllerBase
 {
     private readonly ApplicationDbContext _context;

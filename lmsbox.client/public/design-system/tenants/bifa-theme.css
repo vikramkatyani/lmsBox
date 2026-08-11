@@ -1,0 +1,237 @@
+/**
+ * BIFA tenant theme
+ * =================
+ * Brand tokens from BIFA Brand Guidelines v1.2 (Feb 2025) — bifa.org
+ *
+ * Apply by setting data-tenant="bifa" on <html> (ThemeContext does this)
+ * and loading this stylesheet after the shared app / design-system CSS.
+ *
+ * Primary palette (core brand — always use for BIFA LMS chrome):
+ *   Dark Blue    #002e62
+ *   Light Blue   #0059a3
+ *   Dark Orange  #e74011
+ *   Light Orange #ee7203
+ *   Grey         #575756
+ *   Light Grey   #c4c2b2
+ *
+ * Font: Poppins (primary); Arial (fallback / Office)
+ * Tracking: -20 (−0.02em) on body copy
+ */
+
+/* --------------------------------------------------------------------------
+   1. Design-system interactive tokens (lmsbox-theme.css overrides)
+   -------------------------------------------------------------------------- */
+
+html[data-tenant="bifa"] {
+  /* Brand — primary palette */
+  --primary: #002e62;
+  --secondary: #0059a3;
+  --accent: #ee7203;
+  --accent-strong: #e74011;
+
+  /* Neutrals */
+  --surface: #ffffff;
+  --background: #f7f8fa;
+  --text: #002e62;
+  --text-secondary: #575756;
+  --text-muted: #c4c2b2;
+  --text-on-primary: #ffffff;
+  --text-on-accent: #ffffff;
+
+  /* Alpha / overlays derived from primary palette */
+  --primary-08: rgba(0, 46, 98, 0.08);
+  --primary-16: rgba(0, 46, 98, 0.16);
+  --primary-04: rgba(0, 46, 98, 0.04);
+  --secondary-05: rgba(0, 89, 163, 0.05);
+  --secondary-09: rgba(0, 89, 163, 0.09);
+  --secondary-10: rgba(0, 89, 163, 0.10);
+  --secondary-035: rgba(0, 89, 163, 0.035);
+  --accent-03: rgba(238, 114, 3, 0.03);
+  --accent-10: rgba(238, 114, 3, 0.10);
+  --accent-30: rgba(238, 114, 3, 0.30);
+  --accent-strong-08: rgba(231, 64, 17, 0.08);
+  --accent-strong-12: rgba(231, 64, 17, 0.12);
+  --accent-strong-13: rgba(231, 64, 17, 0.13);
+  --accent-strong-14: rgba(231, 64, 17, 0.14);
+  --accent-strong-50: rgba(231, 64, 17, 0.50);
+  --accent-strong-shadow: rgba(231, 64, 17, 0.90);
+  --scrim-strong: rgba(0, 46, 98, 0.94);
+  --scrim-mid: rgba(0, 46, 98, 0.80);
+  --scrim-soft: rgba(0, 46, 98, 0.10);
+  --hero-kicker: #ffd9c9;
+  --hero-text: rgba(255, 255, 255, 0.86);
+
+  --border: var(--primary-08);
+  --border-strong: var(--primary-16);
+
+  --shadow-xs: 0 8px 20px -10px rgba(0, 46, 98, 0.18);
+  --shadow-sm: 0 12px 28px -12px rgba(0, 46, 98, 0.16);
+  --shadow-md: 0 18px 40px -16px rgba(0, 46, 98, 0.18);
+  --shadow-lg: 0 28px 60px -20px rgba(0, 46, 98, 0.22);
+  --shadow-btn: 0 14px 28px -14px var(--accent-strong-shadow);
+
+  --font-family: 'Poppins', Arial, Helvetica, sans-serif;
+  --tracking-tight: -0.025em;
+  --tracking-body: -0.02em;
+  --focus-ring: 3px solid var(--accent);
+
+  /* Semantic aliases */
+  --lmsbox-navy: var(--primary);
+  --lmsbox-blue: var(--secondary);
+  --lmsbox-orange: var(--accent-strong);
+  --lmsbox-orange-l: var(--accent);
+  --lmsbox-grey: var(--text-secondary);
+  --lmsbox-paper: var(--background);
+  --lmsbox-primary: var(--primary);
+  --lmsbox-focus: var(--accent);
+  --lmsbox-text: var(--text);
+  --lmsbox-muted: var(--text-secondary);
+  --lmsbox-border: var(--border);
+  --lmsbox-shadow: var(--shadow-md);
+
+  /* Secondary palette — service-area accents only (guidelines p.12 / p.20).
+     Do not use these as the core BIFA brand colours. */
+  --bifa-training: #a993c5;
+  --bifa-young-forwarder: #ffcd1c;
+  --bifa-apprenticeships: #50bcbc;
+  --bifa-environmental: #22a258;
+  --bifa-awards-gold: #cea939;
+  --bifa-awards-blue: #00193f;
+  --bifa-light-grey-surface: #e2e1d9;
+
+  /* React app chrome tokens (index.css @theme) */
+  --tenant-primary: #002e62;
+  --tenant-secondary: #0059a3;
+  --tenant-accent: #ee7203;
+  --tenant-accent-strong: #e74011;
+
+  --color-login-page-bg: #f7f8fa;
+  --color-login-box-bg: #002e62;
+  --color-login-box-text: #ffffff;
+  --color-login-box-link-text: #ffffff;
+  --color-login-btn-bg: #e74011;
+  --color-login-btn-text: #ffffff;
+  --color-login-input-bg: #ffffff;
+  --color-login-input-border: #c4c2b2;
+
+  --color-logout-btn: #e74011;
+  --color-logout-btn-text: #ffffff;
+
+  --color-confirm-btn-hover: #ee7203;
+  --color-confirm-btn: #002e62;
+  --color-confirm-btn-text-hover: #ffffff;
+  --color-confirm-btn-text: #ffffff;
+
+  --color-page-bg: #f7f8fa;
+  --color-page-dark-bg: #002e62;
+  --color-page-txt: #575756;
+
+  --color-boxlms-navbar: #002e62;
+  --color-boxlms-navbar-txt: #ffffff;
+  --color-boxlms-navbar-active: #ee7203;
+  --color-boxlms-profile: #e74011;
+
+  --color-boxlms-primary-btn: #e74011;
+  --color-boxlms-secondary-btn: #002e62;
+  --color-boxlms-primary-btn-txt: #ffffff;
+  --color-boxlms-secondary-btn-txt: #ffffff;
+
+  --color-boxlms-primary-body-txt: #002e62;
+
+  --color-superadmin-header-bg: #002e62;
+  --color-superadmin-header-text: #ffffff;
+  --color-superadmin-btn-bg: #e74011;
+  --color-superadmin-btn-text: #ffffff;
+  --color-superadmin-btn-hover: #ee7203;
+  --color-superadmin-text: #575756;
+  --color-superadmin-accent: #ee7203;
+
+  --font-heading: 'Poppins', Arial, Helvetica, sans-serif;
+  --font-body: 'Poppins', Arial, Helvetica, sans-serif;
+}
+
+/* --------------------------------------------------------------------------
+   2. Global typography for BIFA shell
+   -------------------------------------------------------------------------- */
+
+html[data-tenant="bifa"] body {
+  font-family: var(--font-body);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--color-page-txt);
+  background-color: var(--color-page-bg);
+}
+
+html[data-tenant="bifa"] h1,
+html[data-tenant="bifa"] h2,
+html[data-tenant="bifa"] h3,
+html[data-tenant="bifa"] h4,
+html[data-tenant="bifa"] h5,
+html[data-tenant="bifa"] h6 {
+  font-family: var(--font-heading);
+  font-weight: 500; /* Poppins Medium for titles (guidelines p.13) */
+  letter-spacing: -0.02em;
+  color: var(--primary);
+}
+
+/* --------------------------------------------------------------------------
+   3. Button / state remaps (mint LMS Box → BIFA orange)
+   -------------------------------------------------------------------------- */
+
+html[data-tenant="bifa"] .btn-primary {
+  background-color: var(--color-boxlms-primary-btn);
+  color: var(--color-boxlms-primary-btn-txt);
+}
+
+html[data-tenant="bifa"] .btn-primary:hover {
+  background-color: var(--accent);
+}
+
+html[data-tenant="bifa"] .btn-secondary {
+  background-color: var(--color-boxlms-secondary-btn);
+  color: var(--color-boxlms-secondary-btn-txt);
+}
+
+html[data-tenant="bifa"] .btn-secondary:hover {
+  background-color: var(--secondary);
+}
+
+html[data-tenant="bifa"] .bg-success {
+  background-color: #e8f6ef;
+}
+
+html[data-tenant="bifa"] .border-success {
+  border-color: var(--bifa-environmental);
+}
+
+html[data-tenant="bifa"] .text-success {
+  color: var(--bifa-environmental);
+}
+
+html[data-tenant="bifa"] .border-warning {
+  border-color: var(--accent);
+}
+
+/* --------------------------------------------------------------------------
+   4. Service-area accent helpers (optional; guidelines p.20–21)
+   -------------------------------------------------------------------------- */
+
+html[data-tenant="bifa"] .bifa-accent-training {
+  --tenant-accent-stripe: var(--bifa-training);
+  border-left: 4px solid var(--bifa-training);
+}
+
+html[data-tenant="bifa"] .bifa-accent-young-forwarder {
+  --tenant-accent-stripe: var(--bifa-young-forwarder);
+  border-left: 4px solid var(--bifa-young-forwarder);
+}
+
+html[data-tenant="bifa"] .bifa-accent-apprenticeships {
+  --tenant-accent-stripe: var(--bifa-apprenticeships);
+  border-left: 4px solid var(--bifa-apprenticeships);
+}
+
+html[data-tenant="bifa"] .bifa-accent-environmental {
+  --tenant-accent-stripe: var(--bifa-environmental);
+  border-left: 4px solid var(--bifa-environmental);
+}

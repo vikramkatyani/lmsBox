@@ -35,7 +35,7 @@ public static class InteractiveLessonHelper
 
 [ApiController]
 [Route("api/admin")]
-[Authorize(Roles = "Admin,OrgAdmin,SuperAdmin")]
+[Authorize(Roles = "Admin,OrgAdmin,TenantAdmin,SuperAdmin")]
 public class AdminInteractiveLessonsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;

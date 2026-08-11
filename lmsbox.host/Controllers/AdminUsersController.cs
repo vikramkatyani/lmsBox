@@ -13,7 +13,7 @@ namespace lmsBox.Server.Controllers
 {
     [ApiController]
     [Route("api/admin/users")]
-    [Authorize(Roles = "Admin,OrgAdmin,SuperAdmin")]
+    [Authorize(Roles = "Admin,OrgAdmin,TenantAdmin,SuperAdmin")]
     public class AdminUsersController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -59,15 +59,9 @@ namespace lmsBox.Server.Controllers
 
                 var query = _context.Users.AsQueryable();
 
-                // Organization filtering: OrgAdmin can only see their org's users
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                var currentUser = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
-                
-                if (User.IsInRole("OrgAdmin") && currentUser != null)
-                {
-                    query = query.Where(u => u.OrganisationID == currentUser.OrganisationID);
-                }
-                // SuperAdmin and Admin can see all users (no additional filter)
+                // Organization / tenant filtering
+                var scope = await AccessScope.ResolveAsync(User, _context);
+                query = scope.ApplyToUsers(query);
 
                 // Apply search filter
                 if (!string.IsNullOrWhiteSpace(search))
@@ -278,19 +272,45 @@ namespace lmsBox.Server.Controllers
 
                 // Determine organization for the new user
                 long orgId;
-                if (User.IsInRole("OrgAdmin") && currentAdminUser != null)
+                long? tenantId;
+                if ((User.IsInRole("OrgAdmin") || User.IsInRole("TenantAdmin")) && currentAdminUser != null)
                 {
-                    if (currentAdminUser.OrganisationID == null)
+                    if (User.IsInRole("OrgAdmin") && !User.IsInRole("TenantAdmin"))
                     {
-                        _logger.LogWarning("OrgAdmin {UserId} has no OrganisationID", currentAdminUser.Id);
-                        return BadRequest(new { message = "Admin user must belong to an organization" });
+                        if (currentAdminUser.OrganisationID == null)
+                        {
+                            _logger.LogWarning("OrgAdmin {UserId} has no OrganisationID", currentAdminUser.Id);
+                            return BadRequest(new { message = "Admin user must belong to an organization" });
+                        }
+                        orgId = currentAdminUser.OrganisationID.Value;
+                        tenantId = currentAdminUser.TenantId;
                     }
-                    // Force the new user to be in the same organization
-                    orgId = currentAdminUser.OrganisationID.Value;
+                    else if (User.IsInRole("TenantAdmin") && currentAdminUser.OrganisationID.HasValue)
+                    {
+                        orgId = currentAdminUser.OrganisationID.Value;
+                        tenantId = currentAdminUser.TenantId;
+                    }
+                    else if (User.IsInRole("TenantAdmin") && currentAdminUser.TenantId.HasValue)
+                    {
+                        var primaryOrg = await _context.Organisations
+                            .Where(o => o.TenantId == currentAdminUser.TenantId.Value)
+                            .OrderBy(o => o.Id)
+                            .FirstOrDefaultAsync();
+                        if (primaryOrg == null)
+                        {
+                            return BadRequest(new { message = "Tenant has no organisations" });
+                        }
+                        orgId = primaryOrg.Id;
+                        tenantId = currentAdminUser.TenantId;
+                    }
+                    else
+                    {
+                        return BadRequest(new { message = "Admin user must belong to an organization or tenant" });
+                    }
                 }
                 else
                 {
-                    // Get the organisation (assuming there's one organisation for now or first one)
+                    // SuperAdmin: use first organisation (legacy) — prefer explicit org assignment later
                     var organisation = await _context.Organisations.FirstOrDefaultAsync();
                     if (organisation == null)
                     {
@@ -298,6 +318,7 @@ namespace lmsBox.Server.Controllers
                         return StatusCode(500, new { message = "System configuration error: No organisation found" });
                     }
                     orgId = organisation.Id;
+                    tenantId = organisation.TenantId;
                 }
                 
                 var currentAdminId = currentAdminUser?.Id ?? "system";
@@ -311,6 +332,7 @@ namespace lmsBox.Server.Controllers
                     FirstName = request.FirstName,
                     LastName = request.LastName,
                     EmailConfirmed = true, // Auto-confirm for admin-created users
+                    TenantId = tenantId,
                     OrganisationID = orgId,
                     CreatedOn = DateTime.UtcNow,
                     CreatedBy = currentAdminId,
@@ -561,15 +583,33 @@ namespace lmsBox.Server.Controllers
                 var currentAdminUser = await _userManager.GetUserAsync(User);
                 var currentAdminId = currentAdminUser?.Id ?? "system";
                 
-                // OrgAdmin can only create users for their own organization
+                // OrgAdmin / TenantAdmin can only create users for their own organization/tenant
                 long orgId;
-                if (User.IsInRole("OrgAdmin") && currentAdminUser != null)
+                long? tenantId;
+                if ((User.IsInRole("OrgAdmin") || User.IsInRole("TenantAdmin")) && currentAdminUser != null)
                 {
-                    if (currentAdminUser.OrganisationID == null)
+                    if (User.IsInRole("OrgAdmin") && currentAdminUser.OrganisationID.HasValue)
+                    {
+                        orgId = currentAdminUser.OrganisationID.Value;
+                        tenantId = currentAdminUser.TenantId;
+                    }
+                    else if (User.IsInRole("TenantAdmin") && currentAdminUser.TenantId.HasValue)
+                    {
+                        var primaryOrg = await _context.Organisations
+                            .Where(o => o.TenantId == currentAdminUser.TenantId.Value)
+                            .OrderBy(o => o.Id)
+                            .FirstOrDefaultAsync();
+                        if (primaryOrg == null)
+                        {
+                            return BadRequest(new { message = "Tenant has no organisations" });
+                        }
+                        orgId = currentAdminUser.OrganisationID ?? primaryOrg.Id;
+                        tenantId = currentAdminUser.TenantId;
+                    }
+                    else
                     {
                         return BadRequest(new { message = "Admin user must belong to an organization" });
                     }
-                    orgId = currentAdminUser.OrganisationID.Value;
                 }
                 else
                 {
@@ -580,6 +620,7 @@ namespace lmsBox.Server.Controllers
                         return StatusCode(500, new { message = "System configuration error: No organisation found" });
                     }
                     orgId = organisation.Id;
+                    tenantId = organisation.TenantId;
                 }
 
                 var roleToAssign = "Learner"; // fixed role per requirements
@@ -604,6 +645,7 @@ namespace lmsBox.Server.Controllers
                             FirstName = string.Empty,
                             LastName = string.Empty,
                             EmailConfirmed = true, // Active
+                            TenantId = tenantId,
                             OrganisationID = orgId,
                             CreatedOn = DateTime.UtcNow,
                             CreatedBy = currentAdminId,
