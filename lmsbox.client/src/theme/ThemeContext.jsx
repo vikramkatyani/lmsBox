@@ -15,7 +15,8 @@ function getTenantKey() {
   if (hostname.includes('glc')) return 'glc';
   if (hostname.includes('acme')) return 'acme';
   if (hostname.includes('globex')) return 'globex';
-  return 'default';
+  // Temporary default: BIFA brand guidelines theme
+  return 'bifa';
 }
 
 function getTenantConfig() {
