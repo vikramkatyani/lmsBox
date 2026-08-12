@@ -2,12 +2,16 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
 import { adminFeatureFlags, isSuperAdmin } from '../config/adminFeatureFlags';
+import { isOrgAdmin, isTenantAdmin } from '../utils/auth';
 
 const GlobalAIButton = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  if (!adminFeatureFlags.showAdminAiAssistant || !isSuperAdmin()) {
+  const canUseAdminAi =
+    isSuperAdmin() || isOrgAdmin() || isTenantAdmin();
+
+  if (!adminFeatureFlags.showAdminAiAssistant || !canUseAdminAi) {
     return null;
   }
 
