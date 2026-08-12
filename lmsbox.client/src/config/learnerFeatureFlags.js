@@ -3,5 +3,5 @@
  * Set flags to true when re-enabling features.
  */
 export const learnerFeatureFlags = {
-  showLearnerAiAssistant: false,
+  showLearnerAiAssistant: true,
 };

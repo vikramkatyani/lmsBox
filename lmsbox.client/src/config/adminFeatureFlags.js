@@ -7,7 +7,7 @@ import { getUserRole, getUserRoles } from '../utils/auth';
 export const adminFeatureFlags = {
   showCoursesNav: true,
   showPathwaysNav: true,
-  showAdminAiAssistant: false,
+  showAdminAiAssistant: true,
 };
 
 /** Platform admin (SuperAdmin) — system-wide access. */
