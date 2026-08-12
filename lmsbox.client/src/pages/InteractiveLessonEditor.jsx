@@ -686,16 +686,26 @@ export default function InteractiveLessonEditor() {
 
         {isEdit && (
           <div className="bg-white border rounded-lg p-6 space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-semibold">Blocks ({blocks.length}/{INTERACTIVE_LESSON_MAX_BLOCKS})</h2>
-              <button
-                type="button"
-                onClick={openNewBlockForm}
-                disabled={blocks.length >= INTERACTIVE_LESSON_MAX_BLOCKS}
-                className="px-4 py-2 bg-[#1b365d] text-white rounded hover:bg-[#234a7a] disabled:opacity-50"
-              >
-                + Add block
-              </button>
+              <div className="flex items-center gap-4">
+                <a
+                  href="/design-system/examples/index.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-[#0059a3] underline underline-offset-2 hover:text-[#002e62]"
+                >
+                  Component examples
+                </a>
+                <button
+                  type="button"
+                  onClick={openNewBlockForm}
+                  disabled={blocks.length >= INTERACTIVE_LESSON_MAX_BLOCKS}
+                  className="px-4 py-2 bg-[#1b365d] text-white rounded hover:bg-[#234a7a] disabled:opacity-50"
+                >
+                  + Add block
+                </button>
+              </div>
             </div>
 
             {blocks.length === 0 ? (

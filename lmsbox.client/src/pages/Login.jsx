@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../theme/ThemeContext';
 import lmsLogo from '../assets/lmsbox-logo.png'; 
 import loginIllustration from '../assets/login-image.png';
+import bifaLoginHero from '../assets/BIFA-login-hero.svg';
 import api from '../utils/api';
 import { RecaptchaComponent, executeRecaptcha } from '../utils/recaptcha';
 import usePageTitle from '../hooks/usePageTitle';
@@ -19,6 +20,7 @@ export default function Login() {
   const theme = useTheme();
   const logoSrc = theme?.logo || lmsLogo;
   const tenantName = theme?.name || import.meta.env.VITE_APP_TITLE || 'LMS Box';
+  const heroSrc = theme?.key === 'bifa' ? bifaLoginHero : loginIllustration;
   const API_BASE = import.meta.env.VITE_API_BASE;
   
   usePageTitle('Login');
@@ -299,9 +301,9 @@ export default function Login() {
         {/* Right: Illustration */}
         <div className="hidden lg:block">
           <img
-            src={loginIllustration}
-            alt="Login Illustration"
-            className="w-full max-w-lg mx-auto object-cover"
+            src={heroSrc}
+            alt={`${tenantName} login illustration`}
+            className={`w-full max-w-lg mx-auto ${theme?.key === 'bifa' ? 'object-contain' : 'object-cover'}`}
           />
         </div>
       </div>
