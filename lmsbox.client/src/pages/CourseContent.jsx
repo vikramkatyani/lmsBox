@@ -1173,7 +1173,7 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate, previewMo
                         aria-label="Play video"
                         className="inline-flex flex-col items-center gap-3 group focus:outline-none"
                       >
-                        <span className="flex h-16 w-16 md:h-20 md:w-20 items-center justify-center rounded-full bg-[#2afeae] text-[#1b365d] shadow-lg transition-transform group-hover:scale-105 group-focus-visible:ring-2 group-focus-visible:ring-[#2afeae] group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-black">
+                        <span className="flex h-16 w-16 md:h-20 md:w-20 items-center justify-center rounded-full bg-boxlms-primary-btn text-boxlms-primary-btn-txt shadow-lg transition-transform group-hover:scale-105 group-focus-visible:ring-2 group-focus-visible:ring-boxlms-primary-btn group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-black">
                           <svg className="w-8 h-8 md:w-10 md:h-10 ml-1" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
                             <path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
                           </svg>
@@ -1221,7 +1221,7 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate, previewMo
                       href={lesson.url} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="bg-[#2afeae] hover:bg-[#25e89e] text-[#1b365d] px-6 py-3 rounded-lg font-medium transition-colors inline-flex items-center space-x-2"
+                      className="bg-boxlms-primary-btn text-boxlms-primary-btn-txt hover:brightness-90 px-6 py-3 rounded-lg font-medium transition-colors inline-flex items-center space-x-2"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -1240,7 +1240,7 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate, previewMo
                           completed: true
                         });
                       }}
-                      className="bg-[#2afeae] hover:bg-[#25e89e] text-[#1b365d] px-6 py-3 rounded-lg shadow-lg font-medium transition-colors flex items-center space-x-2"
+                      className="bg-boxlms-primary-btn text-boxlms-primary-btn-txt hover:brightness-90 px-6 py-3 rounded-lg shadow-lg font-medium transition-colors flex items-center space-x-2"
                     >
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -1378,7 +1378,7 @@ function ContentPanel({ lesson, courseId: _courseId, onProgressUpdate, previewMo
                         completed: true
                       });
                     }}
-                    className="bg-[#2afeae] hover:bg-[#25e89e] text-[#1b365d] px-6 py-3 rounded-lg shadow font-medium transition-colors flex items-center space-x-2"
+                    className="bg-boxlms-primary-btn text-boxlms-primary-btn-txt hover:brightness-90 px-6 py-3 rounded-lg shadow font-medium transition-colors flex items-center space-x-2"
                   >
                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -1576,7 +1576,7 @@ function CertificatePanel({ courseId, course }) {
           <button
             type="button"
             onClick={() => setReloadKey((key) => key + 1)}
-            className="mt-6 rounded border border-[#2afeae] bg-[#2afeae] px-6 py-2 text-[#1b365d] transition-colors hover:bg-[#25e89e]"
+            className="mt-6 rounded border border-boxlms-primary-btn bg-boxlms-primary-btn px-6 py-2 text-boxlms-primary-btn-txt transition-colors hover:brightness-90"
           >
             Try Again
           </button>
@@ -2596,7 +2596,7 @@ export default function CourseContent({ previewMode = false }) {
                     inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium
                     transition-colors sm:text-sm
                     ${canGoNext
-                      ? 'border-[#2afeae] bg-[#2afeae] text-[#1b365d] hover:bg-[#25e89e]'
+                      ? 'border-boxlms-primary-btn bg-boxlms-primary-btn text-boxlms-primary-btn-txt hover:brightness-90'
                       : 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-400'}
                   `}
                 >
@@ -2636,7 +2636,7 @@ export default function CourseContent({ previewMode = false }) {
                                 toast.error(error.message || 'Network error. Please check your connection and try again.');
                               }
                             }}
-                            className="px-6 py-2 rounded border border-[#2afeae] bg-[#2afeae] text-[#1b365d] transition-colors hover:bg-[#25e89e]"
+                            className="px-6 py-2 rounded border border-boxlms-primary-btn bg-boxlms-primary-btn text-boxlms-primary-btn-txt transition-colors hover:brightness-90"
                           >
                             View Certificate
                           </button>
@@ -2682,7 +2682,7 @@ export default function CourseContent({ previewMode = false }) {
           {/* Floating AI Assistant Button */}
           <button
             onClick={() => setIsAIAssistantOpen(true)}
-            className="fixed bottom-6 right-6 bg-[#1b365d] text-[#2afeae] p-4 rounded-full shadow-lg hover:shadow-xl hover:bg-[#152d4d] transition-all duration-200 z-50 flex items-center gap-2 group font-medium"
+            className="fixed bottom-6 right-6 bg-boxlms-navbar text-boxlms-navbar-active p-4 rounded-full shadow-lg hover:shadow-xl hover:brightness-110 transition-all duration-200 z-50 flex items-center gap-2 group font-medium"
             title="AI Assistant"
           >
             <Sparkles className="w-6 h-6" />

@@ -115,7 +115,7 @@ export default function LearnerAIAssistant({ courseTitle, currentLessonTitle = n
       {/* Slide-in Panel */}
       <div className="fixed inset-y-0 right-0 w-full sm:w-96 md:w-28rem bg-white shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ease-in-out">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b bg-[#1b365d] text-white">
+        <div className="flex items-center justify-between p-4 border-b bg-boxlms-navbar text-boxlms-navbar-txt">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5" />
             <div>
@@ -139,7 +139,7 @@ export default function LearnerAIAssistant({ courseTitle, currentLessonTitle = n
         <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50">
           {chatHistory.length === 0 ? (
             <div className="text-center py-6">
-              <Sparkles className="w-12 h-12 mx-auto mb-3 text-[#2afeae]" />
+              <Sparkles className="w-12 h-12 mx-auto mb-3 text-boxlms-navbar-active" />
               <h4 className="text-sm font-medium text-gray-900 mb-2">Ask about course content</h4>
               <p className="text-xs text-gray-600 mb-4 px-4">
                 I'll answer questions about your lessons.
@@ -153,7 +153,7 @@ export default function LearnerAIAssistant({ courseTitle, currentLessonTitle = n
                     <button
                       key={index}
                       onClick={() => handleSuggestedQuestion(suggested)}
-                      className="w-full text-left px-3 py-2 bg-white hover:bg-[#2afeae]/10 rounded-lg text-xs text-gray-700 transition-colors border border-gray-200"
+                      className="w-full text-left px-3 py-2 bg-white hover:bg-boxlms-primary-btn/10 rounded-lg text-xs text-gray-700 transition-colors border border-gray-200"
                     >
                       {suggested}
                     </button>
@@ -171,13 +171,13 @@ export default function LearnerAIAssistant({ courseTitle, currentLessonTitle = n
                   <div
                     className={`max-w-[85%] rounded-lg px-3 py-2 ${
                       message.type === 'user'
-                        ? 'bg-[#2afeae] text-[#1b365d]'
+                        ? 'bg-boxlms-primary-btn text-boxlms-primary-btn-txt'
                         : 'bg-white text-gray-900 border border-gray-200'
                     }`}
                   >
                     <div className="flex items-start space-x-2">
                       {message.type === 'ai' && (
-                        <Sparkles className="w-4 h-4 text-[#2afeae] mt-0.5 shrink-0" />
+                        <Sparkles className="w-4 h-4 text-boxlms-navbar-active mt-0.5 shrink-0" />
                       )}
                       <div className="flex-1">
                         <div className="text-xs leading-relaxed" 
@@ -198,7 +198,7 @@ export default function LearnerAIAssistant({ courseTitle, currentLessonTitle = n
             <div className="flex justify-start">
               <div className="bg-white border border-gray-200 rounded-lg px-3 py-2">
                 <div className="flex items-center space-x-2">
-                  <Sparkles className="w-4 h-4 text-[#2afeae] animate-pulse" />
+                  <Sparkles className="w-4 h-4 text-boxlms-navbar-active animate-pulse" />
                   <div className="flex space-x-1">
                     <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
                     <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
@@ -218,14 +218,14 @@ export default function LearnerAIAssistant({ courseTitle, currentLessonTitle = n
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 placeholder="Ask about this course..."
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae] resize-none text-sm"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-boxlms-primary-btn resize-none text-sm"
                 rows="2"
                 disabled={isLoading}
               />
               <button
                 type="submit"
                 disabled={isLoading || !question.trim()}
-                className="px-4 py-2 bg-[#2afeae] text-[#1b365d] rounded-lg hover:bg-[#25e89e] focus:outline-none focus:ring-2 focus:ring-[#2afeae] disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
+                className="px-4 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded-lg hover:brightness-90 focus:outline-none focus:ring-2 focus:ring-boxlms-primary-btn disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />

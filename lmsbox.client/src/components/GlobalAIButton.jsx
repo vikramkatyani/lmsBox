@@ -33,7 +33,7 @@ const GlobalAIButton = () => {
   return (
     <button
       onClick={handleClick}
-      className="fixed bottom-6 right-6 z-50 bg-boxlms-navbar text-[#2afeae] p-4 rounded-full shadow-lg hover:shadow-xl hover:brightness-110 transition-all duration-200 flex items-center gap-2 group"
+      className="fixed bottom-6 right-6 z-50 bg-boxlms-navbar text-boxlms-navbar-active p-4 rounded-full shadow-lg hover:shadow-xl hover:brightness-110 transition-all duration-200 flex items-center gap-2 group"
       title="Create Course with AI"
     >
       <Sparkles className="w-6 h-6" />

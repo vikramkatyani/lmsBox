@@ -973,7 +973,7 @@ export default function AdminCourseEditor() {
           {adminFeatureFlags.showAdminAiAssistant && (
             <button
               onClick={() => setAiAssistantOpen(true)}
-              className="bg-[#2afeae] text-[#1b365d] px-4 py-2 rounded-lg hover:bg-[#25e89e] hover:shadow-lg transition-all duration-200 flex items-center gap-2 font-medium"
+              className="bg-boxlms-primary-btn text-boxlms-primary-btn-txt px-4 py-2 rounded-lg hover:brightness-90 hover:shadow-lg transition-all duration-200 flex items-center gap-2 font-medium"
             >
               <Sparkles className="w-5 h-5" />
               AI Assistant
@@ -1089,7 +1089,7 @@ export default function AdminCourseEditor() {
                       <img src={form.bannerPreview} alt="Banner preview" className="w-full h-36 object-cover rounded" />
                       <div className="flex gap-2 mt-2">
                         <button type="button" onClick={removeBanner} className="px-3 py-1.5 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300">Remove</button>
-                        <button type="button" onClick={openCropModal} className="px-3 py-1.5 text-sm bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e]">
+                        <button type="button" onClick={openCropModal} className="px-3 py-1.5 text-sm bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90">
                           Change
                         </button>
                       </div>
@@ -1149,7 +1149,7 @@ export default function AdminCourseEditor() {
                         name="lessonAccessMode"
                         checked={!form.requireSequentialLessons}
                         onChange={() => handleChange('requireSequentialLessons', false)}
-                        className="mt-0.5 text-[#2afeae] focus:ring-[#2afeae]"
+                        className="mt-0.5 text-boxlms-navbar-active focus:ring-boxlms-primary-btn"
                         disabled={form.status === 'Published'}
                       />
                       <span className="text-xs text-gray-700">
@@ -1162,7 +1162,7 @@ export default function AdminCourseEditor() {
                         name="lessonAccessMode"
                         checked={form.requireSequentialLessons}
                         onChange={() => handleChange('requireSequentialLessons', true)}
-                        className="mt-0.5 text-[#2afeae] focus:ring-[#2afeae]"
+                        className="mt-0.5 text-boxlms-navbar-active focus:ring-boxlms-primary-btn"
                         disabled={form.status === 'Published'}
                       />
                       <span className="text-xs text-gray-700">
@@ -1198,7 +1198,7 @@ export default function AdminCourseEditor() {
                               type="checkbox"
                               checked={form.isPreSurveyMandatory}
                               onChange={(e) => handleChange('isPreSurveyMandatory', e.target.checked)}
-                              className="rounded text-[#2afeae] focus:ring-[#2afeae]"
+                              className="rounded text-boxlms-navbar-active focus:ring-boxlms-primary-btn"
                               disabled={form.status === 'Published'}
                             />
                             <span className="text-xs text-gray-700">Mandatory (must complete before accessing lessons)</span>
@@ -1225,7 +1225,7 @@ export default function AdminCourseEditor() {
                               type="checkbox"
                               checked={form.isPostSurveyMandatory}
                               onChange={(e) => handleChange('isPostSurveyMandatory', e.target.checked)}
-                              className="rounded text-[#2afeae] focus:ring-[#2afeae]"
+                              className="rounded text-boxlms-navbar-active focus:ring-boxlms-primary-btn"
                               disabled={form.status === 'Published'}
                             />
                             <span className="text-xs text-gray-700">Mandatory (must complete for course completion & certificate)</span>
@@ -1664,7 +1664,7 @@ export default function AdminCourseEditor() {
                                 const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
                                 window.location.href = `${target}?returnTo=${returnTo}`;
                               }}
-                              className="px-3 py-2 text-sm bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e]"
+                              className="px-3 py-2 text-sm bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90"
                             >
                               Create New Quiz
                             </button>

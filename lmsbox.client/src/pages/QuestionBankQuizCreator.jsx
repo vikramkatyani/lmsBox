@@ -343,7 +343,7 @@ export default function QuestionBankQuizCreator() {
           {adminFeatureFlags.showAdminAiAssistant && (
             <button
               onClick={() => setAiAssistantOpen(true)}
-              className="bg-[#2afeae] text-[#1b365d] px-4 py-2 rounded-lg hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+              className="bg-boxlms-primary-btn text-boxlms-primary-btn-txt px-4 py-2 rounded-lg hover:shadow-lg transition-all duration-200 flex items-center gap-2"
             >
               <Sparkles className="w-5 h-5" />
               AI Assistant
@@ -513,7 +513,7 @@ export default function QuestionBankQuizCreator() {
             {!isAddingQuestion && (
               <button
                 onClick={() => setIsAddingQuestion(true)}
-                className="px-4 py-2 bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e]"
+                className="px-4 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90"
               >
                 Add Question
               </button>
@@ -665,7 +665,7 @@ export default function QuestionBankQuizCreator() {
                 <div className="flex space-x-2">
                   <button
                     onClick={saveQuestion}
-                    className="px-4 py-2 bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e]"
+                    className="px-4 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90"
                     type="button"
                   >
                     {editingIndex !== null ? 'Update Question' : 'Save Question'}
@@ -768,7 +768,7 @@ export default function QuestionBankQuizCreator() {
           <button onClick={() => navigate(-1)} className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
             Cancel
           </button>
-          <button onClick={saveQuiz} className="px-6 py-3 bg-[#2afeae] text-[#1b365d] rounded-lg hover:bg-[#25e89e]">
+          <button onClick={saveQuiz} className="px-6 py-3 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded-lg hover:brightness-90">
             {isEdit ? 'Update Assessment' : 'Save Assessment'}
           </button>
         </div>

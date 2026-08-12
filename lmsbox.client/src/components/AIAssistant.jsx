@@ -154,7 +154,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
       {mode === 'floating' && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 bg-[#2afeae] text-[#1b365d] p-4 rounded-full shadow-lg hover:shadow-xl hover:bg-[#25e89e] transition-all duration-200 z-50 flex items-center gap-2 group font-medium"
+          className="fixed bottom-6 right-6 bg-boxlms-navbar text-boxlms-navbar-active p-4 rounded-full shadow-lg hover:shadow-xl hover:brightness-110 transition-all duration-200 z-50 flex items-center gap-2 group font-medium"
           title="AI Assistant"
         >
           <Sparkles className="w-6 h-6" />
@@ -171,7 +171,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b bg-[#1b365d] text-white rounded-t-lg">
+                <div className="flex items-center justify-between p-4 border-b bg-boxlms-navbar text-boxlms-navbar-txt rounded-t-lg">
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-5 h-5" />
                     <h2 className="text-xl font-semibold">AI Assistant</h2>
@@ -190,7 +190,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                 onClick={() => setActiveTab('chat')}
                 className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${
                   activeTab === 'chat'
-                    ? 'border-b-2 border-[#2afeae] text-[#1b365d] bg-white'
+                    ? 'border-b-2 border-boxlms-primary-btn text-boxlms-primary-body-txt bg-white'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
@@ -201,7 +201,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                 onClick={() => setActiveTab('course')}
                 className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${
                   activeTab === 'course'
-                    ? 'border-b-2 border-[#2afeae] text-[#1b365d] bg-white'
+                    ? 'border-b-2 border-boxlms-primary-btn text-boxlms-primary-body-txt bg-white'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
@@ -212,7 +212,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                 onClick={() => setActiveTab('lesson')}
                 className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${
                   activeTab === 'lesson'
-                    ? 'border-b-2 border-[#2afeae] text-[#1b365d] bg-white'
+                    ? 'border-b-2 border-boxlms-primary-btn text-boxlms-primary-body-txt bg-white'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
@@ -223,7 +223,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                 onClick={() => setActiveTab('quiz')}
                 className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${
                   activeTab === 'quiz'
-                    ? 'border-b-2 border-[#2afeae] text-[#1b365d] bg-white'
+                    ? 'border-b-2 border-boxlms-primary-btn text-boxlms-primary-body-txt bg-white'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
@@ -258,7 +258,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                           <div
                             className={`max-w-[80%] p-3 rounded-lg ${
                               msg.role === 'user'
-                                ? 'bg-[#2afeae] text-[#1b365d]'
+                                ? 'bg-boxlms-primary-btn text-boxlms-primary-btn-txt'
                                 : 'bg-gray-100 text-gray-900'
                             }`}
                           >
@@ -285,13 +285,13 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                       value={chatInput}
                       onChange={(e) => setChatInput(e.target.value)}
                       placeholder="Type your message..."
-                      className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
+                      className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-boxlms-primary-btn"
                       disabled={loading}
                     />
                     <button
                       type="submit"
                       disabled={loading || !chatInput.trim()}
-                      className="px-6 py-2 bg-[#2afeae] text-[#1b365d] rounded-lg hover:bg-[#25e89e] disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-6 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded-lg hover:brightness-90 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Send
                     </button>
@@ -312,7 +312,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                         value={courseTopic}
                         onChange={(e) => setCourseTopic(e.target.value)}
                         placeholder="e.g., Fire Safety Training"
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
+                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-boxlms-primary-btn"
                         disabled={loading}
                       />
                     </div>
@@ -324,7 +324,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                         <select
                           value={courseLevel}
                           onChange={(e) => setCourseLevel(e.target.value)}
-                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
+                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-boxlms-primary-btn"
                           disabled={loading}
                         >
                           <option value="">Select level</option>
@@ -342,7 +342,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                           value={courseDuration}
                           onChange={(e) => setCourseDuration(e.target.value)}
                           placeholder="e.g., 4 weeks"
-                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
+                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-boxlms-primary-btn"
                           disabled={loading}
                         />
                       </div>
@@ -350,7 +350,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                     <button
                       type="submit"
                       disabled={loading || !courseTopic.trim()}
-                      className="w-full px-6 py-2 bg-[#2afeae] text-[#1b365d] rounded-lg hover:bg-[#25e89e] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className="w-full px-6 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded-lg hover:brightness-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       {loading ? (
                         <>
@@ -373,7 +373,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                         {onApplyContent && (
                           <button
                             onClick={() => handleApply(courseOutline)}
-                            className="px-3 py-1 text-sm bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e]"
+                            className="px-3 py-1 text-sm bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90"
                           >
                             Apply to Course
                           </button>
@@ -426,7 +426,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                                                   setLessonTitle(lesson.title);
                                                   setLessonContext(lesson.description || '');
                                                 }}
-                                                className="px-3 py-1 text-sm bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e] whitespace-nowrap"
+                                                className="px-3 py-1 text-sm bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90 whitespace-nowrap"
                                               >
                                                 Create
                                               </button>
@@ -466,7 +466,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                         value={lessonTitle}
                         onChange={(e) => setLessonTitle(e.target.value)}
                         placeholder="e.g., Variables and Data Types"
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
+                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-boxlms-primary-btn"
                         disabled={loading}
                       />
                     </div>
@@ -479,14 +479,14 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                         onChange={(e) => setLessonContext(e.target.value)}
                         placeholder="Provide any additional context or requirements..."
                         rows={3}
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
+                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-boxlms-primary-btn"
                         disabled={loading}
                       />
                     </div>
                     <button
                       type="submit"
                       disabled={loading || !lessonTitle.trim()}
-                      className="w-full px-6 py-2 bg-[#2afeae] text-[#1b365d] rounded-lg hover:bg-[#25e89e] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className="w-full px-6 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded-lg hover:brightness-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       {loading ? (
                         <>
@@ -515,7 +515,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                               btn.innerHTML = '<svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>Copied!';
                               setTimeout(() => { btn.innerHTML = originalHTML; }, 2000);
                             }}
-                            className="px-4 py-2 text-sm bg-[#1b365d] text-white rounded hover:bg-[#234a7a] flex items-center gap-1.5"
+                            className="px-4 py-2 text-sm bg-boxlms-navbar text-boxlms-navbar-txt rounded hover:brightness-110 flex items-center gap-1.5"
                             title="Copy HTML and CSS code to clipboard"
                           >
                             <Copy className="w-4 h-4" />
@@ -525,7 +525,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                             onClick={() => window.dispatchEvent(new CustomEvent('createHtmlLesson', { 
                               detail: { title: lessonTitle, htmlContent: lessonContent }
                             }))}
-                            className="px-4 py-2 text-sm bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e] flex items-center gap-1.5"
+                            className="px-4 py-2 text-sm bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90 flex items-center gap-1.5"
                             title="Create HTML lesson from this content"
                           >
                             <FileText className="w-4 h-4" />
@@ -555,7 +555,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                         value={quizTopic}
                         onChange={(e) => setQuizTopic(e.target.value)}
                         placeholder="e.g., Fire safety basics, GDPR compliance"
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
+                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-boxlms-primary-btn"
                         disabled={loading}
                       />
                     </div>
@@ -570,7 +570,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                           onChange={(e) => setQuestionCount(parseInt(e.target.value) || 5)}
                           min="1"
                           max="20"
-                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
+                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-boxlms-primary-btn"
                           disabled={loading}
                         />
                       </div>
@@ -581,7 +581,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                         <select
                           value={difficulty}
                           onChange={(e) => setDifficulty(e.target.value)}
-                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
+                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-boxlms-primary-btn"
                           disabled={loading}
                         >
                           <option value="Easy">Easy</option>
@@ -593,7 +593,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                     <button
                       type="submit"
                       disabled={loading || !quizTopic.trim()}
-                      className="w-full px-6 py-2 bg-[#2afeae] text-[#1b365d] rounded-lg hover:bg-[#25e89e] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className="w-full px-6 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded-lg hover:brightness-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       {loading ? (
                         <>
@@ -616,7 +616,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                         {onApplyContent && (
                           <button
                             onClick={() => handleApply(quizQuestions)}
-                            className="px-3 py-1 text-sm bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e]"
+                            className="px-3 py-1 text-sm bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90"
                           >
                             Apply
                           </button>
@@ -636,7 +636,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
             /* Slide-in Panel */
             <div className="fixed inset-y-0 right-0 w-full md:w-2/5 bg-white shadow-2xl z-50 flex flex-col transform transition-transform duration-300">
               {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b bg-[#1b365d] text-white">
+              <div className="flex items-center justify-between p-4 border-b bg-boxlms-navbar text-boxlms-navbar-txt">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-5 h-5" />
                   <h2 className="text-xl font-semibold">AI Assistant</h2>
@@ -656,7 +656,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                     onClick={() => setActiveTab('chat')}
                     className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${
                       activeTab === 'chat'
-                        ? 'border-b-2 border-[#2afeae] text-[#1b365d] bg-white'
+                        ? 'border-b-2 border-boxlms-primary-btn text-boxlms-primary-body-txt bg-white'
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
@@ -667,7 +667,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                     onClick={() => setActiveTab('course')}
                     className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${
                       activeTab === 'course'
-                        ? 'border-b-2 border-[#2afeae] text-[#1b365d] bg-white'
+                        ? 'border-b-2 border-boxlms-primary-btn text-boxlms-primary-body-txt bg-white'
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
@@ -678,7 +678,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                     onClick={() => setActiveTab('lesson')}
                     className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${
                       activeTab === 'lesson'
-                        ? 'border-b-2 border-[#2afeae] text-[#1b365d] bg-white'
+                        ? 'border-b-2 border-boxlms-primary-btn text-boxlms-primary-body-txt bg-white'
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
@@ -689,7 +689,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                     onClick={() => setActiveTab('quiz')}
                     className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${
                       activeTab === 'quiz'
-                        ? 'border-b-2 border-[#2afeae] text-[#1b365d] bg-white'
+                        ? 'border-b-2 border-boxlms-primary-btn text-boxlms-primary-body-txt bg-white'
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
@@ -706,7 +706,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                     onClick={() => setActiveTab('course')}
                     className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${
                       activeTab === 'course'
-                        ? 'border-b-2 border-[#2afeae] text-[#1b365d] bg-white'
+                        ? 'border-b-2 border-boxlms-primary-btn text-boxlms-primary-body-txt bg-white'
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
@@ -717,7 +717,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                     onClick={() => setActiveTab('lesson')}
                     className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${
                       activeTab === 'lesson'
-                        ? 'border-b-2 border-[#2afeae] text-[#1b365d] bg-white'
+                        ? 'border-b-2 border-boxlms-primary-btn text-boxlms-primary-body-txt bg-white'
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
@@ -753,7 +753,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                             <div
                               className={`max-w-[80%] p-3 rounded-lg ${
                                 msg.role === 'user'
-                                  ? 'bg-[#2afeae] text-[#1b365d]'
+                                  ? 'bg-boxlms-primary-btn text-boxlms-primary-btn-txt'
                                   : 'bg-gray-100 text-gray-900'
                               }`}
                             >
@@ -780,13 +780,13 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         placeholder="Type your message..."
-                        className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
+                        className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-boxlms-primary-btn"
                         disabled={loading}
                       />
                       <button
                         type="submit"
                         disabled={loading || !chatInput.trim()}
-                        className="px-6 py-2 bg-[#2afeae] text-[#1b365d] rounded-lg hover:bg-[#25e89e] disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-6 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded-lg hover:brightness-90 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Send
                       </button>
@@ -807,7 +807,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                           value={courseTopic}
                           onChange={(e) => setCourseTopic(e.target.value)}
                           placeholder="e.g., Fire Safety Training"
-                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
+                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-boxlms-primary-btn"
                           disabled={loading}
                         />
                       </div>
@@ -819,7 +819,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                           <select
                             value={courseLevel}
                             onChange={(e) => setCourseLevel(e.target.value)}
-                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
+                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-boxlms-primary-btn"
                             disabled={loading}
                           >
                             <option value="">Select level</option>
@@ -837,7 +837,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                             value={courseDuration}
                             onChange={(e) => setCourseDuration(e.target.value)}
                             placeholder="e.g., 4 weeks"
-                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
+                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-boxlms-primary-btn"
                             disabled={loading}
                           />
                         </div>
@@ -845,7 +845,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                       <button
                         type="submit"
                         disabled={loading || !courseTopic.trim()}
-                        className="w-full px-6 py-2 bg-[#2afeae] text-[#1b365d] rounded-lg hover:bg-[#25e89e] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full px-6 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded-lg hover:brightness-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
                         {loading ? (
                           <>
@@ -868,7 +868,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                           {onApplyContent && (
                             <button
                               onClick={() => handleApply(courseOutline)}
-                              className="px-3 py-1 text-sm bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e]"
+                              className="px-3 py-1 text-sm bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90"
                             >
                               Apply to Course
                             </button>
@@ -921,7 +921,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                                                     setLessonTitle(lesson.title);
                                                     setLessonContext(lesson.description || '');
                                                   }}
-                                                  className="px-3 py-1 text-sm bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e] whitespace-nowrap"
+                                                  className="px-3 py-1 text-sm bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90 whitespace-nowrap"
                                                 >
                                                   Create
                                                 </button>
@@ -961,7 +961,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                           value={lessonTitle}
                           onChange={(e) => setLessonTitle(e.target.value)}
                           placeholder="e.g., Variables and Data Types"
-                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
+                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-boxlms-primary-btn"
                           disabled={loading}
                         />
                       </div>
@@ -974,14 +974,14 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                           onChange={(e) => setLessonContext(e.target.value)}
                           placeholder="Provide any additional context or requirements..."
                           rows={3}
-                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
+                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-boxlms-primary-btn"
                           disabled={loading}
                         />
                       </div>
                       <button
                         type="submit"
                         disabled={loading || !lessonTitle.trim()}
-                        className="w-full px-6 py-2 bg-[#2afeae] text-[#1b365d] rounded-lg hover:bg-[#25e89e] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full px-6 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded-lg hover:brightness-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
                         {loading ? (
                           <>
@@ -1010,7 +1010,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                                 btn.innerHTML = '<svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>Copied!';
                                 setTimeout(() => { btn.innerHTML = originalHTML; }, 2000);
                               }}
-                              className="px-4 py-2 text-sm bg-[#1b365d] text-white rounded hover:bg-[#234a7a] flex items-center gap-1.5"
+                              className="px-4 py-2 text-sm bg-boxlms-navbar text-boxlms-navbar-txt rounded hover:brightness-110 flex items-center gap-1.5"
                               title="Copy HTML and CSS code to clipboard"
                             >
                               <Copy className="w-4 h-4" />
@@ -1020,7 +1020,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                               onClick={() => window.dispatchEvent(new CustomEvent('createHtmlLesson', { 
                                 detail: { title: lessonTitle, htmlContent: lessonContent }
                               }))}
-                              className="px-4 py-2 text-sm bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e] flex items-center gap-1.5"
+                              className="px-4 py-2 text-sm bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90 flex items-center gap-1.5"
                               title="Create HTML lesson from this content"
                             >
                               <FileText className="w-4 h-4" />
@@ -1050,7 +1050,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                           value={quizTopic}
                           onChange={(e) => setQuizTopic(e.target.value)}
                         placeholder="e.g., Fire safety basics, GDPR compliance"
-                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
+                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-boxlms-primary-btn"
                           disabled={loading}
                         />
                       </div>
@@ -1065,7 +1065,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                             onChange={(e) => setQuestionCount(parseInt(e.target.value) || 5)}
                             min="1"
                             max="20"
-                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
+                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-boxlms-primary-btn"
                             disabled={loading}
                           />
                         </div>
@@ -1076,7 +1076,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                           <select
                             value={difficulty}
                             onChange={(e) => setDifficulty(e.target.value)}
-                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2afeae]"
+                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-boxlms-primary-btn"
                             disabled={loading}
                           >
                             <option value="Easy">Easy</option>
@@ -1088,7 +1088,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                       <button
                         type="submit"
                         disabled={loading || !quizTopic.trim()}
-                        className="w-full px-6 py-2 bg-[#2afeae] text-[#1b365d] rounded-lg hover:bg-[#25e89e] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full px-6 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded-lg hover:brightness-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
                         {loading ? (
                           <>
@@ -1111,7 +1111,7 @@ const AIAssistant = ({ context = '', onApplyContent = null, onCreateLesson = nul
                           {onApplyContent && (
                             <button
                               onClick={() => handleApply(quizQuestions)}
-                              className="px-3 py-1 text-sm bg-[#2afeae] text-[#1b365d] rounded hover:bg-[#25e89e]"
+                              className="px-3 py-1 text-sm bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90"
                             >
                               Apply
                             </button>
