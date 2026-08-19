@@ -49,6 +49,7 @@
     <EmbeddedResource Include="Templates\InteractiveBlocks\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </EmbeddedResource>
+    <EmbeddedResource Include="..\design-system\tenants\bifa-theme.css" LogicalName="lmsBox.Server.Branding.bifa-theme.css" />
   </ItemGroup>
 
 </Project>

@@ -8,6 +8,18 @@ BEGIN
 END
 GO
 
+IF COL_LENGTH('Tenants','CustomCss') IS NULL
+BEGIN
+  ALTER TABLE Tenants ADD CustomCss nvarchar(max) NULL;
+END
+GO
+
+IF COL_LENGTH('Tenants','LoginHeroUrl') IS NULL
+BEGIN
+  ALTER TABLE Tenants ADD LoginHeroUrl nvarchar(max) NULL;
+END
+GO
+
 IF COL_LENGTH('Organisations','UseTenantBranding') IS NULL
 BEGIN
   ALTER TABLE Organisations ADD UseTenantBranding bit NOT NULL CONSTRAINT DF_Org_UseTenantBranding DEFAULT(1);
@@ -18,7 +30,9 @@ IF NOT EXISTS (SELECT 1 FROM __EFMigrationsHistory WHERE MigrationId = N'2026081
   INSERT INTO __EFMigrationsHistory (MigrationId, ProductVersion) VALUES (N'20260811110142_AddTenantBranding', N'9.0.0');
 GO
 
-DECLARE @theme nvarchar(max) = N'{"name":"BIFA Learning","strapline":"The leading body representing the UK international freight services industry","primaryColor":"#002e62","secondaryColor":"#0059a3","accentColor":"#ee7203","accentStrongColor":"#e74011","grey":"#575756","lightGrey":"#c4c2b2","fontFamily":"Poppins, Arial, Helvetica, sans-serif","css":"bifa","logo":"/assets/bifa-logo.svg","guidelineVersion":"1.2"}';
+-- Matches local BIFA Brand Guidelines v1.2 (tenants.json + bifa-theme.css).
+-- CustomCss is applied by DbSeeder from design-system/tenants/bifa-theme.css.
+DECLARE @theme nvarchar(max) = N'{"name":"BIFA Learning","strapline":"The leading body representing the UK international freight services industry","primaryColor":"#002e62","secondaryColor":"#0059a3","accentColor":"#ee7203","accentStrongColor":"#e74011","pageBackgroundColor":"#f7f8fa","buttonColor":"#e74011","buttonTextColor":"#ffffff","grey":"#575756","lightGrey":"#c4c2b2","fontFamily":"Poppins, Arial, Helvetica, sans-serif","css":"bifa","logo":"/assets/bifa-logo.svg","guidelineVersion":"1.2"}';
 
 IF NOT EXISTS (SELECT 1 FROM Tenants WHERE Code = N'bifa')
 BEGIN

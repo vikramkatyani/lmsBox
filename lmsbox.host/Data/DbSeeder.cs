@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
@@ -192,31 +193,57 @@ public static class DbSeeder
             await EnsureTenantScopedUserNameAsync(userManager, admin);
         }
 
-        await EnsureBifaTenantAsync(db, userManager, logger);
-
         // Skip creating courses, pathways, learners, and progress data
 
         logger.LogInformation("Seeding completed.");
     }
 
     /// <summary>
-    /// Ensures the BIFA tenant exists with Brand Guidelines v1.2 colours / logo, plus a TenantAdmin.
+    /// Ensures the BIFA tenant exists with Brand Guidelines v1.2 colours, CSS, logo, and a TenantAdmin.
+    /// Safe to run in every environment. Set <paramref name="overwriteBranding"/> in Development so local
+    /// stays aligned with the design-system file; production only fills branding when it is empty.
+    /// </summary>
+    public static async Task SeedBifaTenantAsync(IServiceProvider services, bool overwriteBranding)
+    {
+        using var scope = services.CreateScope();
+        var provider = scope.ServiceProvider;
+        var logger = provider.GetRequiredService<ILoggerFactory>().CreateLogger("DbSeeder");
+        var db = provider.GetRequiredService<ApplicationDbContext>();
+        var userManager = provider.GetRequiredService<UserManager<ApplicationUser>>();
+        var roleManager = provider.GetRequiredService<RoleManager<IdentityRole>>();
+        var environment = provider.GetService<IWebHostEnvironment>();
+
+        foreach (var role in new[] { "SuperAdmin", "TenantAdmin", "OrgAdmin", "Learner" })
+        {
+            if (!await roleManager.RoleExistsAsync(role))
+            {
+                await roleManager.CreateAsync(new IdentityRole(role));
+            }
+        }
+
+        await EnsureBifaTenantAsync(db, userManager, environment, logger, overwriteBranding);
+    }
+
+    /// <summary>
+    /// Ensures the BIFA tenant exists with Brand Guidelines v1.2 colours / logo / CSS, plus a TenantAdmin.
     /// </summary>
     private static async Task EnsureBifaTenantAsync(
         ApplicationDbContext db,
         UserManager<ApplicationUser> userManager,
-        ILogger logger)
+        IWebHostEnvironment? environment,
+        ILogger logger,
+        bool overwriteBranding)
     {
-        const string themeJson =
-            "{\"name\":\"BIFA Learning\",\"strapline\":\"The leading body representing the UK international freight services industry\",\"primaryColor\":\"#002e62\",\"secondaryColor\":\"#0059a3\",\"accentColor\":\"#ee7203\",\"accentStrongColor\":\"#e74011\",\"pageBackgroundColor\":\"#F5F5EF\",\"buttonColor\":\"#e74011\",\"buttonTextColor\":\"#ffffff\",\"grey\":\"#575756\",\"lightGrey\":\"#c4c2b2\",\"fontFamily\":\"Poppins, Arial, Helvetica, sans-serif\",\"css\":\"bifa\",\"logo\":\"/assets/bifa-logo.svg\",\"guidelineVersion\":\"1.2\"}";
+        var themeJson = BifaBrandDefaults.ThemeSettingsJson;
+        var customCss = BifaBrandDefaults.LoadCustomCss(environment);
 
-        var bifa = db.Tenants.FirstOrDefault(t => t.Code == "bifa");
+        var bifa = db.Tenants.FirstOrDefault(t => t.Code == BifaBrandDefaults.Code);
         if (bifa == null)
         {
             bifa = new Tenant
             {
-                Name = "BIFA",
-                Code = "bifa",
+                Name = BifaBrandDefaults.Name,
+                Code = BifaBrandDefaults.Code,
                 Description = "British International Freight Association - training and development for the UK international freight services industry.",
                 AllowsMultipleOrganisations = false,
                 MaxUsers = 500,
@@ -225,10 +252,11 @@ public static class DbSeeder
                 SupportEmail = "bifa@bifa.org",
                 ManagerName = "BIFA Communications",
                 ManagerEmail = "BIFAcomms@bifa.org",
-                BrandName = "BIFA Learning",
-                BannerUrl = "/assets/bifa-logo.svg",
-                FaviconUrl = "/assets/bifa-logo.svg",
+                BrandName = BifaBrandDefaults.BrandName,
+                BannerUrl = BifaBrandDefaults.LogoUrl,
+                FaviconUrl = BifaBrandDefaults.LogoUrl,
                 ThemeSettings = themeJson,
+                CustomCss = customCss,
                 IsActive = true,
                 CreatedOn = DateTime.UtcNow,
                 CreatedBy = "system"
@@ -237,17 +265,22 @@ public static class DbSeeder
             await db.SaveChangesAsync();
             logger.LogInformation("BIFA tenant created");
         }
-        else
+        else if (overwriteBranding || string.IsNullOrWhiteSpace(bifa.ThemeSettings) || string.IsNullOrWhiteSpace(bifa.CustomCss))
         {
-            bifa.BrandName = "BIFA Learning";
-            bifa.BannerUrl = "/assets/bifa-logo.svg";
-            bifa.FaviconUrl = "/assets/bifa-logo.svg";
+            bifa.BrandName = BifaBrandDefaults.BrandName;
+            bifa.BannerUrl = BifaBrandDefaults.LogoUrl;
+            bifa.FaviconUrl = BifaBrandDefaults.LogoUrl;
             bifa.ThemeSettings = themeJson;
+            if (overwriteBranding || string.IsNullOrWhiteSpace(bifa.CustomCss))
+            {
+                bifa.CustomCss = customCss ?? bifa.CustomCss;
+            }
             bifa.Domain = "bifa.org";
             bifa.SupportEmail = "bifa@bifa.org";
             bifa.UpdatedOn = DateTime.UtcNow;
             bifa.UpdatedBy = "system";
             await db.SaveChangesAsync();
+            logger.LogInformation("BIFA tenant branding updated");
         }
 
         var bifaOrg = db.Organisations.FirstOrDefault(o => o.TenantId == bifa.Id);
@@ -278,7 +311,7 @@ public static class DbSeeder
             await db.SaveChangesAsync();
         }
 
-        var bifaAdminEmail = "admin@bifa.local";
+        var bifaAdminEmail = BifaBrandDefaults.AdminEmail;
         var bifaAdminNormalized = userManager.NormalizeEmail(bifaAdminEmail);
         var bifaAdmin = await db.Users.FirstOrDefaultAsync(u =>
             u.NormalizedEmail == bifaAdminNormalized && u.TenantId == bifa.Id);
@@ -300,7 +333,7 @@ public static class DbSeeder
                 ActivatedOn = DateTime.UtcNow,
                 CreatedOn = DateTime.UtcNow
             };
-            var create = await userManager.CreateAsync(bifaAdmin, "P@ssw0rd1!");
+            var create = await userManager.CreateAsync(bifaAdmin, BifaBrandDefaults.AdminPassword);
             if (!create.Succeeded)
             {
                 logger.LogWarning("BIFA admin creation failed: {Errors}", string.Join(",", create.Errors.Select(e => e.Description)));

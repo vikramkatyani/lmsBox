@@ -34,6 +34,9 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$dest/examples" | Out-Null
           Copy-Item "./design-system/lmsbox-theme.css" "$dest/lmsbox-theme.css" -Force
           Copy-Item "./design-system/lmsbox-theme.js" "$dest/lmsbox-theme.js" -Force
+          New-Item -ItemType Directory -Force -Path "$dest/tenants" | Out-Null
+          Copy-Item "./design-system/tenants/bifa-theme.css" "$dest/tenants/bifa-theme.css" -Force
+          Copy-Item "./design-system/tenants/bifa-logo.svg" "$dest/tenants/bifa-logo.svg" -Force
           Copy-Item "./design-system/examples/index.html" "$dest/examples/index.html" -Force
           Copy-Item "./design-system/examples/starter.html" "$dest/examples/starter.html" -Force
 

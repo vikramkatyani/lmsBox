@@ -318,6 +318,13 @@ public static class LmsBoxHostExtensions
                 db.Database.Migrate();
                 logger.LogInformation("Database migrated successfully.");
 
+                // BIFA is a product tenant, not local-only. Create it (with local CSS/theme)
+                // on every environment if missing. Development also reseeds branding.
+                DbSeeder.SeedBifaTenantAsync(
+                    app.Services,
+                    overwriteBranding: app.Environment.IsDevelopment()).GetAwaiter().GetResult();
+                logger.LogInformation("BIFA tenant seed completed.");
+
                 if (app.Environment.IsDevelopment())
                 {
                     DbSeeder.SeedAsync(scope.ServiceProvider).GetAwaiter().GetResult();
