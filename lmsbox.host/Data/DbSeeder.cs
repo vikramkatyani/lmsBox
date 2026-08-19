@@ -312,63 +312,16 @@ public static class DbSeeder
             await db.SaveChangesAsync();
         }
 
-        var bifaAdminEmail = BifaBrandDefaults.AdminEmail;
-        var bifaAdminNormalized = userManager.NormalizeEmail(bifaAdminEmail);
-        var bifaAdmin = await db.Users.FirstOrDefaultAsync(u =>
-            u.NormalizedEmail == bifaAdminNormalized && u.TenantId == bifa.Id);
-        if (bifaAdmin == null)
-        {
-            bifaAdmin = new ApplicationUser
-            {
-                UserName = TenantIdentity.BuildUserName(bifa.Id, bifaAdminEmail),
-                Email = bifaAdminEmail,
-                EmailConfirmed = true,
-                FirstName = "BIFA",
-                LastName = "Admin",
-                TenantId = bifa.Id,
-                OrganisationID = bifaOrg.Id,
-                CreatedBy = "system",
-                ActivatedBy = "system",
-                DeactivatedBy = "system",
-                ActiveStatus = 1,
-                ActivatedOn = DateTime.UtcNow,
-                CreatedOn = DateTime.UtcNow
-            };
-            var create = await userManager.CreateAsync(bifaAdmin, BifaBrandDefaults.AdminPassword);
-            if (!create.Succeeded)
-            {
-                logger.LogWarning("BIFA admin creation failed: {Errors}", string.Join(",", create.Errors.Select(e => e.Description)));
-            }
-            else
-            {
-                await userManager.AddToRoleAsync(bifaAdmin, "TenantAdmin");
-                await userManager.AddToRoleAsync(bifaAdmin, "OrgAdmin");
-                if (FavoriteReportDefaults.TryApplyDefaults(bifaAdmin, "OrgAdmin"))
-                {
-                    await userManager.UpdateAsync(bifaAdmin);
-                }
-                logger.LogInformation("BIFA TenantAdmin created: {Email}", bifaAdminEmail);
-            }
-        }
-        else
-        {
-            if (bifaAdmin.TenantId != bifa.Id || bifaAdmin.OrganisationID != bifaOrg.Id)
-            {
-                bifaAdmin.TenantId = bifa.Id;
-                bifaAdmin.OrganisationID = bifaOrg.Id;
-                await userManager.UpdateAsync(bifaAdmin);
-            }
-            if (!await userManager.IsInRoleAsync(bifaAdmin, "TenantAdmin"))
-            {
-                await userManager.AddToRoleAsync(bifaAdmin, "TenantAdmin");
-            }
-            if (!await userManager.IsInRoleAsync(bifaAdmin, "OrgAdmin"))
-            {
-                await userManager.AddToRoleAsync(bifaAdmin, "OrgAdmin");
-            }
-            logger.LogInformation("BIFA admin already exists: {Email}", bifaAdminEmail);
-            await EnsureTenantScopedUserNameAsync(userManager, bifaAdmin);
-        }
+        await EnsureBifaTenantAdminAsync(
+            db,
+            userManager,
+            logger,
+            bifa.Id,
+            bifaOrg.Id,
+            BifaBrandDefaults.AdminEmail,
+            BifaBrandDefaults.AdminFirstName,
+            BifaBrandDefaults.AdminLastName,
+            BifaBrandDefaults.AdminPassword);
 
         foreach (var courseId in BifaBrandDefaults.CoursesToAdopt)
         {
@@ -387,6 +340,93 @@ public static class DbSeeder
                     courseId, move.Message);
             }
         }
+    }
+
+    private static async Task EnsureBifaTenantAdminAsync(
+        ApplicationDbContext db,
+        UserManager<ApplicationUser> userManager,
+        ILogger logger,
+        long tenantId,
+        long organisationId,
+        string email,
+        string firstName,
+        string lastName,
+        string password)
+    {
+        var normalized = userManager.NormalizeEmail(email);
+        var admin = await db.Users.FirstOrDefaultAsync(u =>
+            u.NormalizedEmail == normalized && u.TenantId == tenantId);
+        if (admin == null)
+        {
+            admin = new ApplicationUser
+            {
+                UserName = TenantIdentity.BuildUserName(tenantId, email),
+                Email = email,
+                EmailConfirmed = true,
+                FirstName = firstName,
+                LastName = lastName,
+                TenantId = tenantId,
+                OrganisationID = organisationId,
+                CreatedBy = "system",
+                ActivatedBy = "system",
+                DeactivatedBy = "system",
+                ActiveStatus = 1,
+                ActivatedOn = DateTime.UtcNow,
+                CreatedOn = DateTime.UtcNow
+            };
+            var create = await userManager.CreateAsync(admin, password);
+            if (!create.Succeeded)
+            {
+                logger.LogWarning(
+                    "BIFA TenantAdmin creation failed for {Email}: {Errors}",
+                    email,
+                    string.Join(",", create.Errors.Select(e => e.Description)));
+                return;
+            }
+
+            await userManager.AddToRoleAsync(admin, "TenantAdmin");
+            await userManager.AddToRoleAsync(admin, "OrgAdmin");
+            if (FavoriteReportDefaults.TryApplyDefaults(admin, "OrgAdmin"))
+            {
+                await userManager.UpdateAsync(admin);
+            }
+            logger.LogInformation("BIFA TenantAdmin created: {Email}", email);
+            return;
+        }
+
+        var dirty = false;
+        if (admin.TenantId != tenantId || admin.OrganisationID != organisationId)
+        {
+            admin.TenantId = tenantId;
+            admin.OrganisationID = organisationId;
+            dirty = true;
+        }
+
+        if (!string.Equals(admin.FirstName, firstName, StringComparison.Ordinal)
+            || !string.Equals(admin.LastName, lastName, StringComparison.Ordinal))
+        {
+            admin.FirstName = firstName;
+            admin.LastName = lastName;
+            dirty = true;
+        }
+
+        if (dirty)
+        {
+            await userManager.UpdateAsync(admin);
+        }
+
+        if (!await userManager.IsInRoleAsync(admin, "TenantAdmin"))
+        {
+            await userManager.AddToRoleAsync(admin, "TenantAdmin");
+        }
+
+        if (!await userManager.IsInRoleAsync(admin, "OrgAdmin"))
+        {
+            await userManager.AddToRoleAsync(admin, "OrgAdmin");
+        }
+
+        logger.LogInformation("BIFA TenantAdmin already exists: {Email}", email);
+        await EnsureTenantScopedUserNameAsync(userManager, admin);
     }
 
     private static async Task EnsureTenantScopedUserNameAsync(UserManager<ApplicationUser> userManager, ApplicationUser user)

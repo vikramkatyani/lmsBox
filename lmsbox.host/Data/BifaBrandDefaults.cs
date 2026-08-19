@@ -13,7 +13,9 @@ public static class BifaBrandDefaults
     public const string Name = "BIFA";
     public const string BrandName = "BIFA Learning";
     public const string LogoUrl = "/assets/bifa-logo.svg";
-    public const string AdminEmail = "admin@bifa.local";
+    public const string AdminEmail = "vikram@intellimindsdigital.com";
+    public const string AdminFirstName = "Vikram";
+    public const string AdminLastName = "Katyani";
     public const string AdminPassword = "P@ssw0rd1!";
 
     /// <summary>
