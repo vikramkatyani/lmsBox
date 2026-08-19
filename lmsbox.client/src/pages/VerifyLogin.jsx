@@ -1,13 +1,20 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { setAuthToken, getLastVisitedPage, getUserRole } from '../utils/auth';
 import api from '../utils/api';
 import lmsLogo from '../assets/lmsbox-logo.png';
 import usePageTitle from '../hooks/usePageTitle';
+import { useTheme } from '../theme/ThemeContext';
+import { tenantLoginPath } from '../utils/tenant';
 
 export default function VerifyLogin() {
   const [searchParams] = useSearchParams();
+  const { tenantCode: tenantCodeParam } = useParams();
   const navigate = useNavigate();
+  const theme = useTheme();
+  const tenantCode = tenantCodeParam || theme?.tenantCode || theme?.code || null;
+  const logoSrc = theme?.logo || lmsLogo;
+  const loginPath = tenantCode ? tenantLoginPath(tenantCode) : '/login';
   const [status, setStatus] = useState('verifying'); // verifying, success, error
   
   usePageTitle('Verify Login');
@@ -27,7 +34,7 @@ export default function VerifyLogin() {
 
         try {
           const response = await api.post('/api/auth/verify-login-link', 
-            { token },
+            { token, tenantCode },
             { 
               signal: controller.signal,
               headers: {
@@ -110,7 +117,7 @@ export default function VerifyLogin() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-login-page-bg px-4">
       <div className="bg-login-box-bg p-8 rounded-lg shadow-lg max-w-md w-full mx-auto text-center">
-        <img src={lmsLogo} alt="LMS Logo" className="h-12 mx-auto mb-4" />
+        <img src={logoSrc} alt="LMS Logo" className="h-12 mx-auto mb-4" />
         {status === 'verifying' && (
           <>
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-login-btn-bg mx-auto"></div>
@@ -141,7 +148,7 @@ export default function VerifyLogin() {
             <h2 className="text-xl font-semibold mt-4 text-red-600">Invalid or Expired Link</h2>
             <p className="text-login-box-text mt-2">This login link is no longer valid. Please request a new one.</p>
             <button 
-              onClick={() => navigate('/login')}
+              onClick={() => navigate(loginPath)}
               className="mt-4 px-4 py-2 bg-login-btn-bg text-login-btn-text rounded-lg hover:brightness-90 transition-colors cursor-pointer"
             >
               Back to Login

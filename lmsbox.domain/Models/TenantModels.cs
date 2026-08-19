@@ -96,6 +96,24 @@ public class UpdateTenantRequest
     public string? FaviconUrl { get; set; }
 
     public string? ThemeSettings { get; set; }
+
+    public string? CustomCss { get; set; }
+
+    public string? PrimaryColor { get; set; }
+
+    public string? SecondaryColor { get; set; }
+
+    public string? AccentColor { get; set; }
+
+    public string? AccentStrongColor { get; set; }
+
+    public string? PageBackgroundColor { get; set; }
+
+    public string? ButtonColor { get; set; }
+
+    public string? ButtonTextColor { get; set; }
+
+    public string? FontFamily { get; set; }
 }
 
 public class UpdateTenantBrandingRequest
@@ -104,6 +122,16 @@ public class UpdateTenantBrandingRequest
     public string? BannerUrl { get; set; }
     public string? FaviconUrl { get; set; }
     public string? ThemeSettings { get; set; }
+    public string? CustomCss { get; set; }
+    public string? PrimaryColor { get; set; }
+    public string? SecondaryColor { get; set; }
+    public string? AccentColor { get; set; }
+    public string? AccentStrongColor { get; set; }
+    public string? PageBackgroundColor { get; set; }
+    public string? ButtonColor { get; set; }
+    public string? ButtonTextColor { get; set; }
+    public string? FontFamily { get; set; }
+    public string? LoginHeroUrl { get; set; }
 }
 
 public class BrandingDto
@@ -113,8 +141,40 @@ public class BrandingDto
     public string? LogoUrl { get; set; }
     public string? FaviconUrl { get; set; }
     public string? ThemeSettings { get; set; }
+    public string? CustomCss { get; set; }
+    public string? PrimaryColor { get; set; }
+    public string? SecondaryColor { get; set; }
+    public string? AccentColor { get; set; }
+    public string? AccentStrongColor { get; set; }
+    public string? PageBackgroundColor { get; set; }
+    public string? ButtonColor { get; set; }
+    public string? ButtonTextColor { get; set; }
+    public string? FontFamily { get; set; }
+    public string? LoginHeroUrl { get; set; }
     public bool UseTenantBranding { get; set; }
     public string Source { get; set; } = "tenant"; // "tenant" | "organisation"
+}
+
+public class PublicTenantBrandingDto
+{
+    public bool IsDefault { get; set; }
+    public bool HasCustomTheme { get; set; }
+    public string? Code { get; set; }
+    public string? Name { get; set; }
+    public string BrandName { get; set; } = "LMS Box";
+    public string? LogoUrl { get; set; }
+    public string? FaviconUrl { get; set; }
+    public string? PrimaryColor { get; set; }
+    public string? SecondaryColor { get; set; }
+    public string? AccentColor { get; set; }
+    public string? AccentStrongColor { get; set; }
+    public string? FontFamily { get; set; }
+    public string? CustomCss { get; set; }
+    public string LoginPath { get; set; } = "/login";
+    public string? LoginHeroUrl { get; set; }
+    public string? PageBackgroundColor { get; set; }
+    public string? ButtonColor { get; set; }
+    public string? ButtonTextColor { get; set; }
 }
 
 public class TenantResponse
@@ -142,6 +202,17 @@ public class TenantResponse
     public string? BannerUrl { get; set; }
     public string? FaviconUrl { get; set; }
     public string? ThemeSettings { get; set; }
+    public string? CustomCss { get; set; }
+    public string? PrimaryColor { get; set; }
+    public string? SecondaryColor { get; set; }
+    public string? AccentColor { get; set; }
+    public string? AccentStrongColor { get; set; }
+    public string? FontFamily { get; set; }
+    public string? LoginHeroUrl { get; set; }
+    public string? PageBackgroundColor { get; set; }
+    public string? ButtonColor { get; set; }
+    public string? ButtonTextColor { get; set; }
+    public string LoginPath { get; set; } = "/login";
     public List<OrganisationSummaryResponse> Organisations { get; set; } = new();
 }
 

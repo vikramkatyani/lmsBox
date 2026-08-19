@@ -68,6 +68,7 @@ public static class LmsBoxHostExtensions
             options.Password.RequireLowercase = false;
             options.Password.RequireNonAlphanumeric = false;
             options.Password.RequiredLength = 6;
+            options.User.RequireUniqueEmail = false;
         })
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
@@ -207,6 +208,10 @@ public static class LmsBoxHostExtensions
         builder.Services.AddSwaggerGen();
 
         builder.Services.AddScoped<ILoginLinkService, LoginLinkService>();
+        builder.Services.AddScoped<TenantResolver>();
+        builder.Services.AddScoped<TenantUserLookup>();
+        builder.Services.AddHttpContextAccessor();
+        builder.Services.AddScoped<TenantBrandingAssetService>();
         builder.Services.AddHttpClient();
         builder.Services.AddScoped<IEmailService, EmailService>();
         builder.Services.AddScoped<IAzureBlobService, AzureBlobService>();
@@ -387,8 +392,14 @@ public static class LmsBoxHostExtensions
 
         logger.LogError(context.Failure, "{Provider} external login remote failure. Error={Error}", provider, context.Failure?.Message);
 
+        string? tenantCode = null;
+        context.Properties?.Items.TryGetValue("tenant_code", out tenantCode);
+        var path = string.IsNullOrWhiteSpace(tenantCode)
+            ? "/login"
+            : TenantPortalUrl.TenantLoginPath(tenantCode);
+
         context.HandleResponse();
-        context.Response.Redirect($"{frontendBaseUrl.TrimEnd('/')}/login#authError=external_failed");
+        context.Response.Redirect($"{frontendBaseUrl.TrimEnd('/')}{path}#authError=external_failed");
         return Task.CompletedTask;
     }
 }

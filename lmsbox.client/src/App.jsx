@@ -63,6 +63,7 @@ import SuperAdminLibraryEdit from './pages/SuperAdminLibraryEdit';
 import SuperAdminTenants from './pages/SuperAdminTenants';
 import SuperAdminTenantForm from './pages/SuperAdminTenantForm';
 import SuperAdminTenantDetail from './pages/SuperAdminTenantDetail';
+import SuperAdminTenantTheme from './pages/SuperAdminTenantTheme';
 import TenantAdminOrganisations from './pages/TenantAdminOrganisations';
 import TenantAdminBranding from './pages/TenantAdminBranding';
 import OrganisationSettings from './pages/OrganisationSettings';
@@ -70,8 +71,8 @@ import { CohortsList, CohortSubmission } from './pages/Qualifications';
 
 function App() {
   return (
-    <ThemeProvider>
-      <Router>
+    <Router>
+      <ThemeProvider>
         <Routes>
           {/* Super Admin routes - separate from regular users */}
           <Route path="/superadmin/login" element={<SuperAdminLogin />} />
@@ -79,6 +80,7 @@ function App() {
           <Route path="/superadmin/tenants" element={<SuperAdminTenants />} />
           <Route path="/superadmin/tenants/create" element={<SuperAdminTenantForm />} />
           <Route path="/superadmin/tenants/:id" element={<SuperAdminTenantDetail />} />
+          <Route path="/superadmin/tenants/:id/theme" element={<SuperAdminTenantTheme />} />
           <Route path="/superadmin/tenants/:id/edit" element={<SuperAdminTenantForm />} />
           <Route path="/superadmin/organisations" element={<SuperAdminOrganisations />} />
           <Route path="/superadmin/organisations/create" element={<SuperAdminOrganisationForm />} />
@@ -96,6 +98,9 @@ function App() {
             path="/login" 
             element={<Login />}
           />
+          <Route path="/t/:tenantCode/login" element={<Login />} />
+          <Route path="/t/:tenantCode/verify-login" element={<VerifyLogin />} />
+          <Route path="/t/:tenantCode/auth/email-not-registered" element={<EmailNotRegistered />} />
           <Route path="/verify-login" element={<VerifyLogin />} />
           <Route path="/auth/email-not-registered" element={<EmailNotRegistered />} />
           <Route path="/auth-test" element={<AuthTest />} />
@@ -591,8 +596,8 @@ function App() {
             },
           }}
         />
-      </Router>
-    </ThemeProvider>
+      </ThemeProvider>
+    </Router>
   );
 }
 

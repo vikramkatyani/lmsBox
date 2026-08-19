@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -32,6 +33,17 @@ public static class DbSeeder
                 if (!res.Succeeded) logger.LogWarning("Failed to create role {Role}: {Errors}", r, string.Join(",", res.Errors.Select(e => e.Description)));
             }
         }
+
+        foreach (var existing in db.Users.Where(u => u.Email != null).ToList())
+        {
+            var expected = TenantIdentity.BuildUserName(existing.TenantId, existing.Email!);
+            if (!string.Equals(existing.UserName, expected, StringComparison.Ordinal))
+            {
+                existing.UserName = expected;
+                existing.NormalizedUserName = userManager.NormalizeName(expected);
+            }
+        }
+        await db.SaveChangesAsync();
 
         // Ensure a default tenant + organisation exist for local development
         Tenant? tenant = db.Tenants.FirstOrDefault();
@@ -83,12 +95,14 @@ public static class DbSeeder
 
         // Create SuperAdmin user (no organisation / tenant)
         var superAdminEmail = "superadmin@lmsbox.system";
-        var superAdmin = await userManager.FindByEmailAsync(superAdminEmail);
+        var superAdminNormalized = userManager.NormalizeEmail(superAdminEmail);
+        var superAdmin = await db.Users.FirstOrDefaultAsync(u =>
+            u.NormalizedEmail == superAdminNormalized && u.TenantId == null);
         if (superAdmin == null)
         {
             superAdmin = new ApplicationUser
             {
-                UserName = superAdminEmail,
+                UserName = TenantIdentity.BuildUserName(null, superAdminEmail),
                 Email = superAdminEmail,
                 EmailConfirmed = true,
                 FirstName = "Super",
@@ -120,16 +134,19 @@ public static class DbSeeder
         else
         {
             logger.LogInformation("SuperAdmin user already exists: {Email}", superAdminEmail);
+            await EnsureTenantScopedUserNameAsync(userManager, superAdmin);
         }
 
         // Create admin user for organisation (TenantAdmin + OrgAdmin)
         var adminEmail = "admin@dev.local";
-        var admin = await userManager.FindByEmailAsync(adminEmail);
+        var adminNormalized = userManager.NormalizeEmail(adminEmail);
+        var admin = await db.Users.FirstOrDefaultAsync(u =>
+            u.NormalizedEmail == adminNormalized && u.TenantId == organisation.TenantId);
         if (admin == null)
         {
             admin = new ApplicationUser
             {
-                UserName = "admin@dev.local",
+                UserName = TenantIdentity.BuildUserName(organisation.TenantId, adminEmail),
                 Email = adminEmail,
                 EmailConfirmed = true,
                 FirstName = "Admin",
@@ -172,6 +189,7 @@ public static class DbSeeder
                 await userManager.AddToRoleAsync(admin, "TenantAdmin");
             }
             logger.LogInformation("Admin user already exists: {Email}", adminEmail);
+            await EnsureTenantScopedUserNameAsync(userManager, admin);
         }
 
         await EnsureBifaTenantAsync(db, userManager, logger);
@@ -190,7 +208,7 @@ public static class DbSeeder
         ILogger logger)
     {
         const string themeJson =
-            "{\"name\":\"BIFA Learning\",\"strapline\":\"The leading body representing the UK international freight services industry\",\"primaryColor\":\"#002e62\",\"secondaryColor\":\"#0059a3\",\"accentColor\":\"#ee7203\",\"accentStrongColor\":\"#e74011\",\"grey\":\"#575756\",\"lightGrey\":\"#c4c2b2\",\"fontFamily\":\"Poppins, Arial, Helvetica, sans-serif\",\"css\":\"bifa\",\"logo\":\"/assets/bifa-logo.svg\",\"guidelineVersion\":\"1.2\"}";
+            "{\"name\":\"BIFA Learning\",\"strapline\":\"The leading body representing the UK international freight services industry\",\"primaryColor\":\"#002e62\",\"secondaryColor\":\"#0059a3\",\"accentColor\":\"#ee7203\",\"accentStrongColor\":\"#e74011\",\"pageBackgroundColor\":\"#F5F5EF\",\"buttonColor\":\"#e74011\",\"buttonTextColor\":\"#ffffff\",\"grey\":\"#575756\",\"lightGrey\":\"#c4c2b2\",\"fontFamily\":\"Poppins, Arial, Helvetica, sans-serif\",\"css\":\"bifa\",\"logo\":\"/assets/bifa-logo.svg\",\"guidelineVersion\":\"1.2\"}";
 
         var bifa = db.Tenants.FirstOrDefault(t => t.Code == "bifa");
         if (bifa == null)
@@ -261,12 +279,14 @@ public static class DbSeeder
         }
 
         var bifaAdminEmail = "admin@bifa.local";
-        var bifaAdmin = await userManager.FindByEmailAsync(bifaAdminEmail);
+        var bifaAdminNormalized = userManager.NormalizeEmail(bifaAdminEmail);
+        var bifaAdmin = await db.Users.FirstOrDefaultAsync(u =>
+            u.NormalizedEmail == bifaAdminNormalized && u.TenantId == bifa.Id);
         if (bifaAdmin == null)
         {
             bifaAdmin = new ApplicationUser
             {
-                UserName = bifaAdminEmail,
+                UserName = TenantIdentity.BuildUserName(bifa.Id, bifaAdminEmail),
                 Email = bifaAdminEmail,
                 EmailConfirmed = true,
                 FirstName = "BIFA",
@@ -313,7 +333,25 @@ public static class DbSeeder
                 await userManager.AddToRoleAsync(bifaAdmin, "OrgAdmin");
             }
             logger.LogInformation("BIFA admin already exists: {Email}", bifaAdminEmail);
+            await EnsureTenantScopedUserNameAsync(userManager, bifaAdmin);
         }
+    }
+
+    private static async Task EnsureTenantScopedUserNameAsync(UserManager<ApplicationUser> userManager, ApplicationUser user)
+    {
+        if (string.IsNullOrWhiteSpace(user.Email))
+        {
+            return;
+        }
+
+        var expected = TenantIdentity.BuildUserName(user.TenantId, user.Email);
+        if (string.Equals(user.UserName, expected, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        user.UserName = expected;
+        await userManager.UpdateAsync(user);
     }
 
     private static async Task SeedCoursesAsync(ApplicationDbContext db, ApplicationUser admin, Organisation organisation, ILogger logger)

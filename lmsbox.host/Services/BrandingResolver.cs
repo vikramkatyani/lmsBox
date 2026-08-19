@@ -11,7 +11,7 @@ public static class BrandingResolver
             return FromTenant(tenant, useTenantBranding: true);
         }
 
-        return new BrandingDto
+        return TenantThemeHelper.Enrich(new BrandingDto
         {
             BrandName = organisation.BrandName,
             BannerUrl = organisation.BannerUrl,
@@ -20,19 +20,22 @@ public static class BrandingResolver
             ThemeSettings = organisation.ThemeSettings,
             UseTenantBranding = false,
             Source = "organisation"
-        };
+        });
     }
 
-    public static BrandingDto FromTenant(Tenant tenant, bool useTenantBranding = true) => new()
-    {
-        BrandName = tenant.BrandName,
-        BannerUrl = tenant.BannerUrl,
-        LogoUrl = tenant.BannerUrl,
-        FaviconUrl = tenant.FaviconUrl,
-        ThemeSettings = tenant.ThemeSettings,
-        UseTenantBranding = useTenantBranding,
-        Source = "tenant"
-    };
+    public static BrandingDto FromTenant(Tenant tenant, bool useTenantBranding = true) =>
+        TenantThemeHelper.Enrich(new BrandingDto
+        {
+            BrandName = tenant.BrandName,
+            BannerUrl = tenant.BannerUrl,
+            LogoUrl = tenant.BannerUrl,
+            FaviconUrl = tenant.FaviconUrl,
+            ThemeSettings = tenant.ThemeSettings,
+            CustomCss = tenant.CustomCss,
+            LoginHeroUrl = tenant.LoginHeroUrl,
+            UseTenantBranding = useTenantBranding,
+            Source = "tenant"
+        });
 
     public static bool HasCustomOrganisationBranding(Organisation organisation) =>
         !string.IsNullOrWhiteSpace(organisation.BrandName)

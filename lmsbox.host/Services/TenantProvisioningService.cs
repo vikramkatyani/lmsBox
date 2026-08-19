@@ -59,12 +59,7 @@ public static class TenantProvisioningService
         CreateTenantRequest request,
         string createdBy)
     {
-        var existingUser = await userManager.FindByEmailAsync(request.TenantAdminEmail);
-        if (existingUser != null)
-        {
-            throw new InvalidOperationException("Tenant admin email already exists");
-        }
-
+        var normalizedEmail = userManager.NormalizeEmail(request.TenantAdminEmail);
         var code = await EnsureUniqueCodeAsync(context, request.Code ?? request.Name);
 
         var tenant = new Tenant
@@ -115,9 +110,16 @@ public static class TenantProvisioningService
         context.Organisations.Add(organisation);
         await context.SaveChangesAsync();
 
+        var duplicateInTenant = await context.Users.AnyAsync(u =>
+            u.NormalizedEmail == normalizedEmail && u.TenantId == tenant.Id);
+        if (duplicateInTenant)
+        {
+            throw new InvalidOperationException("Tenant admin email already exists in this tenant");
+        }
+
         var admin = new ApplicationUser
         {
-            UserName = request.TenantAdminEmail,
+            UserName = TenantIdentity.BuildUserName(tenant.Id, request.TenantAdminEmail),
             Email = request.TenantAdminEmail,
             EmailConfirmed = true,
             FirstName = request.TenantAdminFirstName,
@@ -154,6 +156,7 @@ public static class TenantProvisioningService
     public static TenantResponse ToResponse(Tenant tenant, IEnumerable<Organisation> orgs, string? tenantAdminEmail = null)
     {
         var orgList = orgs.ToList();
+        var theme = TenantThemeHelper.Parse(tenant.ThemeSettings, tenant.CustomCss);
         return new TenantResponse
         {
             Id = tenant.Id,
@@ -179,6 +182,17 @@ public static class TenantProvisioningService
             BannerUrl = tenant.BannerUrl,
             FaviconUrl = tenant.FaviconUrl,
             ThemeSettings = tenant.ThemeSettings,
+            CustomCss = tenant.CustomCss,
+            PrimaryColor = theme.PrimaryColor,
+            SecondaryColor = theme.SecondaryColor,
+            AccentColor = theme.AccentColor,
+            AccentStrongColor = theme.AccentStrongColor,
+            FontFamily = theme.FontFamily,
+            LoginHeroUrl = tenant.LoginHeroUrl,
+            PageBackgroundColor = theme.PageBackgroundColor,
+            ButtonColor = theme.ButtonColor,
+            ButtonTextColor = theme.ButtonTextColor,
+            LoginPath = TenantPortalUrl.TenantLoginPath(tenant.Code),
             Organisations = orgList.Select(o => new OrganisationSummaryResponse
             {
                 Id = o.Id,

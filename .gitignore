@@ -378,3 +378,7 @@ tmp-*.html
 lmsbox-html-lesson-deployment.zip
 lmsBox.Server/wwwroot/index.html
 lmsBox.Server/Assets/test/
+
+# Local tenant branding uploads (Azure Blob is used in production)
+lmsBox.Server/wwwroot/uploads/tenants/**
+!lmsBox.Server/wwwroot/uploads/tenants/.gitkeep

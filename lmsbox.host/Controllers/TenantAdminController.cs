@@ -18,15 +18,18 @@ public class TenantAdminController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ILogger<TenantAdminController> _logger;
+    private readonly TenantBrandingAssetService _brandingAssets;
 
     public TenantAdminController(
         ApplicationDbContext context,
         UserManager<ApplicationUser> userManager,
-        ILogger<TenantAdminController> logger)
+        ILogger<TenantAdminController> logger,
+        TenantBrandingAssetService brandingAssets)
     {
         _context = context;
         _userManager = userManager;
         _logger = logger;
+        _brandingAssets = brandingAssets;
     }
 
     private async Task<(AccessScope Scope, Tenant? Tenant, IActionResult? Error)> ResolveTenantContextAsync(long? tenantIdFromRoute = null)
@@ -106,15 +109,53 @@ public class TenantAdminController : ControllerBase
         if (error != null) return error;
 
         var actor = User.FindFirst(ClaimTypes.Email)?.Value ?? "system";
-        tenant!.BrandName = request.BrandName?.Trim();
-        tenant.BannerUrl = request.BannerUrl?.Trim();
-        tenant.FaviconUrl = request.FaviconUrl?.Trim();
-        tenant.ThemeSettings = request.ThemeSettings;
-        tenant.UpdatedOn = DateTime.UtcNow;
+        TenantThemeHelper.ApplyStructuredFields(tenant!, request);
+        tenant!.UpdatedOn = DateTime.UtcNow;
         tenant.UpdatedBy = actor;
         await _context.SaveChangesAsync();
 
         return Ok(BrandingResolver.FromTenant(tenant));
+    }
+
+    [HttpPost("branding/upload-asset")]
+    [RequestSizeLimit(10_485_760)]
+    public async Task<IActionResult> UploadBrandingAsset([FromForm] IFormFile file, [FromQuery] string assetType)
+    {
+        var (_, tenant, error) = await ResolveTenantContextAsync();
+        if (error != null) return error;
+
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(new { message = "No file provided" });
+        }
+
+        try
+        {
+            var normalizedType = TenantBrandingAssetService.NormalizeAssetType(assetType);
+            var url = await _brandingAssets.SaveAsync(tenant!, file, normalizedType);
+            tenant!.UpdatedOn = DateTime.UtcNow;
+            tenant.UpdatedBy = User.FindFirst(ClaimTypes.Email)?.Value ?? "system";
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                url,
+                assetType = normalizedType,
+                bannerUrl = tenant.BannerUrl,
+                faviconUrl = tenant.FaviconUrl,
+                loginHeroUrl = tenant.LoginHeroUrl,
+                branding = BrandingResolver.FromTenant(tenant)
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading tenant branding asset");
+            return StatusCode(500, new { message = "Upload failed" });
+        }
     }
 
     [HttpGet("organisations")]
@@ -273,16 +314,17 @@ public class TenantAdminController : ControllerBase
             return NotFound(new { error = "Organisation not found" });
         }
 
-        var existingUser = await _userManager.FindByEmailAsync(request.Email);
+        var existingUser = await _context.Users.FirstOrDefaultAsync(u =>
+            u.NormalizedEmail == _userManager.NormalizeEmail(request.Email) && u.TenantId == tenant.Id);
         if (existingUser != null)
         {
-            return BadRequest(new { error = "Email already exists" });
+            return BadRequest(new { error = "Email already exists in this tenant" });
         }
 
         var actor = User.FindFirst(ClaimTypes.Email)?.Value ?? "system";
         var admin = new ApplicationUser
         {
-            UserName = request.Email,
+            UserName = TenantIdentity.BuildUserName(tenant!.Id, request.Email),
             Email = request.Email,
             EmailConfirmed = true,
             FirstName = request.FirstName,

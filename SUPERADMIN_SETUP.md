@@ -31,6 +31,39 @@ Organisations belong to a tenant (`TenantId` required). Branding, SMTP, storage 
 - SuperAdmin: both null
 - TenantAdmin: TenantId set; OrganisationID set when also OrgAdmin on primary org
 - OrgAdmin / Learner: both set
+- Email is unique **per tenant** (the same email can exist in tenant A and tenant B as different accounts)
+- Identity `UserName` is `{tenantId}|{email}` for tenant users so ASP.NET Identity uniqueness is preserved
+
+## How to log in to different tenants
+
+Users never share a login across tenants. Open the login URL for that tenant:
+
+| Who | URL |
+|-----|-----|
+| Super Admin | `/superadmin/login` |
+| Tenant users (admins and learners) | `/t/{tenant-code}/login` |
+| Generic host with no tenant | `/login` — enter the organisation code, then you are sent to `/t/{code}/login` |
+
+Examples:
+
+- BIFA: `/t/bifa/login`
+- Dev tenant: `/t/lmsbox-dev/login`
+- Production subdomain (if `Tenant.Domain` or the subdomain matches the tenant code): `https://bifa.yourapp.com/login`
+
+A user registered in BIFA cannot sign in at `/t/lmsbox-dev/login` even with the same email. They must use BIFA's login URL. The magic-link email also points at that tenant's verify URL.
+
+Public branding for the login page: `GET /api/public/tenants/{code}/branding`. If a tenant has no custom CSS/colours/logo, the default LMS Box theme is used.
+
+### Theme studio (recommended)
+
+Super Admin customises a tenant from **Tenants → Theme**, or Tenant Admin from **Tenant branding**. Use the visual form:
+
+1. Upload **logo**, **favicon**, and **login page image** (files, not URLs)
+2. Pick **colours** (login card, page background, button, button text, accent) and a **font**
+3. Preview the login page live, then Save
+4. Optional **custom CSS** is collapsed by default (paste or load a `.css` file; stored as text on the tenant)
+
+Images go to Azure Blob when configured, otherwise `wwwroot/uploads/tenants/{code}/`.
 
 #### GlobalLibraryContent Table
 New table for managing global content (PDFs and Videos):
@@ -78,9 +111,17 @@ elgdocstorage (Storage Account)
 - **POST** `/api/SuperAdmin/tenants` — creates tenant + primary organisation + TenantAdmin (also OrgAdmin)
 - **PUT** `/api/SuperAdmin/tenants/{id}`
 - **GET/POST** `/api/SuperAdmin/tenants/{tenantId}/organisations`
+- **PUT** `/api/SuperAdmin/tenants/{id}/branding`
+- **POST** `/api/SuperAdmin/tenants/{id}/upload-asset?assetType=logo|favicon|loginHero`
+
+### Public tenant login branding (anonymous)
+- **GET** `/api/public/tenants/{code}/branding`
+- **GET** `/api/public/branding?tenantCode=` (or resolve from host / `X-Tenant-Code`)
 
 ### Tenant Admin
 - **GET** `/api/tenant/me`
+- **GET/PUT** `/api/tenant/branding`
+- **POST** `/api/tenant/branding/upload-asset?assetType=logo|favicon|loginHero`
 - **GET/POST** `/api/tenant/organisations`
 - **PUT** `/api/tenant/organisations/{id}`
 - **POST** `/api/tenant/organisations/{orgId}/admin`

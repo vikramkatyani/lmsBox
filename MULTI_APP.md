@@ -20,6 +20,13 @@ SuperAdmin (platform)
 | OrgAdmin | One organisation. |
 | Learner | One organisation. |
 
+## Logging in
+
+- **Super Admin:** `/superadmin/login`
+- **Tenant users:** `/t/{tenant-code}/login` (for example `/t/bifa/login`)
+- Same email can exist in multiple tenants; each account only works on that tenant's login URL
+- Tenant branding is edited in **Theme studio** (logo, favicon, login image, colours, font). Custom CSS is optional. Default LMS Box theme is used when none is set.
+
 ## Deployable stack
 
 - API: `lmsBox.Server`

@@ -56,8 +56,14 @@ public class Tenant
 
     public string? FaviconUrl { get; set; }
 
-    /// <summary>Theme settings stored as JSON.</summary>
+    /// <summary>Right-hand illustration on the tenant login page.</summary>
+    public string? LoginHeroUrl { get; set; }
+
+    /// <summary>Theme settings stored as JSON (colors, font, etc.).</summary>
     public string? ThemeSettings { get; set; }
+
+    /// <summary>Optional extra CSS applied on the tenant login page and app chrome.</summary>
+    public string? CustomCss { get; set; }
 
     public ICollection<Organisation> Organisations { get; set; } = new List<Organisation>();
 

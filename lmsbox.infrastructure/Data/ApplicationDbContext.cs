@@ -153,6 +153,22 @@ namespace lmsbox.infrastructure.Data
             builder.Entity<ApplicationUser>()
                    .HasIndex(u => u.TenantId);
 
+            builder.Entity<ApplicationUser>(entity =>
+            {
+                entity.Property(u => u.UserName).HasMaxLength(320);
+                entity.Property(u => u.NormalizedUserName).HasMaxLength(320);
+
+                entity.HasIndex(u => new { u.TenantId, u.NormalizedEmail })
+                    .IsUnique()
+                    .HasFilter("[TenantId] IS NOT NULL AND [NormalizedEmail] IS NOT NULL")
+                    .HasDatabaseName("IX_AspNetUsers_TenantId_NormalizedEmail");
+
+                entity.HasIndex(u => u.NormalizedEmail)
+                    .IsUnique()
+                    .HasFilter("[TenantId] IS NULL AND [NormalizedEmail] IS NOT NULL")
+                    .HasDatabaseName("IX_AspNetUsers_NormalizedEmail_NoTenant");
+            });
+
             builder.Entity<Tenant>()
                    .HasIndex(t => t.Code)
                    .IsUnique();

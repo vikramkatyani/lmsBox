@@ -80,6 +80,42 @@ export const updateTenant = async (id, tenantData) => {
   return response.json();
 };
 
+export const updateTenantBranding = async (id, branding) => {
+  const response = await fetch(`${API_BASE}/api/SuperAdmin/tenants/${id}/branding`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(branding)
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Failed to update tenant branding');
+  }
+
+  return response.json();
+};
+
+export const uploadTenantAsset = async (tenantId, file, assetType) => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(
+    `${API_BASE}/api/SuperAdmin/tenants/${tenantId}/upload-asset?assetType=${encodeURIComponent(assetType)}`,
+    {
+      method: 'POST',
+      headers: getAuthHeadersWithoutContentType(),
+      body: formData
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || error.error || 'Failed to upload asset');
+  }
+
+  return response.json();
+};
+
 export const getTenantOrganisations = async (tenantId) => {
   const response = await fetch(`${API_BASE}/api/SuperAdmin/tenants/${tenantId}/organisations`, {
     headers: getAuthHeaders()

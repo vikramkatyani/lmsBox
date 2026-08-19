@@ -9,7 +9,8 @@ import {
   MagnifyingGlassIcon,
   CheckCircleIcon,
   XCircleIcon,
-  BuildingOfficeIcon
+  BuildingOfficeIcon,
+  SwatchIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
@@ -124,6 +125,11 @@ export default function SuperAdminTenants() {
                   <td className="px-6 py-4">
                     <div className="font-medium text-gray-900">{tenant.name}</div>
                     <div className="text-sm text-gray-500">{tenant.code}</div>
+                    <div className="text-xs text-indigo-600 mt-1">
+                      <a href={tenant.loginPath || `/t/${tenant.code}/login`} target="_blank" rel="noreferrer">
+                        {tenant.loginPath || `/t/${tenant.code}/login`}
+                      </a>
+                    </div>
                     <div className="text-xs text-gray-400 mt-1">
                       {tenant.allowsMultipleOrganisations ? 'Multi-organisation' : 'Single organisation'}
                     </div>
@@ -149,6 +155,13 @@ export default function SuperAdminTenants() {
                     >
                       <BuildingOfficeIcon className="h-4 w-4 mr-1" />
                       View
+                    </button>
+                    <button
+                      onClick={() => navigate(`/superadmin/tenants/${tenant.id}/theme`)}
+                      className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800"
+                    >
+                      <SwatchIcon className="h-4 w-4 mr-1" />
+                      Theme
                     </button>
                     <button
                       onClick={() => navigate(`/superadmin/tenants/${tenant.id}/edit`)}

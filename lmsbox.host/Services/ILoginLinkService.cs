@@ -6,7 +6,7 @@ namespace lmsBox.Server.Services
 {
     public interface ILoginLinkService
     {
-        Task<bool> CreateAndSendLoginLinkAsync(ApplicationUser user);
+        Task<bool> CreateAndSendLoginLinkAsync(ApplicationUser user, string? tenantCode = null);
         Task<LoginLinkToken?> ValidateAndConsumeTokenAsync(string token);
     }
 }

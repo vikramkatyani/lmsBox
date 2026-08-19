@@ -28,7 +28,7 @@ namespace lmsBox.Server.Services
         }
 
         // Return bool to avoid returning the raw link/token to callers.
-        public async Task<bool> CreateAndSendLoginLinkAsync(ApplicationUser user)
+        public async Task<bool> CreateAndSendLoginLinkAsync(ApplicationUser user, string? tenantCode = null)
         {
             // Check if user is active (ActiveStatus = 1)
             if (user.ActiveStatus != 1)
@@ -78,9 +78,19 @@ namespace lmsBox.Server.Services
             await _db.SaveChangesAsync();
 
             // build URL to include the raw token encoded in base64url
-            var frontendBase = _config["LoginLink:FrontendBaseUrl"]?.TrimEnd('/') ?? "http://localhost:5174";
+            var frontendBase = TenantPortalUrl.ResolveFrontendBase(_config, null);
             var encoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-            var link = $"{frontendBase}/verify-login?token={encoded}";
+            if (string.IsNullOrWhiteSpace(tenantCode) && user.TenantId.HasValue)
+            {
+                tenantCode = await _db.Tenants
+                    .Where(t => t.Id == user.TenantId.Value)
+                    .Select(t => t.Code)
+                    .FirstOrDefaultAsync();
+            }
+
+            var link = string.IsNullOrWhiteSpace(tenantCode)
+                ? $"{frontendBase}/verify-login?token={encoded}"
+                : TenantPortalUrl.BuildVerifyUrl(frontendBase, tenantCode, encoded);
 
             // send email using the new template-based email service
             try

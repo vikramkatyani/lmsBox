@@ -257,14 +257,6 @@ namespace lmsBox.Server.Controllers
                     return BadRequest(ModelState);
                 }
 
-                // Check if user already exists
-                var existingUser = await _userManager.FindByEmailAsync(request.Email);
-                if (existingUser != null)
-                {
-                    _logger.LogWarning("User with email {Email} already exists", request.Email);
-                    return BadRequest(new { message = "A user with this email already exists" });
-                }
-
                 _logger.LogInformation("Creating new user with email {Email}", request.Email);
 
                 // Get the current admin user to set proper references
@@ -320,6 +312,15 @@ namespace lmsBox.Server.Controllers
                     orgId = organisation.Id;
                     tenantId = organisation.TenantId;
                 }
+
+                var normalizedEmail = _userManager.NormalizeEmail(request.Email);
+                var existingUser = await _context.Users.FirstOrDefaultAsync(u =>
+                    u.NormalizedEmail == normalizedEmail && u.TenantId == tenantId);
+                if (existingUser != null)
+                {
+                    _logger.LogWarning("User with email {Email} already exists in tenant {TenantId}", request.Email, tenantId);
+                    return BadRequest(new { message = "A user with this email already exists in this tenant" });
+                }
                 
                 var currentAdminId = currentAdminUser?.Id ?? "system";
                 var currentAdminName = User.Identity?.Name ?? "admin";
@@ -327,7 +328,7 @@ namespace lmsBox.Server.Controllers
                 // Create new user
                 var user = new ApplicationUser
                 {
-                    UserName = request.Email,
+                    UserName = TenantIdentity.BuildUserName(tenantId, request.Email),
                     Email = request.Email,
                     FirstName = request.FirstName,
                     LastName = request.LastName,
@@ -419,8 +420,7 @@ namespace lmsBox.Server.Controllers
                     }
                     else
                     {
-                        var baseUrl = _config["AppSettings:BaseUrl"] ?? Request.Scheme + "://" + Request.Host;
-                        var portalUrl = $"{baseUrl}/login";
+                        var portalUrl = await TenantPortalUrl.BuildLoginUrlAsync(_context, _config, Request, tenantId);
                         
                         _logger.LogInformation("Email service available, preparing email for {Email}", user.Email);
                         
@@ -487,8 +487,7 @@ namespace lmsBox.Server.Controllers
                 {
                     try
                     {
-                        var baseUrl = _config["AppSettings:BaseUrl"] ?? Request.Scheme + "://" + Request.Host;
-                        var portalUrl = $"{baseUrl}/login";
+                        var portalUrl = await TenantPortalUrl.BuildLoginUrlAsync(_context, _config, Request, user.TenantId);
 
                         await _emailService.SendLearnerRegistrationEmailAsync(
                             user.Email,
@@ -631,7 +630,8 @@ namespace lmsBox.Server.Controllers
                 {
                     try
                     {
-                        var existing = await _userManager.FindByEmailAsync(email);
+                        var existing = await _context.Users.FirstOrDefaultAsync(u =>
+                            u.NormalizedEmail == _userManager.NormalizeEmail(email) && u.TenantId == tenantId);
                         if (existing != null)
                         {
                             results.Add(new { email, status = "skipped", reason = "exists", userId = existing.Id });
@@ -640,7 +640,7 @@ namespace lmsBox.Server.Controllers
 
                         var user = new ApplicationUser
                         {
-                            UserName = email,
+                            UserName = TenantIdentity.BuildUserName(tenantId, email),
                             Email = email,
                             FirstName = string.Empty,
                             LastName = string.Empty,
@@ -710,7 +710,7 @@ namespace lmsBox.Server.Controllers
                         // Send learner registration email (with courses if assigned)
                         try
                         {
-                            var portalUrl = $"{Request.Scheme}://{Request.Host}/login";
+                            var portalUrl = await TenantPortalUrl.BuildLoginUrlAsync(_context, _config, Request, tenantId);
 
                             await _emailService.SendLearnerRegistrationEmailAsync(
                                 user.Email!,
@@ -787,7 +787,7 @@ namespace lmsBox.Server.Controllers
                 user.FirstName = request.FirstName;
                 user.LastName = request.LastName;
                 user.Email = request.Email;
-                user.UserName = request.Email; // Keep username in sync with email
+                user.UserName = TenantIdentity.BuildUserName(user.TenantId, request.Email);
 
                 var updateResult = await _userManager.UpdateAsync(user);
                 if (!updateResult.Succeeded)
@@ -871,12 +871,12 @@ namespace lmsBox.Server.Controllers
                                 .Distinct()
                                 .ToList();
 
-                            var organisation = await _context.Organisations.FirstOrDefaultAsync();
-                            var portalUrl = $"{Request.Scheme}://{Request.Host}";
+                            var orgIdForEmail = user.OrganisationID?.ToString() ?? "";
+                            var portalUrl = await TenantPortalUrl.BuildLoginUrlAsync(_context, _config, Request, user.TenantId);
 
                             await _emailService.SendPathwayAssignmentEmailAsync(
                                 user.Email!,
-                                organisation!.Id.ToString(),
+                                orgIdForEmail,
                                 portalUrl,
                                 pathwayNames,
                                 courseNames,

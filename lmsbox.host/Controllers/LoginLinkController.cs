@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
@@ -29,6 +30,8 @@ namespace lmsBox.Server.Controllers
     {
         private readonly ILoginLinkService _loginLinkService;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly ApplicationDbContext _db;
+        private readonly TenantResolver _tenantResolver;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _config;
         private readonly ILogger<LoginLinkController> _logger;
@@ -37,6 +40,8 @@ namespace lmsBox.Server.Controllers
         public LoginLinkController(
             ILoginLinkService loginLinkService,
             UserManager<ApplicationUser> userManager,
+            ApplicationDbContext db,
+            TenantResolver tenantResolver,
             IHttpClientFactory httpClientFactory,
             IConfiguration config,
             ILogger<LoginLinkController> logger,
@@ -44,6 +49,8 @@ namespace lmsBox.Server.Controllers
         {
             _loginLinkService = loginLinkService;
             _userManager = userManager;
+            _db = db;
+            _tenantResolver = tenantResolver;
             _httpClientFactory = httpClientFactory;
             _config = config;
             _logger = logger;
@@ -83,14 +90,20 @@ namespace lmsBox.Server.Controllers
                     }
                 }
 
-                // Find user and send login link if user exists. Do not reveal existence to client.
-                var user = await _userManager.FindByEmailAsync(request.Email);
+                // Find user in this tenant only. Do not reveal existence to client.
+                var tenant = await ResolveTenantAsync(request.TenantCode);
+                if (tenant == null)
+                {
+                    _logger.LogWarning("RequestLoginLink missing tenant for {Email}", request.Email);
+                    return BadRequest(new { message = "Use your organisation login URL (/t/{tenant-code}/login)." });
+                }
+
+                var user = await FindTenantUserAsync(request.Email, tenant.Id);
                 if (user != null)
                 {
                     try
                     {
-                        // call the service method (keeps original implementation name)
-                        await _loginLinkService.CreateAndSendLoginLinkAsync(user);
+                        await _loginLinkService.CreateAndSendLoginLinkAsync(user, tenant.Code);
                         _logger.LogInformation("Login link created/sent for user {UserId}", user.Id);
                     }
                     catch (Exception ex)
@@ -135,6 +148,21 @@ namespace lmsBox.Server.Controllers
                     if (user == null)
                     {
                         _logger.LogWarning("Login link validated for non-existent user id {UserId}", record.UserId);
+                        return Unauthorized(new { message = "Invalid token." });
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(request.TenantCode))
+                    {
+                        var tenant = await _tenantResolver.ResolveByCodeAsync(request.TenantCode);
+                        if (tenant == null || user.TenantId != tenant.Id)
+                        {
+                            _logger.LogWarning("Login link tenant mismatch for user {UserId}", user.Id);
+                            return Unauthorized(new { message = "Invalid or expired token." });
+                        }
+                    }
+
+                    if (!user.TenantId.HasValue)
+                    {
                         return Unauthorized(new { message = "Invalid token." });
                     }
 
@@ -199,7 +227,7 @@ namespace lmsBox.Server.Controllers
         // GET /auth/external/microsoft
         [HttpGet("external/{provider}")]
         [AllowAnonymous]
-        public IActionResult ExternalLogin([FromRoute] string provider)
+        public IActionResult ExternalLogin([FromRoute] string provider, [FromQuery] string? tenantCode)
         {
             var (scheme, configured) = ResolveExternalScheme(provider);
             if (scheme == null || !configured)
@@ -209,6 +237,11 @@ namespace lmsBox.Server.Controllers
 
             var redirectUri = Url.Action(nameof(ExternalLoginCallback), "LoginLink")!;
             var properties = new AuthenticationProperties { RedirectUri = redirectUri };
+            if (!string.IsNullOrWhiteSpace(tenantCode))
+            {
+                properties.Items["tenant_code"] = tenantCode.Trim();
+            }
+
             return Challenge(properties, scheme);
         }
 
@@ -241,14 +274,22 @@ namespace lmsBox.Server.Controllers
                 if (string.IsNullOrWhiteSpace(email))
                 {
                     _logger.LogWarning("External login callback did not include an email claim");
-                    return Redirect(BuildFrontendLoginRedirect("authError=email_missing"));
+                    return Redirect(BuildFrontendLoginRedirect("authError=email_missing", GetTenantCodeFromProperties(externalResult.Properties)));
                 }
 
-                var user = await _userManager.FindByEmailAsync(email);
+                var tenantCode = GetTenantCodeFromProperties(externalResult.Properties);
+                var tenant = await _tenantResolver.ResolveAsync(tenantCode, Request.Host.Value);
+                if (tenant == null)
+                {
+                    _logger.LogWarning("External login rejected because tenant could not be resolved");
+                    return Redirect(BuildFrontendLoginRedirect("authError=external_failed", tenantCode));
+                }
+
+                var user = await FindTenantUserAsync(email, tenant.Id);
                 if (user == null)
                 {
-                    _logger.LogInformation("External login rejected for unregistered email {Email}", email);
-                    return Redirect(BuildFrontendPathRedirect("/auth/email-not-registered"));
+                    _logger.LogInformation("External login rejected for unregistered email {Email} in tenant {TenantCode}", email, tenant.Code);
+                    return Redirect(BuildFrontendPathRedirect($"/t/{tenant.Code}/auth/email-not-registered"));
                 }
 
                 var (token, expiresUnixMs) = await CreateJwtTokenAsync(user);
@@ -258,7 +299,7 @@ namespace lmsBox.Server.Controllers
                 await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
 
                 var fragment = $"token={Uri.EscapeDataString(token)}&expires={expiresUnixMs}";
-                return Redirect(BuildFrontendLoginRedirect(fragment));
+                return Redirect(BuildFrontendLoginRedirect(fragment, tenant.Code));
             }
             catch (Exception ex)
             {
@@ -366,7 +407,13 @@ namespace lmsBox.Server.Controllers
 
             try
             {
-                var user = await _userManager.FindByEmailAsync(request.Email);
+                var tenant = await ResolveTenantAsync(request.TenantCode);
+                if (tenant == null)
+                {
+                    return BadRequest(new { message = "Tenant code is required. Use /t/{tenant-code}/login." });
+                }
+
+                var user = await FindTenantUserAsync(request.Email, tenant.Id);
                 if (user == null)
                 {
                     return BadRequest(new { message = "User not found" });
@@ -418,15 +465,36 @@ namespace lmsBox.Server.Controllers
             return (null, false);
         }
 
-        private string BuildFrontendLoginRedirect(string fragment)
+        private async Task<Tenant?> ResolveTenantAsync(string? tenantCode)
         {
-            var frontendBaseUrl = _config["LoginLink:FrontendBaseUrl"];
-            if (string.IsNullOrWhiteSpace(frontendBaseUrl))
+            var headerCode = Request.Headers["X-Tenant-Code"].FirstOrDefault();
+            return await _tenantResolver.ResolveAsync(tenantCode ?? headerCode, Request.Host.Value);
+        }
+
+        private async Task<ApplicationUser?> FindTenantUserAsync(string email, long tenantId)
+        {
+            var normalized = _userManager.NormalizeEmail(email);
+            return await _db.Users.FirstOrDefaultAsync(u =>
+                u.NormalizedEmail == normalized && u.TenantId == tenantId);
+        }
+
+        private static string? GetTenantCodeFromProperties(AuthenticationProperties? properties)
+        {
+            if (properties?.Items != null && properties.Items.TryGetValue("tenant_code", out var code))
             {
-                frontendBaseUrl = $"{Request.Scheme}://{Request.Host}";
+                return code;
             }
 
-            return $"{frontendBaseUrl.TrimEnd('/')}/login#{fragment}";
+            return null;
+        }
+
+        private string BuildFrontendLoginRedirect(string fragment, string? tenantCode = null)
+        {
+            var frontendBaseUrl = TenantPortalUrl.ResolveFrontendBase(_config, Request);
+            var path = string.IsNullOrWhiteSpace(tenantCode)
+                ? "/login"
+                : TenantPortalUrl.TenantLoginPath(tenantCode);
+            return $"{frontendBaseUrl}{path}#{fragment}";
         }
 
         private string BuildFrontendPathRedirect(string path)
@@ -515,5 +583,6 @@ namespace lmsBox.Server.Controllers
     public class DevLoginRequest
     {
         public required string Email { get; set; }
+        public string? TenantCode { get; set; }
     }
 }

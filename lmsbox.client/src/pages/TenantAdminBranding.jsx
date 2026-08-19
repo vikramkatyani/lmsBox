@@ -1,30 +1,25 @@
 import { useEffect, useState } from 'react';
 import AdminLayout from '../components/AdminLayout';
+import TenantThemeEditor from '../components/TenantThemeEditor';
 import usePageTitle from '../hooks/usePageTitle';
-import { getTenantBranding, updateTenantBranding } from '../services/tenantAdminApi';
+import { getMyTenant, getTenantBranding, updateTenantBranding, uploadTenantBrandingAsset } from '../services/tenantAdminApi';
+import { brandingToForm, formToBrandingPayload } from '../theme/tenantTheme';
 import toast from 'react-hot-toast';
 
 export default function TenantAdminBranding() {
   usePageTitle('Tenant Branding');
+  const [tenant, setTenant] = useState(null);
+  const [form, setForm] = useState(brandingToForm());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    brandName: '',
-    bannerUrl: '',
-    faviconUrl: '',
-    themeSettings: ''
-  });
+  const [uploading, setUploading] = useState({});
 
   const load = async () => {
     try {
       setLoading(true);
-      const data = await getTenantBranding();
-      setForm({
-        brandName: data.brandName || '',
-        bannerUrl: data.bannerUrl || data.logoUrl || '',
-        faviconUrl: data.faviconUrl || '',
-        themeSettings: data.themeSettings || ''
-      });
+      const [branding, me] = await Promise.all([getTenantBranding(), getMyTenant().catch(() => null)]);
+      setTenant(me);
+      setForm(brandingToForm(branding));
     } catch (error) {
       toast.error(error.message || 'Failed to load branding');
     } finally {
@@ -36,13 +31,32 @@ export default function TenantAdminBranding() {
     load();
   }, []);
 
-  const handleSubmit = async (e) => {
+  const handleUpload = async (assetType, file) => {
+    setUploading((prev) => ({ ...prev, [assetType]: true }));
+    try {
+      const result = await uploadTenantBrandingAsset(file, assetType);
+      const next = result.branding ? brandingToForm(result.branding) : {
+        ...form,
+        bannerUrl: result.bannerUrl ?? form.bannerUrl,
+        faviconUrl: result.faviconUrl ?? form.faviconUrl,
+        loginHeroUrl: result.loginHeroUrl ?? form.loginHeroUrl
+      };
+      setForm((prev) => ({ ...prev, ...next, customCss: prev.customCss, brandName: prev.brandName || next.brandName }));
+      toast.success('Image uploaded');
+    } catch (error) {
+      toast.error(error.message || 'Upload failed');
+    } finally {
+      setUploading((prev) => ({ ...prev, [assetType]: false }));
+    }
+  };
+
+  const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
-      await updateTenantBranding(form);
+      const saved = await updateTenantBranding(formToBrandingPayload(form));
+      setForm(brandingToForm({ ...form, ...saved }));
       toast.success('Tenant branding updated. Organisations using tenant branding will inherit these settings.');
-      await load();
     } catch (error) {
       toast.error(error.message || 'Failed to save branding');
     } finally {
@@ -53,8 +67,8 @@ export default function TenantAdminBranding() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="max-w-3xl mx-auto px-4 py-12 flex justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="max-w-6xl mx-auto px-4 py-12 flex justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
         </div>
       </AdminLayout>
     );
@@ -62,59 +76,28 @@ export default function TenantAdminBranding() {
 
   return (
     <AdminLayout>
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Tenant branding</h1>
         <p className="text-sm text-gray-600 mb-6">
-          These settings apply to every organisation under your tenant that has &quot;Apply tenant branding&quot; selected
-          (the default).
+          These settings appear on your organisation login page
+          {tenant?.loginPath ? (
+            <>
+              {' '}
+              (<code>{tenant.loginPath}</code>)
+            </>
+          ) : null}{' '}
+          and in the app. Leave colours empty to use the default LMS Box theme.
         </p>
-
-        <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Brand name</label>
-            <input
-              value={form.brandName}
-              onChange={(e) => setForm({ ...form, brandName: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Banner / logo URL</label>
-            <input
-              value={form.bannerUrl}
-              onChange={(e) => setForm({ ...form, bannerUrl: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2"
-              placeholder="https://..."
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Favicon URL</label>
-            <input
-              value={form.faviconUrl}
-              onChange={(e) => setForm({ ...form, faviconUrl: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2"
-              placeholder="https://..."
-            />
-          </div>
-          {form.bannerUrl && (
-            <img
-              src={form.bannerUrl}
-              alt="Banner preview"
-              className="w-full max-w-xl h-auto object-contain border rounded"
-              style={{ aspectRatio: '37/9' }}
-            />
-          )}
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={saving}
-              className="px-4 py-2 rounded-md text-white text-sm disabled:opacity-60"
-              style={{ backgroundColor: '#1b365d' }}
-            >
-              {saving ? 'Saving...' : 'Save branding'}
-            </button>
-          </div>
-        </form>
+        <TenantThemeEditor
+          form={form}
+          onChange={setForm}
+          onUpload={handleUpload}
+          uploading={uploading}
+          loginPath={tenant?.loginPath}
+          tenantName={tenant?.name || tenant?.brandName}
+          saving={saving}
+          onSave={handleSave}
+        />
       </div>
     </AdminLayout>
   );

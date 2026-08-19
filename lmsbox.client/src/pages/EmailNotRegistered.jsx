@@ -1,13 +1,16 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTheme } from '../theme/ThemeContext';
 import lmsLogo from '../assets/lmsbox-logo.png';
 import usePageTitle from '../hooks/usePageTitle';
+import { tenantLoginPath } from '../utils/tenant';
 
 export default function EmailNotRegistered() {
   const navigate = useNavigate();
+  const { tenantCode: tenantCodeParam } = useParams();
   const theme = useTheme();
   const logoSrc = theme?.logo || lmsLogo;
   const tenantName = theme?.name || import.meta.env.VITE_APP_TITLE || 'LMS Box';
+  const tenantCode = tenantCodeParam || theme?.tenantCode || theme?.code || null;
 
   usePageTitle('Email Not Registered');
 
@@ -33,7 +36,7 @@ export default function EmailNotRegistered() {
         <div className="mt-7">
           <button
             type="button"
-            onClick={() => navigate('/login')}
+            onClick={() => navigate(tenantCode ? tenantLoginPath(tenantCode) : '/login')}
             className="w-full cursor-pointer py-2.5 rounded-lg font-medium bg-login-btn-bg text-login-btn-text hover:brightness-90 transition-colors"
           >
             Back to Login

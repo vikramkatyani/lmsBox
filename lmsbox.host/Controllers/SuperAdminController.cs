@@ -26,26 +26,31 @@ public class SuperAdminController : ControllerBase
     private readonly IConfiguration _configuration;
     private readonly ILogger<SuperAdminController> _logger;
     private readonly IAzureBlobService _blobService;
+    private readonly TenantBrandingAssetService _brandingAssets;
 
     public SuperAdminController(
         ApplicationDbContext context,
         UserManager<ApplicationUser> userManager,
         IConfiguration configuration,
         ILogger<SuperAdminController> logger,
-        IAzureBlobService blobService)
+        IAzureBlobService blobService,
+        TenantBrandingAssetService brandingAssets)
     {
         _context = context;
         _userManager = userManager;
         _configuration = configuration;
         _logger = logger;
         _blobService = blobService;
+        _brandingAssets = brandingAssets;
     }
 
     // Super Admin Login (separate endpoint)
     [HttpPost("login")]
     public async Task<IActionResult> SuperAdminLogin([FromBody] SuperAdminLoginRequest request)
     {
-        var user = await _userManager.FindByEmailAsync(request.Email);
+        var normalized = _userManager.NormalizeEmail(request.Email);
+        var user = await _context.Users.FirstOrDefaultAsync(u =>
+            u.NormalizedEmail == normalized && u.TenantId == null);
         if (user == null)
         {
             return Unauthorized(new { error = "Invalid credentials" });
@@ -195,10 +200,6 @@ public class SuperAdminController : ControllerBase
         tenant.ManagerPhone = request.ManagerPhone;
         tenant.RenewalDate = request.RenewalDate;
         tenant.IsActive = request.IsActive;
-        tenant.BrandName = request.BrandName;
-        tenant.BannerUrl = request.BannerUrl;
-        tenant.FaviconUrl = request.FaviconUrl;
-        tenant.ThemeSettings = request.ThemeSettings;
         tenant.UpdatedOn = DateTime.UtcNow;
         tenant.UpdatedBy = superAdminEmail;
 
@@ -217,10 +218,7 @@ public class SuperAdminController : ControllerBase
         }
 
         var superAdminEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? "system";
-        tenant.BrandName = request.BrandName?.Trim();
-        tenant.BannerUrl = request.BannerUrl?.Trim();
-        tenant.FaviconUrl = request.FaviconUrl?.Trim();
-        tenant.ThemeSettings = request.ThemeSettings;
+        TenantThemeHelper.ApplyStructuredFields(tenant, request);
         tenant.UpdatedOn = DateTime.UtcNow;
         tenant.UpdatedBy = superAdminEmail;
 
@@ -240,52 +238,44 @@ public class SuperAdminController : ControllerBase
                 return BadRequest(new { message = "No file provided" });
             }
 
-            assetType = (assetType ?? "").ToLowerInvariant();
-            if (assetType is not ("banner" or "favicon"))
-            {
-                return BadRequest(new { message = "assetType must be 'banner' or 'favicon'" });
-            }
-
             var tenant = await _context.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId);
             if (tenant == null)
             {
                 return NotFound(new { error = "Tenant not found" });
             }
 
-            if (!_blobService.IsConfigured())
+            string normalizedType;
+            try
             {
-                return StatusCode(500, new { message = "File storage is not configured" });
+                normalizedType = TenantBrandingAssetService.NormalizeAssetType(assetType);
             }
-
-            var folder = $"tenants/{tenant.Code}";
-            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-            var fileName = $"{assetType}_{Guid.NewGuid():N}{extension}";
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
 
             string url;
-            using (var stream = file.OpenReadStream())
+            try
             {
-                url = await _blobService.UploadToBrandingContainerAsync(
-                    stream,
-                    fileName,
-                    folder,
-                    file.ContentType,
-                    organisationId: null);
+                url = await _brandingAssets.SaveAsync(tenant, file, normalizedType);
             }
-
-            if (assetType == "banner")
+            catch (InvalidOperationException ex)
             {
-                tenant.BannerUrl = url;
-            }
-            else
-            {
-                tenant.FaviconUrl = url;
+                return BadRequest(new { message = ex.Message });
             }
 
             tenant.UpdatedOn = DateTime.UtcNow;
             tenant.UpdatedBy = User.FindFirst(ClaimTypes.Email)?.Value ?? "system";
             await _context.SaveChangesAsync();
 
-            return Ok(new { url, assetType });
+            return Ok(new
+            {
+                url,
+                assetType = normalizedType,
+                bannerUrl = tenant.BannerUrl,
+                faviconUrl = tenant.FaviconUrl,
+                loginHeroUrl = tenant.LoginHeroUrl
+            });
         }
         catch (Exception ex)
         {
@@ -483,15 +473,16 @@ public class SuperAdminController : ControllerBase
             return NotFound(new { error = "Organisation not found" });
 
         // Check if email already exists
-        var existingUser = await _userManager.FindByEmailAsync(request.Email);
+        var existingUser = await _context.Users.FirstOrDefaultAsync(u =>
+            u.NormalizedEmail == _userManager.NormalizeEmail(request.Email) && u.TenantId == organisation.TenantId);
         if (existingUser != null)
-            return BadRequest(new { error = "Email already exists" });
+            return BadRequest(new { error = "Email already exists in this tenant" });
 
         var superAdminEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? "system";
 
         var admin = new ApplicationUser
         {
-            UserName = request.Email,
+            UserName = TenantIdentity.BuildUserName(organisation.TenantId, request.Email),
             Email = request.Email,
             EmailConfirmed = true,
             FirstName = request.FirstName,

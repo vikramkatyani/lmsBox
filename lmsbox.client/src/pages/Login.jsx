@@ -1,6 +1,6 @@
 import { useForm } from 'react-hook-form';
 import { useEffect, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { getUserRole, setAuthToken } from '../utils/auth';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../theme/ThemeContext';
@@ -10,20 +10,26 @@ import bifaLoginHero from '../assets/BIFA-login-hero.svg';
 import api from '../utils/api';
 import { RecaptchaComponent, executeRecaptcha } from '../utils/recaptcha';
 import usePageTitle from '../hooks/usePageTitle';
+import { tenantLoginPath } from '../utils/tenant';
 
 export default function Login() {
   const { register, handleSubmit, formState: { errors } } = useForm();
   const [status, setStatus] = useState('idle'); // idle, loading, success, error
   const [message, setMessage] = useState('');
+  const [tenantCodeInput, setTenantCodeInput] = useState('');
   const navigate = useNavigate();
+  const { tenantCode: tenantCodeParam } = useParams();
   const { isAuthenticated } = useAuth();
   const theme = useTheme();
+  const tenantCode = tenantCodeParam || theme?.tenantCode || theme?.code || null;
   const logoSrc = theme?.logo || lmsLogo;
   const tenantName = theme?.name || import.meta.env.VITE_APP_TITLE || 'LMS Box';
-  const heroSrc = theme?.key === 'bifa' ? bifaLoginHero : loginIllustration;
+  const heroSrc = theme?.loginHeroUrl || (theme?.key === 'bifa' ? bifaLoginHero : loginIllustration);
   const API_BASE = import.meta.env.VITE_API_BASE;
+  const loginPath = tenantCode ? tenantLoginPath(tenantCode) : '/login';
+  const needsTenantCode = !tenantCode;
   
-  usePageTitle('Login');
+  usePageTitle(tenantName ? `${tenantName} Login` : 'Login');
 
   // Compute redirect target (rendered in JSX to avoid conditional hooks)
   const role = getUserRole();
@@ -45,7 +51,7 @@ export default function Login() {
       setStatus('success');
       setMessage('Successfully signed in. Redirecting...');
 
-      window.history.replaceState({}, document.title, '/login');
+      window.history.replaceState({}, document.title, loginPath);
       setTimeout(() => {
         const userRole = getUserRole();
         if (userRole && (userRole === 'admin' || userRole === 'Admin' || userRole === 'OrgAdmin' || userRole === 'SuperAdmin')) {
@@ -60,8 +66,8 @@ export default function Login() {
 
     if (authError) {
       if (authError === 'not_registered') {
-        window.history.replaceState({}, document.title, '/login');
-        navigate('/auth/email-not-registered', { replace: true });
+        window.history.replaceState({}, document.title, loginPath);
+        navigate(tenantCode ? `/t/${tenantCode}/auth/email-not-registered` : '/auth/email-not-registered', { replace: true });
         return;
       }
 
@@ -73,19 +79,31 @@ export default function Login() {
 
       setStatus('error');
       setMessage(errorMessages[authError] || 'Unable to sign in with external provider. Please try again.');
-      window.history.replaceState({}, document.title, '/login');
+      window.history.replaceState({}, document.title, loginPath);
     }
-  }, [navigate]);
+  }, [navigate, loginPath, tenantCode]);
 
   const startExternalLogin = (provider) => {
+    if (!tenantCode) {
+      setStatus('error');
+      setMessage('Open your organisation login page first: /t/{tenant-code}/login');
+      return;
+    }
+
     const endpoint = API_BASE
-      ? `${API_BASE}/api/auth/external/${provider}`
-      : `/api/auth/external/${provider}`;
+      ? `${API_BASE}/api/auth/external/${provider}?tenantCode=${encodeURIComponent(tenantCode)}`
+      : `/api/auth/external/${provider}?tenantCode=${encodeURIComponent(tenantCode)}`;
     window.location.href = endpoint;
   };
 
   const onSubmit = async (data) => {
     try {
+      if (!tenantCode) {
+        setStatus('error');
+        setMessage('Open your organisation login page: /t/{tenant-code}/login');
+        return;
+      }
+
       setStatus('loading');
       setMessage('');
 
@@ -98,7 +116,10 @@ export default function Login() {
       // Send request with recaptcha token
       await api.post('/api/auth/login', {
         email: data.email,
-        recaptchaToken
+        recaptchaToken,
+        tenantCode
+      }, {
+        headers: tenantCode ? { 'X-Tenant-Code': tenantCode } : undefined
       });
 
       setStatus('success');
@@ -119,7 +140,9 @@ export default function Login() {
       setStatus('loading');
       setMessage('');
 
-      const response = await api.post('/api/auth/dev-login', { email });
+      const response = await api.post('/api/auth/dev-login', { email, tenantCode }, {
+        headers: tenantCode ? { 'X-Tenant-Code': tenantCode } : undefined
+      });
       
       if (response.data.token) {
         setAuthToken(response.data.token);
@@ -153,7 +176,10 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-login-page-bg px-4">
+    <div
+      className="min-h-screen flex items-center justify-center bg-login-page-bg px-4"
+      style={theme?.fontFamily ? { fontFamily: theme.fontFamily } : undefined}
+    >
       <div className="grid lg:grid-cols-2 gap-8 max-w-6xl w-full items-center">
         {redirectTarget && <Navigate to={redirectTarget} replace />}
         
@@ -165,10 +191,55 @@ export default function Login() {
             </div>
             <h1 className="text-3xl font-semibold text-login-box-text">Sign in</h1>
             <p className="text-login-box-text text-sm mt-2">
-              Enter your email address to receive a Login link for instant access.
+              {tenantCode
+                ? `Enter your email to receive a login link for ${tenantName}.`
+                : 'Enter your organisation code to open the correct login page.'}
             </p>
+            {theme?.unknownTenant && (
+              <p className="text-red-500 text-sm mt-2">Unknown organisation code. Check the URL and try again.</p>
+            )}
           </div>
 
+          {needsTenantCode ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const code = tenantCodeInput.trim().toLowerCase();
+                if (!code) {
+                  setStatus('error');
+                  setMessage('Enter your organisation code.');
+                  return;
+                }
+                navigate(tenantLoginPath(code));
+              }}
+              className="space-y-6"
+            >
+              <div>
+                <label className="block text-sm font-medium text-login-box-text mb-2">Organisation code</label>
+                <input
+                  value={tenantCodeInput}
+                  onChange={(e) => setTenantCodeInput(e.target.value)}
+                  placeholder="e.g. bifa"
+                  className="w-full border border-login-input-border rounded-lg px-4 py-3 text-sm text-login-box-text focus:ring-2 focus:ring-(--tenant-primary)"
+                />
+              </div>
+              {message && (
+                <p className={`text-sm ${status === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                  {message}
+                </p>
+              )}
+              <button
+                type="submit"
+                className="w-full cursor-pointer py-2.5 rounded-lg font-medium bg-login-btn-bg text-login-btn-text hover:brightness-90"
+              >
+                Continue to organisation login
+              </button>
+              <p className="text-xs text-login-box-text/80 text-center">
+                Super Admins sign in at <a href="/superadmin/login" className="underline">/superadmin/login</a>
+              </p>
+            </form>
+          ) : (
+          <>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-login-box-text mb-2">Email address</label>
@@ -276,6 +347,7 @@ export default function Login() {
           {import.meta.env.DEV && (
             <div className="mt-8 pt-6 border-t border-gray-300">
               <h3 className="text-sm font-medium text-gray-600 mb-4 text-center">Development Login (Skip Email)</h3>
+              <p className="text-xs text-gray-500 mb-3 text-center">Tenant: {tenantCode}</p>
               <div className="space-y-2">
                 <button
                   onClick={() => devLogin('19vaibhav90@gmail.com')}
@@ -291,11 +363,20 @@ export default function Login() {
                 >
                   Login as Admin (admin@dev.local)
                 </button>
+                <button
+                  onClick={() => devLogin('admin@bifa.local')}
+                  disabled={status === 'loading'}
+                  className="w-full cursor-pointer py-2 px-4 bg-[#2afeae] text-[#1b365d] text-sm rounded hover:bg-[#25e89e] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Login as BIFA Admin (admin@bifa.local)
+                </button>
               </div>
             </div>
           )}
 
           <RecaptchaComponent />
+          </>
+          )}
         </div>
 
         {/* Right: Illustration */}
@@ -303,7 +384,7 @@ export default function Login() {
           <img
             src={heroSrc}
             alt={`${tenantName} login illustration`}
-            className={`w-full max-w-lg mx-auto ${theme?.key === 'bifa' ? 'object-contain' : 'object-cover'}`}
+            className={`w-full max-w-lg mx-auto ${theme?.loginHeroUrl || theme?.key === 'bifa' ? 'object-contain' : 'object-cover'}`}
           />
         </div>
       </div>

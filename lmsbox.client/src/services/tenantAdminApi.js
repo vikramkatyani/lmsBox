@@ -89,3 +89,22 @@ export const updateTenantBranding = async (branding) => {
   }
   return response.json();
 };
+
+export const uploadTenantBrandingAsset = async (file, assetType) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const token = localStorage.getItem('token');
+  const response = await fetch(
+    `${API_BASE}/api/tenant/branding/upload-asset?assetType=${encodeURIComponent(assetType)}`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData
+    }
+  );
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || error.error || 'Failed to upload asset');
+  }
+  return response.json();
+};

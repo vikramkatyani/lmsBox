@@ -28,9 +28,6 @@ export default function SuperAdminTenantForm() {
     managerPhone: '',
     renewalDate: '',
     isActive: true,
-    brandName: '',
-    bannerUrl: '',
-    faviconUrl: '',
     primaryOrganisationName: '',
     tenantAdminEmail: '',
     tenantAdminFirstName: '',
@@ -61,10 +58,7 @@ export default function SuperAdminTenantForm() {
         managerEmail: data.managerEmail || '',
         managerPhone: data.managerPhone || '',
         renewalDate: data.renewalDate ? new Date(data.renewalDate).toISOString().split('T')[0] : '',
-        isActive: data.isActive,
-        brandName: data.brandName || '',
-        bannerUrl: data.bannerUrl || '',
-        faviconUrl: data.faviconUrl || ''
+        isActive: data.isActive
       }));
     } catch (error) {
       console.error(error);
@@ -89,10 +83,19 @@ export default function SuperAdminTenantForm() {
     try {
       if (isEdit) {
         await updateTenant(id, {
-          ...formData,
+          name: formData.name,
+          code: formData.code,
+          description: formData.description || undefined,
+          allowsMultipleOrganisations: formData.allowsMultipleOrganisations,
           maxUsers: Number(formData.maxUsers),
           allocatedStorageGB: Number(formData.allocatedStorageGB),
-          renewalDate: formData.renewalDate || null
+          domain: formData.domain || undefined,
+          supportEmail: formData.supportEmail || undefined,
+          managerName: formData.managerName || undefined,
+          managerEmail: formData.managerEmail || undefined,
+          managerPhone: formData.managerPhone || undefined,
+          renewalDate: formData.renewalDate || null,
+          isActive: formData.isActive
         });
         toast.success('Tenant updated');
         navigate(`/superadmin/tenants/${id}`);
@@ -239,48 +242,18 @@ export default function SuperAdminTenantForm() {
           )}
 
           {isEdit && (
-            <div className="border-t pt-5 space-y-4">
-              <h2 className="text-lg font-semibold text-gray-900">Tenant branding</h2>
+            <div className="border-t pt-5">
               <p className="text-sm text-gray-600">
-                Applied to all organisations under this tenant unless an organisation opts into custom branding.
+                Logo, colours, login image and CSS are managed in the{' '}
+                <button
+                  type="button"
+                  onClick={() => navigate(`/superadmin/tenants/${id}/theme`)}
+                  className="text-indigo-600 hover:underline"
+                >
+                  theme studio
+                </button>
+                .
               </p>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Brand name</label>
-                <input
-                  name="brandName"
-                  value={formData.brandName}
-                  onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Banner / logo URL</label>
-                <input
-                  name="bannerUrl"
-                  value={formData.bannerUrl}
-                  onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2"
-                  placeholder="https://..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Favicon URL</label>
-                <input
-                  name="faviconUrl"
-                  value={formData.faviconUrl}
-                  onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2"
-                  placeholder="https://..."
-                />
-              </div>
-              {formData.bannerUrl && (
-                <img
-                  src={formData.bannerUrl}
-                  alt="Tenant banner preview"
-                  className="w-full max-w-xl h-auto object-contain border rounded"
-                  style={{ aspectRatio: '37/9' }}
-                />
-              )}
             </div>
           )}
 

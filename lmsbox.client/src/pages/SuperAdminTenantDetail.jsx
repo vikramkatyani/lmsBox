@@ -104,13 +104,33 @@ export default function SuperAdminTenantDetail() {
               Code: {tenant.code} · {tenant.allowsMultipleOrganisations ? 'Multi-organisation' : 'Single organisation'}
             </p>
             <p className="text-sm text-gray-600 mt-2">Tenant Admin: {tenant.tenantAdminEmail || '—'}</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Login URL:{' '}
+              <a
+                href={tenant.loginPath || `/t/${tenant.code}/login`}
+                className="text-indigo-600 hover:underline"
+                target="_blank"
+                rel="noreferrer"
+              >
+                {tenant.loginPath || `/t/${tenant.code}/login`}
+              </a>
+            </p>
           </div>
-          <button
-            onClick={() => navigate(`/superadmin/tenants/${id}/edit`)}
-            className="px-4 py-2 border border-gray-300 rounded-md text-sm"
-          >
-            Edit tenant
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => navigate(`/superadmin/tenants/${id}/theme`)}
+              className="px-4 py-2 rounded-md text-sm font-medium text-white"
+              style={{ backgroundColor: '#1b365d' }}
+            >
+              Theme studio
+            </button>
+            <button
+              onClick={() => navigate(`/superadmin/tenants/${id}/edit`)}
+              className="px-4 py-2 border border-gray-300 rounded-md text-sm"
+            >
+              Edit tenant
+            </button>
+          </div>
         </div>
 
         <div className="bg-white shadow rounded-lg p-6 mb-6">
