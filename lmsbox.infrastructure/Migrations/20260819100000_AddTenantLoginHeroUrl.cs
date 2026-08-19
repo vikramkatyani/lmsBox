@@ -10,19 +10,19 @@ namespace lmsbox.infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "LoginHeroUrl",
-                table: "Tenants",
-                type: "nvarchar(max)",
-                nullable: true);
+            migrationBuilder.Sql(@"
+IF COL_LENGTH('dbo.Tenants', 'LoginHeroUrl') IS NULL
+    ALTER TABLE [dbo].[Tenants] ADD [LoginHeroUrl] nvarchar(max) NULL;
+");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "LoginHeroUrl",
-                table: "Tenants");
+            migrationBuilder.Sql(@"
+IF COL_LENGTH('dbo.Tenants', 'LoginHeroUrl') IS NOT NULL
+    ALTER TABLE [dbo].[Tenants] DROP COLUMN [LoginHeroUrl];
+");
         }
     }
 }

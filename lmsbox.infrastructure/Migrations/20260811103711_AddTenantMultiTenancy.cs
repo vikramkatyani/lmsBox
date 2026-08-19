@@ -11,157 +11,118 @@ namespace lmsbox.infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateTable(
-                name: "Tenants",
-                columns: table => new
-                {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    Code = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    AllowsMultipleOrganisations = table.Column<bool>(type: "bit", nullable: false),
-                    MaxUsers = table.Column<int>(type: "int", nullable: false),
-                    AllocatedStorageGB = table.Column<long>(type: "bigint", nullable: false),
-                    Domain = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    SupportEmail = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    ManagerName = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    ManagerEmail = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    ManagerPhone = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    RenewalDate = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false),
-                    CreatedOn = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    UpdatedOn = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    UpdatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Tenants", x => x.Id);
-                });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Tenants_Code",
-                table: "Tenants",
-                column: "Code",
-                unique: true);
-
-            migrationBuilder.AddColumn<long>(
-                name: "TenantId",
-                table: "Organisations",
-                type: "bigint",
-                nullable: true);
-
-            migrationBuilder.AddColumn<long>(
-                name: "TenantId",
-                table: "AspNetUsers",
-                type: "bigint",
-                nullable: true);
-
-            // Backfill: one single-org tenant per existing organisation
             migrationBuilder.Sql(@"
-INSERT INTO Tenants (Name, Code, Description, AllowsMultipleOrganisations, MaxUsers, AllocatedStorageGB, Domain, SupportEmail, ManagerName, ManagerEmail, ManagerPhone, RenewalDate, IsActive, CreatedOn, CreatedBy)
-SELECT
-    o.Name,
-    LEFT(CONCAT('org-', CAST(o.Id AS nvarchar(20)), '-', LOWER(REPLACE(REPLACE(REPLACE(ISNULL(o.StorageKey, CAST(o.Id AS nvarchar(20))), ' ', '-'), '_', '-'), '.', '-'))), 100),
-    o.Description,
-    0,
-    o.MaxUsers,
-    o.AllocatedStorageGB,
-    o.Domain,
-    o.SupportEmail,
-    o.ManagerName,
-    o.ManagerEmail,
-    o.ManagerPhone,
-    o.RenewalDate,
-    o.IsActive,
-    o.CreatedOn,
-    ISNULL(NULLIF(o.CreatedBy, ''), 'system')
-FROM Organisations o
-WHERE o.TenantId IS NULL;
+IF OBJECT_ID(N'[dbo].[Tenants]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[Tenants] (
+        [Id] bigint NOT NULL IDENTITY(1,1),
+        [Name] nvarchar(200) NOT NULL,
+        [Code] nvarchar(100) NOT NULL,
+        [Description] nvarchar(max) NULL,
+        [AllowsMultipleOrganisations] bit NOT NULL,
+        [MaxUsers] int NOT NULL,
+        [AllocatedStorageGB] bigint NOT NULL,
+        [Domain] nvarchar(max) NULL,
+        [SupportEmail] nvarchar(max) NULL,
+        [ManagerName] nvarchar(max) NULL,
+        [ManagerEmail] nvarchar(max) NULL,
+        [ManagerPhone] nvarchar(max) NULL,
+        [RenewalDate] datetime2 NULL,
+        [IsActive] bit NOT NULL,
+        [CreatedOn] datetime2 NOT NULL,
+        [CreatedBy] nvarchar(max) NOT NULL,
+        [UpdatedOn] datetime2 NULL,
+        [UpdatedBy] nvarchar(max) NULL,
+        CONSTRAINT [PK_Tenants] PRIMARY KEY ([Id])
+    );
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Tenants_Code' AND object_id = OBJECT_ID(N'dbo.Tenants'))
+    CREATE UNIQUE INDEX [IX_Tenants_Code] ON [dbo].[Tenants] ([Code]);
+
+IF COL_LENGTH('dbo.Organisations', 'TenantId') IS NULL
+    ALTER TABLE [dbo].[Organisations] ADD [TenantId] bigint NULL;
+
+IF COL_LENGTH('dbo.AspNetUsers', 'TenantId') IS NULL
+    ALTER TABLE [dbo].[AspNetUsers] ADD [TenantId] bigint NULL;
+
+-- Backfill: one single-org tenant per existing organisation (only if no tenants exist yet)
+IF NOT EXISTS (SELECT TOP 1 1 FROM Tenants)
+BEGIN
+    INSERT INTO Tenants (Name, Code, Description, AllowsMultipleOrganisations, MaxUsers, AllocatedStorageGB, Domain, SupportEmail, ManagerName, ManagerEmail, ManagerPhone, RenewalDate, IsActive, CreatedOn, CreatedBy)
+    SELECT
+        o.Name,
+        LEFT(CONCAT('org-', CAST(o.Id AS nvarchar(20)), '-', LOWER(REPLACE(REPLACE(REPLACE(ISNULL(o.StorageKey, CAST(o.Id AS nvarchar(20))), ' ', '-'), '_', '-'), '.', '-'))), 100),
+        o.Description,
+        0,
+        o.MaxUsers,
+        o.AllocatedStorageGB,
+        o.Domain,
+        o.SupportEmail,
+        o.ManagerName,
+        o.ManagerEmail,
+        o.ManagerPhone,
+        o.RenewalDate,
+        o.IsActive,
+        o.CreatedOn,
+        ISNULL(NULLIF(o.CreatedBy, ''), 'system')
+    FROM Organisations o
+    WHERE NOT EXISTS (SELECT 1 FROM Tenants t WHERE t.Name = o.Name);
+
+    UPDATE o
+    SET o.TenantId = t.Id
+    FROM Organisations o
+    INNER JOIN Tenants t ON t.Name = o.Name
+    WHERE o.TenantId IS NULL;
+
+    UPDATE u
+    SET u.TenantId = o.TenantId
+    FROM AspNetUsers u
+    INNER JOIN Organisations o ON o.Id = u.OrganisationID
+    WHERE u.TenantId IS NULL AND o.TenantId IS NOT NULL;
+END
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.foreign_keys
+    WHERE name = N'FK_Organisations_Tenants_TenantId'
+      AND parent_object_id = OBJECT_ID(N'dbo.Organisations')
+)
+    ALTER TABLE [dbo].[Organisations] WITH CHECK
+        ADD CONSTRAINT [FK_Organisations_Tenants_TenantId]
+        FOREIGN KEY ([TenantId]) REFERENCES [dbo].[Tenants] ([Id]);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Organisations_TenantId' AND object_id = OBJECT_ID(N'dbo.Organisations'))
+    CREATE INDEX [IX_Organisations_TenantId] ON [dbo].[Organisations] ([TenantId]);
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.foreign_keys
+    WHERE name = N'FK_AspNetUsers_Tenants_TenantId'
+      AND parent_object_id = OBJECT_ID(N'dbo.AspNetUsers')
+)
+    ALTER TABLE [dbo].[AspNetUsers] WITH CHECK
+        ADD CONSTRAINT [FK_AspNetUsers_Tenants_TenantId]
+        FOREIGN KEY ([TenantId]) REFERENCES [dbo].[Tenants] ([Id]);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_AspNetUsers_TenantId' AND object_id = OBJECT_ID(N'dbo.AspNetUsers'))
+    CREATE INDEX [IX_AspNetUsers_TenantId] ON [dbo].[AspNetUsers] ([TenantId]);
 ");
-
-            migrationBuilder.Sql(@"
-UPDATE o
-SET TenantId = t.Id
-FROM Organisations o
-INNER JOIN Tenants t ON t.Code = LEFT(CONCAT('org-', CAST(o.Id AS nvarchar(20)), '-', LOWER(REPLACE(REPLACE(REPLACE(ISNULL(o.StorageKey, CAST(o.Id AS nvarchar(20))), ' ', '-'), '_', '-'), '.', '-'))), 100)
-WHERE o.TenantId IS NULL;
-");
-
-            migrationBuilder.Sql(@"
-UPDATE u
-SET TenantId = o.TenantId
-FROM AspNetUsers u
-INNER JOIN Organisations o ON u.OrganisationID = o.Id
-WHERE u.TenantId IS NULL AND u.OrganisationID IS NOT NULL;
-");
-
-            migrationBuilder.AlterColumn<long>(
-                name: "TenantId",
-                table: "Organisations",
-                type: "bigint",
-                nullable: false,
-                oldClrType: typeof(long),
-                oldType: "bigint",
-                oldNullable: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Organisations_TenantId",
-                table: "Organisations",
-                column: "TenantId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_AspNetUsers_TenantId",
-                table: "AspNetUsers",
-                column: "TenantId");
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_AspNetUsers_Tenants_TenantId",
-                table: "AspNetUsers",
-                column: "TenantId",
-                principalTable: "Tenants",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Restrict);
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_Organisations_Tenants_TenantId",
-                table: "Organisations",
-                column: "TenantId",
-                principalTable: "Tenants",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Restrict);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_AspNetUsers_Tenants_TenantId",
-                table: "AspNetUsers");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_Organisations_Tenants_TenantId",
-                table: "Organisations");
-
-            migrationBuilder.DropTable(
-                name: "Tenants");
-
-            migrationBuilder.DropIndex(
-                name: "IX_Organisations_TenantId",
-                table: "Organisations");
-
-            migrationBuilder.DropIndex(
-                name: "IX_AspNetUsers_TenantId",
-                table: "AspNetUsers");
-
-            migrationBuilder.DropColumn(
-                name: "TenantId",
-                table: "Organisations");
-
-            migrationBuilder.DropColumn(
-                name: "TenantId",
-                table: "AspNetUsers");
+            migrationBuilder.Sql(@"
+IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_AspNetUsers_Tenants_TenantId' AND parent_object_id = OBJECT_ID(N'dbo.AspNetUsers'))
+    ALTER TABLE [dbo].[AspNetUsers] DROP CONSTRAINT [FK_AspNetUsers_Tenants_TenantId];
+IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_Organisations_Tenants_TenantId' AND parent_object_id = OBJECT_ID(N'dbo.Organisations'))
+    ALTER TABLE [dbo].[Organisations] DROP CONSTRAINT [FK_Organisations_Tenants_TenantId];
+IF COL_LENGTH('dbo.AspNetUsers', 'TenantId') IS NOT NULL
+    ALTER TABLE [dbo].[AspNetUsers] DROP COLUMN [TenantId];
+IF COL_LENGTH('dbo.Organisations', 'TenantId') IS NOT NULL
+    ALTER TABLE [dbo].[Organisations] DROP COLUMN [TenantId];
+IF OBJECT_ID(N'[dbo].[Tenants]', N'U') IS NOT NULL
+    DROP TABLE [dbo].[Tenants];
+");
         }
     }
 }

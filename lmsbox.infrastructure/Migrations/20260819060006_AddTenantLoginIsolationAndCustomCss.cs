@@ -10,39 +10,31 @@ namespace lmsbox.infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "EmailIndex",
-                table: "AspNetUsers");
-
-            migrationBuilder.AddColumn<string>(
-                name: "CustomCss",
-                table: "Tenants",
-                type: "nvarchar(max)",
-                nullable: true);
-
-            migrationBuilder.AlterColumn<string>(
-                name: "UserName",
-                table: "AspNetUsers",
-                type: "nvarchar(320)",
-                maxLength: 320,
-                nullable: true,
-                oldClrType: typeof(string),
-                oldType: "nvarchar(256)",
-                oldMaxLength: 256,
-                oldNullable: true);
-
-            migrationBuilder.AlterColumn<string>(
-                name: "NormalizedUserName",
-                table: "AspNetUsers",
-                type: "nvarchar(320)",
-                maxLength: 320,
-                nullable: true,
-                oldClrType: typeof(string),
-                oldType: "nvarchar(256)",
-                oldMaxLength: 256,
-                oldNullable: true);
-
             migrationBuilder.Sql(@"
+IF EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = N'EmailIndex'
+      AND object_id = OBJECT_ID(N'dbo.AspNetUsers')
+)
+    DROP INDEX [EmailIndex] ON [dbo].[AspNetUsers];
+
+IF COL_LENGTH('dbo.Tenants', 'CustomCss') IS NULL
+    ALTER TABLE [dbo].[Tenants] ADD [CustomCss] nvarchar(max) NULL;
+
+-- Widen UserName/NormalizedUserName for tenant-prefixed format
+IF EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'dbo.AspNetUsers') AND name = N'UserName' AND max_length < 640
+)
+    ALTER TABLE [dbo].[AspNetUsers] ALTER COLUMN [UserName] nvarchar(320) NULL;
+
+IF EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'dbo.AspNetUsers') AND name = N'NormalizedUserName' AND max_length < 640
+)
+    ALTER TABLE [dbo].[AspNetUsers] ALTER COLUMN [NormalizedUserName] nvarchar(320) NULL;
+
+-- Rewrite UserName to tenant-prefixed format
 UPDATE AspNetUsers
 SET
     UserName = CASE
@@ -58,71 +50,51 @@ WHERE Email IS NOT NULL
         WHEN TenantId IS NULL THEN Email
         ELSE CONCAT(CAST(TenantId AS nvarchar(20)), N'|', Email)
       END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = N'IX_AspNetUsers_NormalizedEmail_NoTenant'
+      AND object_id = OBJECT_ID(N'dbo.AspNetUsers')
+)
+    CREATE UNIQUE INDEX [IX_AspNetUsers_NormalizedEmail_NoTenant]
+        ON [dbo].[AspNetUsers] ([NormalizedEmail])
+        WHERE [TenantId] IS NULL AND [NormalizedEmail] IS NOT NULL;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = N'IX_AspNetUsers_TenantId_NormalizedEmail'
+      AND object_id = OBJECT_ID(N'dbo.AspNetUsers')
+)
+    CREATE UNIQUE INDEX [IX_AspNetUsers_TenantId_NormalizedEmail]
+        ON [dbo].[AspNetUsers] ([TenantId], [NormalizedEmail])
+        WHERE [TenantId] IS NOT NULL AND [NormalizedEmail] IS NOT NULL;
 ");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_AspNetUsers_NormalizedEmail_NoTenant",
-                table: "AspNetUsers",
-                column: "NormalizedEmail",
-                unique: true,
-                filter: "[TenantId] IS NULL AND [NormalizedEmail] IS NOT NULL");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_AspNetUsers_TenantId_NormalizedEmail",
-                table: "AspNetUsers",
-                columns: new[] { "TenantId", "NormalizedEmail" },
-                unique: true,
-                filter: "[TenantId] IS NOT NULL AND [NormalizedEmail] IS NOT NULL");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_AspNetUsers_NormalizedEmail_NoTenant",
-                table: "AspNetUsers");
-
-            migrationBuilder.DropIndex(
-                name: "IX_AspNetUsers_TenantId_NormalizedEmail",
-                table: "AspNetUsers");
-
             migrationBuilder.Sql(@"
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_AspNetUsers_NormalizedEmail_NoTenant' AND object_id = OBJECT_ID(N'dbo.AspNetUsers'))
+    DROP INDEX [IX_AspNetUsers_NormalizedEmail_NoTenant] ON [dbo].[AspNetUsers];
+
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_AspNetUsers_TenantId_NormalizedEmail' AND object_id = OBJECT_ID(N'dbo.AspNetUsers'))
+    DROP INDEX [IX_AspNetUsers_TenantId_NormalizedEmail] ON [dbo].[AspNetUsers];
+
 UPDATE AspNetUsers
 SET UserName = Email,
     NormalizedUserName = UPPER(Email)
 WHERE Email IS NOT NULL;
+
+IF COL_LENGTH('dbo.Tenants', 'CustomCss') IS NOT NULL
+    ALTER TABLE [dbo].[Tenants] DROP COLUMN [CustomCss];
+
+ALTER TABLE [dbo].[AspNetUsers] ALTER COLUMN [UserName] nvarchar(256) NULL;
+ALTER TABLE [dbo].[AspNetUsers] ALTER COLUMN [NormalizedUserName] nvarchar(256) NULL;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'EmailIndex' AND object_id = OBJECT_ID(N'dbo.AspNetUsers'))
+    CREATE INDEX [EmailIndex] ON [dbo].[AspNetUsers] ([NormalizedEmail]);
 ");
-
-            migrationBuilder.DropColumn(
-                name: "CustomCss",
-                table: "Tenants");
-
-            migrationBuilder.AlterColumn<string>(
-                name: "UserName",
-                table: "AspNetUsers",
-                type: "nvarchar(256)",
-                maxLength: 256,
-                nullable: true,
-                oldClrType: typeof(string),
-                oldType: "nvarchar(320)",
-                oldMaxLength: 320,
-                oldNullable: true);
-
-            migrationBuilder.AlterColumn<string>(
-                name: "NormalizedUserName",
-                table: "AspNetUsers",
-                type: "nvarchar(256)",
-                maxLength: 256,
-                nullable: true,
-                oldClrType: typeof(string),
-                oldType: "nvarchar(320)",
-                oldMaxLength: 320,
-                oldNullable: true);
-
-            migrationBuilder.CreateIndex(
-                name: "EmailIndex",
-                table: "AspNetUsers",
-                column: "NormalizedEmail");
         }
     }
 }

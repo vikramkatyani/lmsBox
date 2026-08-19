@@ -10,39 +10,24 @@ namespace lmsbox.infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "BannerUrl",
-                table: "Tenants",
-                type: "nvarchar(max)",
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "BrandName",
-                table: "Tenants",
-                type: "nvarchar(max)",
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "FaviconUrl",
-                table: "Tenants",
-                type: "nvarchar(max)",
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "ThemeSettings",
-                table: "Tenants",
-                type: "nvarchar(max)",
-                nullable: true);
-
-            migrationBuilder.AddColumn<bool>(
-                name: "UseTenantBranding",
-                table: "Organisations",
-                type: "bit",
-                nullable: false,
-                defaultValue: true);
-
-            // Preserve existing custom org branding; otherwise inherit tenant branding
             migrationBuilder.Sql(@"
+IF COL_LENGTH('dbo.Tenants', 'BannerUrl') IS NULL
+    ALTER TABLE [dbo].[Tenants] ADD [BannerUrl] nvarchar(max) NULL;
+
+IF COL_LENGTH('dbo.Tenants', 'BrandName') IS NULL
+    ALTER TABLE [dbo].[Tenants] ADD [BrandName] nvarchar(max) NULL;
+
+IF COL_LENGTH('dbo.Tenants', 'FaviconUrl') IS NULL
+    ALTER TABLE [dbo].[Tenants] ADD [FaviconUrl] nvarchar(max) NULL;
+
+IF COL_LENGTH('dbo.Tenants', 'ThemeSettings') IS NULL
+    ALTER TABLE [dbo].[Tenants] ADD [ThemeSettings] nvarchar(max) NULL;
+
+IF COL_LENGTH('dbo.Organisations', 'UseTenantBranding') IS NULL
+    ALTER TABLE [dbo].[Organisations] ADD [UseTenantBranding] bit NOT NULL
+        CONSTRAINT [DF_Organisations_UseTenantBranding] DEFAULT(1);
+
+-- Preserve existing custom org branding; otherwise inherit tenant branding
 UPDATE Organisations
 SET UseTenantBranding = 0
 WHERE
@@ -78,25 +63,24 @@ WHERE o.BrandName IS NOT NULL OR o.BannerUrl IS NOT NULL OR o.FaviconUrl IS NOT 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "BannerUrl",
-                table: "Tenants");
+            migrationBuilder.Sql(@"
+IF COL_LENGTH('dbo.Tenants', 'BannerUrl') IS NOT NULL
+    ALTER TABLE [dbo].[Tenants] DROP COLUMN [BannerUrl];
+IF COL_LENGTH('dbo.Tenants', 'BrandName') IS NOT NULL
+    ALTER TABLE [dbo].[Tenants] DROP COLUMN [BrandName];
+IF COL_LENGTH('dbo.Tenants', 'FaviconUrl') IS NOT NULL
+    ALTER TABLE [dbo].[Tenants] DROP COLUMN [FaviconUrl];
+IF COL_LENGTH('dbo.Tenants', 'ThemeSettings') IS NOT NULL
+    ALTER TABLE [dbo].[Tenants] DROP COLUMN [ThemeSettings];
 
-            migrationBuilder.DropColumn(
-                name: "BrandName",
-                table: "Tenants");
-
-            migrationBuilder.DropColumn(
-                name: "FaviconUrl",
-                table: "Tenants");
-
-            migrationBuilder.DropColumn(
-                name: "ThemeSettings",
-                table: "Tenants");
-
-            migrationBuilder.DropColumn(
-                name: "UseTenantBranding",
-                table: "Organisations");
+DECLARE @df sysname;
+SELECT @df = dc.name FROM sys.default_constraints dc
+INNER JOIN sys.columns c ON c.default_object_id = dc.object_id
+WHERE dc.parent_object_id = OBJECT_ID(N'dbo.Organisations') AND c.name = N'UseTenantBranding';
+IF @df IS NOT NULL EXEC(N'ALTER TABLE dbo.Organisations DROP CONSTRAINT [' + @df + N']');
+IF COL_LENGTH('dbo.Organisations', 'UseTenantBranding') IS NOT NULL
+    ALTER TABLE [dbo].[Organisations] DROP COLUMN [UseTenantBranding];
+");
         }
     }
 }
