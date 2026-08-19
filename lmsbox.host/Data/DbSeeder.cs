@@ -10,6 +10,7 @@ using lmsbox.domain.Models;
 using lmsbox.infrastructure.Data;
 using System.Collections.Generic;
 using lmsbox.domain.Utils;
+using lmsBox.Server.Services;
 
 namespace lmsBox.Server.Data;
 public static class DbSeeder
@@ -367,6 +368,24 @@ public static class DbSeeder
             }
             logger.LogInformation("BIFA admin already exists: {Email}", bifaAdminEmail);
             await EnsureTenantScopedUserNameAsync(userManager, bifaAdmin);
+        }
+
+        foreach (var courseId in BifaBrandDefaults.CoursesToAdopt)
+        {
+            var move = await CourseOrganisationMoveService.MoveToOrganisationAsync(
+                db, courseId, bifaOrg.Id, logger);
+            if (move.Moved)
+            {
+                logger.LogInformation(
+                    "Adopted course {CourseId} ({Title}) into BIFA with {LessonCount} lessons",
+                    move.CourseId, move.Title, move.LessonCount);
+            }
+            else
+            {
+                logger.LogInformation(
+                    "BIFA course adopt skipped for {CourseId}: {Message}",
+                    courseId, move.Message);
+            }
         }
     }
 

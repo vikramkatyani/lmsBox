@@ -208,3 +208,11 @@ public class UploadGlobalContentRequest
     
     public int? DurationSeconds { get; set; }
 }
+
+public class MoveCourseToTenantRequest
+{
+    /// <summary>Destination tenant code, for example "bifa".</summary>
+    [Required]
+    [MaxLength(100)]
+    public string TenantCode { get; set; } = null!;
+}

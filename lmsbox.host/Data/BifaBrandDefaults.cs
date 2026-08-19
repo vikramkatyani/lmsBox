@@ -16,6 +16,15 @@ public static class BifaBrandDefaults
     public const string AdminEmail = "admin@bifa.local";
     public const string AdminPassword = "P@ssw0rd1!";
 
+    /// <summary>
+    /// Courses to reassign from the default tenant onto BIFA's primary organisation.
+    /// Idempotent: skipped once the course already belongs to BIFA.
+    /// </summary>
+    public static readonly string[] CoursesToAdopt =
+    {
+        "FORZ-RJTdECMGtLr6k938JA" // Liability Insurance (v2.0)
+    };
+
     public const string ThemeSettingsJson =
         "{\"name\":\"BIFA Learning\",\"strapline\":\"The leading body representing the UK international freight services industry\",\"primaryColor\":\"#002e62\",\"secondaryColor\":\"#0059a3\",\"accentColor\":\"#ee7203\",\"accentStrongColor\":\"#e74011\",\"pageBackgroundColor\":\"#f7f8fa\",\"buttonColor\":\"#e74011\",\"buttonTextColor\":\"#ffffff\",\"grey\":\"#575756\",\"lightGrey\":\"#c4c2b2\",\"fontFamily\":\"Poppins, Arial, Helvetica, sans-serif\",\"css\":\"bifa\",\"logo\":\"/assets/bifa-logo.svg\",\"guidelineVersion\":\"1.2\"}";
 

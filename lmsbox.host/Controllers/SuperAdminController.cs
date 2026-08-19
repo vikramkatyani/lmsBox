@@ -157,6 +157,51 @@ public class SuperAdminController : ControllerBase
     }
 
     [Authorize(Roles = "SuperAdmin")]
+    [HttpPost("courses/{courseId}/move-to-tenant")]
+    public async Task<IActionResult> MoveCourseToTenant(string courseId, [FromBody] MoveCourseToTenantRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.TenantCode))
+        {
+            return BadRequest(new { error = "Tenant code is required" });
+        }
+
+        var tenant = await _context.Tenants.FirstOrDefaultAsync(t => t.Code == request.TenantCode.Trim());
+        if (tenant == null)
+        {
+            return NotFound(new { error = "Tenant not found" });
+        }
+
+        var targetOrg = await _context.Organisations
+            .Where(o => o.TenantId == tenant.Id)
+            .OrderBy(o => o.Id)
+            .FirstOrDefaultAsync();
+        if (targetOrg == null)
+        {
+            return BadRequest(new { error = "Tenant has no organisation" });
+        }
+
+        var result = await CourseOrganisationMoveService.MoveToOrganisationAsync(
+            _context, courseId, targetOrg.Id, _logger);
+
+        if (!result.Moved && string.Equals(result.Message, "Course not found", StringComparison.Ordinal))
+        {
+            return NotFound(new { error = result.Message });
+        }
+
+        if (!result.Moved && result.Message != null && result.Message.Contains("already belongs", StringComparison.OrdinalIgnoreCase))
+        {
+            return Ok(result);
+        }
+
+        if (!result.Moved)
+        {
+            return BadRequest(new { error = result.Message });
+        }
+
+        return Ok(result);
+    }
+
+    [Authorize(Roles = "SuperAdmin")]
     [HttpPut("tenants/{id}")]
     public async Task<IActionResult> UpdateTenant(long id, [FromBody] UpdateTenantRequest request)
     {
