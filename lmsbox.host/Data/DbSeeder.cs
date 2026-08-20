@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
@@ -223,13 +224,25 @@ public static class DbSeeder
         }
 
         await EnsureTenantScopedEmailIndexesAsync(db, logger);
-        await EnsureBifaTenantAsync(
-            db,
-            userManager,
-            environment,
-            logger,
-            overwriteBranding,
-            provider.GetRequiredService<IPasswordHasher<ApplicationUser>>());
+        var passwordHasher = provider.GetRequiredService<IPasswordHasher<ApplicationUser>>();
+        try
+        {
+            await EnsureBifaTenantAsync(
+                db,
+                userManager,
+                environment,
+                logger,
+                overwriteBranding,
+                passwordHasher);
+        }
+        finally
+        {
+            using var sqlScope = services.CreateScope();
+            var sqlDb = sqlScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var sqlHasher = sqlScope.ServiceProvider.GetRequiredService<IPasswordHasher<ApplicationUser>>();
+            var sqlLogger = sqlScope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DbSeeder");
+            await EnsureBifaTenantAdminsBySqlAsync(sqlDb, sqlHasher, sqlLogger);
+        }
     }
 
     /// <summary>
@@ -528,6 +541,115 @@ public static class DbSeeder
         }
 
         logger.LogInformation("BIFA TenantAdmin ensured: {Email}", email);
+    }
+
+    private static async Task EnsureBifaTenantAdminsBySqlAsync(
+        ApplicationDbContext db,
+        IPasswordHasher<ApplicationUser> passwordHasher,
+        ILogger logger)
+    {
+        try
+        {
+            foreach (var admin in BifaBrandDefaults.TenantAdmins)
+            {
+                var passwordHash = passwordHasher.HashPassword(new ApplicationUser(), BifaBrandDefaults.AdminPassword);
+                var rows = await db.Database.ExecuteSqlRawAsync(
+                    """
+                    DECLARE @TenantId bigint = (SELECT TOP 1 [Id] FROM [Tenants] WHERE [Code] = N'bifa');
+                    DECLARE @OrgId bigint = (SELECT TOP 1 [Id] FROM [Organisations] WHERE [TenantId] = @TenantId ORDER BY [Id]);
+                    DECLARE @RoleTenant nvarchar(450) = (SELECT TOP 1 [Id] FROM [AspNetRoles] WHERE [NormalizedName] = N'TENANTADMIN');
+                    DECLARE @RoleOrg nvarchar(450) = (SELECT TOP 1 [Id] FROM [AspNetRoles] WHERE [NormalizedName] = N'ORGADMIN');
+                    DECLARE @UserId nvarchar(450);
+
+                    IF @TenantId IS NOT NULL AND @OrgId IS NOT NULL
+                    BEGIN
+                        SET @UserId = (
+                            SELECT TOP 1 [Id] FROM [AspNetUsers]
+                            WHERE [NormalizedEmail] = UPPER(@Email)
+                        );
+
+                        IF @UserId IS NULL
+                        BEGIN
+                            SET @UserId = CONVERT(nvarchar(450), NEWID());
+                            INSERT INTO [AspNetUsers] (
+                                [Id], [UserName], [NormalizedUserName], [Email], [NormalizedEmail], [EmailConfirmed],
+                                [PasswordHash], [SecurityStamp], [ConcurrencyStamp],
+                                [FirstName], [LastName], [TenantId], [OrganisationID],
+                                [CreatedOn], [CreatedBy], [ActiveStatus], [ActivatedOn], [ActivatedBy],
+                                [DeactivatedOn], [DeactivatedBy],
+                                [PhoneNumberConfirmed], [TwoFactorEnabled], [LockoutEnabled], [AccessFailedCount]
+                            )
+                            VALUES (
+                                @UserId,
+                                CONCAT(CAST(@TenantId AS nvarchar(20)), N'|', @Email),
+                                UPPER(CONCAT(CAST(@TenantId AS nvarchar(20)), N'|', @Email)),
+                                @Email,
+                                UPPER(@Email),
+                                1,
+                                @PasswordHash,
+                                CONVERT(nvarchar(max), NEWID()),
+                                CONVERT(nvarchar(max), NEWID()),
+                                @FirstName,
+                                @LastName,
+                                @TenantId,
+                                @OrgId,
+                                SYSUTCDATETIME(),
+                                N'system',
+                                1,
+                                SYSUTCDATETIME(),
+                                N'system',
+                                '0001-01-01',
+                                N'system',
+                                0, 0, 1, 0
+                            );
+                        END
+                        ELSE
+                        BEGIN
+                            UPDATE [AspNetUsers]
+                            SET
+                                [TenantId] = @TenantId,
+                                [OrganisationID] = @OrgId,
+                                [UserName] = CONCAT(CAST(@TenantId AS nvarchar(20)), N'|', [Email]),
+                                [NormalizedUserName] = UPPER(CONCAT(CAST(@TenantId AS nvarchar(20)), N'|', [Email])),
+                                [FirstName] = @FirstName,
+                                [LastName] = @LastName,
+                                [EmailConfirmed] = 1,
+                                [ActiveStatus] = 1
+                            WHERE [Id] = @UserId;
+                        END
+
+                        IF @RoleTenant IS NOT NULL
+                           AND NOT EXISTS (SELECT 1 FROM [AspNetUserRoles] WHERE [UserId] = @UserId AND [RoleId] = @RoleTenant)
+                            INSERT INTO [AspNetUserRoles] ([UserId], [RoleId]) VALUES (@UserId, @RoleTenant);
+
+                        IF @RoleOrg IS NOT NULL
+                           AND NOT EXISTS (SELECT 1 FROM [AspNetUserRoles] WHERE [UserId] = @UserId AND [RoleId] = @RoleOrg)
+                            INSERT INTO [AspNetUserRoles] ([UserId], [RoleId]) VALUES (@UserId, @RoleOrg);
+                    END
+                    """,
+                    new SqlParameter("@Email", admin.Email),
+                    new SqlParameter("@FirstName", admin.FirstName),
+                    new SqlParameter("@LastName", admin.LastName),
+                    new SqlParameter("@PasswordHash", passwordHash));
+
+                logger.LogInformation(
+                    "BIFA TenantAdmin SQL ensure for {Email} completed (rows {Rows})",
+                    admin.Email, rows);
+            }
+
+            var emails = BifaBrandDefaults.TenantAdmins.Select(a => a.Email).ToArray();
+            var ensured = await db.Users
+                .Where(u => u.Email != null && emails.Contains(u.Email))
+                .Select(u => new { u.Email, u.TenantId })
+                .ToListAsync();
+            logger.LogInformation(
+                "BIFA TenantAdmin SQL verify: {Details}",
+                string.Join("; ", ensured.Select(e => $"{e.Email} tenant={e.TenantId}")));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "BIFA TenantAdmin SQL ensure failed");
+        }
     }
 
     private static async Task EnsureTenantScopedEmailIndexesAsync(ApplicationDbContext db, ILogger logger)
