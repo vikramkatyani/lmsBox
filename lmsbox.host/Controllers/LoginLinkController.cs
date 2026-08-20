@@ -103,7 +103,13 @@ namespace lmsBox.Server.Controllers
                 {
                     try
                     {
-                        await _loginLinkService.CreateAndSendLoginLinkAsync(user, tenant.Code);
+                        var sent = await _loginLinkService.CreateAndSendLoginLinkAsync(user, tenant.Code);
+                        if (!sent)
+                        {
+                            _logger.LogError("Login link was not emailed for user {UserId}", user.Id);
+                            return StatusCode(500, new { message = "Failed to send login link. Please try again later." });
+                        }
+
                         _logger.LogInformation("Login link created/sent for user {UserId}", user.Id);
                     }
                     catch (Exception ex)

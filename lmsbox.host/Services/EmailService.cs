@@ -83,8 +83,14 @@ namespace lmsBox.Server.Services
             var apiKey = _config["SendGrid:ApiKey"];
             if (string.IsNullOrWhiteSpace(apiKey))
             {
-                _logger.LogWarning("SendGrid API key not configured. Email would be sent to: {Email} with subject: {Subject}", to, subject);
-                return;
+                _logger.LogError("SendGrid API key is not configured. Cannot send email to {Email}", to);
+                if (_env.IsDevelopment())
+                {
+                    _logger.LogWarning("Development: skipping SendGrid send to {Email} ({Subject})", to, subject);
+                    return;
+                }
+
+                throw new InvalidOperationException("Email sending is not configured on this server.");
             }
 
             try
@@ -126,10 +132,14 @@ namespace lmsBox.Server.Services
         private async Task<string> LoadAndProcessTemplate(string templateName, Dictionary<string, object> data)
         {
             var templatePath = Path.Combine(_env.ContentRootPath, "EmailTemplates", templateName);
-            
             if (!File.Exists(templatePath))
             {
-                _logger.LogWarning("Email template not found: {TemplatePath}", templatePath);
+                templatePath = Path.Combine(AppContext.BaseDirectory, "EmailTemplates", templateName);
+            }
+
+            if (!File.Exists(templatePath))
+            {
+                _logger.LogWarning("Email template not found: {TemplateName}", templateName);
                 return string.Empty;
             }
 
