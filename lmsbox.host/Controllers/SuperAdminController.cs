@@ -1379,13 +1379,19 @@ public class SuperAdminController : ControllerBase
 
         foreach (var group in users.GroupBy(u => u.TenantId!.Value))
         {
+            var emails = new List<string>();
             foreach (var user in group)
             {
-                if (await _userManager.IsInRoleAsync(user, "TenantAdmin"))
+                if (!string.IsNullOrWhiteSpace(user.Email)
+                    && await _userManager.IsInRoleAsync(user, "TenantAdmin"))
                 {
-                    result[group.Key] = user.Email;
-                    break;
+                    emails.Add(user.Email);
                 }
+            }
+
+            if (emails.Count > 0)
+            {
+                result[group.Key] = string.Join(", ", emails);
             }
         }
 

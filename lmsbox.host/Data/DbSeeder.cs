@@ -322,17 +322,24 @@ public static class DbSeeder
 
         foreach (var admin in BifaBrandDefaults.TenantAdmins)
         {
-            await EnsureBifaTenantAdminAsync(
-                db,
-                userManager,
-                logger,
-                bifa.Id,
-                bifaOrg.Id,
-                admin.Email,
-                admin.FirstName,
-                admin.LastName,
-                BifaBrandDefaults.AdminPassword,
-                passwordHasher);
+            try
+            {
+                await EnsureBifaTenantAdminAsync(
+                    db,
+                    userManager,
+                    logger,
+                    bifa.Id,
+                    bifaOrg.Id,
+                    admin.Email,
+                    admin.FirstName,
+                    admin.LastName,
+                    BifaBrandDefaults.AdminPassword,
+                    passwordHasher);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to ensure BIFA TenantAdmin {Email}", admin.Email);
+            }
         }
 
         foreach (var courseId in BifaBrandDefaults.CoursesToAdopt)
@@ -369,6 +376,24 @@ public static class DbSeeder
         var normalized = userManager.NormalizeEmail(email);
         var admin = await db.Users.FirstOrDefaultAsync(u =>
             u.NormalizedEmail == normalized && u.TenantId == tenantId);
+
+        // Azure still has a global unique email index on some databases. If the address
+        // already belongs to another tenant, adopt that account onto BIFA instead of inserting.
+        if (admin == null)
+        {
+            var existing = await db.Users
+                .Where(u => u.NormalizedEmail == normalized && u.TenantId != null)
+                .OrderBy(u => u.TenantId)
+                .FirstOrDefaultAsync();
+            if (existing != null)
+            {
+                logger.LogInformation(
+                    "Adopting {Email} from tenant {FromTenantId} onto BIFA tenant {ToTenantId}",
+                    email, existing.TenantId, tenantId);
+                admin = existing;
+            }
+        }
+
         if (admin == null)
         {
             admin = new ApplicationUser
@@ -402,53 +427,52 @@ public static class DbSeeder
 
                 await EnsureTenantScopedEmailIndexesAsync(db, logger);
 
-                if (db.Entry(admin).State != EntityState.Detached)
+                var leftover = await db.Users.FirstOrDefaultAsync(u => u.NormalizedEmail == normalized);
+                if (leftover != null)
                 {
-                    db.Entry(admin).State = EntityState.Detached;
+                    admin = leftover;
                 }
+                else
+                {
+                    if (db.Entry(admin).State != EntityState.Detached)
+                    {
+                        db.Entry(admin).State = EntityState.Detached;
+                    }
 
-                admin = new ApplicationUser
-                {
-                    UserName = TenantIdentity.BuildUserName(tenantId, email),
-                    NormalizedUserName = userManager.NormalizeName(TenantIdentity.BuildUserName(tenantId, email)),
-                    Email = email,
-                    NormalizedEmail = normalized,
-                    EmailConfirmed = true,
-                    FirstName = firstName,
-                    LastName = lastName,
-                    TenantId = tenantId,
-                    OrganisationID = organisationId,
-                    PasswordHash = passwordHasher.HashPassword(new ApplicationUser(), password),
-                    SecurityStamp = Guid.NewGuid().ToString("D"),
-                    ConcurrencyStamp = Guid.NewGuid().ToString("D"),
-                    CreatedBy = "system",
-                    ActivatedBy = "system",
-                    DeactivatedBy = "system",
-                    ActiveStatus = 1,
-                    ActivatedOn = DateTime.UtcNow,
-                    CreatedOn = DateTime.UtcNow
-                };
+                    admin = new ApplicationUser
+                    {
+                        UserName = TenantIdentity.BuildUserName(tenantId, email),
+                        NormalizedUserName = userManager.NormalizeName(TenantIdentity.BuildUserName(tenantId, email)),
+                        Email = email,
+                        NormalizedEmail = normalized,
+                        EmailConfirmed = true,
+                        FirstName = firstName,
+                        LastName = lastName,
+                        TenantId = tenantId,
+                        OrganisationID = organisationId,
+                        PasswordHash = passwordHasher.HashPassword(new ApplicationUser(), password),
+                        SecurityStamp = Guid.NewGuid().ToString("D"),
+                        ConcurrencyStamp = Guid.NewGuid().ToString("D"),
+                        CreatedBy = "system",
+                        ActivatedBy = "system",
+                        DeactivatedBy = "system",
+                        ActiveStatus = 1,
+                        ActivatedOn = DateTime.UtcNow,
+                        CreatedOn = DateTime.UtcNow
+                    };
 
-                try
-                {
-                    db.Users.Add(admin);
-                    await db.SaveChangesAsync();
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "BIFA TenantAdmin insert failed for {Email}", email);
-                    return;
+                    try
+                    {
+                        db.Users.Add(admin);
+                        await db.SaveChangesAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "BIFA TenantAdmin insert failed for {Email}", email);
+                        return;
+                    }
                 }
             }
-
-            await userManager.AddToRoleAsync(admin, "TenantAdmin");
-            await userManager.AddToRoleAsync(admin, "OrgAdmin");
-            if (FavoriteReportDefaults.TryApplyDefaults(admin, "OrgAdmin"))
-            {
-                await userManager.UpdateAsync(admin);
-            }
-            logger.LogInformation("BIFA TenantAdmin created: {Email}", email);
-            return;
         }
 
         var dirty = false;
@@ -467,10 +491,26 @@ public static class DbSeeder
             dirty = true;
         }
 
+        if (admin.ActiveStatus != 1)
+        {
+            admin.ActiveStatus = 1;
+            admin.ActivatedOn = DateTime.UtcNow;
+            admin.ActivatedBy = "system";
+            dirty = true;
+        }
+
+        if (!admin.EmailConfirmed)
+        {
+            admin.EmailConfirmed = true;
+            dirty = true;
+        }
+
         if (dirty)
         {
             await userManager.UpdateAsync(admin);
         }
+
+        await EnsureTenantScopedUserNameAsync(userManager, admin);
 
         if (!await userManager.IsInRoleAsync(admin, "TenantAdmin"))
         {
@@ -482,8 +522,12 @@ public static class DbSeeder
             await userManager.AddToRoleAsync(admin, "OrgAdmin");
         }
 
-        logger.LogInformation("BIFA TenantAdmin already exists: {Email}", email);
-        await EnsureTenantScopedUserNameAsync(userManager, admin);
+        if (FavoriteReportDefaults.TryApplyDefaults(admin, "OrgAdmin"))
+        {
+            await userManager.UpdateAsync(admin);
+        }
+
+        logger.LogInformation("BIFA TenantAdmin ensured: {Email}", email);
     }
 
     private static async Task EnsureTenantScopedEmailIndexesAsync(ApplicationDbContext db, ILogger logger)
@@ -491,6 +535,24 @@ public static class DbSeeder
         try
         {
             await db.Database.ExecuteSqlRawAsync(@"
+DECLARE @drop nvarchar(max) = N'';
+SELECT @drop = @drop + N'DROP INDEX ' + QUOTENAME(i.name) + N' ON [dbo].[AspNetUsers];'
+FROM sys.indexes i
+INNER JOIN sys.index_columns ic
+    ON ic.object_id = i.object_id AND ic.index_id = i.index_id AND ic.index_column_id = 1
+INNER JOIN sys.columns c
+    ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+WHERE i.object_id = OBJECT_ID(N'dbo.AspNetUsers')
+  AND i.is_unique = 1
+  AND i.name NOT IN (N'IX_AspNetUsers_TenantId_NormalizedEmail', N'IX_AspNetUsers_NormalizedEmail_NoTenant', N'UserNameIndex', N'PK_AspNetUsers')
+  AND c.name = N'NormalizedEmail'
+  AND NOT EXISTS (
+      SELECT 1 FROM sys.index_columns ic2
+      WHERE ic2.object_id = i.object_id AND ic2.index_id = i.index_id AND ic2.index_column_id > 1
+  );
+IF LEN(@drop) > 0
+    EXEC sp_executesql @drop;
+
 IF EXISTS (
     SELECT 1 FROM sys.indexes
     WHERE name = N'EmailIndex' AND object_id = OBJECT_ID(N'dbo.AspNetUsers')
