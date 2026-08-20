@@ -93,4 +93,21 @@ jobs:
           app-name: 'lmsbox'
           slot-name: 'Production'
           package: .
-          
+
+      - name: Apply Azure development app settings
+        env:
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+        run: |
+          $settings = @(
+            "SendGrid__FromEmail=notification@lmsbox.co.uk",
+            "SendGrid__FromName=lmsbox",
+            "LoginLink__FrontendBaseUrl=https://lmsbox-e0d2dqb4hwb8aqfp.uksouth-01.azurewebsites.net",
+            "AppSettings__BaseUrl=https://lmsbox-e0d2dqb4hwb8aqfp.uksouth-01.azurewebsites.net",
+            "AppSettings__AppName=LMS Box Development"
+          )
+          if ($env:SENDGRID_API_KEY) {
+            $settings += "SendGrid__ApiKey=$env:SENDGRID_API_KEY"
+          }
+          az webapp config appsettings set --name lmsbox --resource-group atf-prod-core-infra-rg --settings $settings --output none
+          az webapp restart --name lmsbox --resource-group atf-prod-core-infra-rg --output none
+ 
