@@ -2,7 +2,6 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
@@ -552,9 +551,12 @@ public static class DbSeeder
         {
             foreach (var admin in BifaBrandDefaults.TenantAdmins)
             {
+                var email = admin.Email;
+                var firstName = admin.FirstName;
+                var lastName = admin.LastName;
                 var passwordHash = passwordHasher.HashPassword(new ApplicationUser(), BifaBrandDefaults.AdminPassword);
-                var rows = await db.Database.ExecuteSqlRawAsync(
-                    """
+                var rows = await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"""
                     DECLARE @TenantId bigint = (SELECT TOP 1 [Id] FROM [Tenants] WHERE [Code] = N'bifa');
                     DECLARE @OrgId bigint = (SELECT TOP 1 [Id] FROM [Organisations] WHERE [TenantId] = @TenantId ORDER BY [Id]);
                     DECLARE @RoleTenant nvarchar(450) = (SELECT TOP 1 [Id] FROM [AspNetRoles] WHERE [NormalizedName] = N'TENANTADMIN');
@@ -565,7 +567,7 @@ public static class DbSeeder
                     BEGIN
                         SET @UserId = (
                             SELECT TOP 1 [Id] FROM [AspNetUsers]
-                            WHERE [NormalizedEmail] = UPPER(@Email)
+                            WHERE [NormalizedEmail] = {email.ToUpperInvariant()}
                         );
 
                         IF @UserId IS NULL
@@ -581,16 +583,16 @@ public static class DbSeeder
                             )
                             VALUES (
                                 @UserId,
-                                CONCAT(CAST(@TenantId AS nvarchar(20)), N'|', @Email),
-                                UPPER(CONCAT(CAST(@TenantId AS nvarchar(20)), N'|', @Email)),
-                                @Email,
-                                UPPER(@Email),
+                                CONCAT(CAST(@TenantId AS nvarchar(20)), N'|', {email}),
+                                UPPER(CONCAT(CAST(@TenantId AS nvarchar(20)), N'|', {email})),
+                                {email},
+                                {email.ToUpperInvariant()},
                                 1,
-                                @PasswordHash,
+                                {passwordHash},
                                 CONVERT(nvarchar(max), NEWID()),
                                 CONVERT(nvarchar(max), NEWID()),
-                                @FirstName,
-                                @LastName,
+                                {firstName},
+                                {lastName},
                                 @TenantId,
                                 @OrgId,
                                 SYSUTCDATETIME(),
@@ -611,8 +613,8 @@ public static class DbSeeder
                                 [OrganisationID] = @OrgId,
                                 [UserName] = CONCAT(CAST(@TenantId AS nvarchar(20)), N'|', [Email]),
                                 [NormalizedUserName] = UPPER(CONCAT(CAST(@TenantId AS nvarchar(20)), N'|', [Email])),
-                                [FirstName] = @FirstName,
-                                [LastName] = @LastName,
+                                [FirstName] = {firstName},
+                                [LastName] = {lastName},
                                 [EmailConfirmed] = 1,
                                 [ActiveStatus] = 1
                             WHERE [Id] = @UserId;
@@ -626,11 +628,7 @@ public static class DbSeeder
                            AND NOT EXISTS (SELECT 1 FROM [AspNetUserRoles] WHERE [UserId] = @UserId AND [RoleId] = @RoleOrg)
                             INSERT INTO [AspNetUserRoles] ([UserId], [RoleId]) VALUES (@UserId, @RoleOrg);
                     END
-                    """,
-                    new SqlParameter("@Email", admin.Email),
-                    new SqlParameter("@FirstName", admin.FirstName),
-                    new SqlParameter("@LastName", admin.LastName),
-                    new SqlParameter("@PasswordHash", passwordHash));
+                    """);
 
                 logger.LogInformation(
                     "BIFA TenantAdmin SQL ensure for {Email} completed (rows {Rows})",

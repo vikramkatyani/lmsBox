@@ -317,7 +317,16 @@ public static class LmsBoxHostExtensions
 
                 db.Database.Migrate();
                 logger.LogInformation("Database migrated successfully.");
+            }
+            catch (Exception ex)
+            {
+                logger.LogCritical(
+                    ex,
+                    "Database migration failed. App will continue starting so diagnostics remain available. Fix the schema, then restart.");
+            }
 
+            try
+            {
                 // BIFA is a product tenant, not local-only. Create it (with local CSS/theme)
                 // on every environment if missing. Development also reseeds branding.
                 DbSeeder.SeedBifaTenantAsync(
@@ -333,11 +342,7 @@ public static class LmsBoxHostExtensions
             }
             catch (Exception ex)
             {
-                // Log the full failure but keep the host alive so Azure does not stick on 500.30
-                // and stdout / App Insights can capture the migration error for diagnosis.
-                logger.LogCritical(
-                    ex,
-                    "Database migration failed. App will continue starting so diagnostics remain available. Fix the schema, then restart.");
+                logger.LogCritical(ex, "BIFA / development seed failed. App will continue starting.");
             }
         }
 
