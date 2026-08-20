@@ -222,7 +222,14 @@ public static class DbSeeder
             }
         }
 
-        await EnsureBifaTenantAsync(db, userManager, environment, logger, overwriteBranding);
+        await EnsureTenantScopedEmailIndexesAsync(db, logger);
+        await EnsureBifaTenantAsync(
+            db,
+            userManager,
+            environment,
+            logger,
+            overwriteBranding,
+            provider.GetRequiredService<IPasswordHasher<ApplicationUser>>());
     }
 
     /// <summary>
@@ -233,7 +240,8 @@ public static class DbSeeder
         UserManager<ApplicationUser> userManager,
         IWebHostEnvironment? environment,
         ILogger logger,
-        bool overwriteBranding)
+        bool overwriteBranding,
+        IPasswordHasher<ApplicationUser> passwordHasher)
     {
         var themeJson = BifaBrandDefaults.ThemeSettingsJson;
         var customCss = BifaBrandDefaults.LoadCustomCss(environment);
@@ -323,7 +331,8 @@ public static class DbSeeder
                 admin.Email,
                 admin.FirstName,
                 admin.LastName,
-                BifaBrandDefaults.AdminPassword);
+                BifaBrandDefaults.AdminPassword,
+                passwordHasher);
         }
 
         foreach (var courseId in BifaBrandDefaults.CoursesToAdopt)
@@ -354,7 +363,8 @@ public static class DbSeeder
         string email,
         string firstName,
         string lastName,
-        string password)
+        string password,
+        IPasswordHasher<ApplicationUser> passwordHasher)
     {
         var normalized = userManager.NormalizeEmail(email);
         var admin = await db.Users.FirstOrDefaultAsync(u =>
@@ -380,11 +390,55 @@ public static class DbSeeder
             var create = await userManager.CreateAsync(admin, password);
             if (!create.Succeeded)
             {
+                var others = await db.Users
+                    .Where(u => u.NormalizedEmail == normalized)
+                    .Select(u => new { u.TenantId, u.UserName })
+                    .ToListAsync();
                 logger.LogWarning(
-                    "BIFA TenantAdmin creation failed for {Email}: {Errors}",
+                    "BIFA TenantAdmin Identity create failed for {Email}: {Errors}. Existing accounts: {Existing}",
                     email,
-                    string.Join(",", create.Errors.Select(e => e.Description)));
-                return;
+                    string.Join(",", create.Errors.Select(e => e.Description)),
+                    string.Join("; ", others.Select(o => $"tenant={o.TenantId} user={o.UserName}")));
+
+                await EnsureTenantScopedEmailIndexesAsync(db, logger);
+
+                if (db.Entry(admin).State != EntityState.Detached)
+                {
+                    db.Entry(admin).State = EntityState.Detached;
+                }
+
+                admin = new ApplicationUser
+                {
+                    UserName = TenantIdentity.BuildUserName(tenantId, email),
+                    NormalizedUserName = userManager.NormalizeName(TenantIdentity.BuildUserName(tenantId, email)),
+                    Email = email,
+                    NormalizedEmail = normalized,
+                    EmailConfirmed = true,
+                    FirstName = firstName,
+                    LastName = lastName,
+                    TenantId = tenantId,
+                    OrganisationID = organisationId,
+                    PasswordHash = passwordHasher.HashPassword(new ApplicationUser(), password),
+                    SecurityStamp = Guid.NewGuid().ToString("D"),
+                    ConcurrencyStamp = Guid.NewGuid().ToString("D"),
+                    CreatedBy = "system",
+                    ActivatedBy = "system",
+                    DeactivatedBy = "system",
+                    ActiveStatus = 1,
+                    ActivatedOn = DateTime.UtcNow,
+                    CreatedOn = DateTime.UtcNow
+                };
+
+                try
+                {
+                    db.Users.Add(admin);
+                    await db.SaveChangesAsync();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "BIFA TenantAdmin insert failed for {Email}", email);
+                    return;
+                }
             }
 
             await userManager.AddToRoleAsync(admin, "TenantAdmin");
@@ -430,6 +484,43 @@ public static class DbSeeder
 
         logger.LogInformation("BIFA TenantAdmin already exists: {Email}", email);
         await EnsureTenantScopedUserNameAsync(userManager, admin);
+    }
+
+    private static async Task EnsureTenantScopedEmailIndexesAsync(ApplicationDbContext db, ILogger logger)
+    {
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync(@"
+IF EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = N'EmailIndex' AND object_id = OBJECT_ID(N'dbo.AspNetUsers')
+)
+    DROP INDEX [EmailIndex] ON [dbo].[AspNetUsers];
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = N'IX_AspNetUsers_NormalizedEmail_NoTenant'
+      AND object_id = OBJECT_ID(N'dbo.AspNetUsers')
+)
+    CREATE UNIQUE INDEX [IX_AspNetUsers_NormalizedEmail_NoTenant]
+        ON [dbo].[AspNetUsers] ([NormalizedEmail])
+        WHERE [TenantId] IS NULL AND [NormalizedEmail] IS NOT NULL;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = N'IX_AspNetUsers_TenantId_NormalizedEmail'
+      AND object_id = OBJECT_ID(N'dbo.AspNetUsers')
+)
+    CREATE UNIQUE INDEX [IX_AspNetUsers_TenantId_NormalizedEmail]
+        ON [dbo].[AspNetUsers] ([TenantId], [NormalizedEmail])
+        WHERE [TenantId] IS NOT NULL AND [NormalizedEmail] IS NOT NULL;
+");
+            logger.LogInformation("Ensured tenant-scoped AspNetUsers email indexes");
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not ensure tenant-scoped email indexes");
+        }
     }
 
     private static async Task EnsureTenantScopedUserNameAsync(UserManager<ApplicationUser> userManager, ApplicationUser user)
