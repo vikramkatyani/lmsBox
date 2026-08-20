@@ -312,16 +312,19 @@ public static class DbSeeder
             await db.SaveChangesAsync();
         }
 
-        await EnsureBifaTenantAdminAsync(
-            db,
-            userManager,
-            logger,
-            bifa.Id,
-            bifaOrg.Id,
-            BifaBrandDefaults.AdminEmail,
-            BifaBrandDefaults.AdminFirstName,
-            BifaBrandDefaults.AdminLastName,
-            BifaBrandDefaults.AdminPassword);
+        foreach (var admin in BifaBrandDefaults.TenantAdmins)
+        {
+            await EnsureBifaTenantAdminAsync(
+                db,
+                userManager,
+                logger,
+                bifa.Id,
+                bifaOrg.Id,
+                admin.Email,
+                admin.FirstName,
+                admin.LastName,
+                BifaBrandDefaults.AdminPassword);
+        }
 
         foreach (var courseId in BifaBrandDefaults.CoursesToAdopt)
         {
