@@ -563,8 +563,27 @@ public static class DbSeeder
                     DECLARE @RoleOrg nvarchar(450) = (SELECT TOP 1 [Id] FROM [AspNetRoles] WHERE [NormalizedName] = N'ORGADMIN');
                     DECLARE @UserId nvarchar(450);
 
-                    IF @TenantId IS NOT NULL AND @OrgId IS NOT NULL
+                    IF @TenantId IS NOT NULL
                     BEGIN
+                        IF @OrgId IS NULL
+                        BEGIN
+                            INSERT INTO [Organisations] (
+                                [TenantId], [Name], [Description], [StorageKey], [MaxUsers], [AllocatedStorageGB],
+                                [StorageUsedBytes], [BrandingStorageUsedBytes], [ContentStorageUsedBytes],
+                                [SmtpUseSsl], [UseTenantBranding], [IsActive], [CreatedOn], [CreatedBy],
+                                [Domain], [SupportEmail], [ManagerName], [ManagerEmail]
+                            )
+                            VALUES (
+                                @TenantId,
+                                N'BIFA Learning',
+                                N'Primary organisation for BIFA Learning',
+                                LOWER(REPLACE(CONVERT(nvarchar(36), NEWID()), N'-', N'')),
+                                500, 50, 0, 0, 0, 1, 1, 1, SYSUTCDATETIME(), N'system',
+                                N'bifa.org', N'bifa@bifa.org', N'BIFA Communications', N'BIFAcomms@bifa.org'
+                            );
+                            SET @OrgId = SCOPE_IDENTITY();
+                        END
+
                         SET @UserId = (
                             SELECT TOP 1 [Id] FROM [AspNetUsers]
                             WHERE [NormalizedEmail] = {email.ToUpperInvariant()}
