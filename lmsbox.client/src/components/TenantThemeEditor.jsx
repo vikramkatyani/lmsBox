@@ -280,7 +280,7 @@ export default function TenantThemeEditor({
       <div className="xl:sticky xl:top-6 h-fit">
         <p className="text-sm font-medium text-gray-700 mb-3">Login preview</p>
         <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm" style={{ backgroundColor: preview.pageBg, fontFamily: preview.font }}>
-          <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4 items-center min-h-[320px]">
+          <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4 items-end min-h-[320px]">
             <div className="rounded-lg p-5 shadow" style={{ backgroundColor: preview.boxBg }}>
               <div className="flex justify-center mb-3">
                 <img src={preview.logo} alt="" className="h-10 w-auto object-contain" />
@@ -296,8 +296,8 @@ export default function TenantThemeEditor({
                 Send Login link
               </button>
             </div>
-            <div className="hidden sm:flex items-center justify-center">
-              <img src={preview.hero} alt="" className="max-h-40 w-auto object-contain" />
+            <div className="hidden sm:flex items-end justify-center">
+              <img src={preview.hero} alt="" className="max-h-52 w-auto object-contain object-bottom" />
             </div>
           </div>
         </div>

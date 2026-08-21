@@ -190,7 +190,7 @@ export default function Login() {
       className="min-h-screen flex items-center justify-center bg-login-page-bg px-4"
       style={theme?.fontFamily ? { fontFamily: theme.fontFamily } : undefined}
     >
-      <div className="grid lg:grid-cols-2 gap-8 max-w-6xl w-full items-center">
+      <div className="grid lg:grid-cols-2 gap-8 max-w-6xl w-full items-end">
         {redirectTarget && <Navigate to={redirectTarget} replace />}
         
         {/* Left: Login Form */}
@@ -389,12 +389,12 @@ export default function Login() {
           )}
         </div>
 
-        {/* Right: Illustration */}
-        <div className="hidden lg:block">
+        {/* Right: Illustration — larger and bottom-aligned with the login box */}
+        <div className="hidden lg:flex items-end justify-center">
           <img
             src={heroSrc}
             alt={`${tenantName} login illustration`}
-            className={`w-full max-w-lg mx-auto ${theme?.loginHeroUrl || theme?.key === 'bifa' ? 'object-contain' : 'object-cover'}`}
+            className={`w-full max-w-2xl ${theme?.loginHeroUrl || theme?.key === 'bifa' ? 'object-contain object-bottom' : 'object-cover object-bottom'}`}
           />
         </div>
       </div>

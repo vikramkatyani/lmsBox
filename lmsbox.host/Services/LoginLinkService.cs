@@ -191,6 +191,27 @@ namespace lmsBox.Server.Services
             return record;
         }
 
+        public async Task<LoginLinkToken?> FindTokenAsync(string token)
+        {
+            string raw;
+            try
+            {
+                var bytes = WebEncoders.Base64UrlDecode(token);
+                raw = Encoding.UTF8.GetString(bytes);
+            }
+            catch
+            {
+                raw = token;
+            }
+
+            var tokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw)));
+
+            return await _db.LoginLinkTokens
+                .Where(x => x.TokenHash == tokenHash)
+                .OrderByDescending(x => x.CreatedAt)
+                .FirstOrDefaultAsync();
+        }
+
         private async Task<(bool Success, string? Error)> SendEmailAsync(string toEmail, string subject, string plainTextContent, string htmlContent = "")
         {
             var apiKey = _config["SendGrid:ApiKey"];

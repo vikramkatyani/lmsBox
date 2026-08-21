@@ -15,7 +15,7 @@ export default function VerifyLogin() {
   const tenantCode = tenantCodeParam || theme?.tenantCode || theme?.code || null;
   const logoSrc = theme?.logo || lmsLogo;
   const tenantName = theme?.name || import.meta.env.VITE_APP_TITLE || 'LMS Box';
-  const loginPath = tenantCode ? tenantLoginPath(tenantCode) : '/login';
+  const [loginPath, setLoginPath] = useState(tenantCode ? tenantLoginPath(tenantCode) : '/login');
   const [status, setStatus] = useState('verifying'); // verifying, success, error
   
   usePageTitle('Verify Login');
@@ -25,7 +25,10 @@ export default function VerifyLogin() {
       try {
         const token = searchParams.get('token');
         if (!token) {
+          const path = tenantCode ? tenantLoginPath(tenantCode) : '/login';
+          setLoginPath(path);
           setStatus('error');
+          setTimeout(() => navigate(path), 1500);
           return;
         }
 
@@ -111,12 +114,22 @@ export default function VerifyLogin() {
         }
       } catch (error) {
         console.error('Verification error:', error);
+        const code = error.response?.data?.tenantCode || tenantCode;
+        const path = error.response?.data?.loginPath
+          || (code ? tenantLoginPath(code) : '/login');
+        if (code) {
+          setStoredTenantCode(code);
+        }
+        setLoginPath(path);
         setStatus('error');
+        setTimeout(() => {
+          navigate(path);
+        }, 1500);
       }
     };
 
     verifyToken();
-  }, [searchParams, navigate]);
+  }, [searchParams, navigate, tenantCode]);
 
   return (
     <div

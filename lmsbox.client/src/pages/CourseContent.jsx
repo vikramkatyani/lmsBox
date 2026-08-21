@@ -2572,10 +2572,22 @@ export default function CourseContent({ previewMode = false }) {
                   <span>Previous</span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => handleNavigateToAdjacentItem(nextCurriculumItem)}
-                  disabled={!canGoNext}
+                <div className="flex items-center gap-2">
+                  {learnerFeatureFlags.showLearnerAiAssistant && !previewMode && (
+                    <button
+                      type="button"
+                      onClick={() => setIsAIAssistantOpen(true)}
+                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-boxlms-navbar text-boxlms-navbar-active shadow-md hover:brightness-110 transition-all duration-200 sm:h-9 sm:w-9"
+                      title="AI Assistant"
+                      aria-label="AI Assistant"
+                    >
+                      <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleNavigateToAdjacentItem(nextCurriculumItem)}
+                    disabled={!canGoNext}
                   aria-label={
                     nextCurriculumItem
                       ? canGoNext
@@ -2600,8 +2612,25 @@ export default function CourseContent({ previewMode = false }) {
                       : 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-400'}
                   `}
                 >
-                  <span>Next</span>
-                  <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    <span>Next</span>
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!showLessonNav && learnerFeatureFlags.showLearnerAiAssistant && !previewMode && (
+            <div className="flex-shrink-0 border-t border-gray-200 bg-white">
+              <div className="flex items-center justify-end px-3 py-1.5 sm:px-4">
+                <button
+                  type="button"
+                  onClick={() => setIsAIAssistantOpen(true)}
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-boxlms-navbar text-boxlms-navbar-active shadow-md hover:brightness-110 transition-all duration-200 sm:h-9 sm:w-9"
+                  title="AI Assistant"
+                  aria-label="AI Assistant"
+                >
+                  <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
             </div>
@@ -2677,30 +2706,14 @@ export default function CourseContent({ previewMode = false }) {
         </div>
       </div>
 
-      {learnerFeatureFlags.showLearnerAiAssistant && !previewMode && (
-        <>
-          {/* Floating AI Assistant Button */}
-          <button
-            onClick={() => setIsAIAssistantOpen(true)}
-            className="fixed bottom-6 right-6 bg-boxlms-navbar text-boxlms-navbar-active p-4 rounded-full shadow-lg hover:shadow-xl hover:brightness-110 transition-all duration-200 z-50 flex items-center gap-2 group font-medium"
-            title="AI Assistant"
-          >
-            <Sparkles className="w-6 h-6" />
-            <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 whitespace-nowrap">
-              AI Assistant
-            </span>
-          </button>
-          {/* AI Assistant Modal */}
-          {course && (
-            <LearnerAIAssistant
-              courseTitle={course.title}
-              currentLessonTitle={activeLesson?.title}
-              currentLessonContent={activeLesson?.htmlContent || activeLesson?.description || course.description}
-              isOpen={isAIAssistantOpen}
-              onClose={() => setIsAIAssistantOpen(false)}
-            />
-          )}
-        </>
+      {learnerFeatureFlags.showLearnerAiAssistant && !previewMode && course && (
+        <LearnerAIAssistant
+          courseTitle={course.title}
+          currentLessonTitle={activeLesson?.title}
+          currentLessonContent={activeLesson?.htmlContent || activeLesson?.description || course.description}
+          isOpen={isAIAssistantOpen}
+          onClose={() => setIsAIAssistantOpen(false)}
+        />
       )}
     </div>
   );

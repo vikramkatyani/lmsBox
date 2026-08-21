@@ -147,14 +147,14 @@ namespace lmsBox.Server.Controllers
                     if (record == null)
                     {
                         _logger.LogWarning("VerifyLoginLink invalid or expired token");
-                        return Unauthorized(new { message = "Invalid or expired token." });
+                        return await InvalidOrExpiredLoginLinkResult(request);
                     }
 
                     var user = await _userManager.FindByIdAsync(record.UserId);
                     if (user == null)
                     {
                         _logger.LogWarning("Login link validated for non-existent user id {UserId}", record.UserId);
-                        return Unauthorized(new { message = "Invalid token." });
+                        return await InvalidOrExpiredLoginLinkResult(request);
                     }
 
                     if (!string.IsNullOrWhiteSpace(request.TenantCode))
@@ -163,13 +163,13 @@ namespace lmsBox.Server.Controllers
                         if (tenant == null || user.TenantId != tenant.Id)
                         {
                             _logger.LogWarning("Login link tenant mismatch for user {UserId}", user.Id);
-                            return Unauthorized(new { message = "Invalid or expired token." });
+                            return await InvalidOrExpiredLoginLinkResult(request, user);
                         }
                     }
 
                     if (!user.TenantId.HasValue)
                     {
-                        return Unauthorized(new { message = "Invalid token." });
+                        return await InvalidOrExpiredLoginLinkResult(request, user);
                     }
 
                     var jwtSection = _config.GetSection("Jwt");
@@ -472,6 +472,37 @@ namespace lmsBox.Server.Controllers
             }
 
             return (null, false);
+        }
+
+        private async Task<IActionResult> InvalidOrExpiredLoginLinkResult(
+            VerifyLoginLinkRequest request,
+            ApplicationUser? user = null)
+        {
+            var tenantCode = request.TenantCode;
+            if (user == null)
+            {
+                var stale = await _loginLinkService.FindTokenAsync(request.Token);
+                if (stale != null)
+                {
+                    user = await _userManager.FindByIdAsync(stale.UserId);
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(tenantCode) && user?.TenantId != null)
+            {
+                tenantCode = await TenantPortalUrl.GetTenantCodeAsync(_db, user.TenantId);
+            }
+
+            var loginPath = string.IsNullOrWhiteSpace(tenantCode)
+                ? "/login"
+                : TenantPortalUrl.TenantLoginPath(tenantCode);
+
+            return Unauthorized(new
+            {
+                message = "Invalid or expired token.",
+                tenantCode,
+                loginPath
+            });
         }
 
         private async Task<Tenant?> ResolveTenantAsync(string? tenantCode)

@@ -8,5 +8,6 @@ namespace lmsBox.Server.Services
     {
         Task<bool> CreateAndSendLoginLinkAsync(ApplicationUser user, string? tenantCode = null);
         Task<LoginLinkToken?> ValidateAndConsumeTokenAsync(string token);
+        Task<LoginLinkToken?> FindTokenAsync(string token);
     }
 }
