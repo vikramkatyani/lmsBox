@@ -69,6 +69,10 @@ public static class LmsBoxHostExtensions
             options.Password.RequireNonAlphanumeric = false;
             options.Password.RequiredLength = 6;
             options.User.RequireUniqueEmail = false;
+            // Tenant-scoped usernames are "{tenantId}|{email}". Default Identity
+            // allows @ . _ - + but not the pipe separator.
+            options.User.AllowedUserNameCharacters =
+                "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+|";
         })
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
