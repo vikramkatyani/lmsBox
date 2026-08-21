@@ -10,7 +10,7 @@ import bifaLoginHero from '../assets/BIFA-login-hero.svg';
 import api from '../utils/api';
 import { RecaptchaComponent, executeRecaptcha } from '../utils/recaptcha';
 import usePageTitle from '../hooks/usePageTitle';
-import { tenantLoginPath } from '../utils/tenant';
+import { tenantLoginPath, setStoredTenantCode } from '../utils/tenant';
 
 export default function Login() {
   const { register, handleSubmit, formState: { errors } } = useForm();
@@ -48,6 +48,9 @@ export default function Login() {
     if (token) {
       const expiresMs = Number(expires);
       setAuthToken(token, Number.isFinite(expiresMs) ? expiresMs : undefined);
+      if (tenantCode) {
+        setStoredTenantCode(tenantCode);
+      }
       setStatus('success');
       setMessage('Successfully signed in. Redirecting...');
 
@@ -122,6 +125,10 @@ export default function Login() {
         headers: tenantCode ? { 'X-Tenant-Code': tenantCode } : undefined
       });
 
+      if (tenantCode) {
+        setStoredTenantCode(tenantCode);
+      }
+
       setStatus('success');
       setMessage('Login link sent! Please check your email to continue.');
     } catch (error) {
@@ -146,6 +153,9 @@ export default function Login() {
       
       if (response.data.token) {
         setAuthToken(response.data.token);
+        if (response.data.tenantCode || tenantCode) {
+          setStoredTenantCode(response.data.tenantCode || tenantCode);
+        }
         setStatus('success');
         setMessage('Successfully logged in!');
         try {

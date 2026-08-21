@@ -3,7 +3,8 @@ import { useLocation } from 'react-router-dom';
 import tenants from './tenants.json';
 import '../styles/tenants/bifa-theme.css';
 import api from '../utils/api';
-import { getTenantCodeFromPath } from '../utils/tenant';
+import { getTenantCodeFromPath, getStoredTenantCode, setStoredTenantCode } from '../utils/tenant';
+import { decodeToken, getAuthToken } from '../utils/auth';
 
 const ThemeContext = createContext();
 
@@ -104,6 +105,11 @@ function applyTenantToDocument(theme) {
   root.style.setProperty('--color-login-box-bg', theme.primaryColor || DEFAULT_THEME.primaryColor);
   root.style.setProperty('--color-login-btn-bg', theme.buttonColor || DEFAULT_THEME.buttonColor);
   root.style.setProperty('--color-login-btn-text', theme.buttonTextColor || DEFAULT_THEME.buttonTextColor);
+  root.style.setProperty('--color-boxlms-navbar', theme.primaryColor || DEFAULT_THEME.primaryColor);
+  root.style.setProperty('--color-boxlms-navbar-txt', '#FFFFFF');
+  if (theme.accentColor || theme.buttonColor) {
+    root.style.setProperty('--color-boxlms-navbar-active', theme.accentColor || theme.buttonColor);
+  }
 
   if (theme.secondaryColor) {
     root.style.setProperty('--tenant-secondary', theme.secondaryColor);
@@ -173,12 +179,33 @@ function ensureTenantFont(theme) {
 
 applyTenantToDocument(DEFAULT_THEME);
 
+function getTenantCodeFromToken() {
+  try {
+    const decoded = decodeToken(getAuthToken());
+    const code = decoded?.tenant_code;
+    return code ? String(code).toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
 export function ThemeProvider({ children }) {
   const location = useLocation();
   const pathCode = getTenantCodeFromPath(location.pathname);
-  const [theme, setTheme] = useState(() => (pathCode && tenants[pathCode] ? staticThemeForKey(pathCode) : DEFAULT_THEME));
+  const [sessionTenantCode, setSessionTenantCode] = useState(
+    () => pathCode || getStoredTenantCode() || getTenantCodeFromToken()
+  );
+  const resolvedCode = pathCode || sessionTenantCode;
+  const [theme, setTheme] = useState(() => (resolvedCode && tenants[resolvedCode] ? staticThemeForKey(resolvedCode) : DEFAULT_THEME));
   const [loading, setLoading] = useState(true);
   const [unknownTenant, setUnknownTenant] = useState(false);
+
+  useEffect(() => {
+    if (pathCode) {
+      setStoredTenantCode(pathCode);
+      setSessionTenantCode(pathCode);
+    }
+  }, [pathCode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -187,11 +214,11 @@ export function ThemeProvider({ children }) {
       setLoading(true);
       setUnknownTenant(false);
       try {
-        if (pathCode) {
+        if (resolvedCode) {
           try {
-            const response = await api.get(`/api/public/tenants/${encodeURIComponent(pathCode)}/branding`);
+            const response = await api.get(`/api/public/tenants/${encodeURIComponent(resolvedCode)}/branding`);
             if (!cancelled) {
-              setTheme(brandingToTheme(response.data, pathCode));
+              setTheme(brandingToTheme(response.data, resolvedCode));
             }
           } catch (error) {
             if (error.response?.status === 404) {
@@ -200,7 +227,7 @@ export function ThemeProvider({ children }) {
                 setTheme(DEFAULT_THEME);
               }
             } else if (!cancelled) {
-              setTheme(tenants[pathCode] ? staticThemeForKey(pathCode) : DEFAULT_THEME);
+              setTheme(tenants[resolvedCode] ? staticThemeForKey(resolvedCode) : DEFAULT_THEME);
             }
           }
         } else {
@@ -211,7 +238,7 @@ export function ThemeProvider({ children }) {
         }
       } catch {
         if (!cancelled) {
-          setTheme(pathCode && tenants[pathCode] ? staticThemeForKey(pathCode) : DEFAULT_THEME);
+          setTheme(resolvedCode && tenants[resolvedCode] ? staticThemeForKey(resolvedCode) : DEFAULT_THEME);
         }
       } finally {
         if (!cancelled) {
@@ -224,7 +251,7 @@ export function ThemeProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [pathCode]);
+  }, [resolvedCode]);
 
   useEffect(() => {
     applyTenantToDocument(theme);
@@ -236,9 +263,9 @@ export function ThemeProvider({ children }) {
       ...theme,
       loading,
       unknownTenant,
-      tenantCode: pathCode || theme.code || null
+      tenantCode: resolvedCode || theme.code || null
     }),
-    [theme, loading, unknownTenant, pathCode]
+    [theme, loading, unknownTenant, resolvedCode]
   );
 
   return (

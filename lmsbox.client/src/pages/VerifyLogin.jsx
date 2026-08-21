@@ -5,7 +5,7 @@ import api from '../utils/api';
 import lmsLogo from '../assets/lmsbox-logo.png';
 import usePageTitle from '../hooks/usePageTitle';
 import { useTheme } from '../theme/ThemeContext';
-import { tenantLoginPath } from '../utils/tenant';
+import { tenantLoginPath, setStoredTenantCode } from '../utils/tenant';
 
 export default function VerifyLogin() {
   const [searchParams] = useSearchParams();
@@ -56,6 +56,9 @@ export default function VerifyLogin() {
             
             // Store the JWT token using our auth utility
             setAuthToken(response.data.token, response.data.expires);
+            if (response.data.tenantCode || tenantCode) {
+              setStoredTenantCode(response.data.tenantCode || tenantCode);
+            }
             
             // Verify storage immediately
             const storedToken = localStorage.getItem('token');

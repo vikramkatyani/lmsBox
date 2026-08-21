@@ -222,26 +222,23 @@ namespace lmsBox.Server.Services
         {
             try
             {
-                // Fetch organization details from database
                 var orgId = long.Parse(organisationId);
-                var organisation = await _context.Organisations
-                    .FirstOrDefaultAsync(o => o.Id == orgId);
-
-                var brandName = organisation?.BrandName ?? _config["AppSettings:AppName"] ?? "LMS Box";
-                var supportEmail = organisation?.SupportEmail ?? _config["AppSettings:SupportEmail"] ?? "support@example.com";
+                var brand = await ResolveEmailBrandAsync(orgId);
 
                 var templateData = new Dictionary<string, object>
                 {
-                    {"BrandName", brandName},
+                    {"BrandName", brand.BrandName},
                     {"FirstName", firstName ?? ""},
                     {"LoginUrl", loginUrl},
                     {"ExpiryMinutes", expiryMinutes},
-                    {"SupportEmail", supportEmail},
+                    {"SupportEmail", brand.SupportEmail},
+                    {"ButtonColor", brand.ButtonColor},
+                    {"ButtonTextColor", brand.ButtonTextColor},
                     {"Year", DateTime.Now.Year}
                 };
 
                 var htmlBody = await LoadAndProcessTemplate("LoginLinkEmail.html", templateData);
-                var subject = $"Your Secure Login Link for {brandName} learning portal";
+                var subject = $"Your Secure Login Link for {brand.BrandName} learning portal";
 
                 await SendEmailAsync(userEmail, subject, htmlBody);
 
@@ -252,6 +249,39 @@ namespace lmsBox.Server.Services
                 _logger.LogError(ex, "Failed to send login link email to {Email}", userEmail);
                 throw;
             }
+        }
+
+        private async Task<(string BrandName, string SupportEmail, string ButtonColor, string ButtonTextColor)> ResolveEmailBrandAsync(long organisationId)
+        {
+            var organisation = await _context.Organisations
+                .Include(o => o.Tenant)
+                .FirstOrDefaultAsync(o => o.Id == organisationId);
+
+            var tenant = organisation?.Tenant;
+            var parsed = TenantThemeHelper.Parse(tenant?.ThemeSettings ?? organisation?.ThemeSettings, tenant?.CustomCss);
+            var useTenantBrand = organisation?.UseTenantBranding != false && tenant != null;
+            var brandName = useTenantBrand
+                ? TenantThemeHelper.FirstNonEmpty(tenant?.BrandName, parsed.Name, tenant?.Name, organisation?.BrandName, _config["AppSettings:AppName"], "LMS Box")
+                : TenantThemeHelper.FirstNonEmpty(organisation?.BrandName, tenant?.BrandName, _config["AppSettings:AppName"], "LMS Box");
+            var supportEmail = TenantThemeHelper.FirstNonEmpty(
+                organisation?.SupportEmail,
+                tenant?.SupportEmail,
+                _config["AppSettings:SupportEmail"],
+                "support@example.com")!;
+
+            // High-contrast defaults: never use the same colour for fill and label.
+            var buttonColor = TenantThemeHelper.FirstNonEmpty(parsed.ButtonColor, parsed.AccentStrongColor, "#002e62")!;
+            var buttonTextColor = TenantThemeHelper.FirstNonEmpty(parsed.ButtonTextColor, "#ffffff")!;
+            if (string.Equals(buttonColor, buttonTextColor, StringComparison.OrdinalIgnoreCase))
+            {
+                buttonTextColor = "#ffffff";
+                if (string.Equals(buttonColor, "#ffffff", StringComparison.OrdinalIgnoreCase))
+                {
+                    buttonColor = "#002e62";
+                }
+            }
+
+            return (brandName ?? "LMS Box", supportEmail, buttonColor, buttonTextColor);
         }
 
         public async Task SendLearnerRegistrationEmailAsync(string userEmail, string portalUrl, string organisationId, string? firstName = null, List<string>? courseNames = null)

@@ -9,13 +9,19 @@ namespace lmsBox.Server.Services;
 public static class JwtTokenHelper
 {
     public const string TenantIdClaimType = "tenant_id";
+    public const string TenantCodeClaimType = "tenant_code";
     public const string OrganisationIdClaimType = "organisation_id";
 
-    public static void AddTenancyClaims(ICollection<Claim> claims, ApplicationUser user)
+    public static void AddTenancyClaims(ICollection<Claim> claims, ApplicationUser user, string? tenantCode = null)
     {
         if (user.TenantId.HasValue)
         {
             claims.Add(new Claim(TenantIdClaimType, user.TenantId.Value.ToString()));
+        }
+
+        if (!string.IsNullOrWhiteSpace(tenantCode))
+        {
+            claims.Add(new Claim(TenantCodeClaimType, tenantCode.Trim().ToLowerInvariant()));
         }
 
         if (user.OrganisationID.HasValue)

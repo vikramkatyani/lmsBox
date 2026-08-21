@@ -5,6 +5,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import ConfirmDialog from './ConfirmDialog';
 import UnreadBadge from './UnreadBadge';
 import { useTheme } from '../theme/ThemeContext';
+import { tenantLoginPath, getStoredTenantCode, setStoredTenantCode, getTenantCodeFromPath } from '../utils/tenant';
 import useUnreadAnnouncements from '../hooks/useUnreadAnnouncements';
 import { API_BASE } from '../utils/apiBase';
 
@@ -51,9 +52,10 @@ export default function LearnerHeader() {
   useEffect(() => {
     const checkToken = () => {
       const token = getAuthToken();
-      if (!token && location.pathname !== '/login') {
+      if (!token && !location.pathname.includes('/login')) {
         toast.error('Session expired. Please login again.');
-        navigate('/login');
+        const tenant = getTenantCodeFromPath() || getStoredTenantCode() || theme?.tenantCode || theme?.code;
+        navigate(tenant ? tenantLoginPath(tenant) : '/login');
       }
     };
 
@@ -130,17 +132,17 @@ export default function LearnerHeader() {
 
       // Clean up local state
       removeAuthToken();
-      
-      // Clear any other stored data
+      const tenant = getTenantCodeFromPath() || getStoredTenantCode() || theme?.tenantCode || theme?.code;
       localStorage.clear();
       sessionStorage.clear();
+      if (tenant) {
+        setStoredTenantCode(tenant);
+      }
 
-      // Dismiss loading toast and show success
       toast.dismiss(loadingToast);
       toast.success('Logged out successfully');
 
-      // Navigate to login page
-      navigate('/login');
+      navigate(tenant ? tenantLoginPath(tenant) : '/login');
     } catch (error) {
       console.error('Logout error:', error);
       toast.error('Failed to logout. Please try again.');

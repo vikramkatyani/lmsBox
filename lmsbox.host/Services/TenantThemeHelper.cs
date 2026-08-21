@@ -204,7 +204,7 @@ public static class TenantThemeHelper
         return null;
     }
 
-    private static string? FirstNonEmpty(params string?[] values) =>
+    public static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
 }
 

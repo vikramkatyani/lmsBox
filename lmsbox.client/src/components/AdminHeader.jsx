@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, NavLink } from 'react-router-dom';
 import { useTheme } from '../theme/ThemeContext';
+import { tenantLoginPath, getStoredTenantCode, setStoredTenantCode, getTenantCodeFromPath } from '../utils/tenant';
 import { removeAuthToken, getUserName, getUserRole } from '../utils/auth';
 import ProfileIcon from './ProfileIcon';
 import ConfirmDialog from './ConfirmDialog';
@@ -65,13 +66,17 @@ export default function AdminHeader({ hideNavigation = false }) {
       }
 
       removeAuthToken();
+      const tenant = getTenantCodeFromPath() || getStoredTenantCode() || theme?.tenantCode || theme?.code;
       localStorage.clear();
       sessionStorage.clear();
+      if (tenant) {
+        setStoredTenantCode(tenant);
+      }
 
       toast.dismiss(loadingToast);
       toast.success('Logged out successfully');
 
-      navigate('/login');
+      navigate(tenant ? tenantLoginPath(tenant) : '/login');
     } catch (error) {
       console.error('Logout error:', error);
       toast.error('Failed to logout. Please try again.');

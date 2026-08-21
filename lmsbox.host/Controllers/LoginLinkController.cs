@@ -197,7 +197,8 @@ namespace lmsBox.Server.Controllers
                         claims.Add(new Claim(ClaimTypes.Role, r));
                     }
 
-                    JwtTokenHelper.AddTenancyClaims(claims, user);
+                    var tenantCodeForToken = await TenantPortalUrl.GetTenantCodeAsync(_db, user.TenantId);
+                    JwtTokenHelper.AddTenancyClaims(claims, user, tenantCodeForToken);
 
                     var creds = new SigningCredentials(new SymmetricSecurityKey(keyBytes), SecurityAlgorithms.HmacSha256);
                     var jwt = new JwtSecurityToken(
@@ -219,6 +220,7 @@ namespace lmsBox.Server.Controllers
                     {
                         token = tokenString,
                         expires = now.AddMinutes(expiresMinutes).ToUnixTimeMilliseconds(),
+                        tenantCode = tenantCodeForToken
                     });
                 }
                 catch (Exception ex)
@@ -436,6 +438,7 @@ namespace lmsBox.Server.Controllers
                 {
                     token = tokenString,
                     expires = expiresUnixMs,
+                    tenantCode = tenant.Code,
                     user = new
                     {
                         id = user.Id,
@@ -548,7 +551,10 @@ namespace lmsBox.Server.Controllers
                 claims.Add(new Claim(ClaimTypes.Role, role));
             }
 
-            JwtTokenHelper.AddTenancyClaims(claims, user);
+            JwtTokenHelper.AddTenancyClaims(
+                claims,
+                user,
+                await TenantPortalUrl.GetTenantCodeAsync(_db, user.TenantId));
 
             var creds = new SigningCredentials(new SymmetricSecurityKey(keyBytes), SecurityAlgorithms.HmacSha256);
             var jwt = new JwtSecurityToken(
