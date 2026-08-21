@@ -14,6 +14,7 @@ export default function VerifyLogin() {
   const theme = useTheme();
   const tenantCode = tenantCodeParam || theme?.tenantCode || theme?.code || null;
   const logoSrc = theme?.logo || lmsLogo;
+  const tenantName = theme?.name || import.meta.env.VITE_APP_TITLE || 'LMS Box';
   const loginPath = tenantCode ? tenantLoginPath(tenantCode) : '/login';
   const [status, setStatus] = useState('verifying'); // verifying, success, error
   
@@ -118,9 +119,14 @@ export default function VerifyLogin() {
   }, [searchParams, navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-login-page-bg px-4">
+    <div
+      className="min-h-screen flex items-center justify-center bg-login-page-bg px-4"
+      style={theme?.fontFamily ? { fontFamily: theme.fontFamily } : undefined}
+    >
       <div className="bg-login-box-bg p-8 rounded-lg shadow-lg max-w-md w-full mx-auto text-center">
-        <img src={logoSrc} alt="LMS Logo" className="h-12 mx-auto mb-4" />
+        <div className="login-logo-frame inline-flex mx-auto mb-4">
+          <img src={logoSrc} alt={`${tenantName} Logo`} className="h-12 w-auto" />
+        </div>
         {status === 'verifying' && (
           <>
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-login-btn-bg mx-auto"></div>
