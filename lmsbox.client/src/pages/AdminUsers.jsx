@@ -4,9 +4,9 @@ import AdminHeader from '../components/AdminHeader';
 import Pagination from '../components/Pagination';
 import RowActionMenu from '../components/RowActionMenu';
 import toast from 'react-hot-toast';
-import { listUsers, deleteUser } from '../services/users';
+import { listUsers, deleteUser, generateAdminLoginLink } from '../services/users';
 import { getUserId } from '../utils/auth';
-import { canManageUsersInUI } from '../config/adminFeatureFlags';
+import { canGenerateLoginLinkInUI, canManageUsersInUI } from '../config/adminFeatureFlags';
 import usePageTitle from '../hooks/usePageTitle';
 
 export default function AdminUsers() {
@@ -27,6 +27,8 @@ export default function AdminUsers() {
     hasNextPage: false,
     hasPreviousPage: false,
   });
+
+  const [loginLinkModal, setLoginLinkModal] = useState(null);
 
   usePageTitle('Manage Users');
 
@@ -85,7 +87,8 @@ export default function AdminUsers() {
 
   const currentUserId = getUserId();
   const canManageUsers = canManageUsersInUI();
-  const showUserActions = canManageUsers;
+  const canGenerateLoginLink = canGenerateLoginLinkInUI();
+  const showUserActions = canManageUsers || canGenerateLoginLink;
   const tableColCount = 6 + (showUserActions ? 1 : 0);
 
   const handleSearch = () => {
@@ -132,6 +135,48 @@ export default function AdminUsers() {
   };
 
   const onEdit = (id) => navigate(`/admin/users/${id}/edit`);
+
+  const openLoginLinkModal = (user) => {
+    setLoginLinkModal({
+      userId: user.id,
+      userName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+      loading: true,
+      url: null,
+      expiryDays: null,
+      error: null,
+    });
+
+    (async () => {
+      try {
+        const result = await generateAdminLoginLink(user.id);
+        setLoginLinkModal((prev) => prev && prev.userId === user.id
+          ? {
+              ...prev,
+              loading: false,
+              url: result.url,
+              expiryDays: result.expiryDays,
+            }
+          : prev);
+      } catch (e) {
+        const message = e.response?.data?.message || e.message || 'Failed to generate login link';
+        setLoginLinkModal((prev) => prev && prev.userId === user.id
+          ? { ...prev, loading: false, error: message }
+          : prev);
+      }
+    })();
+  };
+
+  const closeLoginLinkModal = () => setLoginLinkModal(null);
+
+  const copyLoginLink = async () => {
+    if (!loginLinkModal?.url) return;
+    try {
+      await navigator.clipboard.writeText(loginLinkModal.url);
+      toast.success('Login link copied to clipboard');
+    } catch {
+      toast.error('Failed to copy link to clipboard');
+    }
+  };
 
   const onDelete = async (id) => {
     if (!window.confirm('Delete this user? This action cannot be undone.')) return;
@@ -371,20 +416,32 @@ export default function AdminUsers() {
                         <td className="px-2 py-3 w-14 align-top">
                           <RowActionMenu
                             items={[
-                              {
-                                label: 'Edit',
-                                onClick: () => onEdit(u.id),
-                              },
-                              {
-                                label: 'Delete',
-                                danger: true,
-                                disabled: u.id === currentUserId,
-                                title:
-                                  u.id === currentUserId
-                                    ? 'Cannot delete your own account'
-                                    : 'Delete user',
-                                onClick: () => onDelete(u.id),
-                              },
+                              ...(canGenerateLoginLink
+                                ? [{
+                                    label: 'Login Link',
+                                    variant: 'warning',
+                                    title: 'Generate a 30-day reusable login link',
+                                    onClick: () => openLoginLinkModal(u),
+                                  }]
+                                : []),
+                              ...(canManageUsers
+                                ? [
+                                    {
+                                      label: 'Edit',
+                                      onClick: () => onEdit(u.id),
+                                    },
+                                    {
+                                      label: 'Delete',
+                                      danger: true,
+                                      disabled: u.id === currentUserId,
+                                      title:
+                                        u.id === currentUserId
+                                          ? 'Cannot delete your own account'
+                                          : 'Delete user',
+                                      onClick: () => onDelete(u.id),
+                                    },
+                                  ]
+                                : []),
                             ]}
                           />
                         </td>
@@ -406,6 +463,72 @@ export default function AdminUsers() {
           />
         </div>
       </div>
+
+      {loginLinkModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Generate Login Link</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  {loginLinkModal.userName}
+                </p>
+              </div>
+              <button
+                onClick={closeLoginLinkModal}
+                className="text-gray-400 hover:text-gray-600"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            {loginLinkModal.loading && (
+              <div className="py-8 text-center">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto" />
+                <p className="text-sm text-gray-600 mt-4">Generating login link...</p>
+              </div>
+            )}
+
+            {!loginLinkModal.loading && loginLinkModal.error && (
+              <div className="py-4">
+                <p className="text-sm text-red-600">{loginLinkModal.error}</p>
+                <button
+                  onClick={closeLoginLinkModal}
+                  className="mt-4 px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                >
+                  Close
+                </button>
+              </div>
+            )}
+
+            {!loginLinkModal.loading && loginLinkModal.url && (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  This link is valid for {loginLinkModal.expiryDays || 30} days and can be used multiple times.
+                </p>
+                <div className="bg-gray-50 border border-gray-200 rounded p-3 text-sm text-gray-800 break-all">
+                  {loginLinkModal.url}
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={closeLoginLinkModal}
+                    className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={copyLoginLink}
+                    className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    Copy Link
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

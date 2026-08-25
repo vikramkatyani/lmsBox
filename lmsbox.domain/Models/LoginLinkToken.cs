@@ -10,6 +10,11 @@ public class LoginLinkToken
     public DateTime ExpiresAt { get; set; }
     public DateTime? UsedAt { get; set; }
 
+    /// <summary>
+    /// Admin-generated links are reusable until expiry and are not consumed on first use.
+    /// </summary>
+    public bool IsAdminGenerated { get; set; }
+
     // Telemetry for email delivery
     public DateTime? SentAt { get; set; }
     public int SendFailedCount { get; set; }

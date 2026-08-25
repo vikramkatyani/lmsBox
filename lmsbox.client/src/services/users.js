@@ -152,6 +152,29 @@ export async function deleteUser(userId) {
   }
 }
 
+export async function generateAdminLoginLink(userId) {
+  try {
+    const response = await api.post(`/api/admin/users/${encodeURIComponent(userId)}/generate-login-link`);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to generate admin login link:', error);
+
+    if (error.response) {
+      const errorData = error.response.data;
+      const message = errorData?.message || 'Failed to generate login link';
+      const enhancedError = new Error(message);
+      enhancedError.response = error.response;
+      throw enhancedError;
+    }
+
+    if (error.request) {
+      throw new Error('Network error. Please check your connection and try again.');
+    }
+
+    throw new Error(error.message || 'Failed to generate login link');
+  }
+}
+
 export async function bulkCreateUsers({ emailsText, emails, groupIds }) {
   const payload = {
     EmailsText: emailsText,

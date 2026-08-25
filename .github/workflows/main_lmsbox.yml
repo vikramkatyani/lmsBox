@@ -102,6 +102,7 @@ jobs:
             "SendGrid__FromEmail=notification@lmsbox.co.uk",
             "SendGrid__FromName=lmsbox",
             "LoginLink__FrontendBaseUrl=https://lmsbox-e0d2dqb4hwb8aqfp.uksouth-01.azurewebsites.net",
+            "LoginLink__AdminGeneratedExpiryDays=30",
             "AppSettings__BaseUrl=https://lmsbox-e0d2dqb4hwb8aqfp.uksouth-01.azurewebsites.net",
             "AppSettings__AppName=LMS Box Development"
           )

@@ -22,6 +22,7 @@ namespace lmsBox.Server.Controllers
         private readonly IConfiguration _config;
         private readonly ILogger<AdminUsersController> _logger;
         private readonly IEngagementTrackingService _engagementService;
+        private readonly ILoginLinkService _loginLinkService;
 
         public AdminUsersController(
             ApplicationDbContext context,
@@ -29,7 +30,8 @@ namespace lmsBox.Server.Controllers
             IEmailService emailService,
             IConfiguration config,
             ILogger<AdminUsersController> logger,
-            IEngagementTrackingService engagementService)
+            IEngagementTrackingService engagementService,
+            ILoginLinkService loginLinkService)
         {
             _context = context;
             _userManager = userManager;
@@ -37,6 +39,7 @@ namespace lmsBox.Server.Controllers
             _config = config;
             _logger = logger;
             _engagementService = engagementService;
+            _loginLinkService = loginLinkService;
         }
 
         // GET /api/admin/users
@@ -949,6 +952,60 @@ namespace lmsBox.Server.Controllers
             {
                 _logger.LogError(ex, "Error deleting user {UserId}", id);
                 return StatusCode(500, new { message = "Failed to delete user" });
+            }
+        }
+
+        // POST /api/admin/users/{id}/generate-login-link
+        [HttpPost("{id}/generate-login-link")]
+        [Authorize(Roles = "Admin,OrgAdmin,TenantAdmin,SuperAdmin")]
+        public async Task<IActionResult> GenerateAdminLoginLink(string id)
+        {
+            try
+            {
+                var user = await _userManager.FindByIdAsync(id);
+                if (user == null)
+                {
+                    return NotFound(new { message = "User not found" });
+                }
+
+                var scope = await AccessScope.ResolveAsync(User, _context);
+                if (!scope.CanAccessUser(user))
+                {
+                    return Forbid("You can only generate login links for users in your organisation or tenant");
+                }
+
+                var roles = await _userManager.GetRolesAsync(user);
+                if (roles.Contains("SuperAdmin", StringComparer.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new { message = "Cannot generate login links for SuperAdmin accounts." });
+                }
+
+                if (user.ActiveStatus != 1)
+                {
+                    return BadRequest(new { message = "Cannot generate login link for inactive users." });
+                }
+
+                var result = await _loginLinkService.CreateAdminLoginLinkAsync(user, Request);
+                if (result == null)
+                {
+                    return BadRequest(new { message = "Failed to generate login link for this user." });
+                }
+
+                _logger.LogInformation(
+                    "Admin {AdminUser} generated admin login link for user {UserId}",
+                    User.Identity?.Name,
+                    user.Id);
+
+                return Ok(new
+                {
+                    url = result.Url,
+                    expiryDays = result.ExpiryDays
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating admin login link for user {UserId}", id);
+                return StatusCode(500, new { message = "Failed to generate login link." });
             }
         }
 

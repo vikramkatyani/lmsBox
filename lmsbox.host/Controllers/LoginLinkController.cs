@@ -214,7 +214,11 @@ namespace lmsBox.Server.Controllers
 
                     _logger.LogInformation("User {UserId} authenticated via login link. Roles={Roles}", user.Id, string.Join(',', roles));
 
-                    await TryTrackLoginAsync(user);
+                    await TryTrackLoginAsync(
+                        user,
+                        record.IsAdminGenerated
+                            ? EngagementTrackingService.LOGIN_METHOD_ADMIN_LINK
+                            : EngagementTrackingService.LOGIN_METHOD_MAGIC_LINK);
 
                     return Ok(new
                     {
@@ -302,7 +306,7 @@ namespace lmsBox.Server.Controllers
 
                 var (token, expiresUnixMs) = await CreateJwtTokenAsync(user);
 
-                await TryTrackLoginAsync(user);
+                await TryTrackLoginAsync(user, EngagementTrackingService.LOGIN_METHOD_EXTERNAL);
 
                 await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
 
@@ -432,7 +436,7 @@ namespace lmsBox.Server.Controllers
 
                 _logger.LogInformation("User {UserId} authenticated via dev-login. Roles={Roles}", user.Id, string.Join(',', roles));
 
-                await TryTrackLoginAsync(user);
+                await TryTrackLoginAsync(user, EngagementTrackingService.LOGIN_METHOD_DEV);
 
                 return Ok(new
                 {
@@ -601,7 +605,7 @@ namespace lmsBox.Server.Controllers
             return (tokenString, now.AddMinutes(expiresMinutes).ToUnixTimeMilliseconds());
         }
 
-        private async Task TryTrackLoginAsync(ApplicationUser user)
+        private async Task TryTrackLoginAsync(ApplicationUser user, string loginMethod)
         {
             if (!user.OrganisationID.HasValue)
             {
@@ -613,7 +617,8 @@ namespace lmsBox.Server.Controllers
                 await _engagementService.TrackAsync(
                     user.Id,
                     user.OrganisationID.Value,
-                    EngagementTrackingService.EVENT_LOGIN
+                    EngagementTrackingService.EVENT_LOGIN,
+                    metadata: new { loginMethod }
                 );
             }
             catch (Exception ex)

@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using lmsbox.domain.Models;
 using lmsbox.infrastructure.Data;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using SendGrid;
@@ -39,9 +40,9 @@ namespace lmsBox.Server.Services
 
             var now = DateTime.UtcNow;
 
-            // Expire any existing active tokens for this user (single-active-token enforcement)
+            // Expire any existing active email tokens (do not expire reusable admin-generated links)
             var activeTokens = await _db.LoginLinkTokens
-                .Where(x => x.UserId == user.Id && x.UsedAt == null && x.ExpiresAt > now)
+                .Where(x => x.UserId == user.Id && !x.IsAdminGenerated && x.UsedAt == null && x.ExpiresAt > now)
                 .ToListAsync();
 
             if (activeTokens.Count > 0)
@@ -178,17 +179,78 @@ namespace lmsBox.Server.Services
             var record = await _db.LoginLinkTokens
                 .Where(x => x.TokenHash == tokenHash)
                 .Where(x => x.ExpiresAt > now)
-                .Where(x => x.UsedAt == null)
+                .Where(x => x.IsAdminGenerated || x.UsedAt == null)
                 .OrderByDescending(x => x.CreatedAt)
                 .FirstOrDefaultAsync();
 
             if (record == null) return null;
 
-            // mark consumed
-            record.UsedAt = DateTime.UtcNow;
-            await _db.SaveChangesAsync();
+            if (!record.IsAdminGenerated)
+            {
+                record.UsedAt = DateTime.UtcNow;
+                await _db.SaveChangesAsync();
+            }
 
             return record;
+        }
+
+        public async Task<LoginLinkCreateResult?> CreateAdminLoginLinkAsync(ApplicationUser user, HttpRequest? request = null)
+        {
+            if (user.ActiveStatus != 1)
+            {
+                _logger.LogWarning("Admin login link requested for inactive user {UserId} with ActiveStatus {ActiveStatus}", user.Id, user.ActiveStatus);
+                return null;
+            }
+
+            var now = DateTime.UtcNow;
+            var expiryDays = int.TryParse(_config["LoginLink:AdminGeneratedExpiryDays"], out var d) ? d : 30;
+
+            var activeAdminTokens = await _db.LoginLinkTokens
+                .Where(x => x.UserId == user.Id && x.IsAdminGenerated && x.ExpiresAt > now)
+                .ToListAsync();
+
+            if (activeAdminTokens.Count > 0)
+            {
+                foreach (var t in activeAdminTokens)
+                {
+                    t.ExpiresAt = now;
+                }
+                _db.LoginLinkTokens.UpdateRange(activeAdminTokens);
+            }
+
+            var bytes = RandomNumberGenerator.GetBytes(32);
+            var token = Convert.ToHexString(bytes);
+            var tokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+            var expiresAt = now.AddDays(expiryDays);
+
+            var ml = new LoginLinkToken
+            {
+                UserId = user.Id,
+                TokenHash = tokenHash,
+                CreatedAt = now,
+                ExpiresAt = expiresAt,
+                IsAdminGenerated = true,
+                SentAt = null,
+                SendFailedCount = 0,
+                LastSendError = null
+            };
+
+            _db.LoginLinkTokens.Add(ml);
+            await _db.SaveChangesAsync();
+
+            var frontendBase = TenantPortalUrl.ResolveFrontendBase(_config, request);
+            var encoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+            var tenantCode = await TenantPortalUrl.GetTenantCodeAsync(_db, user.TenantId);
+            var link = string.IsNullOrWhiteSpace(tenantCode)
+                ? $"{frontendBase}/verify-login?token={encoded}"
+                : TenantPortalUrl.BuildVerifyUrl(frontendBase, tenantCode, encoded);
+
+            return new LoginLinkCreateResult
+            {
+                Url = link,
+                ExpiryMinutes = expiryDays * 24 * 60,
+                ExpiryDays = expiryDays
+            };
         }
 
         public async Task<LoginLinkToken?> FindTokenAsync(string token)
