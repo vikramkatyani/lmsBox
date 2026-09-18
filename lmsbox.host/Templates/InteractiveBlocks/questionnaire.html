@@ -150,6 +150,14 @@
       prompt.textContent = question.text || '';
       body.appendChild(prompt);
 
+      if (question.imageUrl) {
+        var img = document.createElement('img');
+        img.className = 'lms-block-media lms-question__image';
+        img.src = question.imageUrl;
+        img.alt = '';
+        body.appendChild(img);
+      }
+
       var feedback = createFeedbackEl();
 
       if (type === 'text') {
@@ -183,7 +191,7 @@
             markAnswered(qIndex);
             saveBtn.disabled = true;
             textarea.readOnly = true;
-            setFeedback(feedback, true, 'Answer saved', 'Your response has been recorded.');
+            setFeedback(feedback, true, 'Answer saved', question.correctFeedback || question.incorrectFeedback || 'Your response has been recorded.');
           });
           actions.appendChild(saveBtn);
           body.appendChild(actions);
@@ -242,9 +250,9 @@
                 if (ok === null) {
                   setFeedback(feedback, true, 'Answer recorded', 'Your selection has been saved.');
                 } else if (ok) {
-                  setFeedback(feedback, true, 'Correct', 'Well done — that is the right answer.');
+                  setFeedback(feedback, true, 'Correct', question.correctFeedback || 'Well done — that is the right answer.');
                 } else {
-                  setFeedback(feedback, false, 'Not quite', 'Review the highlighted option and try to remember it for next time.');
+                  setFeedback(feedback, false, 'Not quite', question.incorrectFeedback || 'Review the highlighted option and try to remember it for next time.');
                 }
               } else {
                 optionButtons.forEach(function (other, idx) {
@@ -302,9 +310,9 @@
             if (ok === null) {
               setFeedback(feedback, true, 'Answer recorded', 'Your selection has been saved.');
             } else if (ok) {
-              setFeedback(feedback, true, 'Correct', 'Well done — you selected the right option(s).');
+              setFeedback(feedback, true, 'Correct', question.correctFeedback || 'Well done — you selected the right option(s).');
             } else {
-              setFeedback(feedback, false, 'Not quite', 'Review the highlighted option(s) and remember them for next time.');
+              setFeedback(feedback, false, 'Not quite', question.incorrectFeedback || 'Review the highlighted option(s) and remember them for next time.');
             }
           });
           multiActions.appendChild(checkBtn);

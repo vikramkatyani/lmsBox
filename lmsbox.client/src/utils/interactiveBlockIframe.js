@@ -80,6 +80,8 @@ export function buildInteractiveBlockSrcDoc(html) {
 html,body{margin:0;padding:0;background:transparent!important;height:auto!important;min-height:0!important;overflow:hidden;}
 ${themeCss}
 ${blocksCss}
+:root{--shadow:none;--shadow-xs:none;--shadow-sm:none;--shadow-md:none;--shadow-lg:none;--shadow-btn:none;}
+.lms-card,.lms-panel,.lms-hero,.lms-reveal,.lms-accordion__item,.lms-flip__face,.lms-timeline__trigger,.lms-reflection,.lms-question,.lms-process,.lms-hotspot,.lms-hotspot__panel,.lms-warning,.lms-compare__card,.lmsbox-text,.lmsbox-video,.lmsbox-carousel,.lmsbox-audio,.lmsbox-quiz__item,.lmsbox-interactive-block .lmsbox-accordion__item{box-shadow:none!important;}
 </style></head><body>${html}${runtimeScript}${resizeScript}</body></html>`;
 }
 

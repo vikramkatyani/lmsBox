@@ -102,26 +102,48 @@ export default function InteractiveLessonPlayer({
     loadLesson();
   }, [loadLesson]);
 
-  const handleBlockComplete = useCallback(async (data) => {
-    if (preview) return;
+  const applyLocalCompletion = useCallback((blockId) => {
+    setLesson((prev) => {
+      if (!prev) return prev;
+      const completed = prev.blocks.map((b) =>
+        b.id === blockId ? { ...b, isComplete: true } : b
+      );
 
+      if (!prev.lockNextBlockUntilComplete) {
+        return { ...prev, blocks: completed };
+      }
+
+      let firstIncompleteFound = false;
+      return {
+        ...prev,
+        blocks: completed.map((block) => {
+          if (!firstIncompleteFound) {
+            if (!block.isComplete) {
+              firstIncompleteFound = true;
+            }
+            return { ...block, isLocked: false };
+          }
+          return { ...block, isLocked: true };
+        }),
+      };
+    });
+  }, []);
+
+  const handleBlockComplete = useCallback(async (data) => {
     const blockId = Number(data.blockId);
     if (!blockId) return;
+
+    if (preview) {
+      applyLocalCompletion(blockId);
+      return;
+    }
 
     try {
       const result = await interactiveLessonsService.updateBlockProgress(courseId, lessonId, blockId, {
         isComplete: true,
       });
 
-      setLesson((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          blocks: prev.blocks.map((b) =>
-            b.id === blockId ? { ...b, isComplete: true } : b
-          ),
-        };
-      });
+      applyLocalCompletion(blockId);
 
       if (result.lessonProgressUpdated && onLessonComplete) {
         onLessonComplete();
@@ -131,7 +153,7 @@ export default function InteractiveLessonPlayer({
     } catch (err) {
       console.error('Failed to save block progress', err);
     }
-  }, [courseId, lessonId, preview, onLessonComplete, loadLesson]);
+  }, [applyLocalCompletion, courseId, lessonId, preview, onLessonComplete, loadLesson]);
 
   if (loading) {
     return <div className="p-6 text-gray-600">Loading interactive lesson...</div>;
@@ -147,8 +169,13 @@ export default function InteractiveLessonPlayer({
 
   return (
     <div className="mx-auto w-full max-w-[1080px] space-y-8">
+      {preview && lesson.lockNextBlockUntilComplete && (
+        <p className="text-sm text-[#1b365d] bg-[#f8fbff] border border-[#d9e5f2] rounded px-4 py-3">
+          Sequential lock is on. Complete each block to unlock the next one.
+        </p>
+      )}
       {lesson.blocks.map((block) => (
-        <section key={block.id} className="w-full">
+        <section key={`${block.id}-${block.isLocked ? 'locked' : 'open'}`} className="w-full">
           <BlockFrame block={block} onComplete={handleBlockComplete} />
         </section>
       ))}

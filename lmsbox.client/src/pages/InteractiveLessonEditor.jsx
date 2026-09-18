@@ -7,6 +7,7 @@ import CarouselBlockForm from '../components/CarouselBlockForm';
 import AccordionBlockForm from '../components/AccordionBlockForm';
 import TextBlockForm from '../components/TextBlockForm';
 import VideoBlockForm from '../components/VideoBlockForm';
+import AudioBlockForm from '../components/AudioBlockForm';
 import HeroBlockForm from '../components/HeroBlockForm';
 import CardsBlockForm from '../components/CardsBlockForm';
 import RevealBlockForm from '../components/RevealBlockForm';
@@ -22,6 +23,12 @@ import interactiveLessonsService from '../services/interactiveLessons';
 import usePageTitle from '../hooks/usePageTitle';
 import toast from 'react-hot-toast';
 import { INTERACTIVE_LESSON_MAX_BLOCKS } from '../config/lessonFeatureFlags';
+import {
+  collectPendingImages,
+  releaseAllPendingImages,
+  replacePendingImageUrls,
+  withoutPendingImageUrls,
+} from '../utils/pendingBlockImages';
 import {
   createEmptyQuestionnaireFormData,
   normalizeQuestionnaireFormData,
@@ -43,6 +50,7 @@ const TEMPLATE_BLOCK_TYPES = new Set([
   'questionnaire',
   'text',
   'video',
+  'audio',
 ]);
 
 function usesFixedTemplate(blockType) {
@@ -73,6 +81,12 @@ const EMPTY_VIDEO = {
   title: '',
   description: '',
   videoUrl: '',
+};
+
+const EMPTY_AUDIO = {
+  title: '',
+  description: '',
+  audioUrl: '',
 };
 
 const EMPTY_HERO = {
@@ -174,6 +188,9 @@ function getEmptyFormData(blockType) {
   if (blockType === 'video') {
     return { ...EMPTY_VIDEO };
   }
+  if (blockType === 'audio') {
+    return { ...EMPTY_AUDIO };
+  }
   return { ...EMPTY_QUESTIONNAIRE, questions: [...EMPTY_QUESTIONNAIRE.questions] };
 }
 
@@ -188,7 +205,9 @@ function normalizeProcessNodes(formData) {
   );
 
   const isComplete = steps.length > 0 && labels.length === steps.length && labels.every(Boolean);
-  return isComplete ? labels.map((label) => ({ label })) : [];
+  return isComplete
+    ? labels.map((label, index) => ({ label, icon: steps[index]?.icon || '' }))
+    : steps.map((step) => ({ label: '', icon: step?.icon || '' }));
 }
 
 function parseFormPayload(json, blockType = 'questionnaire') {
@@ -235,9 +254,9 @@ export default function InteractiveLessonEditor() {
   const [previewingBlock, setPreviewingBlock] = useState(null);
   const [previewHtmlOverride, setPreviewHtmlOverride] = useState(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-  const [pendingVideoFile, setPendingVideoFile] = useState(null);
+  const [pendingMediaFile, setPendingMediaFile] = useState(null);
   const [savingBlock, setSavingBlock] = useState(false);
-  const [videoUploadProgress, setVideoUploadProgress] = useState(0);
+  const [mediaUploadProgress, setMediaUploadProgress] = useState(0);
   const [generatingBlockId, setGeneratingBlockId] = useState(null);
 
   const returnUrl = courseId ? `/admin/courses/${courseId}/edit` : '/admin/courses';
@@ -310,8 +329,9 @@ export default function InteractiveLessonEditor() {
       return;
     }
     setEditingBlock(null);
-    setPendingVideoFile(null);
-    setVideoUploadProgress(0);
+    setPendingMediaFile(null);
+    setMediaUploadProgress(0);
+    releaseAllPendingImages();
     setBlockForm({
       title: '',
       blockType: 'questionnaire',
@@ -323,8 +343,9 @@ export default function InteractiveLessonEditor() {
 
   const openEditBlockForm = (block) => {
     setEditingBlock(block);
-    setPendingVideoFile(null);
-    setVideoUploadProgress(0);
+    setPendingMediaFile(null);
+    setMediaUploadProgress(0);
+    releaseAllPendingImages();
     setBlockForm({
       title: block.title,
       blockType: block.blockType,
@@ -334,7 +355,10 @@ export default function InteractiveLessonEditor() {
     setShowBlockForm(true);
   };
 
-  const handleSaveBlock = async () => {
+  const handleSaveBlock = async (event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    if (savingBlock) return;
     if (!lessonId) {
       toast.error('Save the lesson first');
       return;
@@ -345,10 +369,12 @@ export default function InteractiveLessonEditor() {
     }
 
     setSavingBlock(true);
-    setVideoUploadProgress(0);
+    setMediaUploadProgress(0);
     let createdBlock = null;
     try {
-      const shouldUploadVideo = blockForm.blockType === 'video' && !!pendingVideoFile;
+      const shouldUploadMedia =
+        (blockForm.blockType === 'video' || blockForm.blockType === 'audio') &&
+        !!pendingMediaFile;
       let formData = { ...blockForm.formData };
       if (blockForm.blockType === 'hero' && Array.isArray(formData.metaPills)) {
         formData = {
@@ -359,10 +385,15 @@ export default function InteractiveLessonEditor() {
       if (blockForm.blockType === 'process') {
         formData = { ...formData, nodes: normalizeProcessNodes(formData) };
       }
+      const pendingImages = collectPendingImages(formData);
+      const shouldUploadImages = pendingImages.length > 0;
+      const persistableFormData = shouldUploadImages
+        ? withoutPendingImageUrls(formData)
+        : formData;
       let mediaAssetsJson = blockForm.mediaAssetsJson;
 
-      // New block without a pending video: create once and done.
-      if (!editingBlock && !shouldUploadVideo) {
+      // New block without a pending media/image file: create once and done.
+      if (!editingBlock && !shouldUploadMedia && !shouldUploadImages) {
         const created = await interactiveLessonsService.createBlock(lessonId, {
           title: blockForm.title.trim(),
           blockType: blockForm.blockType,
@@ -373,8 +404,9 @@ export default function InteractiveLessonEditor() {
         toast.success('Block added');
         setShowBlockForm(false);
         setEditingBlock(null);
-        setPendingVideoFile(null);
-        setVideoUploadProgress(0);
+        setPendingMediaFile(null);
+        setMediaUploadProgress(0);
+        releaseAllPendingImages();
         const refreshed = await interactiveLessonsService.getLesson(lessonId);
         setBlocks(refreshed.blocks || []);
         return;
@@ -385,21 +417,45 @@ export default function InteractiveLessonEditor() {
         createdBlock = await interactiveLessonsService.createBlock(lessonId, {
           title: blockForm.title.trim(),
           blockType: blockForm.blockType,
-          formPayloadJson: JSON.stringify(formData),
+          formPayloadJson: JSON.stringify(persistableFormData),
           mediaAssetsJson,
         });
         targetBlockId = createdBlock.id;
       }
 
-      if (shouldUploadVideo) {
+      if (shouldUploadMedia) {
         const uploadResult = await interactiveLessonsService.uploadBlockMedia(
           lessonId,
           targetBlockId,
-          pendingVideoFile,
-          setVideoUploadProgress
+          pendingMediaFile,
+          setMediaUploadProgress
         );
-        formData = { ...formData, videoUrl: uploadResult.url };
+        formData =
+          blockForm.blockType === 'audio'
+            ? { ...formData, audioUrl: uploadResult.url }
+            : { ...formData, videoUrl: uploadResult.url };
         mediaAssetsJson = uploadResult.mediaAssetsJson || mediaAssetsJson || '[]';
+      }
+
+      if (shouldUploadImages) {
+        const urlMap = {};
+        for (let i = 0; i < pendingImages.length; i += 1) {
+          const { url, file } = pendingImages[i];
+          const uploadResult = await interactiveLessonsService.uploadBlockMedia(
+            lessonId,
+            targetBlockId,
+            file,
+            (pct) => {
+              const overall = Math.round(((i + pct / 100) / pendingImages.length) * 100);
+              setMediaUploadProgress(overall);
+            }
+          );
+          urlMap[url] = uploadResult.url;
+          mediaAssetsJson = uploadResult.mediaAssetsJson || mediaAssetsJson || '[]';
+        }
+        formData = replacePendingImageUrls(formData, urlMap);
+        setBlockForm((prev) => ({ ...prev, formData, mediaAssetsJson }));
+        releaseAllPendingImages();
       }
 
       const updated = await interactiveLessonsService.updateBlock(lessonId, targetBlockId, {
@@ -417,19 +473,28 @@ export default function InteractiveLessonEditor() {
       toast.success(
         editingBlock
           ? 'Block updated'
-          : shouldUploadVideo
-            ? 'Block added with video'
-            : 'Block added'
+          : shouldUploadMedia
+            ? `Block added with ${blockForm.blockType}`
+            : shouldUploadImages
+              ? 'Block added with images'
+              : 'Block added'
       );
       setShowBlockForm(false);
       setEditingBlock(null);
-      setPendingVideoFile(null);
-      setVideoUploadProgress(0);
+      setPendingMediaFile(null);
+      setMediaUploadProgress(0);
+      releaseAllPendingImages();
       const refreshed = await interactiveLessonsService.getLesson(lessonId);
       setBlocks(refreshed.blocks || []);
     } catch (err) {
       console.error(err);
-      toast.error(err.response?.data?.message || 'Failed to save block');
+      const status = err.response?.status;
+      const message =
+        err.response?.data?.message
+        || (status === 413 ? 'The video is too large. Maximum size is 500 MB.' : null)
+        || (err.code === 'ECONNABORTED' ? 'Upload timed out. Try a smaller file or a shorter clip.' : null)
+        || 'Failed to save block';
+      toast.error(message);
       // If create succeeded but upload/update failed, switch to edit mode so Save can retry.
       if (createdBlock) {
         setEditingBlock(createdBlock);
@@ -437,7 +502,7 @@ export default function InteractiveLessonEditor() {
           if (prev.some((b) => b.id === createdBlock.id)) return prev;
           return [...prev, createdBlock].sort((a, b) => a.ordinal - b.ordinal);
         });
-        setVideoUploadProgress(0);
+        setMediaUploadProgress(0);
       }
     } finally {
       setSavingBlock(false);
@@ -515,8 +580,9 @@ export default function InteractiveLessonEditor() {
     if (savingBlock) return;
     setShowBlockForm(false);
     setEditingBlock(null);
-    setPendingVideoFile(null);
-    setVideoUploadProgress(0);
+    setPendingMediaFile(null);
+    setMediaUploadProgress(0);
+    releaseAllPendingImages();
   };
 
   const closeHtmlEditor = () => {
@@ -551,7 +617,8 @@ export default function InteractiveLessonEditor() {
         (block.blockType === 'accordion' && formData.panels?.length) ||
         (block.blockType === 'questionnaire' && formData.questions?.length) ||
         (block.blockType === 'text' && (formData.bodyHtml?.trim() || formData.body?.trim())) ||
-        (block.blockType === 'video' && formData.videoUrl?.trim());
+        (block.blockType === 'video' && formData.videoUrl?.trim()) ||
+        (block.blockType === 'audio' && formData.audioUrl?.trim());
 
       if (!hasContent) {
         toast.error('Add content before previewing');
@@ -767,6 +834,7 @@ export default function InteractiveLessonEditor() {
           onClose={closeBlockForm}
           title={editingBlock ? 'Edit block form' : 'Add block'}
           size="lg"
+          onSubmit={handleSaveBlock}
           footer={(
             <>
               <button
@@ -778,14 +846,13 @@ export default function InteractiveLessonEditor() {
                 Cancel
               </button>
               <button
-                type="button"
-                onClick={handleSaveBlock}
+                type="submit"
                 disabled={savingBlock}
                 className="px-4 py-2 bg-[#1b365d] text-white rounded hover:bg-[#234a7a] disabled:opacity-50"
               >
                 {savingBlock
-                  ? (pendingVideoFile && videoUploadProgress > 0
-                    ? `Uploading… ${videoUploadProgress}%`
+                  ? (mediaUploadProgress > 0
+                    ? `Uploading… ${mediaUploadProgress}%`
                     : 'Saving…')
                   : 'Save block'}
               </button>
@@ -810,8 +877,8 @@ export default function InteractiveLessonEditor() {
                   onChange={(e) => {
                     const nextType = e.target.value;
                     if (nextType !== 'video') {
-                      setPendingVideoFile(null);
-                      setVideoUploadProgress(0);
+                      setPendingMediaFile(null);
+                      setMediaUploadProgress(0);
                     }
                     setBlockForm((p) => ({
                       ...p,
@@ -850,6 +917,8 @@ export default function InteractiveLessonEditor() {
               <RevealBlockForm
                 value={blockForm.formData}
                 onChange={(formData) => setBlockForm((p) => ({ ...p, formData }))}
+                lessonId={lessonId}
+                blockId={editingBlock?.id}
               />
             )}
 
@@ -901,6 +970,8 @@ export default function InteractiveLessonEditor() {
               <ProcessBlockForm
                 value={blockForm.formData}
                 onChange={(formData) => setBlockForm((p) => ({ ...p, formData }))}
+                lessonId={lessonId}
+                blockId={editingBlock?.id}
               />
             )}
 
@@ -928,6 +999,7 @@ export default function InteractiveLessonEditor() {
               <AccordionBlockForm
                 value={blockForm.formData}
                 onChange={(formData) => setBlockForm((p) => ({ ...p, formData }))}
+                lessonId={lessonId}
                 blockId={editingBlock?.id}
               />
             )}
@@ -945,10 +1017,23 @@ export default function InteractiveLessonEditor() {
                 onChange={(formData) => setBlockForm((p) => ({ ...p, formData }))}
                 lessonId={lessonId}
                 blockId={editingBlock?.id}
-                pendingFile={pendingVideoFile}
-                onPendingFileChange={setPendingVideoFile}
+                pendingFile={pendingMediaFile}
+                onPendingFileChange={setPendingMediaFile}
                 isBusy={savingBlock}
-                uploadProgress={videoUploadProgress}
+                uploadProgress={mediaUploadProgress}
+              />
+            )}
+
+            {blockForm.blockType === 'audio' && (
+              <AudioBlockForm
+                value={blockForm.formData}
+                onChange={(formData) => setBlockForm((p) => ({ ...p, formData }))}
+                lessonId={lessonId}
+                blockId={editingBlock?.id}
+                pendingFile={pendingMediaFile}
+                onPendingFileChange={setPendingMediaFile}
+                isBusy={savingBlock}
+                uploadProgress={mediaUploadProgress}
               />
             )}
           </div>

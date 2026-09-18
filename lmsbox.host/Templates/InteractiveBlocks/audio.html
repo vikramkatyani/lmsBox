@@ -1,0 +1,86 @@
+<div class="lmsbox-interactive-block" data-block-id="{{BLOCK_ID}}" data-block-type="audio" role="region" aria-label="Lesson audio">
+
+  <div class="lmsbox-audio">
+    <div class="lmsbox-audio__header">
+      <p class="lmsbox-audio__kicker">Audio</p>
+      <h2 class="lmsbox-audio__title">{{TITLE}}</h2>
+    </div>
+    <div class="lmsbox-audio__player-wrap">
+      <audio
+        class="lmsbox-audio__player"
+        data-audio-player
+        controls
+        preload="metadata"
+        controlsList="nodownload"
+        src="{{AUDIO_SRC}}"
+      >
+        Your browser does not support embedded audio.
+      </audio>
+    </div>
+    <div class="lmsbox-audio__footer">
+      <p class="lmsbox-audio__description">{{DESCRIPTION}}</p>
+      <p class="lmsbox-audio__status" data-audio-status aria-live="polite">Listen to the audio to continue.</p>
+      <button type="button" class="lmsbox-audio__continue" data-audio-continue>Mark audio complete</button>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    var root = document.querySelector('.lmsbox-interactive-block[data-block-type="audio"][data-block-id="{{BLOCK_ID}}"]');
+    if (!root || root.getAttribute('data-audio-ready') === '1') return;
+    root.setAttribute('data-audio-ready', '1');
+
+    var blockId = root.getAttribute('data-block-id');
+    var player = root.querySelector('[data-audio-player]');
+    var statusEl = root.querySelector('[data-audio-status]');
+    var continueBtn = root.querySelector('[data-audio-continue]');
+    var completed = false;
+
+    function notifyComplete() {
+      if (completed) return;
+      completed = true;
+      if (statusEl) statusEl.textContent = 'Audio complete';
+      if (continueBtn) continueBtn.classList.remove('is-visible');
+      var payload = { type: 'interactive-block-complete', blockId: Number(blockId) };
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, '*');
+      }
+      if (window.lmsboxInteractive && typeof window.lmsboxInteractive.notifyComplete === 'function') {
+        window.lmsboxInteractive.notifyComplete(Number(blockId));
+      }
+    }
+
+    function reportHeight() {
+      if (window.parent && window.parent !== window) {
+        var height = Math.ceil(root.getBoundingClientRect().height);
+        if (height > 0) {
+          window.parent.postMessage({ type: 'interactive-block-resize', height: height }, '*');
+        }
+      }
+    }
+
+    if (continueBtn) {
+      continueBtn.addEventListener('click', notifyComplete);
+    }
+
+    if (player) {
+      player.addEventListener('loadedmetadata', reportHeight);
+      player.addEventListener('error', function () {
+        if (statusEl) {
+          statusEl.textContent = 'Audio failed to load. Check the URL or try uploading again.';
+        }
+        if (continueBtn) continueBtn.classList.add('is-visible');
+        reportHeight();
+      });
+      player.addEventListener('ended', notifyComplete);
+      player.addEventListener('timeupdate', function () {
+        if (!player.duration || !isFinite(player.duration)) return;
+        if (player.currentTime >= player.duration - 0.4) {
+          notifyComplete();
+        }
+      });
+      reportHeight();
+    }
+  })();
+  </script>
+</div>

@@ -2,10 +2,14 @@ namespace lmsBox.Server.Services;
 
 public static class InteractiveLessonConstants
 {
+    /// <summary>
+    /// Active lesson block cap. Set to 20 (keep in sync with client INTERACTIVE_LESSON_MAX_BLOCKS) to raise the limit.
+    /// </summary>
     public const int MaxBlocksPerLesson = 5;
 
     /// <summary>
     /// Active limit per questionnaire block. Set to <see cref="MaxQuestionnaireQuestionsPerBlock"/> to allow multiple questions.
+    /// Keep in sync with the client lessonFeatureFlags value.
     /// </summary>
     public const int QuestionnaireQuestionsPerBlock = 1;
 
@@ -26,6 +30,10 @@ public static class InteractiveLessonConstants
     public const int MaxVideoTitleLength = 200;
     public const int MaxVideoDescriptionLength = 2000;
     public const int MaxVideoUrlLength = 2000;
+
+    public const int MaxAudioTitleLength = 200;
+    public const int MaxAudioDescriptionLength = 2000;
+    public const int MaxAudioUrlLength = 2000;
 
     public const int MaxHeroKickerLength = 120;
     public const int MaxHeroTitleLength = 200;
@@ -79,6 +87,9 @@ public static class InteractiveLessonConstants
     public const int MaxProcessStepBodyLength = 1000;
     public const int MaxProcessFinishMessageLength = 500;
     public const int MaxProcessButtonLabelLength = 60;
+    public const int MaxBlockImageUrlLength = 2000;
+    public const int MaxQuestionnaireFeedbackLength = 1000;
+    public const int MaxIconKeyLength = 80;
 
     public static int EffectiveMaxAiQuestionnaireQuestions =>
         Math.Min(MaxAiQuestionnaireQuestions, QuestionnaireQuestionsPerBlock);

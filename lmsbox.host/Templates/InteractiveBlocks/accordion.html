@@ -62,6 +62,17 @@
         if (!open) {
           expanded[index] = true;
           updateProgress();
+          if (body) {
+            var imgs = body.querySelectorAll('img');
+            imgs.forEach(function (img) {
+              if (img.complete) return;
+              img.addEventListener('load', function () {
+                if (item.classList.contains('is-open')) {
+                  body.style.maxHeight = body.scrollHeight + 'px';
+                }
+              });
+            });
+          }
         }
       });
     });

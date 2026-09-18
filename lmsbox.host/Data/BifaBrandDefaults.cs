@@ -17,6 +17,7 @@ public static class BifaBrandDefaults
 
     public static readonly (string Email, string FirstName, string LastName)[] TenantAdmins =
     {
+        ("admin@bifa.local", "Admin", "User"),
         ("vikram@intellimindsdigital.com", "Vikram", "Katyani"),
         ("vaibhav@intellimindsdigital.com", "Vaibhav", "Kattyani")
     };

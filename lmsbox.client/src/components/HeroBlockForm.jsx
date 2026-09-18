@@ -1,6 +1,5 @@
 import React from 'react';
-import interactiveLessonsService from '../services/interactiveLessons';
-import toast from 'react-hot-toast';
+import InteractiveBlockImageField from './InteractiveBlockImageField';
 
 const MAX_KICKER = 120;
 const MAX_TITLE = 200;
@@ -8,7 +7,7 @@ const MAX_INTRO = 500;
 const MAX_PILLS = 6;
 const MAX_PILL_LENGTH = 40;
 
-export default function HeroBlockForm({ value, onChange, lessonId, blockId }) {
+export default function HeroBlockForm({ value, onChange }) {
   const update = (patch) => onChange({ ...value, ...patch });
   const metaPills = Array.isArray(value.metaPills) ? value.metaPills : [];
 
@@ -25,26 +24,6 @@ export default function HeroBlockForm({ value, onChange, lessonId, blockId }) {
   const removePill = (index) => {
     update({ metaPills: metaPills.filter((_, i) => i !== index) });
   };
-
-  const handleImageUpload = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file || !lessonId || !blockId) {
-      if (!blockId) toast.error('Save the block first before uploading images');
-      return;
-    }
-
-    try {
-      const result = await interactiveLessonsService.uploadBlockMedia(lessonId, blockId, file);
-      update({ backgroundImageUrl: result.url });
-      toast.success('Background image uploaded');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Upload failed');
-    } finally {
-      event.target.value = '';
-    }
-  };
-
-  const clearImage = () => update({ backgroundImageUrl: '' });
 
   return (
     <div className="space-y-4 border-t pt-4">
@@ -122,47 +101,12 @@ export default function HeroBlockForm({ value, onChange, lessonId, blockId }) {
         ))}
       </div>
 
-      <div>
-        <label className="block text-sm font-medium mb-1">Background image (optional)</label>
-        <input
-          value={value.backgroundImageUrl || ''}
-          onChange={(e) => update({ backgroundImageUrl: e.target.value })}
-          className="w-full border rounded px-3 py-2 mb-2"
-          placeholder="Image URL"
-        />
-        <div className="flex flex-wrap items-center gap-3">
-          {blockId ? (
-            <label className="inline-flex items-center px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded cursor-pointer hover:bg-gray-200">
-              Upload image
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleImageUpload}
-              />
-            </label>
-          ) : (
-            <p className="text-xs text-gray-500">Save the block first to upload images.</p>
-          )}
-          {value.backgroundImageUrl && (
-            <button
-              type="button"
-              onClick={clearImage}
-              className="text-xs text-gray-500 hover:text-gray-800 underline"
-            >
-              Clear image
-            </button>
-          )}
-        </div>
-        {value.backgroundImageUrl && (
-          <p className="text-xs text-gray-500 mt-2 truncate" title={value.backgroundImageUrl}>
-            {value.backgroundImageUrl}
-          </p>
-        )}
-        <p className="text-xs text-gray-500 mt-1">
-          Without an image, the hero uses the solid primary style with decorative orbs.
-        </p>
-      </div>
+      <InteractiveBlockImageField
+        label="Background image (optional)"
+        url={value.backgroundImageUrl || ''}
+        onChange={(backgroundImageUrl) => update({ backgroundImageUrl })}
+        helperText="Without an image, the hero uses the solid primary style with decorative orbs. Chosen files upload when you save the block."
+      />
     </div>
   );
 }

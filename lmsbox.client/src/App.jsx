@@ -67,6 +67,7 @@ import SuperAdminTenantTheme from './pages/SuperAdminTenantTheme';
 import TenantAdminOrganisations from './pages/TenantAdminOrganisations';
 import TenantAdminBranding from './pages/TenantAdminBranding';
 import OrganisationSettings from './pages/OrganisationSettings';
+import AdminImportEngine from './pages/AdminImportEngine';
 import { CohortsList, CohortSubmission } from './pages/Qualifications';
 
 function App() {
@@ -241,6 +242,14 @@ function App() {
             element={
               <AdminRoute>
                 <AdminCourses />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/import-engine"
+            element={
+              <AdminRoute>
+                <AdminImportEngine />
               </AdminRoute>
             }
           />

@@ -1,5 +1,7 @@
 import React from 'react';
 import toast from 'react-hot-toast';
+import InteractiveBlockImageField from './InteractiveBlockImageField';
+import InteractiveBlockIconPicker from './InteractiveBlockIconPicker';
 
 const MAX_ITEMS = 8;
 const MAX_LABEL = 60;
@@ -7,7 +9,7 @@ const MAX_TITLE = 200;
 const MAX_BODY = 2000;
 const MAX_HINT = 160;
 
-const EMPTY_ITEM = { title: '', body: '', variant: 'default', label: '' };
+const EMPTY_ITEM = { title: '', body: '', variant: 'default', label: '', imageUrl: '', icon: '' };
 
 const VARIANTS = [
   { value: 'default', label: 'Default' },
@@ -136,6 +138,19 @@ export default function RevealBlockForm({ value, onChange }) {
                 maxLength={MAX_LABEL}
               />
             </div>
+
+            <InteractiveBlockIconPicker
+              label="Panel icon"
+              value={item.icon || ''}
+              onChange={(icon) => updateItem(index, { icon })}
+            />
+
+            <InteractiveBlockImageField
+              label="Panel image (optional)"
+              url={item.imageUrl || ''}
+              onChange={(imageUrl) => updateItem(index, { imageUrl })}
+              altPreview={item.title}
+            />
           </div>
         ))}
 

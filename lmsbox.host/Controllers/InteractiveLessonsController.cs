@@ -99,7 +99,7 @@ public class InteractiveLessonsController : ControllerBase
             });
         }
 
-        if (settings.LockNextBlockUntilComplete && !isAdminPreview)
+        if (settings.LockNextBlockUntilComplete)
         {
             var firstIncompleteFound = false;
             foreach (var block in blockDtos)

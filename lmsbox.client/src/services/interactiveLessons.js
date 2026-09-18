@@ -109,6 +109,9 @@ const interactiveLessonsService = {
       formData,
       {
         headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 10 * 60 * 1000,
+        maxContentLength: 524_288_000,
+        maxBodyLength: 524_288_000,
         onUploadProgress: (event) => {
           if (onUploadProgress && event.total) {
             onUploadProgress(Math.round((event.loaded * 100) / event.total));

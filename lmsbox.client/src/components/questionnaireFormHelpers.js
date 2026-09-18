@@ -9,25 +9,38 @@ export const EMPTY_QUESTION = {
     { text: '', isCorrect: true },
     { text: '', isCorrect: false },
   ],
+  correctFeedback: '',
+  incorrectFeedback: '',
+  imageUrl: '',
 };
 
+function cloneQuestion(question = EMPTY_QUESTION) {
+  return {
+    ...EMPTY_QUESTION,
+    ...question,
+    options: Array.isArray(question.options)
+      ? question.options.map((o) => ({ text: o.text || '', isCorrect: !!o.isCorrect }))
+      : EMPTY_QUESTION.options.map((o) => ({ ...o })),
+    correctFeedback: question.correctFeedback || '',
+    incorrectFeedback: question.incorrectFeedback || '',
+    imageUrl: question.imageUrl || '',
+  };
+}
+
 export function createEmptyQuestionnaireFormData() {
-  const questions = [];
-  const slots = Math.max(1, QUESTIONNAIRE_QUESTIONS_PER_BLOCK);
-  for (let i = 0; i < slots; i++) {
-    questions.push({ ...EMPTY_QUESTION, options: EMPTY_QUESTION.options.map((o) => ({ ...o })) });
-  }
   return {
     contentDescription: '',
     showFeedbackPerQuestion: true,
-    questions,
+    questions: [cloneQuestion()],
   };
 }
 
 export function normalizeQuestionnaireFormData(formData) {
-  const questions = Array.isArray(formData?.questions) ? [...formData.questions] : [];
+  const questions = Array.isArray(formData?.questions)
+    ? formData.questions.map((q) => cloneQuestion(q))
+    : [];
   if (questions.length === 0 && QUESTIONNAIRE_QUESTIONS_PER_BLOCK >= 1) {
-    questions.push({ ...EMPTY_QUESTION, options: EMPTY_QUESTION.options.map((o) => ({ ...o })) });
+    questions.push(cloneQuestion());
   }
   if (questions.length > QUESTIONNAIRE_QUESTIONS_PER_BLOCK) {
     return {

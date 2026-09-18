@@ -44,6 +44,11 @@ public class InteractiveBlockDisplayService : IInteractiveBlockDisplayService
                     payload);
                 return html;
             }
+            catch (ArgumentException)
+            {
+                // Draft payloads (for example a video block saved before the file has a URL)
+                // are expected not to render yet.
+            }
             catch (Exception ex)
             {
                 _logger.LogWarning(
@@ -94,6 +99,10 @@ public class InteractiveBlockDisplayService : IInteractiveBlockDisplayService
         {
             await SignJsonStringPropertyAsync(root, "videoUrl");
         }
+        else if (type == "audio")
+        {
+            await SignJsonStringPropertyAsync(root, "audioUrl");
+        }
         else if (type == "hero")
         {
             await SignJsonStringPropertyAsync(root, "backgroundImageUrl");
@@ -109,6 +118,46 @@ public class InteractiveBlockDisplayService : IInteractiveBlockDisplayService
                 if (node is JsonObject slide)
                 {
                     await SignJsonStringPropertyAsync(slide, "imageUrl");
+                }
+            }
+        }
+        else if (type == "questionnaire" && root["questions"] is JsonArray questions)
+        {
+            foreach (var node in questions)
+            {
+                if (node is JsonObject question)
+                {
+                    await SignJsonStringPropertyAsync(question, "imageUrl");
+                }
+            }
+        }
+        else if (type == "process" && root["steps"] is JsonArray steps)
+        {
+            foreach (var node in steps)
+            {
+                if (node is JsonObject step)
+                {
+                    await SignJsonStringPropertyAsync(step, "imageUrl");
+                }
+            }
+        }
+        else if (type == "reveal" && root["items"] is JsonArray items)
+        {
+            foreach (var node in items)
+            {
+                if (node is JsonObject item)
+                {
+                    await SignJsonStringPropertyAsync(item, "imageUrl");
+                }
+            }
+        }
+        else if (type == "accordion" && root["panels"] is JsonArray panels)
+        {
+            foreach (var node in panels)
+            {
+                if (node is JsonObject panel)
+                {
+                    await SignJsonStringPropertyAsync(panel, "imageUrl");
                 }
             }
         }

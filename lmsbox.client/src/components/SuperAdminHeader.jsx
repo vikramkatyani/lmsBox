@@ -68,15 +68,15 @@ export default function SuperAdminHeader() {
   return (
     <>
       <header className="flex shadow-md py-3 px-4 sm:px-10 min-h-[70px] tracking-wide relative z-50" style={{ backgroundColor: '#1b365d' }}>
-        <div className="flex flex-wrap items-center justify-between lg:gap-y-4 gap-y-6 gap-x-4 w-full">
-          <Link to="/superadmin/dashboard" className="flex items-center space-x-3">
+        <div className="flex items-center gap-4 w-full min-w-0">
+          <Link to="/superadmin/dashboard" className="flex items-center space-x-3 shrink-0">
             <img src={lmsboxLogo} alt="LMS Box" className="h-10 w-auto" />
             <span className="text-xl font-bold text-white" style={{ fontFamily: 'Albert Sans, sans-serif', fontWeight: 800, letterSpacing: '-0.04em' }}>Super Admin Portal</span>
           </Link>
 
           <div 
             ref={menuRef}
-            className={`${isMobileMenuOpen ? 'block' : 'hidden'} lg:block fixed lg:relative inset-0 lg:inset-auto z-50`}>
+            className={`${isMobileMenuOpen ? 'block' : 'hidden'} lg:flex lg:flex-1 lg:min-w-0 lg:justify-end lg:relative fixed inset-0 lg:inset-auto z-50`}>
             <div className={`${isMobileMenuOpen ? 'block' : 'hidden'} lg:hidden fixed inset-0 bg-gray-900 bg-opacity-40`} onClick={() => setIsMobileMenuOpen(false)} />
             <button
               onClick={() => setIsMobileMenuOpen(false)}
@@ -87,7 +87,7 @@ export default function SuperAdminHeader() {
               </svg>
             </button>
 
-            <ul className="lg:flex lg:gap-x-10 max-lg:space-y-3 fixed lg:relative bg-white lg:bg-transparent w-2/3 lg:w-auto min-w-[300px] lg:min-w-0 top-0 left-0 h-full lg:h-auto p-4 lg:p-0 shadow-md lg:shadow-none overflow-auto lg:overflow-visible z-50">
+            <ul className="lg:flex lg:items-center lg:gap-x-4 xl:gap-x-6 2xl:gap-x-8 max-lg:space-y-3 fixed lg:relative bg-white lg:bg-transparent w-2/3 lg:w-auto min-w-[300px] lg:min-w-0 top-0 left-0 h-full lg:h-auto p-4 lg:p-0 shadow-md lg:shadow-none overflow-auto lg:overflow-visible z-50">
               <li className="mb-6 hidden max-lg:block">
                 <NavLink to="/superadmin/dashboard" className="flex items-center space-x-2">
                   <img src={lmsboxLogo} alt="LMS Box" className="h-8 w-auto" />
@@ -127,7 +127,7 @@ export default function SuperAdminHeader() {
             </ul>
           </div>
 
-          <div className="flex items-center max-sm:ml-auto space-x-6">
+          <div className="flex items-center gap-3 sm:gap-5 shrink-0 ml-auto">
             <div className="relative flex items-center space-x-3">
               <div className="hidden sm:block text-right">
                 <div className="text-sm font-medium text-white">{userName}</div>

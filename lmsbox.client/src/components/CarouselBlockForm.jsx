@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import interactiveLessonsService from '../services/interactiveLessons';
 import InteractiveBlockPreview from './InteractiveBlockPreview';
+import InteractiveBlockImageField from './InteractiveBlockImageField';
+import { withoutPendingImageUrls } from '../utils/pendingBlockImages';
 import toast from 'react-hot-toast';
 
 const MAX_SLIDES = 10;
@@ -17,7 +19,6 @@ function slidesReadyForPreview(slides) {
 export default function CarouselBlockForm({
   value,
   onChange,
-  lessonId,
   blockId,
 }) {
   const [aiSlideCount, setAiSlideCount] = useState(4);
@@ -33,7 +34,7 @@ export default function CarouselBlockForm({
     if (!slidesReadyForPreview(slides)) return '';
     return JSON.stringify({
       contentDescription: value.contentDescription || 'Carousel preview',
-      slides: slides.map((slide) => ({
+      slides: withoutPendingImageUrls(slides).map((slide) => ({
         title: slide.title || '',
         body: slide.body || '',
         imageUrl: slide.imageUrl || '',
@@ -152,24 +153,6 @@ export default function CarouselBlockForm({
     }
   };
 
-  const handleImageUpload = async (index, event) => {
-    const file = event.target.files?.[0];
-    if (!file || !lessonId || !blockId) {
-      if (!blockId) toast.error('Save the block first before uploading images');
-      return;
-    }
-
-    try {
-      const result = await interactiveLessonsService.uploadBlockMedia(lessonId, blockId, file);
-      updateSlide(index, { imageUrl: result.url });
-      toast.success('Image uploaded');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Upload failed');
-    } finally {
-      event.target.value = '';
-    }
-  };
-
   return (
     <div className="space-y-4 border-t pt-4">
       <div>
@@ -245,33 +228,12 @@ export default function CarouselBlockForm({
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Image (optional)</label>
-              <input
-                value={slide.imageUrl || ''}
-                onChange={(e) => updateSlide(index, { imageUrl: e.target.value })}
-                className="w-full border rounded px-3 py-2 mb-2"
-                placeholder="Image URL"
-              />
-              {blockId ? (
-                <label className="inline-flex items-center px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded cursor-pointer hover:bg-gray-200">
-                  Upload image
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => handleImageUpload(index, e)}
-                  />
-                </label>
-              ) : (
-                <p className="text-xs text-gray-500">Save the block first to upload images.</p>
-              )}
-              {slide.imageUrl && (
-                <p className="text-xs text-gray-500 mt-2 truncate" title={slide.imageUrl}>
-                  {slide.imageUrl}
-                </p>
-              )}
-            </div>
+            <InteractiveBlockImageField
+              label="Image (optional)"
+              url={slide.imageUrl || ''}
+              onChange={(imageUrl) => updateSlide(index, { imageUrl })}
+              altPreview={slide.title}
+            />
           </div>
         ))}
 

@@ -1,5 +1,7 @@
 import React from 'react';
 import toast from 'react-hot-toast';
+import InteractiveBlockImageField from './InteractiveBlockImageField';
+import InteractiveBlockIconPicker from './InteractiveBlockIconPicker';
 
 const MAX_STEPS = 8;
 const MAX_STEP_TITLE = 200;
@@ -8,7 +10,7 @@ const MAX_NODE_LABEL = 60;
 const MAX_BUTTON_LABEL = 60;
 const MAX_FINISH_MESSAGE = 500;
 
-const EMPTY_STEP = { title: '', body: '' };
+const EMPTY_STEP = { title: '', body: '', imageUrl: '', icon: '' };
 
 /** Stage labels are stored as objects, but older payloads may hold plain strings. */
 function readNodeLabel(node) {
@@ -25,7 +27,13 @@ export default function ProcessBlockForm({ value, onChange }) {
   const update = (patch) => onChange({ ...value, ...patch });
 
   const commit = (nextSteps, nextLabels) => {
-    update({ steps: nextSteps, nodes: nextLabels.map((label) => ({ label })) });
+    update({
+      steps: nextSteps,
+      nodes: nextLabels.map((label, index) => ({
+        label,
+        icon: nextSteps[index]?.icon || '',
+      })),
+    });
   };
 
   const updateStep = (index, patch) => {
@@ -140,6 +148,19 @@ export default function ProcessBlockForm({ value, onChange }) {
                 maxLength={MAX_NODE_LABEL}
               />
             </div>
+
+            <InteractiveBlockIconPicker
+              label="Step icon"
+              value={step.icon || ''}
+              onChange={(icon) => updateStep(index, { icon })}
+            />
+
+            <InteractiveBlockImageField
+              label="Step image (optional)"
+              url={step.imageUrl || ''}
+              onChange={(imageUrl) => updateStep(index, { imageUrl })}
+              altPreview={step.title}
+            />
           </div>
         ))}
 

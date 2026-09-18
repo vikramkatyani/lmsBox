@@ -671,6 +671,8 @@ public class AdminInteractiveLessonsController : ControllerBase
     }
 
     [HttpPost("interactive-lessons/{lessonId:long}/blocks/{blockId:long}/media")]
+    [RequestSizeLimit(524_288_000)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 524_288_000)]
     public async Task<ActionResult<InteractiveBlockMediaUploadResponse>> UploadBlockMedia(
         long lessonId,
         long blockId,
@@ -715,25 +717,45 @@ public class AdminInteractiveLessonsController : ControllerBase
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
         var imageExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg" };
         var videoExtensions = new[] { ".mp4", ".webm", ".mov", ".avi", ".mkv", ".wmv" };
+        var audioExtensions = new[] { ".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac" };
         var isVideoBlock = string.Equals(block.BlockType, "video", StringComparison.OrdinalIgnoreCase);
-        var allowed = isVideoBlock ? videoExtensions : imageExtensions;
-        if (!allowed.Contains(extension))
+        var isAudioBlock = string.Equals(block.BlockType, "audio", StringComparison.OrdinalIgnoreCase);
+        var allowed = isVideoBlock
+            ? videoExtensions
+            : isAudioBlock
+                ? audioExtensions
+                : imageExtensions;
+        var contentType = file.ContentType?.ToLowerInvariant() ?? "";
+        var allowedByContentType = isVideoBlock
+            ? contentType.StartsWith("video/", StringComparison.Ordinal)
+            : isAudioBlock
+                ? contentType.StartsWith("audio/", StringComparison.Ordinal)
+                : contentType.StartsWith("image/", StringComparison.Ordinal);
+        if (!allowed.Contains(extension) && !allowedByContentType)
         {
             return BadRequest(new
             {
                 message = isVideoBlock
                     ? "Only video files are allowed (MP4, WebM, MOV, AVI, MKV, WMV)."
-                    : "Only image files are allowed."
+                    : isAudioBlock
+                        ? "Only audio files are allowed (MP3, WAV, OGG, M4A, AAC, FLAC)."
+                        : "Only image files are allowed."
             });
         }
 
         var blobPath = $"interactive-lessons/{lessonId}/blocks/{blockId}";
+        var uploadExtension = string.IsNullOrWhiteSpace(extension)
+            ? (isVideoBlock ? ".mp4" : isAudioBlock ? ".mp3" : ".png")
+            : extension;
+        var uploadContentType = string.IsNullOrWhiteSpace(file.ContentType)
+            ? (isVideoBlock ? "video/mp4" : isAudioBlock ? "audio/mpeg" : "image/png")
+            : file.ContentType;
         await using var stream = file.OpenReadStream();
         var url = await _blobService.UploadToCustomPathAsync(
             stream,
-            $"{Guid.NewGuid():N}{extension}",
+            $"{Guid.NewGuid():N}{uploadExtension}",
             blobPath,
-            file.ContentType,
+            uploadContentType,
             organisationId: user.OrganisationID.Value);
 
         var assets = ParseMediaAssets(block.MediaAssetsJson);

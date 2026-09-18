@@ -43,7 +43,13 @@ export default function VideoBlockForm({
       toast.success('Video uploaded — save the block to keep it');
     } catch (err) {
       console.error(err);
-      toast.error(err.response?.data?.message || 'Failed to upload video');
+      const status = err.response?.status;
+      const message =
+        err.response?.data?.message
+        || (status === 413 ? 'Video is too large. Maximum size is 500 MB.' : null)
+        || (err.code === 'ECONNABORTED' ? 'Upload timed out. Try a smaller file or a shorter clip.' : null)
+        || 'Failed to upload video';
+      toast.error(message);
     } finally {
       setIsUploading(false);
       event.target.value = '';

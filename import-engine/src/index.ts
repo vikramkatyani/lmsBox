@@ -1,8 +1,8 @@
 /**
  * @lmsbox/import-engine
  *
- * Sprint 1 — Evolve Package Inspector
- * Parse and understand published Evolve packages. No HTML. No AI. No LMS import.
+ * Sprint 1 — Evolve Package Inspector (parse & understand)
+ * Sprint 2 — Evolve → Draft LMSBox course (map + import; no AI / publish)
  */
 
 export * from './models';
@@ -14,6 +14,13 @@ export {
   KNOWN_EVOLVE_COMPONENT_TYPE_SET,
   MEDIA_TYPE_BY_EXTENSION,
 } from './config/knownComponentTypes';
+export {
+  EVOLVE_ASSESSMENT_COMPONENT_TYPES,
+  EVOLVE_ASSESSMENT_COMPONENT_TYPE_SET,
+  isEvolveAssessmentComponentType,
+  isEvolveAssessmentNode,
+  evolveAssessmentSkipMessage,
+} from './config/assessmentSkip';
 
 export { PublisherDetector } from './detectors/PublisherDetector';
 export { EvolveParser } from './parsers/EvolveParser';
@@ -30,3 +37,19 @@ export {
 } from './services/ImportEngineOrchestrator';
 
 export { ValidationEngine } from './validators/ValidationEngine';
+
+export {
+  EvolveToLmsboxMapper,
+  MAX_BLOCKS_PER_LESSON,
+  EVOLVE_TO_LMSBOX_BLOCK_TYPE,
+  type MapEvolveOptions,
+} from './mappers/EvolveToLmsboxMapper';
+export type {
+  ImportDraftPlan,
+  MappedLesson,
+  MappedBlock,
+  MappingReportItem,
+  MappingStatus,
+  MappingSkipReason,
+  PendingMediaAttachment,
+} from './mappers/ImportDraftPlan';

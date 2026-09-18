@@ -44,6 +44,7 @@ function staticThemeForKey(key) {
     secondaryColor: preset.secondaryColor,
     accentColor: preset.accentColor,
     accentStrongColor: preset.accentStrongColor,
+    pageBackgroundColor: preset.pageBackgroundColor || DEFAULT_THEME.pageBackgroundColor,
     fontFamily: preset.fontFamily,
     faviconUrl: preset.logo || DEFAULT_THEME.faviconUrl,
     isDefault: key === 'default',
@@ -102,6 +103,7 @@ function applyTenantToDocument(theme) {
   root.setAttribute('data-tenant', theme.key || 'default');
   root.style.setProperty('--tenant-primary', theme.primaryColor || DEFAULT_THEME.primaryColor);
   root.style.setProperty('--color-login-page-bg', theme.pageBackgroundColor || DEFAULT_THEME.pageBackgroundColor);
+  root.style.setProperty('--color-page-bg', theme.pageBackgroundColor || DEFAULT_THEME.pageBackgroundColor);
   root.style.setProperty('--color-login-box-bg', theme.primaryColor || DEFAULT_THEME.primaryColor);
   root.style.setProperty('--color-login-btn-bg', theme.buttonColor || DEFAULT_THEME.buttonColor);
   root.style.setProperty('--color-login-btn-text', theme.buttonTextColor || DEFAULT_THEME.buttonTextColor);

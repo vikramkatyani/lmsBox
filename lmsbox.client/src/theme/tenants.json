@@ -17,6 +17,7 @@
     "accentStrongColor": "#e74011",
     "logo": "/assets/bifa-logo.svg",
     "fontFamily": "Poppins, Arial, Helvetica, sans-serif",
+    "pageBackgroundColor": "#f7f8fa",
     "css": "bifa"
   },
   "acme": {

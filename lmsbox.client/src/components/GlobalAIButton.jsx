@@ -15,13 +15,13 @@ const GlobalAIButton = () => {
     return null;
   }
 
-  // Only show on admin pages, not on course editor page (which already has AI assistant)
+  // Only show on admin pages; hide on course editor (has its own AI) and import engine (Sprint 1: no AI)
   const isAdminPage = location.pathname.startsWith('/admin');
   const isCourseEditorPage = location.pathname.includes('/admin/courses/') && 
                              (location.pathname.includes('/edit') || location.pathname === '/admin/courses/new');
+  const isImportEnginePage = location.pathname.startsWith('/admin/import-engine');
 
-  // Don't show on course editor page since it has its own AI assistant
-  if (!isAdminPage || isCourseEditorPage) {
+  if (!isAdminPage || isCourseEditorPage || isImportEnginePage) {
     return null;
   }
 
@@ -32,6 +32,7 @@ const GlobalAIButton = () => {
 
   return (
     <button
+      type="button"
       onClick={handleClick}
       className="fixed bottom-6 right-6 z-50 bg-boxlms-navbar text-boxlms-navbar-active p-4 rounded-full shadow-lg hover:shadow-xl hover:brightness-110 transition-all duration-200 flex items-center gap-2 group"
       title="Create Course with AI"

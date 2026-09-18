@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { useEffect, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { getUserRole, setAuthToken } from '../utils/auth';
+import { isAdmin, setAuthToken } from '../utils/auth';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../theme/ThemeContext';
 import lmsLogo from '../assets/lmsbox-logo.png'; 
@@ -32,11 +32,8 @@ export default function Login() {
   usePageTitle(tenantName ? `${tenantName} Login` : 'Login');
 
   // Compute redirect target (rendered in JSX to avoid conditional hooks)
-  const role = getUserRole();
   const redirectTarget = isAuthenticated
-    ? (role && (role === 'admin' || role === 'Admin' || role === 'OrgAdmin' || role === 'SuperAdmin')
-        ? '/admin/dashboard'
-        : '/courses/all')
+    ? (isAdmin() ? '/admin/dashboard' : '/courses/all')
     : null;
 
   useEffect(() => {
@@ -56,8 +53,7 @@ export default function Login() {
 
       window.history.replaceState({}, document.title, loginPath);
       setTimeout(() => {
-        const userRole = getUserRole();
-        if (userRole && (userRole === 'admin' || userRole === 'Admin' || userRole === 'OrgAdmin' || userRole === 'SuperAdmin')) {
+        if (isAdmin()) {
           navigate('/admin/dashboard');
           return;
         }
@@ -171,8 +167,9 @@ export default function Login() {
 
         // Redirect after a short delay
         setTimeout(() => {
-          const role = response.data.user?.roles?.[0];
-          if (role && (role === 'admin' || role === 'Admin' || role === 'OrgAdmin' || role === 'SuperAdmin')) {
+          const roles = response.data.user?.roles || [];
+          const adminRoles = ['admin', 'Admin', 'OrgAdmin', 'TenantAdmin', 'SuperAdmin'];
+          if (isAdmin() || roles.some((r) => adminRoles.includes(r))) {
             window.location.href = '/admin/dashboard';
           } else {
             window.location.href = '/courses/all';
@@ -367,18 +364,11 @@ export default function Login() {
                   Login as Learner (19vaibhav90@gmail.com)
                 </button>
                 <button
-                  onClick={() => devLogin('admin@dev.local')}
+                  onClick={() => devLogin(tenantCode === 'bifa' ? 'admin@bifa.local' : 'admin@dev.local')}
                   disabled={status === 'loading'}
                   className="w-full cursor-pointer py-2 px-4 bg-[#2afeae] text-[#1b365d] text-sm rounded hover:bg-[#25e89e] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Login as Admin (admin@dev.local)
-                </button>
-                <button
-                  onClick={() => devLogin('admin@bifa.local')}
-                  disabled={status === 'loading'}
-                  className="w-full cursor-pointer py-2 px-4 bg-[#2afeae] text-[#1b365d] text-sm rounded hover:bg-[#25e89e] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Login as BIFA Admin (admin@bifa.local)
+                  Login as Admin ({tenantCode === 'bifa' ? 'admin@bifa.local' : 'admin@dev.local'})
                 </button>
               </div>
             </div>

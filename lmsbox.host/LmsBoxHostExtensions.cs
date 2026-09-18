@@ -162,12 +162,12 @@ public static class LmsBoxHostExtensions
 
         builder.Services.Configure<Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerOptions>(options =>
         {
-            options.Limits.MaxRequestBodySize = 100 * 1024 * 1024;
+            options.Limits.MaxRequestBodySize = 500 * 1024 * 1024;
         });
 
         builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
         {
-            options.MultipartBodyLengthLimit = 100 * 1024 * 1024;
+            options.MultipartBodyLengthLimit = 500 * 1024 * 1024;
         });
 
         builder.Services.AddResponseCompression(options =>

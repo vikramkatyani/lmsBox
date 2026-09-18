@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
-import { setAuthToken, getLastVisitedPage, getUserRole } from '../utils/auth';
+import { setAuthToken, getLastVisitedPage, isAdmin } from '../utils/auth';
 import api from '../utils/api';
 import lmsLogo from '../assets/lmsbox-logo.png';
 import usePageTitle from '../hooks/usePageTitle';
@@ -87,17 +87,10 @@ export default function VerifyLogin() {
               }
             } catch (_e) { /* ignore */ }
 
-            // Get user role from token
-            const userRole = getUserRole();
-            console.log('👤 User role:', userRole);
-            
-            // Redirect based on user role
-            let redirectPath;
-            if (userRole === 'admin' || userRole === 'OrgAdmin') {
-              redirectPath = '/admin/dashboard';
-            } else {
-              redirectPath = getLastVisitedPage() || '/courses/all';
-            }
+            // Redirect based on user role (TenantAdmin / OrgAdmin / SuperAdmin)
+            const redirectPath = isAdmin()
+              ? '/admin/dashboard'
+              : (getLastVisitedPage() || '/courses/all');
             
             console.log('🔀 Redirecting to:', redirectPath);
             

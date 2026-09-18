@@ -1,13 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import interactiveLessonsService from '../services/interactiveLessons';
 import InteractiveBlockPreview from './InteractiveBlockPreview';
+import InteractiveBlockImageField from './InteractiveBlockImageField';
+import InteractiveBlockIconPicker from './InteractiveBlockIconPicker';
+import { withoutPendingImageUrls } from '../utils/pendingBlockImages';
 import toast from 'react-hot-toast';
 
 const MAX_PANELS = 10;
 const MAX_AI_PANELS = 10;
 const PREVIEW_DEBOUNCE_MS = 450;
 
-const EMPTY_PANEL = { title: '', body: '' };
+const EMPTY_PANEL = { title: '', body: '', imageUrl: '', icon: '' };
 
 function panelsReadyForPreview(panels) {
   if (!Array.isArray(panels) || panels.length === 0) return false;
@@ -28,9 +31,11 @@ export default function AccordionBlockForm({ value, onChange, blockId }) {
     if (!panelsReadyForPreview(panels)) return '';
     return JSON.stringify({
       contentDescription: value.contentDescription || 'Accordion preview',
-      panels: panels.map((panel) => ({
+      panels: withoutPendingImageUrls(panels).map((panel) => ({
         title: panel.title || '',
         body: panel.body || '',
+        imageUrl: panel.imageUrl || '',
+        icon: panel.icon || '',
       })),
     });
   }, [panels, value.contentDescription]);
@@ -127,6 +132,8 @@ export default function AccordionBlockForm({ value, onChange, blockId }) {
       const generated = (result.panels || []).map((panel) => ({
         title: panel.title || '',
         body: panel.body || '',
+        imageUrl: '',
+        icon: '',
       }));
 
       if (!generated.length) {
@@ -220,6 +227,19 @@ export default function AccordionBlockForm({ value, onChange, blockId }) {
                 placeholder="Content revealed when the panel is expanded"
               />
             </div>
+
+            <InteractiveBlockIconPicker
+              label="Panel icon"
+              value={panel.icon || ''}
+              onChange={(icon) => updatePanel(index, { icon })}
+            />
+
+            <InteractiveBlockImageField
+              label="Panel image (optional)"
+              url={panel.imageUrl || ''}
+              onChange={(imageUrl) => updatePanel(index, { imageUrl })}
+              altPreview={panel.title}
+            />
           </div>
         ))}
 

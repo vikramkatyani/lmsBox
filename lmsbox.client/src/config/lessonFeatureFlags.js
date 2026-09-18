@@ -1,9 +1,10 @@
 /** Re-enable Practical in the add-lesson menu when needed. */
 export const SHOW_PRACTICAL_IN_ADD_MENU = false;
 
+/** Active lesson block cap. Set to 20 (keep in sync with InteractiveLessonConstants.MaxBlocksPerLesson) to raise the limit. */
 export const INTERACTIVE_LESSON_MAX_BLOCKS = 5;
 
-/** Active limit per questionnaire block. Set to QUESTIONNAIRE_MAX_QUESTIONS_PER_BLOCK to allow multiple. */
+/** Active limit per questionnaire block. Set to QUESTIONNAIRE_MAX_QUESTIONS_PER_BLOCK to allow multiple. Keep in sync with InteractiveLessonConstants.QuestionnaireQuestionsPerBlock. */
 export const QUESTIONNAIRE_QUESTIONS_PER_BLOCK = 1;
 
 /** Ceiling per block when multi-question questionnaires are enabled (keep in sync with backend). */

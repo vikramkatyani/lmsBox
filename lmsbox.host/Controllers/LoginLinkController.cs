@@ -428,7 +428,19 @@ namespace lmsBox.Server.Controllers
                 var user = await FindTenantUserAsync(request.Email, tenant.Id);
                 if (user == null)
                 {
-                    return BadRequest(new { message = "User not found" });
+                    var otherTenant = await _db.Users
+                        .Where(u => u.NormalizedEmail == _userManager.NormalizeEmail(request.Email))
+                        .Join(_db.Tenants, u => u.TenantId, t => t.Id, (u, t) => t.Code)
+                        .FirstOrDefaultAsync();
+                    if (!string.IsNullOrWhiteSpace(otherTenant))
+                    {
+                        return BadRequest(new
+                        {
+                            message = $"User not found in tenant '{tenant.Code}'. Open /t/{otherTenant}/login and try again."
+                        });
+                    }
+
+                    return BadRequest(new { message = $"User not found in tenant '{tenant.Code}'." });
                 }
 
                 var (tokenString, expiresUnixMs) = await CreateJwtTokenAsync(user);

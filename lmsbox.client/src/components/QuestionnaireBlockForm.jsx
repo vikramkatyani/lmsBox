@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import interactiveLessonsService from '../services/interactiveLessons';
 import InteractiveBlockPreview from './InteractiveBlockPreview';
+import InteractiveBlockImageField from './InteractiveBlockImageField';
 import {
   QUESTIONNAIRE_ALLOW_MULTIPLE_QUESTIONS,
   QUESTIONNAIRE_MAX_AI_QUESTIONS,
@@ -10,6 +11,7 @@ import {
   EMPTY_QUESTION,
   normalizeQuestionnaireFormData,
 } from './questionnaireFormHelpers';
+import { withoutPendingImageUrls } from '../utils/pendingBlockImages';
 import toast from 'react-hot-toast';
 
 const PREVIEW_DEBOUNCE_MS = 450;
@@ -29,7 +31,6 @@ function questionsReadyForPreview(questions) {
 export default function QuestionnaireBlockForm({
   value,
   onChange,
-  lessonId,
   blockId,
   mediaAssetsJson,
   onMediaChange,
@@ -54,14 +55,35 @@ export default function QuestionnaireBlockForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    let assets = [];
+    try {
+      assets = JSON.parse(mediaAssetsJson || '[]');
+    } catch {
+      assets = [];
+    }
+    const firstUrl = assets[0]?.url;
+    if (!firstUrl || !onMediaChange) return;
+    const currentQuestions = value.questions || [];
+    if (!currentQuestions[0] || currentQuestions[0].imageUrl) return;
+    update({
+      questions: currentQuestions.map((q, i) => (i === 0 ? { ...q, imageUrl: firstUrl } : q)),
+    });
+    // Migrate a leftover block-level image onto the first question once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mediaAssetsJson]);
+
   const previewPayloadKey = useMemo(() => {
     if (!questionsReadyForPreview(questions)) return '';
     return JSON.stringify({
       contentDescription: value.contentDescription || 'Questionnaire preview',
       showFeedbackPerQuestion: !!value.showFeedbackPerQuestion,
-      questions: questions.map((q) => ({
+      questions: withoutPendingImageUrls(questions).map((q) => ({
         text: q.text || '',
         type: q.type || 'single',
+        correctFeedback: q.correctFeedback || '',
+        incorrectFeedback: q.incorrectFeedback || '',
+        imageUrl: q.imageUrl || '',
         options: (q.options || []).map((o) => ({
           text: o.text || '',
           isCorrect: !!o.isCorrect,
@@ -143,6 +165,20 @@ export default function QuestionnaireBlockForm({
     update({ questions: next });
   };
 
+  const removeOption = (qIndex, oIndex) => {
+    const options = questions[qIndex]?.options || [];
+    if (options.length <= 2) {
+      toast.error('A question must have at least two options');
+      return;
+    }
+    const next = [...questions];
+    next[qIndex] = {
+      ...next[qIndex],
+      options: options.filter((_, i) => i !== oIndex),
+    };
+    update({ questions: next });
+  };
+
   const updateOption = (qIndex, oIndex, patch) => {
     const next = [...questions];
     const options = next[qIndex].options.map((o, i) => (i === oIndex ? { ...o, ...patch } : o));
@@ -190,6 +226,9 @@ export default function QuestionnaireBlockForm({
             text: o.text || '',
             isCorrect: !!o.isCorrect,
           })),
+          correctFeedback: '',
+          incorrectFeedback: '',
+          imageUrl: '',
         }));
 
       if (!generated.length) {
@@ -208,21 +247,6 @@ export default function QuestionnaireBlockForm({
       toast.error(err.response?.data?.message || 'Failed to generate questions');
     } finally {
       setIsGeneratingQuestions(false);
-    }
-  };
-
-  const handleImageUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file || !lessonId || !blockId) {
-      if (!blockId) toast.error('Save the block first before uploading images');
-      return;
-    }
-    try {
-      const result = await interactiveLessonsService.uploadBlockMedia(lessonId, blockId, file);
-      onMediaChange(result.mediaAssetsJson || '[]');
-      toast.success('Image uploaded');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Upload failed');
     }
   };
 
@@ -275,7 +299,7 @@ export default function QuestionnaireBlockForm({
             {QUESTIONNAIRE_ALLOW_MULTIPLE_QUESTIONS && (
               <div className="flex justify-between gap-2">
                 <span className="text-sm font-medium text-gray-700">Question {qIndex + 1}</span>
-                {(questions.length > 1 || question.text?.trim()) && (
+                {questions.length > 1 && (
                   <button type="button" onClick={() => removeQuestion(qIndex)} className="text-sm text-red-600">
                     Remove
                   </button>
@@ -316,6 +340,15 @@ export default function QuestionnaireBlockForm({
                       />
                       Correct
                     </label>
+                    {(question.options || []).length > 2 && (
+                      <button
+                        type="button"
+                        onClick={() => removeOption(qIndex, oIndex)}
+                        className="text-xs text-red-600 whitespace-nowrap"
+                      >
+                        Remove
+                      </button>
+                    )}
                   </div>
                 ))}
                 <button type="button" onClick={() => addOption(qIndex)} className="text-sm text-[#1b365d]">
@@ -323,6 +356,44 @@ export default function QuestionnaireBlockForm({
                 </button>
               </div>
             )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  {question.type === 'text' ? 'Feedback after saving' : 'Correct feedback'}
+                </label>
+                <textarea
+                  value={question.correctFeedback || ''}
+                  onChange={(e) => updateQuestion(qIndex, { correctFeedback: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                  rows={2}
+                  placeholder={
+                    question.type === 'text'
+                      ? 'Optional note shown after the answer is saved'
+                      : 'Shown when the learner answers correctly'
+                  }
+                />
+              </div>
+              {question.type !== 'text' && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Incorrect feedback</label>
+                  <textarea
+                    value={question.incorrectFeedback || ''}
+                    onChange={(e) => updateQuestion(qIndex, { incorrectFeedback: e.target.value })}
+                    className="w-full border rounded px-3 py-2"
+                    rows={2}
+                    placeholder="Shown when the learner answers incorrectly"
+                  />
+                </div>
+              )}
+            </div>
+
+            <InteractiveBlockImageField
+              label="Question image (optional)"
+              url={question.imageUrl || ''}
+              onChange={(imageUrl) => updateQuestion(qIndex, { imageUrl })}
+              altPreview={question.text}
+            />
           </div>
         ))}
 
@@ -378,17 +449,11 @@ export default function QuestionnaireBlockForm({
         </div>
       </div>
 
-      {blockId && (
+      {blockId && mediaAssets.length > 0 && !questions.some((q) => q.imageUrl) && (
         <div>
-          <label className="block text-sm font-medium mb-1">Images (optional)</label>
-          <input type="file" accept="image/*" onChange={handleImageUpload} />
-          {mediaAssets.length > 0 && (
-            <ul className="mt-2 text-xs text-gray-600 space-y-1">
-              {mediaAssets.map((asset, i) => (
-                <li key={i}>{asset.fileName || asset.url}</li>
-              ))}
-            </ul>
-          )}
+          <p className="text-xs text-gray-500">
+            An image was uploaded to this block. Add it to a question using the image field above, or it will not appear for learners.
+          </p>
         </div>
       )}
 

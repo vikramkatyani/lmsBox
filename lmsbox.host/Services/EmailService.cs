@@ -263,9 +263,11 @@ namespace lmsBox.Server.Services
             var brandName = useTenantBrand
                 ? TenantThemeHelper.FirstNonEmpty(tenant?.BrandName, parsed.Name, tenant?.Name, organisation?.BrandName, _config["AppSettings:AppName"], "LMS Box")
                 : TenantThemeHelper.FirstNonEmpty(organisation?.BrandName, tenant?.BrandName, _config["AppSettings:AppName"], "LMS Box");
+            // Learner-facing contact must match Organisation Settings → Support Contact Information
+            // (not tenant-level SupportEmail, which admins cannot edit on that page).
             var supportEmail = TenantThemeHelper.FirstNonEmpty(
                 organisation?.SupportEmail,
-                tenant?.SupportEmail,
+                organisation?.ManagerEmail,
                 _config["AppSettings:SupportEmail"],
                 "support@example.com")!;
 

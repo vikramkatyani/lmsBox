@@ -111,9 +111,14 @@ export class AssetIndexer {
 
       if (typeof node === 'object') {
         const obj = node as Record<string, unknown>;
-        // Prefer explicit graphic / media objects with src + alt + dimensions
-        if (typeof obj.src === 'string' && this.looksLikeMediaRef(obj.src)) {
-          const path = normalisePackagePath(obj.src);
+        // Prefer explicit graphic / media objects with src/large/small + dimensions
+        const mediaSrc =
+          (typeof obj.src === 'string' && obj.src) ||
+          (typeof obj.large === 'string' && obj.large) ||
+          (typeof obj.small === 'string' && obj.small) ||
+          '';
+        if (mediaSrc && this.looksLikeMediaRef(mediaSrc)) {
+          const path = normalisePackagePath(mediaSrc);
           if (!seen.has(path.toLowerCase())) {
             seen.add(path.toLowerCase());
             found.push({

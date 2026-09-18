@@ -11,6 +11,7 @@ export default function Modal({
   size = 'lg',
   maxWidthClass,
   zIndexClass = 'z-50',
+  onSubmit,
 }) {
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -38,6 +39,38 @@ export default function Modal({
     xl: 'sm:max-w-6xl',
   }[size] || 'sm:max-w-4xl';
 
+  const dialogClass = `relative w-full ${sizeClass} overflow-hidden rounded-lg bg-white text-left shadow-xl`;
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onSubmit?.(event);
+  };
+
+  const dialogBody = (
+    <>
+      <div className="flex items-center justify-between border-b border-gray-200 bg-[#1b365d] px-6 py-4">
+        <h3 className="text-lg font-semibold text-white">{title}</h3>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-md p-2 text-white/80 hover:bg-white/10 hover:text-white"
+          aria-label="Close"
+        >
+          <XMarkIcon className="h-5 w-5" />
+        </button>
+      </div>
+
+      <div className="max-h-[calc(100vh-12rem)] overflow-y-auto p-6">{children}</div>
+
+      {footer ? (
+        <div className="flex items-center justify-end gap-2 border-t border-gray-200 bg-gray-50 px-6 py-4">
+          {footer}
+        </div>
+      ) : null}
+    </>
+  );
+
   return createPortal(
     <div className={`fixed inset-0 ${zIndexClass} overflow-y-auto`}>
       <div className="flex min-h-screen items-center justify-center px-4 py-8">
@@ -48,32 +81,27 @@ export default function Modal({
           aria-label="Close dialog"
         />
 
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={title}
-          className={`relative w-full ${sizeClass} overflow-hidden rounded-lg bg-white text-left shadow-xl`}
-        >
-          <div className="flex items-center justify-between border-b border-gray-200 bg-[#1b365d] px-6 py-4">
-            <h3 className="text-lg font-semibold text-white">{title}</h3>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md p-2 text-white/80 hover:bg-white/10 hover:text-white"
-              aria-label="Close"
-            >
-              <XMarkIcon className="h-5 w-5" />
-            </button>
+        {onSubmit ? (
+          <form
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+            className={dialogClass}
+            onSubmit={handleSubmit}
+            noValidate
+          >
+            {dialogBody}
+          </form>
+        ) : (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+            className={dialogClass}
+          >
+            {dialogBody}
           </div>
-
-          <div className="max-h-[calc(100vh-12rem)] overflow-y-auto p-6">{children}</div>
-
-          {footer ? (
-            <div className="flex items-center justify-end gap-2 border-t border-gray-200 bg-gray-50 px-6 py-4">
-              {footer}
-            </div>
-          ) : null}
-        </div>
+        )}
       </div>
     </div>,
     document.body

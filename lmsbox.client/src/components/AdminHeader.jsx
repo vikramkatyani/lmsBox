@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, NavLink } from 'react-router-dom';
 import { useTheme } from '../theme/ThemeContext';
 import { tenantLoginPath, getStoredTenantCode, setStoredTenantCode, getTenantCodeFromPath } from '../utils/tenant';
-import { removeAuthToken, getUserName, getUserRole } from '../utils/auth';
-import ProfileIcon from './ProfileIcon';
+import { removeAuthToken, getUserName, isTenantAdmin } from '../utils/auth';
 import ConfirmDialog from './ConfirmDialog';
 import toast, { Toaster } from 'react-hot-toast';
 import { API_BASE } from '../utils/apiBase';
@@ -17,7 +16,6 @@ export default function AdminHeader({ hideNavigation = false }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openMobileGroups, setOpenMobileGroups] = useState({});
   const [userName, setUserName] = useState('');
-  const [userRole, setUserRole] = useState('');
   
   const menuRef = useRef(null);
   const profileDropdownRef = useRef(null);
@@ -25,7 +23,6 @@ export default function AdminHeader({ hideNavigation = false }) {
 
   useEffect(() => {
     setUserName(getUserName());
-    setUserRole(getUserRole());
   }, []);
 
   // Handle click outside for menu and profile dropdown
@@ -112,29 +109,91 @@ export default function AdminHeader({ hideNavigation = false }) {
   return (
     <>
       <header className="admin-header flex shadow-md py-3 px-4 sm:px-10 bg-boxlms-navbar min-h-[70px] tracking-wide relative z-50">
-        <div className="flex flex-wrap items-center justify-between lg:gap-y-4 gap-y-6 gap-x-4 w-full">
-          <Link to="/admin/dashboard">
-            <img src={theme.logo} alt="Logo" className="h-8 w-auto" />
+        <div className="flex items-center gap-4 w-full min-w-0">
+          <Link to="/admin/dashboard" className="shrink-0">
+            <img src={theme.logo} alt="Logo" className="h-8 w-auto max-w-[220px] object-contain object-left" />
           </Link>
 
           {!hideNavigation && (
             <>
-              {/* Mobile menu overlay backdrop */}
               {isMobileMenuOpen && (
-                <div 
+                <div
                   className="lg:hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-40"
-                  onClick={() => setIsMobileMenuOpen(false)} 
+                  onClick={() => setIsMobileMenuOpen(false)}
                 />
               )}
 
-              <div 
+              <nav className="hidden lg:flex flex-1 min-w-0 justify-center">
+                <ul className="admin-nav-menu flex items-center gap-x-4 xl:gap-x-7 2xl:gap-x-10">
+                  {navItems.map((item) => {
+                    const children = item?.children?.length ? item.children : null;
+
+                    if (!children) {
+                      const link = item;
+                      return (
+                        <li key={link.to} className="nav-item relative group shrink-0">
+                          <NavLink to={link.to} className={navLinkClass}>
+                            {link.label}
+                          </NavLink>
+                        </li>
+                      );
+                    }
+
+                    const groupKey = item.label;
+
+                    return (
+                      <li key={groupKey} className="nav-item relative group shrink-0">
+                        <button
+                          type="button"
+                          className="block text-[15px] font-medium relative transition-all duration-200 text-boxlms-navbar-txt hover:text-boxlms-navbar-active py-2 px-1"
+                        >
+                          <span className="inline-flex items-center gap-1">
+                            {item.label}
+                            <svg className="w-3 h-3 fill-current" viewBox="0 0 20 20" aria-hidden="true">
+                              <path d="M5.516 7.548a.625.625 0 0 1 .884 0L10 11.148l3.6-3.6a.625.625 0 1 1 .884.884l-4.042 4.042a.625.625 0 0 1-.884 0L5.516 8.432a.625.625 0 0 1 0-.884Z" />
+                            </svg>
+                          </span>
+                        </button>
+                        <div className="absolute left-0 top-full pt-2 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-150">
+                          <div className="bg-white border border-gray-200 rounded-lg shadow-lg min-w-56 py-2">
+                            {children.map((child) => (
+                              <NavLink
+                                key={child.to}
+                                to={child.to}
+                                className={({ isActive }) =>
+                                  `block px-4 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-boxlms-primary-btn ${
+                                    isActive
+                                      ? 'bg-boxlms-primary-btn/20 text-boxlms-primary-body-txt font-semibold'
+                                      : 'text-slate-700 hover:bg-boxlms-primary-btn/15 hover:text-boxlms-primary-body-txt'
+                                  }`
+                                }
+                              >
+                                {child.label}
+                              </NavLink>
+                            ))}
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </nav>
+
+              {/* Mobile drawer */}
+              <div
                 ref={menuRef}
-                className="lg:block">
-                {/* Close button for mobile */}
+                className={`
+                  lg:hidden admin-nav-menu fixed top-0 left-0 h-full w-72 bg-boxlms-navbar
+                  shadow-xl overflow-y-auto z-50 p-6 space-y-1
+                  transform transition-transform duration-300 ease-in-out
+                  ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+                `}
+              >
                 {isMobileMenuOpen && (
                   <button
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="lg:hidden fixed top-3 right-3 z-[60] rounded-full bg-white w-10 h-10 flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors">
+                    className="fixed top-3 right-3 z-[60] rounded-full bg-white w-10 h-10 flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors"
+                  >
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 fill-gray-700" viewBox="0 0 320.591 320.591">
                       <path d="M30.391 318.583a30.37 30.37 0 0 1-21.56-7.288c-11.774-11.844-11.774-30.973 0-42.817L266.643 10.665c12.246-11.459 31.462-10.822 42.921 1.424 10.362 11.074 10.966 28.095 1.414 39.875L51.647 311.295a30.366 30.366 0 0 1-21.256 7.288z" />
                       <path d="M287.9 318.583a30.37 30.37 0 0 1-21.257-8.806L8.83 51.963C-2.078 39.225-.595 20.055 12.143 9.146c11.369-9.736 28.136-9.736 39.504 0l259.331 257.813c12.243 11.462 12.876 30.679 1.414 42.922-.456.487-.927.958-1.414 1.414a30.368 30.368 0 0 1-23.078 7.288z" />
@@ -142,20 +201,13 @@ export default function AdminHeader({ hideNavigation = false }) {
                   </button>
                 )}
 
-                <ul className={`
-                  admin-nav-menu lg:flex lg:gap-x-10 
-                  max-lg:fixed max-lg:top-0 max-lg:left-0 max-lg:h-full max-lg:w-72 max-lg:bg-boxlms-navbar 
-                  max-lg:shadow-xl max-lg:overflow-y-auto max-lg:z-50 max-lg:p-6 max-lg:space-y-1
-                  max-lg:transform max-lg:transition-transform max-lg:duration-300 max-lg:ease-in-out
-                  ${isMobileMenuOpen ? 'max-lg:translate-x-0' : 'max-lg:-translate-x-full'}
-                `}>
-                  {/* Mobile menu header with logo */}
-                  <li className="mb-8 pb-4 border-b border-boxlms-navbar-txt border-opacity-20 lg:hidden">
+                <ul>
+                  <li className="mb-8 pb-4 border-b border-boxlms-navbar-txt border-opacity-20">
                     <NavLink to="/admin/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
                       <img src={theme.logo} alt="Logo" className="h-8 w-auto" />
                     </NavLink>
                   </li>
-                  
+
                   {navItems.map((item) => {
                     const children = item?.children?.length ? item.children : null;
 
@@ -170,7 +222,7 @@ export default function AdminHeader({ hideNavigation = false }) {
                           >
                             {link.label}
                           </NavLink>
-                          <span className={`lg:hidden absolute left-0 top-0 w-1 h-full bg-boxlms-navbar-active rounded-r transition-transform duration-200 ${link.to === window.location.pathname ? 'scale-y-100' : 'scale-y-0 group-hover:scale-y-100'}`} />
+                          <span className={`absolute left-0 top-0 w-1 h-full bg-boxlms-navbar-active rounded-r transition-transform duration-200 ${link.to === window.location.pathname ? 'scale-y-100' : 'scale-y-0 group-hover:scale-y-100'}`} />
                         </li>
                       );
                     }
@@ -180,105 +232,62 @@ export default function AdminHeader({ hideNavigation = false }) {
 
                     return (
                       <li key={groupKey} className="nav-item relative group">
-                        <div className="hidden lg:block">
-                          <button
-                            type="button"
-                            className="block text-[15px] font-medium relative transition-all duration-200 text-boxlms-navbar-txt hover:text-boxlms-navbar-active py-2 px-1"
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setOpenMobileGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }))
+                          }
+                          className="w-full text-left text-[15px] font-medium text-boxlms-navbar-txt hover:text-boxlms-navbar-active py-3 px-3 flex items-center justify-between"
+                        >
+                          <span>{item.label}</span>
+                          <svg
+                            className={`w-4 h-4 fill-current transition-transform ${isMobileGroupOpen ? 'rotate-180' : ''}`}
+                            viewBox="0 0 20 20"
+                            aria-hidden="true"
                           >
-                            <span className="inline-flex items-center gap-1">
-                              {item.label}
-                              <svg className="w-3 h-3 fill-current" viewBox="0 0 20 20" aria-hidden="true">
-                                <path d="M5.516 7.548a.625.625 0 0 1 .884 0L10 11.148l3.6-3.6a.625.625 0 1 1 .884.884l-4.042 4.042a.625.625 0 0 1-.884 0L5.516 8.432a.625.625 0 0 1 0-.884Z" />
-                              </svg>
-                            </span>
-                          </button>
-                          <div className="absolute left-0 top-full pt-2 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-150">
-                            <div className="bg-white border border-gray-200 rounded-lg shadow-lg min-w-56 py-2">
-                              {children.map((child) => (
-                                <NavLink
-                                  key={child.to}
-                                  to={child.to}
-                                  className={({ isActive }) =>
-                                    `block px-4 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-boxlms-primary-btn ${
-                                      isActive
-                                        ? 'bg-boxlms-primary-btn/20 text-boxlms-primary-body-txt font-semibold'
-                                        : 'text-slate-700 hover:bg-boxlms-primary-btn/15 hover:text-boxlms-primary-body-txt'
-                                    }`
-                                  }
-                                >
-                                  {child.label}
-                                </NavLink>
-                              ))}
-                            </div>
+                            <path d="M5.516 7.548a.625.625 0 0 1 .884 0L10 11.148l3.6-3.6a.625.625 0 1 1 .884.884l-4.042 4.042a.625.625 0 0 1-.884 0L5.516 8.432a.625.625 0 0 1 0-.884Z" />
+                          </svg>
+                        </button>
+
+                        {isMobileGroupOpen && (
+                          <div className="pl-3 pb-2">
+                            {children.map((child) => (
+                              <NavLink
+                                key={child.to}
+                                to={child.to}
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                className={({ isActive }) =>
+                                  `block py-2 px-3 text-[14px] font-medium rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-boxlms-primary-btn ${
+                                    isActive
+                                      ? 'bg-boxlms-primary-btn/20 text-boxlms-primary-body-txt'
+                                      : 'text-boxlms-navbar-txt hover:bg-white/10 hover:text-boxlms-navbar-active'
+                                  }`
+                                }
+                              >
+                                {child.label}
+                              </NavLink>
+                            ))}
                           </div>
-                        </div>
-
-                        <div className="lg:hidden">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setOpenMobileGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }))
-                            }
-                            className="w-full text-left text-[15px] font-medium text-boxlms-navbar-txt hover:text-boxlms-navbar-active max-lg:py-3 max-lg:px-3 flex items-center justify-between"
-                          >
-                            <span>{item.label}</span>
-                            <svg
-                              className={`w-4 h-4 fill-current transition-transform ${isMobileGroupOpen ? 'rotate-180' : ''}`}
-                              viewBox="0 0 20 20"
-                              aria-hidden="true"
-                            >
-                              <path d="M5.516 7.548a.625.625 0 0 1 .884 0L10 11.148l3.6-3.6a.625.625 0 1 1 .884.884l-4.042 4.042a.625.625 0 0 1-.884 0L5.516 8.432a.625.625 0 0 1 0-.884Z" />
-                            </svg>
-                          </button>
-
-                          {isMobileGroupOpen && (
-                            <div className="pl-3 pb-2">
-                              {children.map((child) => (
-                                <NavLink
-                                  key={child.to}
-                                  to={child.to}
-                                  onClick={() => setIsMobileMenuOpen(false)}
-                                  className={({ isActive }) =>
-                                    `block max-lg:py-2 max-lg:px-3 text-[14px] font-medium rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-boxlms-primary-btn ${
-                                      isActive
-                                        ? 'bg-boxlms-primary-btn/20 text-boxlms-primary-body-txt'
-                                        : 'text-boxlms-navbar-txt hover:bg-white/10 hover:text-boxlms-navbar-active'
-                                    }`
-                                  }
-                                >
-                                  {child.label}
-                                </NavLink>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                        )}
                       </li>
                     );
                   })}
                 </ul>
               </div>
-
-              <button
-                id="toggleOpen"
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="lg:hidden p-1 hover:bg-gray-100 hover:bg-opacity-10 rounded transition-colors">
-                <svg className="w-7 h-7 fill-boxlms-navbar-txt" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                  <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-                </svg>
-              </button>
             </>
           )}
 
-          <div className="flex items-center max-sm:ml-auto space-x-6">
-            <div className="relative flex items-center space-x-3">
-              <div className="hidden sm:block text-right">
+          <div className="flex items-center gap-3 sm:gap-5 shrink-0 ml-auto">
+            <div className="relative flex items-center gap-2.5">
+              <div className="hidden sm:flex flex-col items-end justify-center gap-0.5 leading-none">
                 <div className="text-sm font-medium text-boxlms-navbar-txt">{userName}</div>
-                {userRole && <div className="text-xs text-gray-500 capitalize">{userRole}</div>}
               </div>
               <button
+                type="button"
                 ref={profileButtonRef}
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="relative px-1"
+                className="relative px-1 flex items-center"
+                aria-label="Open profile menu"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" className="cursor-pointer hover:fill-boxlms-profile" viewBox="0 0 512 512">
                   <path d="M437.02 74.981C388.667 26.629 324.38 0 256 0S123.333 26.629 74.98 74.981C26.629 123.333 0 187.62 0 256s26.629 132.667 74.98 181.019C123.333 485.371 187.62 512 256 512s132.667-26.629 181.02-74.981C485.371 388.667 512 324.38 512 256s-26.629-132.667-74.98-181.019zM256 482c-66.869 0-127.037-29.202-168.452-75.511C113.223 338.422 178.948 290 256 290c-49.706 0-90-40.294-90-90s40.294-90 90-90 90 40.294 90 90-40.294 90-90 90c77.052 0 142.777 48.422 168.452 116.489C383.037 452.798 322.869 482 256 482z" />
@@ -286,19 +295,24 @@ export default function AdminHeader({ hideNavigation = false }) {
               </button>
 
               {showProfileMenu && (
-                <div 
+                <div
                   ref={profileDropdownRef}
-                  className="absolute right-0 top-12 bg-white shadow-xl rounded-lg py-6 px-6 sm:min-w-[320px] max-sm:min-w-[280px] max-sm:max-w-[calc(100vw-2rem)] z-[100] border border-gray-100">
+                  className="absolute right-0 top-12 bg-white shadow-xl rounded-lg py-6 px-6 sm:min-w-[320px] max-sm:min-w-[280px] max-sm:max-w-[calc(100vw-2rem)] z-[100] border border-gray-100"
+                >
                   <h6 className="font-semibold text-[15px]">Admin Account</h6>
                   <p className="text-sm text-gray-500 mt-1">Manage your admin settings</p>
                   <hr className="border-b-0 my-4 border-gray-300" />
                   <ul className="space-y-1.5">
                     <li><Link to="/admin/profile" className="text-sm text-gray-500 hover:text-slate-900" onClick={() => setShowProfileMenu(false)}>Profile Settings</Link></li>
                     <li><Link to="/admin/settings" className="text-sm text-gray-500 hover:text-slate-900" onClick={() => setShowProfileMenu(false)}>System Settings</Link></li>
+                    {isTenantAdmin() && (
+                      <li><Link to="/tenant/branding" className="text-sm text-gray-500 hover:text-slate-900" onClick={() => setShowProfileMenu(false)}>Branding</Link></li>
+                    )}
                     <li><a href="http://www.lmsbox.co.uk/help-centre#admin-help" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-500 hover:text-slate-900" onClick={() => setShowProfileMenu(false)}>Help Center</a></li>
                   </ul>
                   <hr className="border-b-0 my-4 border-gray-300" />
                   <button
+                    type="button"
                     onClick={handleSwitchRole}
                     className="w-full bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded-md px-4 py-2.5 text-sm font-medium cursor-pointer hover:brightness-90 transition-all mb-2"
                   >
@@ -306,16 +320,30 @@ export default function AdminHeader({ hideNavigation = false }) {
                   </button>
                   <hr className="border-b-0 my-4 border-gray-300" />
                   <button
+                    type="button"
                     onClick={initiateLogout}
                     className="w-full bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded-md px-4 py-2.5 text-sm font-medium cursor-pointer hover:brightness-90 transition-all"
                   >
                     Logout
                   </button>
-                  
+
                   <Toaster position="top-right" />
                 </div>
               )}
             </div>
+
+            {!hideNavigation && (
+              <button
+                id="toggleOpen"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="lg:hidden p-1 hover:bg-gray-100 hover:bg-opacity-10 rounded transition-colors"
+                aria-label="Open navigation menu"
+              >
+                <svg className="w-7 h-7 fill-boxlms-navbar-txt" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                  <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       </header>

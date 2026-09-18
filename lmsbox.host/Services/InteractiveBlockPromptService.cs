@@ -53,7 +53,8 @@ You MUST follow these LMSBOX design and technical rules:
             GetCarouselSchema(),
             GetAccordionSchema(),
             GetTextSchema(),
-            GetVideoSchema()
+            GetVideoSchema(),
+            GetAudioSchema()
         };
     }
 
@@ -76,6 +77,7 @@ You MUST follow these LMSBOX design and technical rules:
             "accordion" => GetAccordionSchema(),
             "text" => GetTextSchema(),
             "video" => GetVideoSchema(),
+            "audio" => GetAudioSchema(),
             _ => null
         };
     }
@@ -137,6 +139,9 @@ You MUST follow these LMSBOX design and technical rules:
             case "video":
                 ValidateVideo(root);
                 break;
+            case "audio":
+                ValidateAudio(root);
+                break;
             default:
                 throw new ArgumentException($"Unsupported block type: {blockType}");
         }
@@ -167,6 +172,7 @@ You MUST follow these LMSBOX design and technical rules:
             "process" => throw new ArgumentException("Process flow blocks use a fixed template and do not support AI HTML generation."),
             "text" => throw new ArgumentException("Text blocks use a fixed template and do not support AI HTML generation."),
             "video" => throw new ArgumentException("Video blocks use a fixed template and do not support AI HTML generation."),
+            "audio" => throw new ArgumentException("Audio blocks use a fixed template and do not support AI HTML generation."),
             _ => throw new ArgumentException($"Unsupported block type: {blockType}")
         };
     }
@@ -389,7 +395,7 @@ You MUST follow these LMSBOX design and technical rules:
                     Label = "Reveal panels",
                     FieldType = "reveal-item-list",
                     Required = true,
-                    HelpText = "Add panels with a title, hidden body, optional prompt label, and style variant (default or warn)."
+                    HelpText = "Add panels with a title, hidden body, optional image, optional icon, prompt label, and style variant (default or warn)."
                 },
                 new()
                 {
@@ -440,6 +446,12 @@ You MUST follow these LMSBOX design and technical rules:
             {
                 throw new ArgumentException($"Reveal panel {i + 1} has an invalid style variant.");
             }
+
+            LimitOptionalHttpUrl(
+                item?["imageUrl"],
+                $"Reveal panel {i + 1} image",
+                InteractiveLessonConstants.MaxBlockImageUrlLength);
+            LimitOptionalIcon(item?["icon"], $"Reveal panel {i + 1} icon");
         }
 
         LimitOptionalText(root["hint"], "Hint", InteractiveLessonConstants.MaxRevealHintLength);
@@ -736,21 +748,20 @@ You MUST follow these LMSBOX design and technical rules:
     private static void ValidateHotspot(JsonObject root)
     {
         var imageUrl = root["imageUrl"]?.GetValue<string>()?.Trim();
-        if (string.IsNullOrWhiteSpace(imageUrl))
+        // Allow empty imageUrl on draft save (e.g. Evolve import before media attach).
+        if (!string.IsNullOrWhiteSpace(imageUrl))
         {
-            throw new ArgumentException("Diagram image is required.");
-        }
+            if (imageUrl.Length > InteractiveLessonConstants.MaxHotspotImageUrlLength)
+            {
+                throw new ArgumentException(
+                    $"Diagram image URL must be at most {InteractiveLessonConstants.MaxHotspotImageUrlLength} characters.");
+            }
 
-        if (imageUrl.Length > InteractiveLessonConstants.MaxHotspotImageUrlLength)
-        {
-            throw new ArgumentException(
-                $"Diagram image URL must be at most {InteractiveLessonConstants.MaxHotspotImageUrlLength} characters.");
-        }
-
-        if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri) ||
-            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
-        {
-            throw new ArgumentException("Diagram image URL must be a valid http or https URL.");
+            if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            {
+                throw new ArgumentException("Diagram image URL must be a valid http or https URL.");
+            }
         }
 
         LimitOptionalText(
@@ -810,7 +821,7 @@ You MUST follow these LMSBOX design and technical rules:
                     Label = "Steps",
                     FieldType = "process-step-list",
                     Required = true,
-                    HelpText = "Add steps with a title and body. Steps are revealed one at a time."
+                    HelpText = "Add steps with a title, body, optional image, and optional icon. Steps are revealed one at a time."
                 },
                 new()
                 {
@@ -867,6 +878,12 @@ You MUST follow these LMSBOX design and technical rules:
                 step?["body"],
                 $"Step {i + 1} body",
                 InteractiveLessonConstants.MaxProcessStepBodyLength);
+
+            LimitOptionalHttpUrl(
+                step?["imageUrl"],
+                $"Step {i + 1} image",
+                InteractiveLessonConstants.MaxBlockImageUrlLength);
+            LimitOptionalIcon(step?["icon"], $"Step {i + 1} icon");
         }
 
         if (root["nodes"] is JsonArray nodes)
@@ -972,6 +989,46 @@ You MUST follow these LMSBOX design and technical rules:
         }
     }
 
+    private static void LimitOptionalHttpUrl(JsonNode? node, string fieldLabel, int maxLength)
+    {
+        var value = ReadText(node);
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        if (value.Length > maxLength)
+        {
+            throw new ArgumentException($"{fieldLabel} URL must be at most {maxLength} characters.");
+        }
+
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            throw new ArgumentException($"{fieldLabel} must be a valid http or https URL.");
+        }
+    }
+
+    private static void LimitOptionalIcon(JsonNode? node, string fieldLabel)
+    {
+        var value = ReadText(node);
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        if (value.Length > InteractiveLessonConstants.MaxIconKeyLength)
+        {
+            throw new ArgumentException(
+                $"{fieldLabel} must be at most {InteractiveLessonConstants.MaxIconKeyLength} characters.");
+        }
+
+        if (!InteractiveBlockIcons.IsAllowed(value))
+        {
+            throw new ArgumentException($"{fieldLabel} is not a recognised Lucide icon.");
+        }
+    }
+
     private static string ReadText(JsonNode? node)
         => node is JsonValue value && value.TryGetValue<string>(out var text) ? text.Trim() : "";
 
@@ -1006,7 +1063,9 @@ You MUST follow these LMSBOX design and technical rules:
                     Label = "Questions",
                     FieldType = "question-list",
                     Required = true,
-                    HelpText = "Add one question per block. Types: single choice, multiple choice, or short text."
+                    HelpText = InteractiveLessonConstants.QuestionnaireQuestionsPerBlock > 1
+                        ? $"Add up to {InteractiveLessonConstants.QuestionnaireQuestionsPerBlock} questions per block. Types: single choice, multiple choice, or short text. Optional image and specific correct/incorrect feedback per question."
+                        : "Add one question per block. Types: single choice, multiple choice, or short text. Optional image and specific correct/incorrect feedback per question."
                 }
             }
         };
@@ -1053,6 +1112,19 @@ You MUST follow these LMSBOX design and technical rules:
                     throw new ArgumentException($"Question {i + 1} must have at least two options.");
                 }
             }
+
+            LimitOptionalText(
+                q?["correctFeedback"],
+                $"Question {i + 1} correct feedback",
+                InteractiveLessonConstants.MaxQuestionnaireFeedbackLength);
+            LimitOptionalText(
+                q?["incorrectFeedback"],
+                $"Question {i + 1} incorrect feedback",
+                InteractiveLessonConstants.MaxQuestionnaireFeedbackLength);
+            LimitOptionalHttpUrl(
+                q?["imageUrl"],
+                $"Question {i + 1} image",
+                InteractiveLessonConstants.MaxBlockImageUrlLength);
         }
     }
 
@@ -1228,7 +1300,7 @@ Return ONLY the HTML fragment.
                     Label = "Panels",
                     FieldType = "panel-list",
                     Required = true,
-                    HelpText = "Add panels with a title and body text."
+                    HelpText = "Add panels with a title, body text, optional image, and optional icon."
                 }
             }
         };
@@ -1268,6 +1340,12 @@ Return ONLY the HTML fragment.
             {
                 throw new ArgumentException($"Panel {i + 1} body is required.");
             }
+
+            LimitOptionalHttpUrl(
+                panel?["imageUrl"],
+                $"Panel {i + 1} image",
+                InteractiveLessonConstants.MaxBlockImageUrlLength);
+            LimitOptionalIcon(panel?["icon"], $"Panel {i + 1} icon");
         }
     }
 
@@ -1502,6 +1580,81 @@ Return ONLY the HTML fragment.
             (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
             throw new ArgumentException("Video URL must be a valid http or https URL.");
+        }
+    }
+
+    private static InteractiveBlockTypeSchema GetAudioSchema()
+    {
+        return new InteractiveBlockTypeSchema
+        {
+            Type = "audio",
+            Label = "Audio",
+            Description = "Embed an audio clip with optional title and description. Uses a fixed layout.",
+            Fields = new List<InteractiveBlockFormField>
+            {
+                new()
+                {
+                    Name = "title",
+                    Label = "Title",
+                    FieldType = "text",
+                    Required = false,
+                    HelpText = "Optional title shown above the audio player."
+                },
+                new()
+                {
+                    Name = "audioUrl",
+                    Label = "Audio URL",
+                    FieldType = "text",
+                    Required = true,
+                    HelpText = "Direct MP3/WAV/OGG URL, or upload an audio file when saving the block."
+                },
+                new()
+                {
+                    Name = "description",
+                    Label = "Description",
+                    FieldType = "textarea",
+                    Required = false,
+                    HelpText = "Optional description text shown under the audio player."
+                }
+            }
+        };
+    }
+
+    private static void ValidateAudio(JsonObject root)
+    {
+        var title = root["title"]?.GetValue<string>();
+        if (!string.IsNullOrWhiteSpace(title) &&
+            title.Trim().Length > InteractiveLessonConstants.MaxAudioTitleLength)
+        {
+            throw new ArgumentException(
+                $"Title must be at most {InteractiveLessonConstants.MaxAudioTitleLength} characters.");
+        }
+
+        var description = root["description"]?.GetValue<string>();
+        if (!string.IsNullOrWhiteSpace(description) &&
+            description.Trim().Length > InteractiveLessonConstants.MaxAudioDescriptionLength)
+        {
+            throw new ArgumentException(
+                $"Description must be at most {InteractiveLessonConstants.MaxAudioDescriptionLength} characters.");
+        }
+
+        var audioUrl = root["audioUrl"]?.GetValue<string>()?.Trim();
+        if (string.IsNullOrWhiteSpace(audioUrl))
+        {
+            // Allow draft save before upload; generate/render still requires a URL.
+            return;
+        }
+
+        if (audioUrl.Length > InteractiveLessonConstants.MaxAudioUrlLength)
+        {
+            throw new ArgumentException(
+                $"Audio URL must be at most {InteractiveLessonConstants.MaxAudioUrlLength} characters.");
+        }
+
+        if (!Uri.TryCreate(audioUrl, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            throw new ArgumentException("Audio URL must be a valid http or https URL.");
         }
     }
 }

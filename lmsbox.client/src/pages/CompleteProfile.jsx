@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
 import LearnerHeader from '../components/LearnerHeader';
 import { getMyProfile, updateMyProfile } from '../services/profile';
-import { getUserRole } from '../utils/auth';
+import { isAdmin } from '../utils/auth';
 import toast from 'react-hot-toast';
 import usePageTitle from '../hooks/usePageTitle';
 
@@ -12,7 +12,6 @@ export default function CompleteProfile() {
   const [form, setForm] = useState({ firstName: '', lastName: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const role = getUserRole();
 
   usePageTitle('Complete Your Profile');
 
@@ -39,7 +38,7 @@ export default function CompleteProfile() {
       await updateMyProfile({ firstName: form.firstName.trim(), lastName: form.lastName.trim() });
       toast.success('Profile updated');
       // Redirect based on role
-      if (role === 'admin' || role === 'Admin' || role === 'OrgAdmin' || role === 'SuperAdmin') {
+      if (isAdmin()) {
         navigate('/admin/dashboard');
       } else {
         navigate('/courses/all');
@@ -52,7 +51,7 @@ export default function CompleteProfile() {
     }
   };
 
-  const Header = (role === 'admin' || role === 'Admin' || role === 'OrgAdmin' || role === 'SuperAdmin') ? AdminHeader : LearnerHeader;
+  const Header = isAdmin() ? AdminHeader : LearnerHeader;
 
   return (
     <div className="min-h-screen bg-gray-50">

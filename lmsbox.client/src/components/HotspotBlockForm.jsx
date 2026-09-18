@@ -1,6 +1,6 @@
 import React from 'react';
-import interactiveLessonsService from '../services/interactiveLessons';
 import toast from 'react-hot-toast';
+import InteractiveBlockImageField from './InteractiveBlockImageField';
 
 const MAX_PINS = 12;
 const MAX_IMAGE_URL = 2000;
@@ -16,7 +16,7 @@ function clampPercent(raw) {
   return Math.min(100, Math.max(0, parsed));
 }
 
-export default function HotspotBlockForm({ value, onChange, lessonId, blockId }) {
+export default function HotspotBlockForm({ value, onChange }) {
   const pins = Array.isArray(value.pins) ? value.pins : [];
   const update = (patch) => onChange({ ...value, ...patch });
 
@@ -46,71 +46,19 @@ export default function HotspotBlockForm({ value, onChange, lessonId, blockId })
     update({ pins: reordered });
   };
 
-  const handleImageUpload = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file || !lessonId || !blockId) {
-      if (!blockId) toast.error('Save the block first before uploading images');
-      return;
-    }
-
-    try {
-      const result = await interactiveLessonsService.uploadBlockMedia(lessonId, blockId, file);
-      update({ imageUrl: result.url });
-      toast.success('Diagram image uploaded');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Upload failed');
-    } finally {
-      event.target.value = '';
-    }
-  };
-
-  const clearImage = () => update({ imageUrl: '' });
-
   return (
     <div className="space-y-4 border-t pt-4">
       <p className="text-xs text-gray-500">
         Completes after every pin has been opened.
       </p>
 
-      <div>
-        <label className="block text-sm font-medium mb-1">Diagram image *</label>
-        <input
-          value={value.imageUrl || ''}
-          onChange={(e) => update({ imageUrl: e.target.value })}
-          className="w-full border rounded px-3 py-2 mb-2"
-          placeholder="Image URL"
-          maxLength={MAX_IMAGE_URL}
-        />
-        <div className="flex flex-wrap items-center gap-3">
-          {blockId ? (
-            <label className="inline-flex items-center px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded cursor-pointer hover:bg-gray-200">
-              Upload image
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleImageUpload}
-              />
-            </label>
-          ) : (
-            <p className="text-xs text-gray-500">Save the block first to upload images.</p>
-          )}
-          {value.imageUrl && (
-            <button
-              type="button"
-              onClick={clearImage}
-              className="text-xs text-gray-500 hover:text-gray-800 underline"
-            >
-              Clear image
-            </button>
-          )}
-        </div>
-        {value.imageUrl && (
-          <p className="text-xs text-gray-500 mt-2 truncate" title={value.imageUrl}>
-            {value.imageUrl}
-          </p>
-        )}
-      </div>
+      <InteractiveBlockImageField
+        label="Diagram image *"
+        url={value.imageUrl || ''}
+        onChange={(imageUrl) => update({ imageUrl: imageUrl.slice(0, MAX_IMAGE_URL) })}
+        showPreview={false}
+        helperText="Choose an image now; it uploads when you save the block. You can also paste a URL."
+      />
 
       <div>
         <label className="block text-sm font-medium mb-1">Image description</label>

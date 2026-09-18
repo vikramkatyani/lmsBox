@@ -9,6 +9,7 @@ const clientRoot = __dirname
 const sharedRoot = path.resolve(__dirname, '../lmsbox.client')
 const sharedSrc = path.resolve(sharedRoot, 'src')
 const sharedPublic = path.resolve(sharedRoot, 'public')
+const importEngineRoot = path.resolve(__dirname, '../import-engine')
 const clientModules = path.resolve(clientRoot, 'node_modules')
 
 // Shared @lms sources live under lmsbox.client; without these aliases Vite resolves
@@ -40,16 +41,17 @@ export default defineConfig({
   resolve: {
     alias: {
       '@lms': sharedSrc,
+      '@import-engine': importEngineRoot,
       ...reactAliases,
     },
     dedupe: reactDedupe,
   },
   optimizeDeps: {
-    include: reactDedupe,
+    include: [...reactDedupe, 'jszip'],
   },
   server: {
     fs: {
-      allow: [clientRoot, sharedRoot],
+      allow: [clientRoot, sharedRoot, importEngineRoot],
     },
     port: 5176,
     strictPort: true,

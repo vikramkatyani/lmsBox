@@ -55,7 +55,7 @@ export class ObjectModelBuilder {
       pagesById.set(id, page);
     }
 
-    // Attach lessons (articles) to pages
+    // Attach lessons (articles) to pages — already sorted in groupByParentId
     for (const page of pagesById.values()) {
       const articleRows = articlesByParent.get(page.id) ?? [];
       for (const article of articleRows) {
@@ -86,10 +86,17 @@ export class ObjectModelBuilder {
       }
     }
 
-    // Stable order: preserve source array order for root contentObjects
-    const orderedRoots = contentObjects
-      .map((co) => pagesById.get(this.readId(co)))
-      .filter((p): p is Page => !!p && rootPages.includes(p));
+    // Order child pages and roots by Evolve presentation order (_sortOrder / source index)
+    for (const page of pagesById.values()) {
+      page.childPages = sortPagesByPresentationOrder(page.childPages, contentObjects);
+    }
+
+    const orderedRoots = sortPagesByPresentationOrder(
+      contentObjects
+        .map((co) => pagesById.get(this.readId(co)))
+        .filter((p): p is Page => !!p && rootPages.includes(p)),
+      contentObjects
+    );
 
     // Assets referenced from components + files under assets/
     const assets = this.assetIndexer.index({
@@ -224,7 +231,7 @@ export class ObjectModelBuilder {
       id,
       parentId: this.readParentId(row),
       type,
-      title: this.readString(row, 'title') || this.readString(row, 'displayTitle') || id,
+      title: this.readString(row, 'title') || this.readString(row, 'displayTitle') || '',
       displayTitle: this.readString(row, 'displayTitle') || undefined,
       body: this.readString(row, 'body') || undefined,
       layout: this.readString(row, '_layout') || undefined,
@@ -238,12 +245,18 @@ export class ObjectModelBuilder {
   private groupByParentId(
     rows: Record<string, unknown>[]
   ): Map<string, Record<string, unknown>[]> {
+    const sourceIndex = new WeakMap<object, number>();
     const map = new Map<string, Record<string, unknown>[]>();
-    for (const row of rows) {
+    rows.forEach((row, index) => {
+      sourceIndex.set(row, index);
       const parentId = this.readParentId(row) ?? '';
       const list = map.get(parentId) ?? [];
       list.push(row);
       map.set(parentId, list);
+    });
+
+    for (const [parentId, list] of map) {
+      map.set(parentId, sortByPresentationOrder(list, sourceIndex));
     }
     return map;
   }
@@ -265,4 +278,63 @@ export class ObjectModelBuilder {
     const value = row[key];
     return typeof value === 'string' ? value : '';
   }
+}
+
+/**
+ * Evolve/Adapt presentation order: prefer numeric `_sortOrder`, then JSON array index.
+ */
+function sortByPresentationOrder(
+  rows: Record<string, unknown>[],
+  sourceIndex: WeakMap<object, number>
+): Record<string, unknown>[] {
+  return [...rows].sort((a, b) => {
+    const sortA = readSortOrder(a);
+    const sortB = readSortOrder(b);
+    if (sortA !== null && sortB !== null && sortA !== sortB) {
+      return sortA - sortB;
+    }
+    if (sortA !== null && sortB === null) return -1;
+    if (sortA === null && sortB !== null) return 1;
+
+    const indexA = sourceIndex.get(a) ?? 0;
+    const indexB = sourceIndex.get(b) ?? 0;
+    return indexA - indexB;
+  });
+}
+
+function sortPagesByPresentationOrder(
+  pages: Page[],
+  contentObjects: Record<string, unknown>[]
+): Page[] {
+  const indexById = new Map<string, number>();
+  contentObjects.forEach((co, index) => {
+    const id = co._id ?? co.id;
+    if (id !== undefined && id !== null) {
+      indexById.set(String(id), index);
+    }
+  });
+
+  return [...pages].sort((a, b) => {
+    const sortA = readSortOrder(a.raw);
+    const sortB = readSortOrder(b.raw);
+    if (sortA !== null && sortB !== null && sortA !== sortB) {
+      return sortA - sortB;
+    }
+    if (sortA !== null && sortB === null) return -1;
+    if (sortA === null && sortB !== null) return 1;
+
+    const indexA = indexById.get(a.id) ?? 0;
+    const indexB = indexById.get(b.id) ?? 0;
+    return indexA - indexB;
+  });
+}
+
+function readSortOrder(row: Record<string, unknown> | undefined): number | null {
+  if (!row) return null;
+  const value = row._sortOrder ?? row.sortOrder;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim() !== '' && !Number.isNaN(Number(value))) {
+    return Number(value);
+  }
+  return null;
 }

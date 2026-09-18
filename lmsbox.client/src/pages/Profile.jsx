@@ -22,12 +22,14 @@ export default function Profile() {
   }, []);
 
   // Detect role for header
-  const isAdmin = profile?.roles?.includes('OrgAdmin') || profile?.roles?.includes('SuperAdmin');
+  const isAdminUser = profile?.roles?.some((role) =>
+    ['admin', 'Admin', 'OrgAdmin', 'TenantAdmin', 'SuperAdmin'].includes(role)
+  );
 
   if (loading) {
     return (
       <>
-        {isAdmin ? <AdminHeader /> : <LearnerHeader />}
+        {isAdminUser ? <AdminHeader /> : <LearnerHeader />}
         <div className="max-w-2xl mx-auto py-12 text-center text-gray-500">Loading profile...</div>
       </>
     );
@@ -36,7 +38,7 @@ export default function Profile() {
   if (!profile) {
     return (
       <>
-        {isAdmin ? <AdminHeader /> : <LearnerHeader />}
+        {isAdminUser ? <AdminHeader /> : <LearnerHeader />}
         <div className="max-w-2xl mx-auto py-12 text-center text-red-500">Failed to load profile.</div>
       </>
     );
@@ -44,7 +46,7 @@ export default function Profile() {
 
   return (
     <>
-      {isAdmin ? <AdminHeader /> : <LearnerHeader />}
+      {isAdminUser ? <AdminHeader /> : <LearnerHeader />}
       <div className="max-w-2xl mx-auto px-4 py-10">
         <h1 className="text-3xl font-bold mb-6 text-gray-900">My Profile</h1>
         <div className="bg-white rounded-lg shadow p-6 space-y-6 border border-gray-100">

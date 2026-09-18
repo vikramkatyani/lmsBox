@@ -29,7 +29,8 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
         "accordion",
         "questionnaire",
         "text",
-        "video"
+        "video",
+        "audio"
     };
 
     private const string PlusSvg =
@@ -99,6 +100,7 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
             "questionnaire" => RenderQuestionnaire(blockId, formPayloadJson),
             "text" => RenderText(blockId, formPayloadJson),
             "video" => RenderVideo(blockId, formPayloadJson),
+            "audio" => RenderAudio(blockId, formPayloadJson),
             _ => throw new ArgumentException($"No fixed template for block type: {blockType}")
         };
     }
@@ -257,12 +259,19 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
             var isWarn = variant == "warn";
             var triggerId = $"lmsbox-reveal-trigger-{blockId}-{i}";
             var bodyId = $"lmsbox-reveal-body-{blockId}-{i}";
+            var icon = InteractiveBlockIcons.Resolve(
+                ReadText(item?["icon"]),
+                isWarn ? TriangleSvg : ShieldSvg);
+            var imageHtml = RenderOptionalImage(
+                ReadText(item?["imageUrl"]),
+                "lms-block-media",
+                title);
 
             itemsMarkup.Append(
                 $"""
                 <section class="lms-reveal{(isWarn ? " lms-reveal--warn" : "")}" data-reveal-item>
                   <button class="lms-reveal__trigger" type="button" id="{triggerId}" aria-expanded="false" aria-controls="{bodyId}">
-                    <span class="lms-reveal__icon" aria-hidden="true">{(isWarn ? TriangleSvg : ShieldSvg)}</span>
+                    <span class="lms-reveal__icon" aria-hidden="true">{icon}</span>
                     <span style="flex:1">
                       <span class="lms-reveal__label">{HtmlEncode(label)}</span>
                       <h2 class="lms-reveal__title">{HtmlEncode(title)}</h2>
@@ -270,7 +279,7 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
                     <span class="lms-plus" aria-hidden="true">{PlusSvg}</span>
                   </button>
                   <div class="lms-reveal__body" id="{bodyId}" role="region" aria-labelledby="{triggerId}">
-                    <div class="lms-reveal__inner">{RenderParagraphs(body)}</div>
+                    <div class="lms-reveal__inner">{imageHtml}{RenderParagraphs(body)}</div>
                   </div>
                 </section>
                 """);
@@ -559,6 +568,10 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
             var step = stepsArray[i] as JsonObject;
             var title = ReadText(step?["title"]);
             var body = ReadText(step?["body"]);
+            var imageHtml = RenderOptionalImage(
+                ReadText(step?["imageUrl"]),
+                "lms-block-media",
+                title);
             stepTitles.Add(title);
 
             stepsMarkup.Append(
@@ -567,6 +580,7 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
                   <span class="lms-process__num">{i + 1}</span>
                   <div>
                     <h3>{HtmlEncode(title)}</h3>
+                    {imageHtml}
                     {RenderParagraphs(body)}
                   </div>
                 </div>
@@ -605,9 +619,17 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
                 nodesMarkup.Append($"""<span class="lms-process__arrow" aria-hidden="true">{ArrowSvg}</span>""");
             }
 
-            var icon = i == nodeLabels.Count - 1
+            var fallbackIcon = i == nodeLabels.Count - 1
                 ? CheckNodeSvg
                 : i == 0 ? DocumentNodeSvg : PanelNodeSvg;
+            var iconKey = i < stepsArray.Count
+                ? ReadText((stepsArray[i] as JsonObject)?["icon"])
+                : "";
+            if (string.IsNullOrWhiteSpace(iconKey) && root["nodes"] is JsonArray iconNodes && i < iconNodes.Count)
+            {
+                iconKey = ReadNodeIcon(iconNodes[i]);
+            }
+            var icon = InteractiveBlockIcons.Resolve(iconKey, fallbackIcon);
 
             nodesMarkup.Append(
                 $"""
@@ -706,16 +728,27 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
             var body = ReadText(panel?["body"]);
             var triggerId = $"lmsbox-accordion-trigger-{blockId}-{i}";
             var bodyId = $"lmsbox-accordion-body-{blockId}-{i}";
+            var iconHtml = "";
+            var iconSvg = InteractiveBlockIcons.ResolveCustom(ReadText(panel?["icon"]));
+            if (iconSvg != null)
+            {
+                iconHtml = $"""<span class="lms-accordion__icon" aria-hidden="true">{iconSvg}</span>""";
+            }
+            var imageHtml = RenderOptionalImage(
+                ReadText(panel?["imageUrl"]),
+                "lms-block-media",
+                title);
 
             panelsMarkup.Append(
                 $"""
                 <div class="lms-accordion__item" data-accordion-item>
                   <button class="lms-accordion__trigger" type="button" id="{triggerId}" aria-expanded="false" aria-controls="{bodyId}">
+                    {iconHtml}
                     <h3 class="lms-accordion__title">{HtmlEncode(title)}</h3>
                     <span class="lms-plus lms-plus--sm" aria-hidden="true">{PlusSvg}</span>
                   </button>
                   <div class="lms-accordion__body" id="{bodyId}" role="region" aria-labelledby="{triggerId}">
-                    <div class="lms-accordion__inner">{RenderParagraphs(body)}</div>
+                    <div class="lms-accordion__inner">{imageHtml}{RenderParagraphs(body)}</div>
                   </div>
                 </div>
                 """);
@@ -767,9 +800,12 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
 
             questions.Add(new
             {
-                text = q?["text"]?.GetValue<string>()?.Trim() ?? "",
+                text = ReadText(q?["text"]),
                 type,
-                options
+                options,
+                correctFeedback = ReadText(q?["correctFeedback"]),
+                incorrectFeedback = ReadText(q?["incorrectFeedback"]),
+                imageUrl = ReadText(q?["imageUrl"])
             });
         }
 
@@ -871,6 +907,42 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
         return (html, completionRule);
     }
 
+    private (string Html, string CompletionRuleJson) RenderAudio(long blockId, string formPayloadJson)
+    {
+        var root = JsonNode.Parse(formPayloadJson) as JsonObject
+            ?? throw new ArgumentException("Invalid form payload JSON.");
+
+        var title = root["title"]?.GetValue<string>()?.Trim() ?? "";
+        var description = root["description"]?.GetValue<string>()?.Trim() ?? "";
+        var audioUrl = root["audioUrl"]?.GetValue<string>()?.Trim() ?? "";
+
+        if (string.IsNullOrWhiteSpace(audioUrl))
+        {
+            throw new ArgumentException("Audio URL is required before generating this block.");
+        }
+
+        if (!Uri.TryCreate(audioUrl, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            throw new ArgumentException("Audio URL must be a valid http or https URL.");
+        }
+
+        var html = FillTemplate(
+            "audio.html",
+            blockId,
+            ("{{TITLE}}", HtmlEncode(title)),
+            ("{{DESCRIPTION}}", HtmlEncode(description)),
+            ("{{AUDIO_SRC}}", HtmlEncodeAttribute(audioUrl)));
+
+        var completionRule = JsonSerializer.Serialize(new
+        {
+            type = "audio",
+            requirePlayedToEnd = true
+        });
+
+        return (html, completionRule);
+    }
+
     private static (string PlayerKind, string PlayerHtml) BuildVideoPlayerMarkup(string videoUrl)
     {
         if (TryGetYouTubeEmbedUrl(videoUrl, out var youtubeEmbed))
@@ -902,6 +974,7 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
                   title="Vimeo video"
                   allow="autoplay; fullscreen; picture-in-picture"
                   allowfullscreen
+                  referrerpolicy="strict-origin-when-cross-origin"
                 ></iframe>
                 """);
         }
@@ -990,16 +1063,31 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
 
         var parts = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
         string? videoId = null;
+        string? hash = GetQueryValue(uri.Query, "h");
+        var videoIndex = -1;
+
         if (host.Equals("player.vimeo.com", StringComparison.OrdinalIgnoreCase)
             && parts.Length >= 2
             && parts[0].Equals("video", StringComparison.OrdinalIgnoreCase))
         {
             videoId = parts[1];
+            videoIndex = 1;
         }
-        else if (parts.Length >= 1)
+        else
         {
-            // vimeo.com/123456789 or vimeo.com/channels/x/123456789
-            videoId = parts.LastOrDefault(p => p.All(char.IsDigit));
+            for (var i = 0; i < parts.Length; i++)
+            {
+                if (parts[i].All(char.IsDigit) && parts[i].Length >= 5)
+                {
+                    videoIndex = i;
+                    videoId = parts[i];
+                }
+            }
+        }
+
+        if (videoIndex >= 0 && videoIndex + 1 < parts.Length && LooksLikeVimeoHash(parts[videoIndex + 1]))
+        {
+            hash ??= parts[videoIndex + 1];
         }
 
         if (string.IsNullOrWhiteSpace(videoId) || !videoId.All(char.IsDigit))
@@ -1007,9 +1095,20 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
             return false;
         }
 
-        embedUrl = $"https://player.vimeo.com/video/{videoId}?title=0&byline=0&portrait=0";
+        var query = "title=0&byline=0&portrait=0&dnt=1&api=1";
+        if (!string.IsNullOrWhiteSpace(hash))
+        {
+            query += $"&h={Uri.EscapeDataString(hash)}";
+        }
+
+        embedUrl = $"https://player.vimeo.com/video/{videoId}?{query}";
         return true;
     }
+
+    private static bool LooksLikeVimeoHash(string value)
+        => value.Length is >= 6 and <= 24
+           && value.Any(char.IsLetter)
+           && value.All(char.IsLetterOrDigit);
 
     private static string? GetQueryValue(string query, string key)
     {
@@ -1041,6 +1140,19 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
 
     private static string ReadText(JsonNode? node)
         => node is JsonValue value && value.TryGetValue<string>(out var text) ? text.Trim() : "";
+
+    private static string ReadNodeIcon(JsonNode? node)
+        => node is JsonObject obj ? ReadText(obj["icon"]) : "";
+
+    private static string RenderOptionalImage(string url, string className, string alt)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return "";
+        }
+
+        return $"""<img class="{className}" src="{HtmlEncodeAttribute(url)}" alt="{HtmlEncodeAttribute(alt)}" />""";
+    }
 
     /// <summary>Wraps plain text in paragraphs so authored line breaks survive rendering.</summary>
     private static string RenderParagraphs(string text, string? className = null)

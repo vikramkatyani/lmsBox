@@ -55,6 +55,15 @@
           opened[index] = true;
           if (hintEl) hintEl.classList.add('is-gone');
           updateProgress();
+          var imgs = body.querySelectorAll('img');
+          imgs.forEach(function (img) {
+            if (img.complete) return;
+            img.addEventListener('load', function () {
+              if (item.classList.contains('is-open')) {
+                body.style.maxHeight = body.scrollHeight + 'px';
+              }
+            });
+          });
         }
       });
     });
