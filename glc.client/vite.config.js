@@ -19,6 +19,8 @@ const reactAliases = {
   'react-dom': path.resolve(clientModules, 'react-dom'),
   'react/jsx-runtime': path.resolve(clientModules, 'react/jsx-runtime.js'),
   'react/jsx-dev-runtime': path.resolve(clientModules, 'react/jsx-dev-runtime.js'),
+  // import-engine is outside this package; CI installs deps only here.
+  jszip: path.resolve(clientModules, 'jszip'),
 }
 
 const reactDedupe = [

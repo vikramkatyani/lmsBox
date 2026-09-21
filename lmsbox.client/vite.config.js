@@ -10,12 +10,13 @@ const importEngineRoot = path.resolve(__dirname, '../import-engine')
 const clientModules = path.resolve(clientRoot, 'node_modules')
 
 // import-engine lives outside this package; without these aliases Vite resolves
-// react/* relative to that folder and fails with "react/jsx-runtime" not found.
-const reactAliases = {
+// deps relative to that folder (where CI never runs npm install) and fails.
+const sharedAliases = {
   react: path.resolve(clientModules, 'react'),
   'react-dom': path.resolve(clientModules, 'react-dom'),
   'react/jsx-runtime': path.resolve(clientModules, 'react/jsx-runtime.js'),
   'react/jsx-dev-runtime': path.resolve(clientModules, 'react/jsx-dev-runtime.js'),
+  jszip: path.resolve(clientModules, 'jszip'),
 }
 
 export default defineConfig({
@@ -26,9 +27,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@import-engine': importEngineRoot,
-      ...reactAliases,
+      ...sharedAliases,
     },
-    dedupe: ['react', 'react-dom'],
+    dedupe: ['react', 'react-dom', 'jszip'],
   },
   optimizeDeps: {
     include: ['react', 'react-dom', 'jszip'],
