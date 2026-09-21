@@ -26,8 +26,24 @@ import type {
   PendingMediaAttachment,
 } from './ImportDraftPlan';
 
-/** LMSBox interactive lesson hard limit — must match InteractiveLessonConstants.MaxBlocksPerLesson. Set to 20 when the higher block cap ships. */
-export const MAX_BLOCKS_PER_LESSON = 5;
+/**
+ * LMSBox interactive lesson safety cap — must match InteractiveLessonConstants.MaxBlocksPerLesson.
+ * Import no longer splits lessons at this bound; Evolve pages can map to many native blocks.
+ */
+export const MAX_BLOCKS_PER_LESSON = 100;
+
+const PLACEHOLDER_ARTICLE_TITLES = new Set([
+  'new article title',
+  'new article',
+  'untitled',
+]);
+
+const PLACEHOLDER_COMPONENT_TITLES = new Set([
+  'graphic title',
+  'hot graphic title',
+  'new component title',
+  'image',
+]);
 
 /** Must match InteractiveLessonConstants.QuestionnaireQuestionsPerBlock. Set to 20 when multi-question questionnaires ship. */
 const MAX_QUESTIONS_PER_BLOCK = 1;
@@ -35,7 +51,8 @@ const MAX_QUESTIONS_PER_BLOCK = 1;
 /**
  * Configuration: Evolve _component → LMSBox blockType.
  * Prefer extending this map over hardcoding inside mapComponent().
- * Assessment types (mcq/gmcq/…) are skipped by default — see skipAssessments.
+ * Scored Evolve assessments (pass/fail / marks) are skipped by default — see skipAssessments.
+ * In-page knowledge checks and mini quizzes map to questionnaire blocks.
  */
 export const EVOLVE_TO_LMSBOX_BLOCK_TYPE: Record<string, string> = {
   text: 'text',
@@ -64,8 +81,9 @@ export interface MapEvolveOptions {
   /** Append timestamp suffix to avoid duplicate title conflicts */
   uniquifyTitle?: boolean;
   /**
-   * When true (default), skip Evolve scored assessment pages/lessons/components.
-   * Use a separate LMSBox Quiz lesson for course assessment.
+   * When true (default), skip Evolve scored assessment pages (marks / pass-fail).
+   * In-page knowledge checks are still converted. Use a separate LMSBox Quiz lesson
+   * for the final course assessment.
    */
   skipAssessments?: boolean;
 }
@@ -73,10 +91,11 @@ export interface MapEvolveOptions {
 /**
  * Maps an Evolve Course object model into an LMSBox draft import plan.
  *
- * - Flattens Pages (title prefix on lessons)
+ * - Evolve pages (contentObjects) → LMSBox interactive lessons
+ * - Evolve lessons (articles) → LMSBox native blocks
+ * - "New Article Title" page-intro articles → Hero blocks
  * - Maps Components → Interactive Blocks
- * - Skips Evolve assessments by default (skipAssessments)
- * - Splits lessons when mapped blocks exceed MAX_BLOCKS_PER_LESSON
+ * - Skips Evolve scored assessments by default (skipAssessments); keeps knowledge checks
  * - Does not call LMS APIs or upload assets
  */
 export class EvolveToLmsboxMapper {
@@ -103,6 +122,8 @@ export class EvolveToLmsboxMapper {
     const report: MappingReportItem[] = [];
     const lessons: MappedLesson[] = [];
 
+    const seenArticleIds = new Set<string>();
+
     const walkPages = (
       pages: Page[],
       ancestors: string[] = [],
@@ -124,13 +145,17 @@ export class EvolveToLmsboxMapper {
         const pageLabel = page.displayTitle || page.title;
         const prefixParts = [...ancestors, pageLabel].filter(Boolean);
 
+        for (const article of page.lessons) {
+          seenArticleIds.add(article.id);
+        }
+
         if (pageIsAssessment) {
           const pagePath = prefixParts.join(' › ');
-          for (const lesson of page.lessons) {
+          for (const article of page.lessons) {
             report.push({
-              sourceComponentId: lesson.id,
+              sourceComponentId: article.id,
               sourceType: 'article',
-              sourceTitle: lesson.displayTitle || lesson.title || lesson.id,
+              sourceTitle: article.displayTitle || article.title || article.id,
               status: 'skipped',
               reasonCode: 'assessment_page',
               pagePath,
@@ -151,29 +176,28 @@ export class EvolveToLmsboxMapper {
           continue;
         }
 
-        for (const lesson of page.lessons) {
-          const mapped = this.mapLesson(
-            lesson,
-            prefixParts,
-            report,
-            page.id,
-            skipAssessments
-          );
-          lessons.push(...mapped);
+        const mappedPage = this.mapPage(
+          page,
+          prefixParts,
+          report,
+          skipAssessments
+        );
+        if (mappedPage) {
+          lessons.push(mappedPage);
         }
       }
     };
 
     walkPages(course.pages);
 
-    // Orphan lessons not attached to a walked page (safety net) — append in source list order
-    const seenLessonIds = new Set(lessons.map((l) => l.sourceLessonId));
+    // Orphan articles not attached to a walked page (safety net) — one lesson each
     const reportedIds = new Set(report.map((r) => r.sourceComponentId));
-    for (const lesson of course.lessons) {
-      if (seenLessonIds.has(lesson.id) || reportedIds.has(lesson.id)) continue;
-      lessons.push(
-        ...this.mapLesson(lesson, [], report, undefined, skipAssessments)
-      );
+    for (const article of course.lessons) {
+      if (seenArticleIds.has(article.id) || reportedIds.has(article.id)) continue;
+      const orphanPage = this.mapOrphanArticle(article, report, skipAssessments);
+      if (orphanPage) {
+        lessons.push(orphanPage);
+      }
     }
 
     // Stamp stable 1-based presentation order for LMSBox ordinals
@@ -243,90 +267,247 @@ export class EvolveToLmsboxMapper {
     };
   }
 
-  private mapLesson(
-    lesson: Lesson,
-    pagePrefix: string[],
+  private mapPage(
+    page: Page,
+    titleParts: string[],
     report: MappingReportItem[],
-    sourcePageId?: string,
     skipAssessments = true
-  ): MappedLesson[] {
-    const lessonTitle = lesson.displayTitle || lesson.title || lesson.id;
-    const pagePath = pagePrefix.join(' › ') || undefined;
+  ): MappedLesson | null {
+    if (page.lessons.length === 0) {
+      return null;
+    }
 
-    if (skipAssessments && isEvolveAssessmentNode(lesson)) {
+    const pageTitle = page.displayTitle || page.title || page.id;
+    const pagePath = titleParts.join(' › ') || pageTitle;
+    const blocks: MappedBlock[] = [];
+
+    page.lessons.forEach((article) => {
+      blocks.push(
+        ...this.mapArticleToBlocks(
+          article,
+          {
+            pageTitle,
+            pagePath,
+            isIntro: isPageIntroductionArticle(article),
+            skipAssessments,
+          },
+          report
+        )
+      );
+    });
+
+    if (blocks.length === 0) {
+      return null;
+    }
+
+    return {
+      title: pagePath,
+      description: page.description || page.body || undefined,
+      sourcePageId: page.id,
+      sourceLessonId: page.id,
+      blocks,
+    };
+  }
+
+  private mapOrphanArticle(
+    article: Lesson,
+    report: MappingReportItem[],
+    skipAssessments = true
+  ): MappedLesson | null {
+    const title = article.displayTitle || article.title || article.id;
+    const blocks = this.mapArticleToBlocks(
+      article,
+      {
+        pageTitle: title,
+        pagePath: undefined,
+        isIntro: isPageIntroductionArticle(article),
+        skipAssessments,
+      },
+      report
+    );
+    if (blocks.length === 0) return null;
+    return {
+      title,
+      description: article.description || article.body || undefined,
+      sourceLessonId: article.id,
+      blocks,
+    };
+  }
+
+  private mapArticleToBlocks(
+    article: Lesson,
+    options: {
+      pageTitle: string;
+      pagePath?: string;
+      isIntro: boolean;
+      skipAssessments: boolean;
+    },
+    report: MappingReportItem[]
+  ): MappedBlock[] {
+    const articleTitle = article.displayTitle || article.title || article.id;
+
+    if (options.skipAssessments && isEvolveAssessmentNode(article)) {
       report.push({
-        sourceComponentId: lesson.id,
+        sourceComponentId: article.id,
         sourceType: 'article',
-        sourceTitle: lessonTitle,
+        sourceTitle: articleTitle,
         status: 'skipped',
         reasonCode: 'assessment_article',
-        pagePath,
+        pagePath: options.pagePath,
         message: `${evolveAssessmentSkipMessage()} (assessment article).`,
       });
       return [];
     }
 
-    const fullTitle =
-      pagePrefix.length > 0
-        ? `${pagePrefix.join(' › ')} › ${lessonTitle}`
-        : lessonTitle;
-
+    const components = article.blocks.flatMap((block) => block.components);
+    const consumedIds = new Set<string>();
     const blocks: MappedBlock[] = [];
-    let componentCount = 0;
+
+    if (options.isIntro) {
+      const hero = this.mapIntroArticleToHero(
+        article,
+        components,
+        options.pageTitle,
+        options.pagePath,
+        report
+      );
+      if (hero) {
+        blocks.push(hero.block);
+        hero.consumedComponentIds.forEach((id) => consumedIds.add(id));
+      }
+    }
+
+    const unmapped = components.filter((component) => !consumedIds.has(component.id));
+
     let assessmentComponentSkips = 0;
 
-    for (const block of lesson.blocks) {
-      for (const component of block.components) {
-        componentCount += 1;
-        const before = report.length;
-        const mapped = this.mapComponent(component, report, skipAssessments);
-        if (mapped) {
-          blocks.push(mapped);
-        } else if (
-          report[report.length - 1]?.reasonCode === 'assessment_component' &&
-          report.length > before
-        ) {
-          assessmentComponentSkips += 1;
-        }
+    for (const component of unmapped) {
+      const before = report.length;
+      const mapped = this.mapComponent(
+        component,
+        report,
+        options.skipAssessments
+      );
+      if (mapped) {
+        blocks.push(mapped);
+      } else if (
+        report[report.length - 1]?.reasonCode === 'assessment_component' &&
+        report.length > before
+      ) {
+        assessmentComponentSkips += 1;
       }
     }
 
     if (blocks.length === 0) {
-      const isTrulyEmpty = componentCount === 0;
+      const isTrulyEmpty = components.length === 0;
       const onlyAssessments =
-        !isTrulyEmpty && assessmentComponentSkips === componentCount;
+        !isTrulyEmpty && assessmentComponentSkips === components.length;
       report.push({
-        sourceComponentId: lesson.id,
+        sourceComponentId: article.id,
         sourceType: 'article',
-        sourceTitle: lessonTitle,
+        sourceTitle: articleTitle,
         status: 'skipped',
         reasonCode: 'empty_article',
-        pagePath,
+        pagePath: options.pagePath,
         message: isTrulyEmpty
-          ? `Empty article — no components in Evolve package. Not converted to an LMSBox lesson.${pagePath ? ` (under ${pagePath})` : ''}`
+          ? `Empty article — no components in Evolve package. Not converted to an LMSBox block.${options.pagePath ? ` (under ${options.pagePath})` : ''}`
           : onlyAssessments
-            ? `Article had only assessment components (excluded). Not converted to an LMSBox lesson.${pagePath ? ` (under ${pagePath})` : ''}`
-            : `Article has no mappable learning components. Not converted to an LMSBox lesson.${pagePath ? ` (under ${pagePath})` : ''}`,
+            ? `Article had only assessment components (excluded). Not converted to an LMSBox block.${options.pagePath ? ` (under ${options.pagePath})` : ''}`
+            : `Article has no mappable learning components. Not converted to an LMSBox block.${options.pagePath ? ` (under ${options.pagePath})` : ''}`,
       });
       return [];
     }
 
-    // Split into chunks of MAX_BLOCKS_PER_LESSON
-    const chunks: MappedBlock[][] = [];
-    for (let i = 0; i < blocks.length; i += MAX_BLOCKS_PER_LESSON) {
-      chunks.push(blocks.slice(i, i + MAX_BLOCKS_PER_LESSON));
+    return blocks;
+  }
+
+  private mapIntroArticleToHero(
+    article: Lesson,
+    components: Component[],
+    pageTitle: string,
+    pagePath: string | undefined,
+    report: MappingReportItem[]
+  ): { block: MappedBlock; consumedComponentIds: string[] } | null {
+    const graphic = components.find(
+      (component) => (component.type || '').toLowerCase() === 'graphic'
+    );
+    const textComponents = components.filter((component) => {
+      const type = (component.type || '').toLowerCase();
+      return type === 'text' || type === 'blank' || type === 'narrative';
+    });
+    const consumedComponentIds = [
+      ...(graphic ? [graphic.id] : []),
+      ...textComponents.map((component) => component.id),
+    ];
+
+    const raw = graphic?.raw ?? article.raw ?? {};
+    const mediaAssets: PendingMediaAttachment[] = [];
+    let backgroundImageUrl = '';
+    let status: 'mapped' | 'stubbed' = 'mapped';
+    let message = `Mapped page introduction → hero${pagePath ? ` (${pagePath})` : ''}.`;
+
+    if (graphic) {
+      const src = this.resolveImageSource(raw, graphic);
+      const alt = resolveEvolveGraphicAlt(raw);
+      if (src && isAbsoluteUrl(src)) {
+        backgroundImageUrl = src;
+        message = `Mapped page introduction graphic with absolute image URL → hero.`;
+      } else if (src) {
+        mediaAssets.push(makePendingMedia(src, 'backgroundImageUrl', alt || pageTitle));
+        status = 'stubbed';
+        message = `Page introduction graphic queued for hero background (${src}).`;
+      } else {
+        status = 'stubbed';
+        message = 'Page introduction mapped to hero without an image asset.';
+      }
     }
 
-    return chunks.map((chunk, index) => ({
-      title:
-        chunks.length === 1
-          ? fullTitle
-          : `${fullTitle} (part ${index + 1}/${chunks.length})`,
-      description: lesson.description || lesson.body || undefined,
-      sourcePageId,
-      sourceLessonId: lesson.id,
-      blocks: chunk,
-    }));
+    const introParts = [
+      stripHtml(article.body || article.description || ''),
+      ...textComponents.map((component) => {
+        const componentRaw = component.raw ?? {};
+        return (
+          stripHtml(asString(componentRaw.body) || component.body || '') ||
+          stripHtml(asString(componentRaw.content) || '')
+        );
+      }),
+      graphic ? resolveEvolveGraphicAlt(raw) : '',
+    ]
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .filter((part) => !isPlaceholderComponentTitle(part));
+
+    const uniqueIntro = [...new Set(introParts)];
+    const intro = truncate(uniqueIntro.join(' '), 500);
+    const heroTitle = truncate(pageTitle, 200) || 'Introduction';
+
+    report.push({
+      sourceComponentId: graphic?.id || article.id,
+      sourceType: graphic ? 'graphic' : 'article',
+      sourceTitle: heroTitle,
+      status,
+      targetBlockType: 'hero',
+      pagePath,
+      message,
+    });
+
+    return {
+      block: {
+        title: heroTitle,
+        blockType: 'hero',
+        formPayload: {
+          kicker: '',
+          title: heroTitle,
+          intro,
+          metaPills: [],
+          backgroundImageUrl,
+        },
+        mediaAssets,
+        sourceComponentId: graphic?.id || article.id,
+        sourceType: graphic ? 'graphic' : 'article',
+      },
+      consumedComponentIds,
+    };
   }
 
   private mapComponent(
@@ -1159,6 +1340,19 @@ export class EvolveToLmsboxMapper {
     this.markImageUsed(chosen.path);
     return chosen.path;
   }
+}
+
+function isPageIntroductionArticle(article: Lesson): boolean {
+  const title = (article.displayTitle || article.title || '').trim();
+  return isPlaceholderArticleTitle(title);
+}
+
+function isPlaceholderArticleTitle(title: string): boolean {
+  return PLACEHOLDER_ARTICLE_TITLES.has(title.trim().toLowerCase());
+}
+
+function isPlaceholderComponentTitle(title: string): boolean {
+  return PLACEHOLDER_COMPONENT_TITLES.has(title.trim().toLowerCase());
 }
 
 function countPages(pages: Page[]): number {

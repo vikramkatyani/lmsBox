@@ -155,8 +155,9 @@ describe('ObjectModelBuilder — relationship building', () => {
       uniquifyTitle: false,
       skipAssessments: true,
     });
-    // a-b has no components so it is skipped; remaining lesson/blocks keep Evolve order
-    expect(plan.lessons.map((l) => l.sourceLessonId)).toEqual(['a-a']);
+    // a-b has no components so it is skipped; remaining page/blocks keep Evolve order
+    expect(plan.lessons.map((l) => l.sourceLessonId)).toEqual(['co-first']);
+    expect(plan.lessons[0].sourcePageId).toBe('co-first');
     expect(plan.lessons[0].blocks.map((b) => b.sourceComponentId)).toEqual([
       'c-1',
       'c-2',

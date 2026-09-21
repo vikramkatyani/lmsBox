@@ -17,8 +17,12 @@ export {
 export {
   EVOLVE_ASSESSMENT_COMPONENT_TYPES,
   EVOLVE_ASSESSMENT_COMPONENT_TYPE_SET,
+  EVOLVE_ASSESSMENT_TITLE_PATTERNS,
+  EVOLVE_KNOWLEDGE_CHECK_TITLE_PATTERNS,
   isEvolveAssessmentComponentType,
   isEvolveAssessmentNode,
+  isEvolveKnowledgeCheckNode,
+  titleLooksLikeEvolveKnowledgeCheck,
   evolveAssessmentSkipMessage,
 } from './config/assessmentSkip';
 

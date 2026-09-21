@@ -198,8 +198,9 @@ export function EvolvePackageInspector({ onCreateDraftCourse }) {
             <span>
               Exclude Evolve assessments from Draft import
               <span className="block text-xs text-slate-500">
-                Skips scored components (mcq/gmcq/…) and assessment pages such as
-                Competency Assessment. Add an LMSBox Quiz lesson separately.
+                Skips the final scored Evolve assessment (marks / pass-fail), such as
+                Competency Assessment. In-page knowledge checks and mini quizzes are
+                converted. Add an LMSBox Quiz lesson separately for the final assessment.
               </span>
             </span>
           </label>
@@ -414,13 +415,14 @@ function ConversionNotice({ plan, onOpenReport }) {
         {empty > 0 && (
           <li>
             <strong>{empty}</strong> empty article(s) had no mappable components and were
-            not created as LMSBox lessons.
+            not converted into LMSBox blocks.
           </li>
         )}
         {assessment > 0 && (
           <li>
-            <strong>{assessment}</strong> assessment item(s) were excluded (use an LMSBox
-            Quiz lesson separately).
+            <strong>{assessment}</strong> scored assessment item(s) were excluded (marks /
+            pass-fail). In-page knowledge checks are converted. Use an LMSBox Quiz
+            lesson for the final assessment.
           </li>
         )}
         {unsupported > 0 && (

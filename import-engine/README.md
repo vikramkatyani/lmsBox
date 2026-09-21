@@ -18,7 +18,7 @@ Understanding only:
 - After draft create, client uploads ZIP bytes from VFS into each block and patches payloads
 - Graphics → text `<img>`; video/audio/hotspot/carousel images wired to LMSBox URL fields
 - Import API returns `blockId` so uploads target the correct blocks
-- **Evolve assessments skipped by default** (mcq/gmcq/… and assessment pages); use an LMSBox Quiz lesson separately. Toggle in Import Engine UI.
+- **Final Evolve scored assessments skipped by default** (competency / pass-fail / marks); in-page knowledge checks and mini quizzes convert to questionnaire blocks. Use an LMSBox Quiz lesson for the final assessment. Toggle in Import Engine UI.
 
 ### Sprint 3 flow
 
@@ -53,12 +53,21 @@ import-engine/
 
 ```
 Course
- └── Pages          (Evolve contentObjects)
-      └── Lessons   (Evolve articles)
+ └── Pages          (Evolve contentObjects → LMSBox lessons)
+      └── Lessons   (Evolve articles → LMSBox native blocks)
            └── Blocks
                 └── Components
                      └── Assets
 ```
+
+Mapping rules:
+
+- Each Evolve **page** becomes one LMSBox interactive lesson
+- Each Evolve **article/lesson** on that page becomes one or more native blocks
+- Articles titled **New Article Title** (page introductions) become a **Hero** block
+- In-page **knowledge checks** / mini quizzes become questionnaire blocks
+- Final scored Evolve assessments (marks / pass-fail) are skipped
+- Empty articles are skipped rather than becoming empty lessons
 
 Source IDs are preserved on the object model. LMSBox course/lesson IDs are created only when importing a Draft course.
 

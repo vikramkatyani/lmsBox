@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import {
-  EvolveToLmsboxMapper,
-  MAX_BLOCKS_PER_LESSON,
-} from '../src/mappers/EvolveToLmsboxMapper';
+import { EvolveToLmsboxMapper } from '../src/mappers/EvolveToLmsboxMapper';
 import type { Course } from '../src/models/Course';
 import type { Component } from '../src/models/Component';
+import type { Lesson } from '../src/models/Lesson';
 import { Publisher } from '../src/models/Publisher';
 
 function makeComponent(
@@ -27,6 +25,29 @@ function makeComponent(
     isKnownType: true,
     raw: partial.raw ?? {},
     ...partial,
+  };
+}
+
+function makeArticle(
+  id: string,
+  title: string,
+  components: Component[]
+): Lesson {
+  return {
+    id,
+    parentId: 'co-1',
+    title,
+    displayTitle: title,
+    blocks: [
+      {
+        id: `b-${id}`,
+        parentId: id,
+        title: 'Block',
+        components,
+        raw: {},
+      },
+    ],
+    raw: {},
   };
 }
 
@@ -126,8 +147,8 @@ describe('EvolveToLmsboxMapper', () => {
     expect(block.formPayload.panels).toHaveLength(2);
   });
 
-  it('splits lessons when mapped blocks exceed the interactive lesson limit', () => {
-    const components = Array.from({ length: MAX_BLOCKS_PER_LESSON + 2 }, (_, i) =>
+  it('keeps all mapped blocks on one lesson when they exceed the old 5-block cap', () => {
+    const components = Array.from({ length: 7 }, (_, i) =>
       makeComponent({
         id: `c-${i}`,
         type: 'text',
@@ -139,10 +160,10 @@ describe('EvolveToLmsboxMapper', () => {
 
     const plan = mapper.map(makeCourse(components), { uniquifyTitle: false });
 
-    expect(plan.lessons.length).toBe(2);
-    expect(plan.lessons[0].blocks).toHaveLength(MAX_BLOCKS_PER_LESSON);
-    expect(plan.lessons[1].blocks).toHaveLength(2);
-    expect(plan.lessons[0].title).toContain('part 1');
+    expect(plan.lessons).toHaveLength(1);
+    expect(plan.lessons[0].blocks).toHaveLength(7);
+    expect(plan.lessons[0].title).toBe('Introduction');
+    expect(plan.lessons[0].title).not.toMatch(/part \d/i);
   });
 
   it('skips unknown component types and records them in the report', () => {
@@ -428,7 +449,7 @@ describe('EvolveToLmsboxMapper', () => {
     expect(plan.lessons[0].blocks[0].title).toMatch(/What’s next/i);
   });
 
-  it('skips mcq components by default (assessment exclusion)', () => {
+  it('maps in-page mcq knowledge checks to questionnaire blocks', () => {
     const course = makeCourse([
       makeComponent({
         id: 'c-mcq',
@@ -450,11 +471,11 @@ describe('EvolveToLmsboxMapper', () => {
 
     const plan = mapper.map(course, { uniquifyTitle: false });
 
-    expect(plan.lessons).toHaveLength(0);
-    expect(plan.report.some((r) => r.sourceType === 'mcq' && r.status === 'skipped')).toBe(
+    expect(plan.lessons).toHaveLength(1);
+    expect(plan.lessons[0].blocks[0].blockType).toBe('questionnaire');
+    expect(plan.report.some((r) => r.sourceType === 'mcq' && r.status === 'mapped')).toBe(
       true
     );
-    expect(plan.report[0].message).toMatch(/LMSBox Quiz/i);
   });
 
   it('can map mcq when skipAssessments is false', () => {
@@ -483,6 +504,30 @@ describe('EvolveToLmsboxMapper', () => {
     });
 
     expect(plan.lessons[0].blocks[0].blockType).toBe('questionnaire');
+  });
+
+  it('skips assessmentResults components (score / pass-fail display)', () => {
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-results',
+        type: 'assessmentResults',
+        title: 'Your score',
+        raw: { title: 'Your score' },
+      }),
+    ]);
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+
+    expect(plan.lessons).toHaveLength(0);
+    expect(
+      plan.report.some(
+        (r) =>
+          r.sourceType === 'assessmentresults' &&
+          r.status === 'skipped' &&
+          r.reasonCode === 'assessment_component'
+      )
+    ).toBe(true);
+    expect(plan.report[0].message).toMatch(/pass-fail|LMSBox Quiz/i);
   });
 
   it('skips empty articles with reasonCode empty_article and highlights them in stats', () => {
@@ -565,6 +610,141 @@ describe('EvolveToLmsboxMapper', () => {
     ).toBe(true);
   });
 
+  it('maps page knowledge checks and mini quizzes instead of skipping them', () => {
+    const mcq = (id: string, question: string): ReturnType<typeof makeComponent> =>
+      makeComponent({
+        id,
+        type: 'mcq',
+        title: question,
+        raw: {
+          title: question,
+          _items: [
+            {
+              text: question,
+              _options: [
+                { text: 'Yes', _isCorrect: true },
+                { text: 'No', _isCorrect: false },
+              ],
+            },
+          ],
+        },
+      });
+
+    const course: Course = {
+      id: 'course',
+      title: 'AccuBio',
+      displayTitle: 'AccuBio',
+      publisher: Publisher.EVOLVE,
+      pages: [
+        {
+          id: 'co-features',
+          parentId: 'course',
+          title: 'KEY PRODUCT FEATURES',
+          displayTitle: 'KEY PRODUCT FEATURES',
+          type: 'page',
+          lessons: [
+            makeArticle('a-check', 'Knowledge check', [
+              makeComponent({
+                id: 'c-intro',
+                type: 'text',
+                title: 'Check your understanding',
+                body: '<p>Answer the questions below.</p>',
+                raw: {
+                  title: 'Check your understanding',
+                  body: '<p>Answer the questions below.</p>',
+                },
+              }),
+            ]),
+            makeArticle('a-q1', 'Mini quiz - Question 1', [mcq('c-q1', 'Question 1')]),
+            makeArticle('a-q2', 'Mini quiz - Question 2', [mcq('c-q2', 'Question 2')]),
+            makeArticle('a-q3', 'Mini quiz - Question 3', [mcq('c-q3', 'Question 3')]),
+          ],
+          childPages: [],
+          raw: {},
+        },
+      ],
+      lessons: [],
+      blocks: [],
+      components: [],
+      assets: [],
+      raw: {},
+      contentRoot: 'course',
+    };
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+
+    expect(plan.lessons).toHaveLength(1);
+    expect(plan.lessons[0].title).toBe('KEY PRODUCT FEATURES');
+    expect(plan.lessons[0].blocks.map((block) => block.blockType)).toEqual([
+      'text',
+      'questionnaire',
+      'questionnaire',
+      'questionnaire',
+    ]);
+    expect(
+      plan.report.some(
+        (item) =>
+          item.sourceTitle === 'Knowledge check' &&
+          item.status === 'skipped' &&
+          (item.reasonCode === 'assessment_article' || item.reasonCode === 'assessment_page')
+      )
+    ).toBe(false);
+    expect(plan.stats.assessmentSkippedCount).toBe(0);
+  });
+
+  it('still maps a knowledge check article when Evolve flags it as _assessment', () => {
+    const article = makeArticle('a-check', 'Knowledge check', [
+      makeComponent({
+        id: 'c-q',
+        type: 'mcq',
+        title: 'A question',
+        raw: {
+          title: 'A question',
+          _assessment: true,
+          _items: [
+            {
+              text: 'A question',
+              _options: [
+                { text: 'A', _isCorrect: true },
+                { text: 'B', _isCorrect: false },
+              ],
+            },
+          ],
+        },
+      }),
+    ]);
+    article.raw = { _assessment: true, title: 'Knowledge check' };
+
+    const course: Course = {
+      id: 'course',
+      title: 'AccuBio',
+      publisher: Publisher.EVOLVE,
+      pages: [
+        {
+          id: 'co-features',
+          parentId: 'course',
+          title: 'KEY PRODUCT FEATURES',
+          displayTitle: 'KEY PRODUCT FEATURES',
+          type: 'page',
+          lessons: [article],
+          childPages: [],
+          raw: {},
+        },
+      ],
+      lessons: [],
+      blocks: [],
+      components: [],
+      assets: [],
+      raw: {},
+      contentRoot: 'course',
+    };
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+
+    expect(plan.lessons).toHaveLength(1);
+    expect(plan.lessons[0].blocks[0].blockType).toBe('questionnaire');
+  });
+
   it('maps tabs items to tab panels', () => {
     const course = makeCourse([
       makeComponent({
@@ -640,5 +820,156 @@ describe('EvolveToLmsboxMapper', () => {
       { text: 'Review' },
     ]);
     expect(block.formPayload.correctFeedback).toBe('Well done');
+  });
+
+  it('maps each Evolve page to one LMSBox lesson and articles to blocks', () => {
+    const course: Course = {
+      id: 'course',
+      title: 'Sample Evolve Course',
+      displayTitle: 'Sample Evolve Course',
+      publisher: Publisher.EVOLVE,
+      pages: [
+        {
+          id: 'co-welcome',
+          parentId: 'course',
+          title: 'WELCOME AND INTRODUCTION',
+          displayTitle: 'WELCOME AND INTRODUCTION',
+          type: 'page',
+          lessons: [
+            makeArticle('a-overview', 'VISITECT overview', [
+              makeComponent({
+                id: 'c-ov',
+                type: 'text',
+                title: 'Overview',
+                body: '<p>About the test</p>',
+                raw: { title: 'Overview', body: '<p>About the test</p>' },
+              }),
+            ]),
+            makeArticle('a-objectives', 'Learning objectives', [
+              makeComponent({
+                id: 'c-obj',
+                type: 'text',
+                title: 'Objectives',
+                body: '<p>You will learn</p>',
+                raw: { title: 'Objectives', body: '<p>You will learn</p>' },
+              }),
+            ]),
+          ],
+          childPages: [],
+          raw: {},
+        },
+        {
+          id: 'co-features',
+          parentId: 'course',
+          title: 'KEY PRODUCT FEATURES',
+          displayTitle: 'KEY PRODUCT FEATURES',
+          type: 'page',
+          lessons: [
+            makeArticle('a-feat', 'What are the key features?', [
+              makeComponent({
+                id: 'c-feat',
+                type: 'text',
+                title: 'Features',
+                body: '<p>Key features</p>',
+                raw: { title: 'Features', body: '<p>Key features</p>' },
+              }),
+            ]),
+          ],
+          childPages: [],
+          raw: {},
+        },
+      ],
+      lessons: [],
+      blocks: [],
+      components: [],
+      assets: [],
+      raw: {},
+      contentRoot: 'course',
+    };
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+
+    expect(plan.lessons).toHaveLength(2);
+    expect(plan.lessons.map((lesson) => lesson.title)).toEqual([
+      'WELCOME AND INTRODUCTION',
+      'KEY PRODUCT FEATURES',
+    ]);
+    expect(plan.lessons[0].sourceLessonId).toBe('co-welcome');
+    expect(plan.lessons[0].sourcePageId).toBe('co-welcome');
+    expect(plan.lessons[0].blocks).toHaveLength(2);
+    expect(plan.lessons[1].blocks).toHaveLength(1);
+  });
+
+  it('converts New Article Title page intros into a Hero block', () => {
+    const course: Course = {
+      id: 'course',
+      title: 'AccuBio',
+      displayTitle: 'AccuBio',
+      publisher: Publisher.EVOLVE,
+      pages: [
+        {
+          id: 'co-welcome',
+          parentId: 'course',
+          title: 'WELCOME AND INTRODUCTION',
+          displayTitle: 'WELCOME AND INTRODUCTION',
+          type: 'page',
+          lessons: [
+            makeArticle('a-intro', 'New Article Title', [
+              makeComponent({
+                id: 'c-hero-g',
+                type: 'graphic',
+                title: 'Graphic Title',
+                raw: {
+                  title: 'Graphic Title',
+                  _graphic: 'course/en/assets/5fe06d9366d85155e5700dca/extraLarge.png',
+                },
+              }),
+            ]),
+            makeArticle('a-next', "What's next?", [
+              makeComponent({
+                id: 'c-next',
+                type: 'text',
+                title: "What's next?",
+                body: '<p>Continue to the next section</p>',
+                raw: {
+                  title: "What's next?",
+                  body: '<p>Continue to the next section</p>',
+                },
+              }),
+            ]),
+          ],
+          childPages: [],
+          raw: {},
+        },
+      ],
+      lessons: [],
+      blocks: [],
+      components: [],
+      assets: [],
+      raw: {},
+      contentRoot: 'course',
+    };
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    const lesson = plan.lessons[0];
+
+    expect(plan.lessons).toHaveLength(1);
+    expect(lesson.title).toBe('WELCOME AND INTRODUCTION');
+    expect(lesson.blocks).toHaveLength(2);
+    expect(lesson.blocks[0]).toMatchObject({
+      blockType: 'hero',
+      title: 'WELCOME AND INTRODUCTION',
+      sourceType: 'graphic',
+    });
+    expect(lesson.blocks[0].formPayload).toMatchObject({
+      title: 'WELCOME AND INTRODUCTION',
+      backgroundImageUrl: '',
+    });
+    expect(lesson.blocks[0].mediaAssets[0]).toMatchObject({
+      sourcePath: 'course/en/assets/5fe06d9366d85155e5700dca/extraLarge.png',
+      targetField: 'backgroundImageUrl',
+    });
+    expect(lesson.blocks[1].blockType).toBe('text');
+    expect(plan.report.some((item) => item.targetBlockType === 'hero')).toBe(true);
   });
 });

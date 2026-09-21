@@ -791,7 +791,7 @@ export default function InteractiveLessonEditor() {
         {isEdit && (
           <div className="bg-white border rounded-lg p-6 space-y-4">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold">Blocks ({blocks.length}/{INTERACTIVE_LESSON_MAX_BLOCKS})</h2>
+              <h2 className="text-lg font-semibold">Blocks ({blocks.length})</h2>
               <div className="flex items-center gap-4">
                 <a
                   href="/design-system/examples/index.html"

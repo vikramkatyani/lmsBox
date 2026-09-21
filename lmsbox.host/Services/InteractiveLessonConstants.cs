@@ -3,9 +3,10 @@ namespace lmsBox.Server.Services;
 public static class InteractiveLessonConstants
 {
     /// <summary>
-    /// Active lesson block cap. Set to 20 (keep in sync with client INTERACTIVE_LESSON_MAX_BLOCKS) to raise the limit.
+    /// Safety cap after removing the original 5-block interactive lesson limit.
+    /// Keep in sync with client INTERACTIVE_LESSON_MAX_BLOCKS.
     /// </summary>
-    public const int MaxBlocksPerLesson = 5;
+    public const int MaxBlocksPerLesson = 100;
 
     /// <summary>
     /// Active limit per questionnaire block. Set to <see cref="MaxQuestionnaireQuestionsPerBlock"/> to allow multiple questions.

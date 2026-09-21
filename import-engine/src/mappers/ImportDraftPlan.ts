@@ -52,6 +52,7 @@ export interface MappedLesson {
   title: string;
   description?: string;
   sourcePageId?: string;
+  /** Evolve page id (or article id for orphan articles). */
   sourceLessonId: string;
   blocks: MappedBlock[];
   /** 1-based course lesson order after flattening Evolve hierarchy. */
