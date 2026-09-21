@@ -41,11 +41,7 @@ function BlockFrame({ block, onComplete }) {
   }, [onComplete, block.blockType]);
 
   if (block.isLocked) {
-    return (
-      <div className="py-10 text-center text-gray-500 text-sm">
-        Complete the previous section to unlock this content.
-      </div>
-    );
+    return null;
   }
 
   if (!block.html) {
@@ -89,7 +85,14 @@ export default function InteractiveLessonPlayer({
     setError('');
     try {
       const data = await interactiveLessonsService.getLearnerLesson(courseId, lessonId, preview);
-      setLesson(data);
+      setLesson(
+        preview && data?.blocks
+          ? {
+              ...data,
+              blocks: data.blocks.map((block) => ({ ...block, isLocked: false })),
+            }
+          : data
+      );
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.message || 'Failed to load interactive lesson.');
@@ -109,8 +112,11 @@ export default function InteractiveLessonPlayer({
         b.id === blockId ? { ...b, isComplete: true } : b
       );
 
-      if (!prev.lockNextBlockUntilComplete) {
-        return { ...prev, blocks: completed };
+      if (preview || !prev.lockNextBlockUntilComplete) {
+        return {
+          ...prev,
+          blocks: completed.map((block) => ({ ...block, isLocked: false })),
+        };
       }
 
       let firstIncompleteFound = false;
@@ -127,7 +133,7 @@ export default function InteractiveLessonPlayer({
         }),
       };
     });
-  }, []);
+  }, [preview]);
 
   const handleBlockComplete = useCallback(async (data) => {
     const blockId = Number(data.blockId);
@@ -167,14 +173,13 @@ export default function InteractiveLessonPlayer({
     return <div className="p-6 text-gray-600">No blocks available yet.</div>;
   }
 
+  const visibleBlocks = preview
+    ? lesson.blocks.map((block) => ({ ...block, isLocked: false }))
+    : lesson.blocks.filter((block) => !block.isLocked);
+
   return (
     <div className="mx-auto w-full max-w-[1080px] space-y-8">
-      {preview && lesson.lockNextBlockUntilComplete && (
-        <p className="text-sm text-[#1b365d] bg-[#f8fbff] border border-[#d9e5f2] rounded px-4 py-3">
-          Sequential lock is on. Complete each block to unlock the next one.
-        </p>
-      )}
-      {lesson.blocks.map((block) => (
+      {visibleBlocks.map((block) => (
         <section key={`${block.id}-${block.isLocked ? 'locked' : 'open'}`} className="w-full">
           <BlockFrame block={block} onComplete={handleBlockComplete} />
         </section>

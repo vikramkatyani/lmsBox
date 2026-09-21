@@ -99,7 +99,9 @@ public class InteractiveLessonsController : ControllerBase
             });
         }
 
-        if (settings.LockNextBlockUntilComplete)
+        // Preview cannot persist block completion, so sequential lock would hide
+        // remaining content with no way to unlock it. Keep all blocks open in preview.
+        if (settings.LockNextBlockUntilComplete && !isAdminPreview)
         {
             var firstIncompleteFound = false;
             foreach (var block in blockDtos)
