@@ -25,9 +25,12 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
         "reflection",
         "hotspot",
         "process",
+        "flowchart",
         "carousel",
         "accordion",
+        "tabs",
         "questionnaire",
+        "ordering",
         "text",
         "video",
         "audio"
@@ -95,9 +98,12 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
             "reflection" => RenderReflection(blockId, formPayloadJson),
             "hotspot" => RenderHotspot(blockId, formPayloadJson),
             "process" => RenderProcess(blockId, formPayloadJson),
+            "flowchart" => RenderFlowchart(blockId, formPayloadJson),
             "carousel" => RenderCarousel(blockId, formPayloadJson),
             "accordion" => RenderAccordion(blockId, formPayloadJson),
+            "tabs" => RenderTabs(blockId, formPayloadJson),
             "questionnaire" => RenderQuestionnaire(blockId, formPayloadJson),
+            "ordering" => RenderOrdering(blockId, formPayloadJson),
             "text" => RenderText(blockId, formPayloadJson),
             "video" => RenderVideo(blockId, formPayloadJson),
             "audio" => RenderAudio(blockId, formPayloadJson),
@@ -767,6 +773,205 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
 
         return (html, completionRule);
     }
+
+    private (string Html, string CompletionRuleJson) RenderTabs(long blockId, string formPayloadJson)
+    {
+        var root = JsonNode.Parse(formPayloadJson) as JsonObject
+            ?? throw new ArgumentException("Invalid form payload JSON.");
+
+        var panelsArray = root["panels"] as JsonArray
+            ?? throw new ArgumentException("At least one tab is required.");
+
+        var tabsMarkup = new StringBuilder();
+        var panelsMarkup = new StringBuilder();
+
+        for (var i = 0; i < panelsArray.Count; i++)
+        {
+            var panel = panelsArray[i] as JsonObject;
+            var title = ReadText(panel?["title"]);
+            var body = ReadText(panel?["body"]);
+            var tabId = $"lmsbox-tab-{blockId}-{i}";
+            var panelId = $"lmsbox-tab-panel-{blockId}-{i}";
+            var selected = i == 0;
+            var iconHtml = "";
+            var iconSvg = InteractiveBlockIcons.ResolveCustom(ReadText(panel?["icon"]));
+            if (iconSvg != null)
+            {
+                iconHtml = $"""<span class="lms-tabs__icon" aria-hidden="true">{iconSvg}</span>""";
+            }
+            var imageHtml = RenderOptionalImage(
+                ReadText(panel?["imageUrl"]),
+                "lms-block-media",
+                title);
+
+            tabsMarkup.Append(
+                $"""
+                <button class="lms-tabs__tab{(selected ? " is-on" : "")}" type="button" role="tab" id="{tabId}" aria-controls="{panelId}" aria-selected="{(selected ? "true" : "false")}" tabindex="{(selected ? "0" : "-1")}">
+                  {iconHtml}
+                  <span>{HtmlEncode(title)}</span>
+                </button>
+                """);
+
+            panelsMarkup.Append(
+                $"""
+                <article class="lms-tabs__panel{(selected ? " is-on" : "")}" role="tabpanel" id="{panelId}" aria-labelledby="{tabId}" {(selected ? "" : "hidden")}>
+                  {imageHtml}{RenderParagraphs(body)}
+                </article>
+                """);
+        }
+
+        var html = FillTemplate(
+            "tabs.html",
+            blockId,
+            ("{{HEADING_HTML}}", RenderOptionalHeading(ReadText(root["heading"]), "lms-tabs__heading")),
+            ("{{TABS_HTML}}", tabsMarkup.ToString()),
+            ("{{PANELS_HTML}}", panelsMarkup.ToString()));
+
+        var completionRule = JsonSerializer.Serialize(new
+        {
+            type = "tabs",
+            requireAllTabsViewed = true
+        });
+
+        return (html, completionRule);
+    }
+
+    private (string Html, string CompletionRuleJson) RenderFlowchart(long blockId, string formPayloadJson)
+    {
+        var root = JsonNode.Parse(formPayloadJson) as JsonObject
+            ?? throw new ArgumentException("Invalid form payload JSON.");
+
+        var nodesArray = root["nodes"] as JsonArray
+            ?? throw new ArgumentException("At least one stage is required.");
+
+        var nodesMarkup = new StringBuilder();
+        var panelsMarkup = new StringBuilder();
+
+        for (var i = 0; i < nodesArray.Count; i++)
+        {
+            var node = nodesArray[i] as JsonObject;
+            var title = ReadText(node?["title"]);
+            var body = ReadText(node?["body"]);
+            var variant = NormaliseFlowchartVariant(ReadText(node?["variant"]), i, nodesArray.Count);
+            var selected = i == 0;
+            var fallbackIcon = variant switch
+            {
+                "start" => DocumentNodeSvg,
+                "end" => CheckNodeSvg,
+                "decision" => TriangleSvg,
+                _ => PanelNodeSvg
+            };
+            var icon = InteractiveBlockIcons.Resolve(ReadText(node?["icon"]), fallbackIcon);
+            var imageHtml = RenderOptionalImage(
+                ReadText(node?["imageUrl"]),
+                "lms-block-media",
+                title);
+
+            nodesMarkup.Append(
+                $"""
+                <li class="lms-flowchart__item{(selected ? " is-on" : "")}" data-flowchart-node data-variant="{variant}">
+                  <button class="lms-flowchart__node" type="button" aria-pressed="{(selected ? "true" : "false")}">
+                    <span class="lms-flowchart__shape" aria-hidden="true">{icon}</span>
+                    <span class="lms-flowchart__title">{HtmlEncode(title)}</span>
+                  </button>
+                  <span class="lms-flowchart__connector" aria-hidden="true"></span>
+                </li>
+                """);
+
+            panelsMarkup.Append(
+                $"""
+                <article class="lms-flowchart__panel{(selected ? " is-on" : "")}" data-flowchart-panel {(selected ? "" : "hidden")}>
+                  <h3>{HtmlEncode(title)}</h3>
+                  {imageHtml}{RenderParagraphs(body)}
+                </article>
+                """);
+        }
+
+        var hint = ReadText(root["hint"]);
+        var hintHtml = string.IsNullOrWhiteSpace(hint)
+            ? ""
+            : $"""<p class="lms-flowchart__hint">{HtmlEncode(hint)}</p>""";
+
+        var html = FillTemplate(
+            "flowchart.html",
+            blockId,
+            ("{{HEADING_HTML}}", RenderOptionalHeading(ReadText(root["heading"]), "lms-flowchart__heading")),
+            ("{{HINT_HTML}}", hintHtml),
+            ("{{NODES_HTML}}", nodesMarkup.ToString()),
+            ("{{PANELS_HTML}}", panelsMarkup.ToString()));
+
+        var completionRule = JsonSerializer.Serialize(new
+        {
+            type = "flowchart",
+            requireAllNodesOpened = true
+        });
+
+        return (html, completionRule);
+    }
+
+    private (string Html, string CompletionRuleJson) RenderOrdering(long blockId, string formPayloadJson)
+    {
+        var root = JsonNode.Parse(formPayloadJson) as JsonObject
+            ?? throw new ArgumentException("Invalid form payload JSON.");
+
+        var itemsArray = root["items"] as JsonArray
+            ?? throw new ArgumentException("At least two items are required.");
+
+        var items = new List<object>();
+        foreach (var node in itemsArray)
+        {
+            var item = node as JsonObject;
+            items.Add(new { text = ReadText(item?["text"]) });
+        }
+
+        var payload = new
+        {
+            items,
+            correctFeedback = ReadText(root["correctFeedback"]),
+            incorrectFeedback = ReadText(root["incorrectFeedback"])
+        };
+
+        var instruction = ReadText(root["instruction"]);
+        var hint = ReadText(root["hint"]);
+        var instructionHtml = string.IsNullOrWhiteSpace(instruction)
+            ? ""
+            : RenderParagraphs(instruction, "lms-ordering__heading");
+        var hintHtml = string.IsNullOrWhiteSpace(hint)
+            ? ""
+            : $"""<p class="lms-ordering__hint">{HtmlEncode(hint)}</p>""";
+
+        var html = FillTemplate(
+            "ordering.html",
+            blockId,
+            ("{{INSTRUCTION_HTML}}", instructionHtml),
+            ("{{HINT_HTML}}", hintHtml),
+            ("{{ORDERING_JSON}}", EscapeForScriptJson(JsonSerializer.Serialize(payload, CamelCaseJson))));
+
+        var completionRule = JsonSerializer.Serialize(new
+        {
+            type = "ordering",
+            requireCheckSubmitted = true
+        });
+
+        return (html, completionRule);
+    }
+
+    private static string NormaliseFlowchartVariant(string variant, int index, int count)
+    {
+        var value = variant.Trim().ToLowerInvariant();
+        return value switch
+        {
+            "start" or "step" or "decision" or "end" => value,
+            _ when index == 0 => "start",
+            _ when count > 1 && index == count - 1 => "end",
+            _ => "step"
+        };
+    }
+
+    private static string RenderOptionalHeading(string heading, string className)
+        => string.IsNullOrWhiteSpace(heading)
+            ? ""
+            : $"""<h2 class="{className}">{System.Net.WebUtility.HtmlEncode(heading)}</h2>""";
 
     private (string Html, string CompletionRuleJson) RenderQuestionnaire(long blockId, string formPayloadJson)
     {

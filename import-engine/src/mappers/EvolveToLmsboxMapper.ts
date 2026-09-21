@@ -1,3 +1,4 @@
+import type { Asset } from '../models/Asset';
 import type { Component } from '../models/Component';
 import type { Course } from '../models/Course';
 import type { Lesson } from '../models/Lesson';
@@ -32,6 +33,7 @@ export const EVOLVE_TO_LMSBOX_BLOCK_TYPE: Record<string, string> = {
   narrative: 'text',
   graphic: 'text',
   accordion: 'accordion',
+  tabs: 'tabs',
   carousel: 'carousel',
   reveal: 'reveal',
   flipcard: 'flip',
@@ -42,6 +44,8 @@ export const EVOLVE_TO_LMSBOX_BLOCK_TYPE: Record<string, string> = {
   hotgraphic: 'hotspot',
   mcq: 'questionnaire',
   gmcq: 'questionnaire',
+  flowchart: 'flowchart',
+  ordering: 'ordering',
 };
 
 export interface MapEvolveOptions {
@@ -66,7 +70,10 @@ export interface MapEvolveOptions {
  * - Does not call LMS APIs or upload assets
  */
 export class EvolveToLmsboxMapper {
+  private courseAssets: Asset[] = [];
+
   map(course: Course, options: MapEvolveOptions = {}): ImportDraftPlan {
+    this.courseAssets = course.assets ?? [];
     const skipAssessments = options.skipAssessments !== false;
     const report: MappingReportItem[] = [];
     const lessons: MappedLesson[] = [];
@@ -400,6 +407,12 @@ export class EvolveToLmsboxMapper {
         return this.mapToHotspot(component, raw);
       case 'questionnaire':
         return this.mapToQuestionnaire(component, raw);
+      case 'tabs':
+        return this.mapToTabs(component, raw);
+      case 'flowchart':
+        return this.mapToFlowchart(component, raw);
+      case 'ordering':
+        return this.mapToOrdering(component, raw);
       default:
         throw new Error(`No payload builder for target type "${targetType}"`);
     }
@@ -427,7 +440,7 @@ export class EvolveToLmsboxMapper {
     const mediaAssets: PendingMediaAttachment[] = [];
 
     if (sourceType === 'graphic') {
-      const src = resolveEvolveGraphicSrc(raw);
+      const src = resolveEvolveGraphicSrc(raw, component, this.courseAssets);
       const alt = resolveEvolveGraphicAlt(raw) || heading;
       if (src && isAbsoluteUrl(src)) {
         bodyHtml = `<p><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" /></p>${bodyHtml}`;
@@ -533,10 +546,9 @@ export class EvolveToLmsboxMapper {
           asString(row.displayTitle) ||
           `Slide ${index + 1}`;
         const body = stripHtml(asString(row.body) || asString(row.text) || '') || title;
-        const imageSrc =
-          resolveEvolveGraphicSrc(row) ||
-          asString(row.src) ||
-          '';
+        const imageSrc = resolveEvolveGraphicSrc(row, component, this.courseAssets, {
+          allowAssetFallback: false,
+        });
         let imageUrl = '';
         if (imageSrc && isAbsoluteUrl(imageSrc)) {
           imageUrl = imageSrc;
@@ -752,7 +764,7 @@ export class EvolveToLmsboxMapper {
     message: string;
     mediaAssets: PendingMediaAttachment[];
   } {
-    const imageSrc = resolveEvolveGraphicSrc(raw) || asString(raw.src) || '';
+    const imageSrc = resolveEvolveGraphicSrc(raw, component, this.courseAssets);
     const alt =
       resolveEvolveGraphicAlt(raw) ||
       resolveHumanTitle(component, raw, 'hotspot') ||
@@ -887,6 +899,211 @@ export class EvolveToLmsboxMapper {
       mediaAssets: [],
     };
   }
+
+  private mapToTabs(
+    component: Component,
+    raw: Record<string, unknown>
+  ): {
+    formPayload: Record<string, unknown>;
+    status: 'mapped' | 'stubbed';
+    message: string;
+    mediaAssets: PendingMediaAttachment[];
+  } {
+    const mediaAssets: PendingMediaAttachment[] = [];
+    const items = asArray(raw._items ?? raw.items);
+    const panels = items
+      .map((item, index) => {
+        if (!item || typeof item !== 'object') return null;
+        const row = item as Record<string, unknown>;
+        const title =
+          asString(row.title) ||
+          asString(row.displayTitle) ||
+          `Tab ${index + 1}`;
+        const body = stripHtml(asString(row.body) || asString(row.text) || '') || title;
+        const imageSrc = resolveEvolveGraphicSrc(row, component, this.courseAssets, {
+          allowAssetFallback: false,
+        });
+        let imageUrl = '';
+        if (imageSrc && isAbsoluteUrl(imageSrc)) {
+          imageUrl = imageSrc;
+        } else if (imageSrc) {
+          mediaAssets.push(makePendingMedia(imageSrc, `panels.${index}.imageUrl`));
+        }
+        return { title: truncate(title, 200), body, imageUrl, icon: '' };
+      })
+      .filter((p): p is { title: string; body: string; imageUrl: string; icon: string } => !!p);
+
+    if (panels.length === 0) {
+      panels.push({
+        title: component.title || 'Tab',
+        body: stripHtml(component.body || '') || 'Imported tab content.',
+        imageUrl: '',
+        icon: '',
+      });
+    }
+
+    return {
+      formPayload: {
+        heading: truncate(resolveHumanTitle(component, raw, 'tabs'), 200),
+        panels: panels.slice(0, 10),
+      },
+      status: mediaAssets.length > 0 ? 'stubbed' : 'mapped',
+      message:
+        mediaAssets.length > 0
+          ? `Mapped tabs; ${mediaAssets.length} image(s) queued for attach.`
+          : `Mapped tabs with ${panels.length} panel(s).`,
+      mediaAssets,
+    };
+  }
+
+  private mapToFlowchart(
+    component: Component,
+    raw: Record<string, unknown>
+  ): {
+    formPayload: Record<string, unknown>;
+    status: 'mapped' | 'stubbed';
+    message: string;
+    mediaAssets: PendingMediaAttachment[];
+  } {
+    const mediaAssets: PendingMediaAttachment[] = [];
+    const items = asArray(raw._items ?? raw.items ?? raw._nodes ?? raw.nodes);
+    const nodes = items
+      .map((item, index) => {
+        if (!item || typeof item !== 'object') return null;
+        const row = item as Record<string, unknown>;
+        const title =
+          asString(row.title) ||
+          asString(row.displayTitle) ||
+          asString(row.label) ||
+          `Stage ${index + 1}`;
+        const body =
+          stripHtml(asString(row.body) || asString(row.text) || asString(row.description) || '') ||
+          title;
+        const imageSrc = resolveEvolveGraphicSrc(row, component, this.courseAssets, {
+          allowAssetFallback: false,
+        });
+        let imageUrl = '';
+        if (imageSrc && isAbsoluteUrl(imageSrc)) {
+          imageUrl = imageSrc;
+        } else if (imageSrc) {
+          mediaAssets.push(makePendingMedia(imageSrc, `nodes.${index}.imageUrl`));
+        }
+        const rawVariant = (
+          asString(row._type) ||
+          asString(row.type) ||
+          asString(row._shape) ||
+          asString(row.shape) ||
+          asString(row.variant)
+        ).toLowerCase();
+        let variant = 'step';
+        if (rawVariant.includes('start') || index === 0) variant = 'start';
+        if (rawVariant.includes('end') || (items.length > 1 && index === items.length - 1)) {
+          variant = 'end';
+        }
+        if (rawVariant.includes('decision') || rawVariant.includes('diamond') || title.includes('?')) {
+          variant = 'decision';
+        }
+        return {
+          title: truncate(title, 200),
+          body,
+          imageUrl,
+          icon: '',
+          variant,
+        };
+      })
+      .filter(
+        (n): n is {
+          title: string;
+          body: string;
+          imageUrl: string;
+          icon: string;
+          variant: string;
+        } => !!n
+      );
+
+    if (nodes.length === 0) {
+      nodes.push({
+        title: component.title || 'Stage',
+        body: stripHtml(component.body || '') || 'Imported flowchart stage.',
+        imageUrl: '',
+        icon: '',
+        variant: 'start',
+      });
+    }
+
+    return {
+      formPayload: {
+        heading: truncate(resolveHumanTitle(component, raw, 'flowchart'), 200),
+        hint: asString(raw.instruction) || 'Select a stage to read more',
+        nodes: nodes.slice(0, 10),
+      },
+      status: mediaAssets.length > 0 ? 'stubbed' : 'mapped',
+      message:
+        mediaAssets.length > 0
+          ? `Mapped flowchart; ${mediaAssets.length} image(s) queued for attach.`
+          : `Mapped flowchart with ${nodes.length} stage(s).`,
+      mediaAssets,
+    };
+  }
+
+  private mapToOrdering(
+    component: Component,
+    raw: Record<string, unknown>
+  ): {
+    formPayload: Record<string, unknown>;
+    status: 'mapped' | 'stubbed';
+    message: string;
+    mediaAssets: PendingMediaAttachment[];
+  } {
+    const items = asArray(raw._items ?? raw.items)
+      .map((item, index) => {
+        if (typeof item === 'string') {
+          return { text: truncate(stripHtml(item), 300) };
+        }
+        if (!item || typeof item !== 'object') return null;
+        const row = item as Record<string, unknown>;
+        const text =
+          asString(row.text) ||
+          asString(row.title) ||
+          asString(row.body) ||
+          `Item ${index + 1}`;
+        return { text: truncate(stripHtml(text), 300) };
+      })
+      .filter((item): item is { text: string } => !!item && !!item.text);
+
+    while (items.length < 2) {
+      items.push({
+        text:
+          items.length === 0
+            ? stripHtml(component.body || component.title || '') || 'Item 1'
+            : 'Item 2',
+      });
+    }
+
+    const feedback =
+      nested(raw, ['_feedback']) && typeof nested(raw, ['_feedback']) === 'object'
+        ? (nested(raw, ['_feedback']) as Record<string, unknown>)
+        : {};
+
+    return {
+      formPayload: {
+        instruction:
+          stripHtml(asString(raw.instruction) || component.body || '') ||
+          'Put these items in the correct order.',
+        hint: 'Use the arrows to rearrange, then check your answer.',
+        items: items.slice(0, 10),
+        correctFeedback: stripHtml(
+          asString(feedback.correct) || asString(raw.correctFeedback)
+        ),
+        incorrectFeedback: stripHtml(
+          asString(feedback.incorrect) || asString(raw.incorrectFeedback)
+        ),
+      },
+      status: items.length > 10 ? 'stubbed' : 'mapped',
+      message: `Mapped ordering with ${Math.min(items.length, 10)} item(s).`,
+      mediaAssets: [],
+    };
+  }
 }
 
 function countPages(pages: Page[]): number {
@@ -970,18 +1187,202 @@ function makePendingMedia(
   };
 }
 
-/** Evolve graphics often use large/small instead of src. */
-function resolveEvolveGraphicSrc(raw: Record<string, unknown>): string {
-  return (
-    asString(nested(raw, ['_graphic', 'src'])) ||
-    asString(nested(raw, ['_graphic', 'large'])) ||
-    asString(nested(raw, ['_graphic', 'small'])) ||
-    asString(nested(raw, ['graphic', 'src'])) ||
-    asString(nested(raw, ['graphic', 'large'])) ||
-    asString(nested(raw, ['graphic', 'small'])) ||
-    asString(raw.src) ||
-    ''
+/**
+ * Evolve / Adapt image fields are inconsistent across versions:
+ * - object with src / large / small
+ * - Asset:image field stored as a string path on `_graphic` itself
+ * - `_src`, `path`, `{ _default: "..." }`, numeric srcset maps
+ * When JSON has no path, fall back to assets already harvested from the component
+ * or matched in the package by filename / component id.
+ */
+function resolveEvolveGraphicSrc(
+  raw: Record<string, unknown>,
+  component?: Component,
+  courseAssets: Asset[] = [],
+  options: { allowAssetFallback?: boolean } = {}
+): string {
+  const fromJson = [
+    extractMediaPath(raw._graphic),
+    extractMediaPath(raw.graphic),
+    extractMediaPath(raw._mobileGraphic),
+    extractMediaPath(raw.mobileGraphic),
+    extractMediaPath(raw._background),
+    extractMediaPath(raw._backgroundImage),
+    extractMediaPath(raw.src),
+    extractMediaPath(raw._src),
+    extractImgSrcFromHtml(asString(raw.body)),
+  ].find(Boolean);
+
+  if (fromJson) {
+    return expandPackagePath(fromJson, [
+      ...(component?.assets ?? []),
+      ...courseAssets,
+    ]);
+  }
+  if (options.allowAssetFallback === false) return '';
+  return pickImagePathFromAssets(raw, component, courseAssets);
+}
+
+function expandPackagePath(path: string, assets: Asset[]): string {
+  if (!path || isAbsoluteUrl(path) || path.includes('/')) return path;
+  const lower = path.toLowerCase();
+  const hit = assets.find(
+    (asset) =>
+      asset.filename.toLowerCase() === lower ||
+      asset.path.toLowerCase().endsWith(`/${lower}`)
   );
+  return hit?.path || path;
+}
+
+const MEDIA_OBJECT_KEYS = [
+  'src',
+  '_src',
+  'large',
+  'small',
+  'path',
+  '_path',
+  'url',
+  '_url',
+  'href',
+  'original',
+  'poster',
+  'desktop',
+  'mobile',
+  'tablet',
+  'image',
+  '_image',
+  'filename',
+  '_default',
+] as const;
+
+function extractMediaPath(value: unknown, depth = 0): string {
+  if (value == null || depth > 4) return '';
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return looksLikeMediaPath(trimmed) ? trimmed.replace(/\\/g, '/') : '';
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = extractMediaPath(item, depth + 1);
+      if (found) return found;
+    }
+    return '';
+  }
+
+  if (typeof value !== 'object') return '';
+  const obj = value as Record<string, unknown>;
+
+  for (const key of MEDIA_OBJECT_KEYS) {
+    if (obj[key] === undefined) continue;
+    const found = extractMediaPath(obj[key], depth + 1);
+    if (found) return found;
+  }
+
+  const numericKeys = Object.keys(obj)
+    .filter((key) => /^\d+$/.test(key))
+    .map(Number)
+    .sort((a, b) => b - a);
+  for (const breakpoint of numericKeys) {
+    const found = extractMediaPath(obj[String(breakpoint)], depth + 1);
+    if (found) return found;
+  }
+
+  return '';
+}
+
+function looksLikeMediaPath(value: string): boolean {
+  if (!value || value.length > 500) return false;
+  if (/^(https?:\/\/|data:|blob:)/i.test(value)) return true;
+  if (/\.(jpg|jpeg|png|gif|webp|svg|bmp|mp4|webm|mp3|wav|ogg|pdf)(\?|#|$)/i.test(value)) {
+    return true;
+  }
+  if (/(^|\/)(course|assets|images|media|video|audio)\//i.test(value)) return true;
+  return false;
+}
+
+function extractImgSrcFromHtml(html: string): string {
+  if (!html) return '';
+  const match = html.match(/<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/i);
+  if (!match?.[1]) return '';
+  return looksLikeMediaPath(match[1]) ? match[1].replace(/\\/g, '/') : '';
+}
+
+function isImageAsset(asset: Asset): boolean {
+  const media = (asset.mediaType || '').toLowerCase();
+  if (media.startsWith('image/')) return true;
+  return /\.(jpg|jpeg|png|gif|webp|svg|bmp)(\?|#|$)/i.test(asset.filename || asset.path);
+}
+
+function pickImagePathFromAssets(
+  raw: Record<string, unknown>,
+  component: Component | undefined,
+  courseAssets: Asset[]
+): string {
+  const owned = (component?.assets ?? []).filter(isImageAsset);
+  if (owned.length === 1) return owned[0].path;
+  if (owned.length > 1) {
+    return [...owned].sort((a, b) => scoreImageAsset(b) - scoreImageAsset(a))[0].path;
+  }
+
+  const filenameHint = extractFilenameHint(raw);
+  const pool = courseAssets.filter(isImageAsset);
+  if (filenameHint) {
+    const lower = filenameHint.toLowerCase();
+    const byName = pool.find(
+      (asset) =>
+        asset.filename.toLowerCase() === lower ||
+        asset.path.toLowerCase().endsWith(`/${lower}`)
+    );
+    if (byName) return byName.path;
+  }
+
+  if (!component?.id) return '';
+  const matches = pool.filter((asset) => assetMatchesComponentId(asset, component.id));
+  if (matches.length === 1) return matches[0].path;
+  if (matches.length > 1) {
+    return [...matches].sort((a, b) => scoreImageAsset(b) - scoreImageAsset(a))[0].path;
+  }
+  return '';
+}
+
+function extractFilenameHint(raw: Record<string, unknown>): string {
+  const graphic = raw._graphic ?? raw.graphic;
+  if (graphic && typeof graphic === 'object' && !Array.isArray(graphic)) {
+    const row = graphic as Record<string, unknown>;
+    const name =
+      asString(row.filename) ||
+      asString(row.title) ||
+      asString(row.name);
+    if (name && /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(name)) return name;
+  }
+  return '';
+}
+
+function assetMatchesComponentId(asset: Asset, componentId: string): boolean {
+  const path = asset.path.toLowerCase().replace(/\\/g, '/');
+  const id = componentId.toLowerCase();
+  const stripped = id.replace(/^[a-z]-/, '');
+  if (path.includes(`/${id}/`) || path.includes(`/${id}.`) || path.endsWith(`/${id}`)) {
+    return true;
+  }
+  // Avoid short ids like "c-05" matching unrelated files
+  if (stripped.length >= 6) {
+    return path.includes(`/${stripped}/`) || path.includes(`/${stripped}.`);
+  }
+  return false;
+}
+
+function scoreImageAsset(asset: Asset): number {
+  const path = asset.path.toLowerCase();
+  let score = 0;
+  if (path.includes('large')) score += 3;
+  if (path.includes('desktop')) score += 2;
+  if (path.includes('small') || path.includes('mobile')) score -= 1;
+  if (/\.(png|jpe?g)$/i.test(asset.filename)) score += 2;
+  if (asset.exists) score += 1;
+  return score;
 }
 
 function resolveEvolveGraphicAlt(raw: Record<string, unknown>): string {
@@ -1034,6 +1435,9 @@ function resolveHumanTitle(
     flipcard: 'Flip cards',
     mcq: 'Question',
     gmcq: 'Question',
+    tabs: 'Tabs',
+    flowchart: 'Flowchart',
+    ordering: 'Ordering',
   };
 
   return typeLabel[sourceType] || 'Content';

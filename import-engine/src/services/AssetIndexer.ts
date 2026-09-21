@@ -114,8 +114,11 @@ export class AssetIndexer {
         // Prefer explicit graphic / media objects with src/large/small + dimensions
         const mediaSrc =
           (typeof obj.src === 'string' && obj.src) ||
+          (typeof obj._src === 'string' && obj._src) ||
           (typeof obj.large === 'string' && obj.large) ||
           (typeof obj.small === 'string' && obj.small) ||
+          (typeof obj.path === 'string' && obj.path) ||
+          (typeof obj._path === 'string' && obj._path) ||
           '';
         if (mediaSrc && this.looksLikeMediaRef(mediaSrc)) {
           const path = normalisePackagePath(mediaSrc);
@@ -169,9 +172,21 @@ export class AssetIndexer {
 
   private looksLikeAssetPath(path: string, contentRoot: string): boolean {
     const lower = path.toLowerCase();
-    if (lower.includes('/assets/') || lower.startsWith('assets/')) return true;
-    if (contentRoot && lower.startsWith(`${contentRoot.toLowerCase()}/assets/`)) return true;
+    if (this.isMediaFolderPath(lower)) return true;
+    if (contentRoot) {
+      const prefix = `${contentRoot.toLowerCase()}/`;
+      if (lower.startsWith(prefix) && this.isMediaFolderPath(lower.slice(prefix.length))) {
+        return true;
+      }
+    }
     return false;
+  }
+
+  private isMediaFolderPath(path: string): boolean {
+    return (
+      /(^|\/)(assets|images|media|video|videos|audio|posters)\//.test(path) ||
+      /^(assets|images|media|video|videos|audio|posters)(\/|$)/.test(path)
+    );
   }
 
   private looksLikeMediaRef(value: string): boolean {

@@ -1,0 +1,88 @@
+<div class="lmsbox-interactive-block" data-block-id="{{BLOCK_ID}}" data-block-type="tabs" role="region" aria-label="Lesson tabs">
+
+  {{HEADING_HTML}}
+  <p class="lms-caption lms-tabs__progress" data-tabs-progress aria-live="polite"></p>
+  <div class="lms-tabs" data-tabs>
+    <div class="lms-tabs__list" role="tablist" aria-label="Content tabs">{{TABS_HTML}}</div>
+    <div class="lms-tabs__panels">{{PANELS_HTML}}</div>
+  </div>
+
+  <script>
+  (function () {
+    var root = document.querySelector('.lmsbox-interactive-block[data-block-type="tabs"][data-block-id="{{BLOCK_ID}}"]');
+    if (!root || root.getAttribute('data-tabs-ready') === '1') return;
+    root.setAttribute('data-tabs-ready', '1');
+
+    var blockId = root.getAttribute('data-block-id');
+    var tabs = Array.prototype.slice.call(root.querySelectorAll('[role="tab"]'));
+    var panels = Array.prototype.slice.call(root.querySelectorAll('[role="tabpanel"]'));
+    var progressEl = root.querySelector('[data-tabs-progress]');
+    if (tabs.length === 0) return;
+
+    var viewed = {};
+    var completed = false;
+    var current = 0;
+
+    function notifyComplete() {
+      if (completed) return;
+      completed = true;
+      var payload = { type: 'interactive-block-complete', blockId: Number(blockId) };
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, '*');
+      }
+      if (window.lmsboxInteractive && typeof window.lmsboxInteractive.notifyComplete === 'function') {
+        window.lmsboxInteractive.notifyComplete(Number(blockId));
+      }
+    }
+
+    function updateProgress() {
+      var count = 0;
+      for (var i = 0; i < tabs.length; i++) if (viewed[i]) count++;
+      if (progressEl) progressEl.textContent = count + ' of ' + tabs.length + ' tabs viewed';
+      if (count === tabs.length) notifyComplete();
+    }
+
+    function selectTab(index, focusTab) {
+      current = index;
+      viewed[index] = true;
+      tabs.forEach(function (tab, i) {
+        var selected = i === index;
+        tab.setAttribute('aria-selected', selected ? 'true' : 'false');
+        tab.setAttribute('tabindex', selected ? '0' : '-1');
+        tab.classList.toggle('is-on', selected);
+      });
+      panels.forEach(function (panel, i) {
+        var selected = i === index;
+        panel.hidden = !selected;
+        panel.classList.toggle('is-on', selected);
+      });
+      if (focusTab && tabs[index]) tabs[index].focus();
+      updateProgress();
+    }
+
+    tabs.forEach(function (tab, index) {
+      tab.addEventListener('click', function () {
+        selectTab(index, false);
+      });
+      tab.addEventListener('keydown', function (event) {
+        var next = index;
+        if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+          next = (index + 1) % tabs.length;
+        } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+          next = (index - 1 + tabs.length) % tabs.length;
+        } else if (event.key === 'Home') {
+          next = 0;
+        } else if (event.key === 'End') {
+          next = tabs.length - 1;
+        } else {
+          return;
+        }
+        event.preventDefault();
+        selectTab(next, true);
+      });
+    });
+
+    selectTab(0, false);
+  })();
+  </script>
+</div>

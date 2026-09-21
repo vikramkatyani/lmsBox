@@ -32,6 +32,10 @@ export const KNOWN_EVOLVE_COMPONENT_TYPES: readonly string[] = [
   'flipcard',
   'tutor',
   'quicknav',
+  'ordering',
+  'flowChart',
+  'flowchart',
+  'tabs',
 ] as const;
 
 /** Deduplicated set for O(1) lookups */

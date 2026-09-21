@@ -161,6 +161,26 @@ public class InteractiveBlockDisplayService : IInteractiveBlockDisplayService
                 }
             }
         }
+        else if (type == "tabs" && root["panels"] is JsonArray tabPanels)
+        {
+            foreach (var node in tabPanels)
+            {
+                if (node is JsonObject panel)
+                {
+                    await SignJsonStringPropertyAsync(panel, "imageUrl");
+                }
+            }
+        }
+        else if (type == "flowchart" && root["nodes"] is JsonArray flowchartNodes)
+        {
+            foreach (var node in flowchartNodes)
+            {
+                if (node is JsonObject flowchartNode)
+                {
+                    await SignJsonStringPropertyAsync(flowchartNode, "imageUrl");
+                }
+            }
+        }
 
         return root.ToJsonString();
     }

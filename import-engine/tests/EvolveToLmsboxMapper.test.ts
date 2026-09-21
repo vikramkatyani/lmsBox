@@ -254,6 +254,113 @@ describe('EvolveToLmsboxMapper', () => {
     expect(block.mediaAssets[0].targetField).toBe('imageUrl');
   });
 
+  it('queues graphics when Evolve stores _graphic as an Asset:image string', () => {
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-g',
+        type: 'graphic',
+        title: 'Graphic Title',
+        raw: {
+          title: 'Graphic Title',
+          _graphic: 'course/en/assets/kit-contents.png',
+        },
+      }),
+    ]);
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    const block = plan.lessons[0].blocks[0];
+
+    expect(block.mediaAssets[0]).toMatchObject({
+      sourcePath: 'course/en/assets/kit-contents.png',
+      targetField: 'bodyHtml',
+    });
+    expect(plan.report[0].message).toMatch(/queued for media attach/i);
+  });
+
+  it('queues graphics when src is a language/default object', () => {
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-g',
+        type: 'graphic',
+        title: 'Graphic Title',
+        raw: {
+          title: 'Graphic Title',
+          _graphic: {
+            alt: 'Test device',
+            src: { _default: 'course/en/assets/test-device.png' },
+          },
+        },
+      }),
+    ]);
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    expect(plan.lessons[0].blocks[0].mediaAssets[0].sourcePath).toBe(
+      'course/en/assets/test-device.png'
+    );
+  });
+
+  it('falls back to harvested component assets when _graphic has no src fields', () => {
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-g',
+        type: 'graphic',
+        title: 'Graphic Title',
+        assets: [
+          {
+            id: 'asset:course/en/assets/visitecht-kit.png',
+            filename: 'visitecht-kit.png',
+            path: 'course/en/assets/visitecht-kit.png',
+            mediaType: 'image/png',
+            exists: true,
+            parentComponentId: 'c-g',
+          },
+        ],
+        raw: {
+          title: 'Graphic Title',
+          _graphic: { alt: 'Kit contents', attribution: '' },
+        },
+      }),
+    ]);
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    expect(plan.lessons[0].blocks[0].mediaAssets[0].sourcePath).toBe(
+      'course/en/assets/visitecht-kit.png'
+    );
+  });
+
+  it('matches package images to hotgraphics by filename or component id', () => {
+    const hotspot = makeComponent({
+      id: 'c-06_01_050_hg',
+      type: 'hotgraphic',
+      title: 'Hot Graphic Title',
+      raw: {
+        title: 'Hot Graphic Title',
+        _graphic: { alt: 'Sampling device', filename: 'sampling-device.png' },
+        _items: [{ title: 'A', body: 'Alpha', _top: 20, _left: 30 }],
+      },
+    });
+    const course = makeCourse([hotspot]);
+    course.assets = [
+      {
+        id: 'asset:course/en/assets/sampling-device.png',
+        filename: 'sampling-device.png',
+        path: 'course/en/assets/sampling-device.png',
+        mediaType: 'image/png',
+        exists: true,
+      },
+    ];
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    const block = plan.lessons[0].blocks[0];
+
+    expect(block.blockType).toBe('hotspot');
+    expect(block.mediaAssets[0]).toMatchObject({
+      sourcePath: 'course/en/assets/sampling-device.png',
+      targetField: 'imageUrl',
+    });
+    expect(plan.report[0].message).toMatch(/queued for media attach/i);
+  });
+
   it('skips mcq components by default (assessment exclusion)', () => {
     const course = makeCourse([
       makeComponent({
@@ -389,5 +496,82 @@ describe('EvolveToLmsboxMapper', () => {
           /assessment page/i.test(r.message)
       )
     ).toBe(true);
+  });
+
+  it('maps tabs items to tab panels', () => {
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-tabs',
+        type: 'tabs',
+        title: 'Topics',
+        raw: {
+          _items: [
+            { title: 'One', body: 'First tab' },
+            { title: 'Two', body: 'Second tab' },
+          ],
+        },
+      }),
+    ]);
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    const block = plan.lessons[0].blocks[0];
+
+    expect(block.blockType).toBe('tabs');
+    expect(block.formPayload.panels).toHaveLength(2);
+    expect((block.formPayload.panels as { title: string }[])[0].title).toBe('One');
+  });
+
+  it('maps flowChart items to flowchart nodes', () => {
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-flow',
+        type: 'flowChart',
+        title: 'Process',
+        raw: {
+          _items: [
+            { title: 'Start', body: 'Begin here' },
+            { title: 'Decide?', body: 'Choose a path' },
+            { title: 'Finish', body: 'Done' },
+          ],
+        },
+      }),
+    ]);
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    const block = plan.lessons[0].blocks[0];
+
+    expect(block.blockType).toBe('flowchart');
+    expect(block.formPayload.nodes).toHaveLength(3);
+    const nodes = block.formPayload.nodes as { title: string; variant: string }[];
+    expect(nodes[0].variant).toBe('start');
+    expect(nodes[1].variant).toBe('decision');
+    expect(nodes[2].variant).toBe('end');
+  });
+
+  it('maps ordering items in source order', () => {
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-ord',
+        type: 'ordering',
+        title: 'Sequence',
+        body: 'Put these in order',
+        raw: {
+          instruction: 'Arrange the steps',
+          _items: [{ text: 'Prepare' }, { text: 'Act' }, { text: 'Review' }],
+          _feedback: { correct: 'Well done', incorrect: 'Try again' },
+        },
+      }),
+    ]);
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    const block = plan.lessons[0].blocks[0];
+
+    expect(block.blockType).toBe('ordering');
+    expect(block.formPayload.items).toEqual([
+      { text: 'Prepare' },
+      { text: 'Act' },
+      { text: 'Review' },
+    ]);
+    expect(block.formPayload.correctFeedback).toBe('Well done');
   });
 });

@@ -49,9 +49,12 @@ You MUST follow these LMSBOX design and technical rules:
             GetReflectionSchema(),
             GetHotspotSchema(),
             GetProcessSchema(),
+            GetFlowchartSchema(),
             GetQuestionnaireSchema(),
+            GetOrderingSchema(),
             GetCarouselSchema(),
             GetAccordionSchema(),
+            GetTabsSchema(),
             GetTextSchema(),
             GetVideoSchema(),
             GetAudioSchema()
@@ -72,9 +75,12 @@ You MUST follow these LMSBOX design and technical rules:
             "reflection" => GetReflectionSchema(),
             "hotspot" => GetHotspotSchema(),
             "process" => GetProcessSchema(),
+            "flowchart" => GetFlowchartSchema(),
             "questionnaire" => GetQuestionnaireSchema(),
+            "ordering" => GetOrderingSchema(),
             "carousel" => GetCarouselSchema(),
             "accordion" => GetAccordionSchema(),
+            "tabs" => GetTabsSchema(),
             "text" => GetTextSchema(),
             "video" => GetVideoSchema(),
             "audio" => GetAudioSchema(),
@@ -124,14 +130,23 @@ You MUST follow these LMSBOX design and technical rules:
             case "process":
                 ValidateProcess(root);
                 break;
+            case "flowchart":
+                ValidateFlowchart(root);
+                break;
             case "questionnaire":
                 ValidateQuestionnaire(root);
+                break;
+            case "ordering":
+                ValidateOrdering(root);
                 break;
             case "carousel":
                 ValidateCarousel(root);
                 break;
             case "accordion":
                 ValidateAccordion(root);
+                break;
+            case "tabs":
+                ValidateTabs(root);
                 break;
             case "text":
                 ValidateText(root);
@@ -170,6 +185,9 @@ You MUST follow these LMSBOX design and technical rules:
             "reflection" => throw new ArgumentException("Reflection blocks use a fixed template and do not support AI HTML generation."),
             "hotspot" => throw new ArgumentException("Hotspot blocks use a fixed template and do not support AI HTML generation."),
             "process" => throw new ArgumentException("Process flow blocks use a fixed template and do not support AI HTML generation."),
+            "flowchart" => throw new ArgumentException("Flowchart blocks use a fixed template and do not support AI HTML generation."),
+            "tabs" => throw new ArgumentException("Tabs blocks use a fixed template and do not support AI HTML generation."),
+            "ordering" => throw new ArgumentException("Ordering blocks use a fixed template and do not support AI HTML generation."),
             "text" => throw new ArgumentException("Text blocks use a fixed template and do not support AI HTML generation."),
             "video" => throw new ArgumentException("Video blocks use a fixed template and do not support AI HTML generation."),
             "audio" => throw new ArgumentException("Audio blocks use a fixed template and do not support AI HTML generation."),
@@ -930,6 +948,89 @@ You MUST follow these LMSBOX design and technical rules:
             InteractiveLessonConstants.MaxProcessFinishMessageLength);
     }
 
+    private static InteractiveBlockTypeSchema GetFlowchartSchema()
+    {
+        return new InteractiveBlockTypeSchema
+        {
+            Type = "flowchart",
+            Label = "Flowchart",
+            Description = "A connected sequence of stages learners open to read detail. Completes after every stage has been opened.",
+            Fields = new List<InteractiveBlockFormField>
+            {
+                new()
+                {
+                    Name = "heading",
+                    Label = "Heading",
+                    FieldType = "text",
+                    Required = false,
+                    HelpText = "Optional heading shown above the flowchart."
+                },
+                new()
+                {
+                    Name = "hint",
+                    Label = "Hint",
+                    FieldType = "text",
+                    Required = false,
+                    DefaultValue = "Select a stage to read more",
+                    HelpText = "Optional nudge shown above the diagram."
+                },
+                new()
+                {
+                    Name = "nodes",
+                    Label = "Stages",
+                    FieldType = "flowchart-node-list",
+                    Required = true,
+                    HelpText = "Add stages with a title, body, optional image, icon, and shape (start, step, decision, or end)."
+                }
+            }
+        };
+    }
+
+    private static void ValidateFlowchart(JsonObject root)
+    {
+        LimitOptionalText(root["heading"], "Heading", InteractiveLessonConstants.MaxFlowchartHeadingLength);
+        LimitOptionalText(root["hint"], "Hint", InteractiveLessonConstants.MaxFlowchartHintLength);
+
+        if (root["nodes"] is not JsonArray nodes || nodes.Count == 0)
+        {
+            throw new ArgumentException("At least one stage is required.");
+        }
+
+        if (nodes.Count > InteractiveLessonConstants.MaxFlowchartNodes)
+        {
+            throw new ArgumentException(
+                $"A flowchart can have at most {InteractiveLessonConstants.MaxFlowchartNodes} stages.");
+        }
+
+        for (var i = 0; i < nodes.Count; i++)
+        {
+            var node = nodes[i] as JsonObject;
+
+            RequireText(
+                node?["title"],
+                $"Stage {i + 1} title",
+                InteractiveLessonConstants.MaxFlowchartTitleLength);
+
+            RequireText(
+                node?["body"],
+                $"Stage {i + 1} body",
+                InteractiveLessonConstants.MaxFlowchartBodyLength);
+
+            LimitOptionalHttpUrl(
+                node?["imageUrl"],
+                $"Stage {i + 1} image",
+                InteractiveLessonConstants.MaxBlockImageUrlLength);
+            LimitOptionalIcon(node?["icon"], $"Stage {i + 1} icon");
+
+            var variant = ReadText(node?["variant"]).ToLowerInvariant();
+            if (!string.IsNullOrWhiteSpace(variant) &&
+                variant is not ("start" or "step" or "decision" or "end"))
+            {
+                throw new ArgumentException($"Stage {i + 1} has an invalid shape.");
+            }
+        }
+    }
+
     /// <summary>Stage labels accept either a plain string or an object with a "label" property.</summary>
     internal static string ReadNodeLabel(JsonNode? node)
     {
@@ -1169,6 +1270,95 @@ Return ONLY the HTML fragment.
         return (completionRule, prompt);
     }
 
+    private static InteractiveBlockTypeSchema GetOrderingSchema()
+    {
+        return new InteractiveBlockTypeSchema
+        {
+            Type = "ordering",
+            Label = "Ordering",
+            Description = "Learners rearrange items into the correct sequence, then check their answer.",
+            Fields = new List<InteractiveBlockFormField>
+            {
+                new()
+                {
+                    Name = "instruction",
+                    Label = "Instruction",
+                    FieldType = "textarea",
+                    Required = false,
+                    HelpText = "Optional prompt shown above the activity."
+                },
+                new()
+                {
+                    Name = "hint",
+                    Label = "Hint",
+                    FieldType = "text",
+                    Required = false,
+                    HelpText = "Optional nudge, for example how to rearrange the items."
+                },
+                new()
+                {
+                    Name = "items",
+                    Label = "Items",
+                    FieldType = "ordering-item-list",
+                    Required = true,
+                    HelpText = "Add items in the correct order. Learners see them shuffled."
+                },
+                new()
+                {
+                    Name = "correctFeedback",
+                    Label = "Correct feedback",
+                    FieldType = "textarea",
+                    Required = false
+                },
+                new()
+                {
+                    Name = "incorrectFeedback",
+                    Label = "Incorrect feedback",
+                    FieldType = "textarea",
+                    Required = false
+                }
+            }
+        };
+    }
+
+    private static void ValidateOrdering(JsonObject root)
+    {
+        LimitOptionalText(
+            root["instruction"],
+            "Instruction",
+            InteractiveLessonConstants.MaxOrderingInstructionLength);
+        LimitOptionalText(root["hint"], "Hint", InteractiveLessonConstants.MaxOrderingHintLength);
+        LimitOptionalText(
+            root["correctFeedback"],
+            "Correct feedback",
+            InteractiveLessonConstants.MaxOrderingFeedbackLength);
+        LimitOptionalText(
+            root["incorrectFeedback"],
+            "Incorrect feedback",
+            InteractiveLessonConstants.MaxOrderingFeedbackLength);
+
+        if (root["items"] is not JsonArray items || items.Count < InteractiveLessonConstants.MinOrderingItems)
+        {
+            throw new ArgumentException(
+                $"An ordering block needs at least {InteractiveLessonConstants.MinOrderingItems} items.");
+        }
+
+        if (items.Count > InteractiveLessonConstants.MaxOrderingItems)
+        {
+            throw new ArgumentException(
+                $"An ordering block can have at most {InteractiveLessonConstants.MaxOrderingItems} items.");
+        }
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            var item = items[i] as JsonObject;
+            RequireText(
+                item?["text"],
+                $"Item {i + 1}",
+                InteractiveLessonConstants.MaxOrderingItemLength);
+        }
+    }
+
     private static InteractiveBlockTypeSchema GetCarouselSchema()
     {
         return new InteractiveBlockTypeSchema
@@ -1389,6 +1579,72 @@ Return ONLY the HTML fragment.
 """;
 
         return (completionRule, prompt);
+    }
+
+    private static InteractiveBlockTypeSchema GetTabsSchema()
+    {
+        return new InteractiveBlockTypeSchema
+        {
+            Type = "tabs",
+            Label = "Tabs",
+            Description = "Tabbed sections learners open to explore content. Completes after every tab has been viewed.",
+            Fields = new List<InteractiveBlockFormField>
+            {
+                new()
+                {
+                    Name = "heading",
+                    Label = "Heading",
+                    FieldType = "text",
+                    Required = false,
+                    HelpText = "Optional heading shown above the tabs."
+                },
+                new()
+                {
+                    Name = "panels",
+                    Label = "Tabs",
+                    FieldType = "tab-list",
+                    Required = true,
+                    HelpText = "Add tabs with a title, body, optional image, and optional icon."
+                }
+            }
+        };
+    }
+
+    private static void ValidateTabs(JsonObject root)
+    {
+        LimitOptionalText(root["heading"], "Heading", InteractiveLessonConstants.MaxTabsHeadingLength);
+
+        if (root["panels"] is not JsonArray panels || panels.Count == 0)
+        {
+            throw new ArgumentException("At least one tab is required.");
+        }
+
+        if (panels.Count > InteractiveLessonConstants.MaxTabsPanels)
+        {
+            throw new ArgumentException(
+                $"Tabs can have at most {InteractiveLessonConstants.MaxTabsPanels} panels.");
+        }
+
+        for (var i = 0; i < panels.Count; i++)
+        {
+            var panel = panels[i] as JsonObject;
+
+            RequireText(
+                panel?["title"],
+                $"Tab {i + 1} title",
+                InteractiveLessonConstants.MaxTabsTitleLength);
+
+            RequireText(
+                panel?["body"],
+                $"Tab {i + 1} body",
+                InteractiveLessonConstants.MaxTabsBodyLength);
+
+            LimitOptionalHttpUrl(
+                panel?["imageUrl"],
+                $"Tab {i + 1} image",
+                InteractiveLessonConstants.MaxBlockImageUrlLength);
+            LimitOptionalIcon(panel?["icon"], $"Tab {i + 1} icon");
+        }
     }
 
     private static InteractiveBlockTypeSchema GetTextSchema()

@@ -46,6 +46,9 @@
 .lmsbox-interactive-block > .lms-hotspot,
 .lmsbox-interactive-block > .lms-process,
 .lmsbox-interactive-block > .lms-accordion,
+.lmsbox-interactive-block > .lms-tabs,
+.lmsbox-interactive-block > .lms-flowchart,
+.lmsbox-interactive-block > .lms-ordering,
 .lmsbox-interactive-block > .lms-callout,
 .lmsbox-interactive-block > .lmsbox-video,
 .lmsbox-interactive-block > .lmsbox-text,
@@ -1130,6 +1133,326 @@
 }
 
 /* ==========================================================================
+   TABS
+   ========================================================================== */
+
+.lms-tabs {
+  width: 100%;
+  margin-top: 0;
+}
+
+.lms-tabs__progress,
+.lms-flowchart__progress,
+.lms-ordering__progress {
+  margin: 0 0 var(--space-md, 1rem);
+  font-size: 0.8125rem;
+  font-weight: var(--font-weight-medium, 500);
+  letter-spacing: 0.08em;
+  line-height: 1.5;
+  text-transform: uppercase;
+  color: var(--secondary, var(--lmsbox-blue, #0059a3));
+}
+
+.lms-tabs__heading,
+.lms-flowchart__heading,
+.lms-ordering__heading {
+  margin: 0 0 0.75rem;
+  font-size: 1.25rem;
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--primary, var(--lmsbox-navy, #002e62));
+}
+
+.lms-tabs__hint,
+.lms-flowchart__hint,
+.lms-ordering__hint {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--text-secondary, #334155);
+}
+
+.lms-tabs__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  border-bottom: 1px solid var(--border, var(--lmsbox-navy-08, rgba(0, 46, 98, 0.08)));
+}
+
+.lms-tabs__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  margin: 0 0 -1px;
+  padding: 0.7rem 1.1rem;
+  border: 1px solid transparent;
+  border-bottom: 3px solid transparent;
+  border-radius: 10px 10px 0 0;
+  background: transparent;
+  color: var(--primary, var(--lmsbox-navy, #002e62));
+  font: inherit;
+  font-size: 1rem;
+  font-weight: var(--font-weight-medium, 500);
+  cursor: pointer;
+}
+
+.lms-tabs__tab:hover {
+  background: var(--secondary-035, rgba(0, 89, 163, 0.035));
+}
+
+.lms-tabs__tab.is-on,
+.lms-tabs__tab[aria-selected="true"] {
+  border-color: var(--border, var(--lmsbox-navy-08, rgba(0, 46, 98, 0.08)));
+  border-bottom-color: var(--accent-strong, var(--lmsbox-orange, #e74011));
+  background: var(--surface, #fff);
+}
+
+.lms-tabs__icon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  color: var(--secondary, var(--lmsbox-blue, #0059a3));
+}
+
+.lms-tabs__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.lms-tabs__panel {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, var(--lmsbox-navy-08, rgba(0, 46, 98, 0.08)));
+  border-left: 4px solid var(--secondary, var(--lmsbox-blue, #0059a3));
+  border-radius: 0 16px 16px 16px;
+  padding: 1.5rem 1.6rem;
+}
+
+.lms-tabs__panel[hidden] {
+  display: none;
+}
+
+.lms-tabs__panel p {
+  margin: 0 0 0.75rem;
+  color: var(--text-secondary, #334155);
+}
+
+.lms-tabs__panel p:last-child {
+  margin-bottom: 0;
+}
+
+/* ==========================================================================
+   FLOWCHART
+   ========================================================================== */
+
+.lms-flowchart {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+  width: 100%;
+  margin-top: 0;
+}
+
+.lms-flowchart__track {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.lms-flowchart__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.lms-flowchart__node {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 48px;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border, var(--lmsbox-navy-08, rgba(0, 46, 98, 0.08)));
+  border-radius: 16px;
+  background: var(--surface, #fff);
+  color: var(--primary, var(--lmsbox-navy, #002e62));
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: var(--font-weight-medium, 500);
+  text-align: left;
+  cursor: pointer;
+}
+
+.lms-flowchart__item[data-variant="decision"] .lms-flowchart__node {
+  border-radius: 8px;
+  transform: none;
+  border-color: var(--accent-strong, var(--lmsbox-orange, #e74011));
+}
+
+.lms-flowchart__item[data-variant="start"] .lms-flowchart__node,
+.lms-flowchart__item[data-variant="end"] .lms-flowchart__node {
+  border-radius: 999px;
+}
+
+.lms-flowchart__item.is-on .lms-flowchart__node {
+  border-color: var(--accent-strong, var(--lmsbox-orange, #e74011));
+  background: var(--accent-strong-13, rgba(231, 64, 17, 0.08));
+}
+
+.lms-flowchart__shape {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--secondary-10, rgba(0, 89, 163, 0.1));
+  color: var(--secondary, var(--lmsbox-blue, #0059a3));
+}
+
+.lms-flowchart__item.is-on .lms-flowchart__shape {
+  background: var(--accent-strong-13, rgba(231, 64, 17, 0.13));
+  color: var(--accent-strong, var(--lmsbox-orange, #e74011));
+}
+
+.lms-flowchart__shape svg {
+  width: 20px;
+  height: 20px;
+}
+
+.lms-flowchart__connector {
+  width: 2px;
+  height: 18px;
+  background: var(--border, rgba(0, 46, 98, 0.18));
+}
+
+.lms-flowchart__item:last-child .lms-flowchart__connector {
+  display: none;
+}
+
+.lms-flowchart__detail {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, var(--lmsbox-navy-08, rgba(0, 46, 98, 0.08)));
+  border-left: 4px solid var(--secondary, var(--lmsbox-blue, #0059a3));
+  border-radius: 16px;
+  padding: 1.5rem 1.6rem;
+  min-height: 8rem;
+}
+
+.lms-flowchart__panel[hidden] {
+  display: none;
+}
+
+.lms-flowchart__panel h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1.125rem;
+  color: var(--primary, var(--lmsbox-navy, #002e62));
+}
+
+.lms-flowchart__panel p {
+  margin: 0 0 0.75rem;
+  color: var(--text-secondary, #334155);
+}
+
+.lms-flowchart__panel p:last-child {
+  margin-bottom: 0;
+}
+
+/* ==========================================================================
+   ORDERING
+   ========================================================================== */
+
+.lms-ordering {
+  width: 100%;
+  margin-top: 0;
+}
+
+.lms-ordering__list {
+  list-style: none;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.lms-ordering__item {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 0.85rem;
+  align-items: center;
+  min-height: 56px;
+  padding: 0.85rem 1rem;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, var(--lmsbox-navy-08, rgba(0, 46, 98, 0.08)));
+  border-radius: 16px;
+}
+
+.lms-ordering__num {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--primary, var(--lmsbox-navy, #002e62));
+  color: var(--text-on-primary, #fff);
+  font-size: 0.875rem;
+  font-weight: var(--font-weight-semibold, 600);
+}
+
+.lms-ordering__text {
+  font-size: 1rem;
+  line-height: 1.45;
+  color: var(--text, #002e62);
+}
+
+.lms-ordering__move {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.lms-ordering__btn {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border, rgba(0, 46, 98, 0.14));
+  border-radius: 12px;
+  background: var(--surface, #fff);
+  color: var(--primary, var(--lmsbox-navy, #002e62));
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.lms-ordering__btn:hover:not(:disabled) {
+  background: var(--secondary-035, rgba(0, 89, 163, 0.035));
+}
+
+.lms-ordering__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.lms-ordering__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.lms-block-media {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 0 0.85rem;
+  border-radius: 12px;
+}
+
+/* ==========================================================================
    RESPONSIVE + REDUCED MOTION
    ========================================================================== */
 
@@ -1176,6 +1499,15 @@
     padding-left: 1.35rem;
     padding-right: 1.35rem;
   }
+
+  .lms-flowchart {
+    grid-template-columns: 1fr;
+  }
+
+  .lms-tabs__list {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1191,7 +1523,11 @@
   .lmsbox-quiz__btn,
   .lmsbox-quiz__text,
   .lmsbox-quiz__feedback,
-  .lmsbox-video__continue {
+  .lmsbox-video__continue,
+  .lms-tabs__tab,
+  .lms-flowchart__node,
+  .lms-ordering__item,
+  .lms-ordering__btn {
     animation: none !important;
     transition: none !important;
   }

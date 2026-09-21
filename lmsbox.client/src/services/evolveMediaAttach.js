@@ -68,13 +68,14 @@ function applyTargetField(formPayload, targetField, url, alt) {
     return next;
   }
 
-  const slideMatch = /^slides\.(\d+)\.imageUrl$/.exec(targetField);
+  const slideMatch = /^(slides|panels|nodes)\.(\d+)\.imageUrl$/.exec(targetField);
   if (slideMatch) {
-    const index = Number(slideMatch[1]);
-    const slides = Array.isArray(next.slides) ? [...next.slides] : [];
-    if (slides[index]) {
-      slides[index] = { ...slides[index], imageUrl: url };
-      next.slides = slides;
+    const key = slideMatch[1];
+    const index = Number(slideMatch[2]);
+    const list = Array.isArray(next[key]) ? [...next[key]] : [];
+    if (list[index]) {
+      list[index] = { ...list[index], imageUrl: url };
+      next[key] = list;
     }
     return next;
   }

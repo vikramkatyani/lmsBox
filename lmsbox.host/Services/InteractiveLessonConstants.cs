@@ -91,6 +91,24 @@ public static class InteractiveLessonConstants
     public const int MaxQuestionnaireFeedbackLength = 1000;
     public const int MaxIconKeyLength = 80;
 
+    public const int MaxTabsPanels = 10;
+    public const int MaxTabsHeadingLength = 200;
+    public const int MaxTabsTitleLength = 200;
+    public const int MaxTabsBodyLength = 2000;
+
+    public const int MaxFlowchartNodes = 10;
+    public const int MaxFlowchartHeadingLength = 200;
+    public const int MaxFlowchartHintLength = 160;
+    public const int MaxFlowchartTitleLength = 200;
+    public const int MaxFlowchartBodyLength = 2000;
+
+    public const int MinOrderingItems = 2;
+    public const int MaxOrderingItems = 10;
+    public const int MaxOrderingItemLength = 300;
+    public const int MaxOrderingInstructionLength = 1000;
+    public const int MaxOrderingHintLength = 160;
+    public const int MaxOrderingFeedbackLength = 1000;
+
     public static int EffectiveMaxAiQuestionnaireQuestions =>
         Math.Min(MaxAiQuestionnaireQuestions, QuestionnaireQuestionsPerBlock);
 }

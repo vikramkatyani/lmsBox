@@ -18,6 +18,9 @@ import TimelineBlockForm from '../components/TimelineBlockForm';
 import ReflectionBlockForm from '../components/ReflectionBlockForm';
 import HotspotBlockForm from '../components/HotspotBlockForm';
 import ProcessBlockForm from '../components/ProcessBlockForm';
+import TabsBlockForm from '../components/TabsBlockForm';
+import FlowchartBlockForm from '../components/FlowchartBlockForm';
+import OrderingBlockForm from '../components/OrderingBlockForm';
 import InteractiveBlockPreview from '../components/InteractiveBlockPreview';
 import interactiveLessonsService from '../services/interactiveLessons';
 import usePageTitle from '../hooks/usePageTitle';
@@ -45,9 +48,12 @@ const TEMPLATE_BLOCK_TYPES = new Set([
   'reflection',
   'hotspot',
   'process',
+  'flowchart',
   'carousel',
   'accordion',
+  'tabs',
   'questionnaire',
+  'ordering',
   'text',
   'video',
   'audio',
@@ -145,6 +151,25 @@ const EMPTY_PROCESS = {
   startButtonLabel: 'Start the sequence',
 };
 
+const EMPTY_TABS = {
+  heading: '',
+  panels: [],
+};
+
+const EMPTY_FLOWCHART = {
+  heading: '',
+  hint: 'Select a stage to read more',
+  nodes: [],
+};
+
+const EMPTY_ORDERING = {
+  instruction: '',
+  hint: 'Use the arrows to rearrange, then check your answer.',
+  items: [],
+  correctFeedback: '',
+  incorrectFeedback: '',
+};
+
 function getEmptyFormData(blockType) {
   if (blockType === 'hero') {
     return { ...EMPTY_HERO, metaPills: [] };
@@ -175,6 +200,15 @@ function getEmptyFormData(blockType) {
   }
   if (blockType === 'process') {
     return { ...EMPTY_PROCESS, nodes: [], steps: [] };
+  }
+  if (blockType === 'tabs') {
+    return { ...EMPTY_TABS, panels: [] };
+  }
+  if (blockType === 'flowchart') {
+    return { ...EMPTY_FLOWCHART, nodes: [] };
+  }
+  if (blockType === 'ordering') {
+    return { ...EMPTY_ORDERING, items: [] };
   }
   if (blockType === 'carousel') {
     return { ...EMPTY_CAROUSEL, slides: [] };
@@ -613,9 +647,12 @@ export default function InteractiveLessonEditor() {
         (block.blockType === 'reflection' && formData.title?.trim()) ||
         (block.blockType === 'hotspot' && formData.imageUrl?.trim() && formData.pins?.length) ||
         (block.blockType === 'process' && formData.steps?.length) ||
+        (block.blockType === 'flowchart' && formData.nodes?.length) ||
         (block.blockType === 'carousel' && formData.slides?.length) ||
         (block.blockType === 'accordion' && formData.panels?.length) ||
+        (block.blockType === 'tabs' && formData.panels?.length) ||
         (block.blockType === 'questionnaire' && formData.questions?.length) ||
+        (block.blockType === 'ordering' && formData.items?.length >= 2) ||
         (block.blockType === 'text' && (formData.bodyHtml?.trim() || formData.body?.trim())) ||
         (block.blockType === 'video' && formData.videoUrl?.trim()) ||
         (block.blockType === 'audio' && formData.audioUrl?.trim());
@@ -975,6 +1012,15 @@ export default function InteractiveLessonEditor() {
               />
             )}
 
+            {blockForm.blockType === 'flowchart' && (
+              <FlowchartBlockForm
+                value={blockForm.formData}
+                onChange={(formData) => setBlockForm((p) => ({ ...p, formData }))}
+                lessonId={lessonId}
+                blockId={editingBlock?.id}
+              />
+            )}
+
             {blockForm.blockType === 'questionnaire' && (
               <QuestionnaireBlockForm
                 value={blockForm.formData}
@@ -997,6 +1043,24 @@ export default function InteractiveLessonEditor() {
 
             {blockForm.blockType === 'accordion' && (
               <AccordionBlockForm
+                value={blockForm.formData}
+                onChange={(formData) => setBlockForm((p) => ({ ...p, formData }))}
+                lessonId={lessonId}
+                blockId={editingBlock?.id}
+              />
+            )}
+
+            {blockForm.blockType === 'tabs' && (
+              <TabsBlockForm
+                value={blockForm.formData}
+                onChange={(formData) => setBlockForm((p) => ({ ...p, formData }))}
+                lessonId={lessonId}
+                blockId={editingBlock?.id}
+              />
+            )}
+
+            {blockForm.blockType === 'ordering' && (
+              <OrderingBlockForm
                 value={blockForm.formData}
                 onChange={(formData) => setBlockForm((p) => ({ ...p, formData }))}
                 lessonId={lessonId}

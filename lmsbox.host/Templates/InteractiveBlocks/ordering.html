@@ -1,0 +1,181 @@
+<div class="lmsbox-interactive-block" data-block-id="{{BLOCK_ID}}" data-block-type="ordering" role="region" aria-label="Ordering activity">
+
+  {{INSTRUCTION_HTML}}
+  {{HINT_HTML}}
+  <p class="lms-caption lms-ordering__progress" data-ordering-progress aria-live="polite"></p>
+  <div class="lms-ordering" data-ordering>
+    <ol class="lms-ordering__list" data-ordering-list></ol>
+    <div class="lms-ordering__controls">
+      <button type="button" class="lms-button lms-button--primary" data-ordering-check>Check order</button>
+      <button type="button" class="lms-button lms-button--ghost" data-ordering-reset hidden>Try again</button>
+    </div>
+    <div class="lms-question__feedback" data-ordering-feedback role="status" aria-live="polite" hidden>
+      <div class="lms-question__feedback-label">Feedback</div>
+      <h3 data-fb-title></h3>
+      <p data-fb-text></p>
+    </div>
+  </div>
+
+  <script type="application/json" id="lmsbox-ordering-data-{{BLOCK_ID}}">{{ORDERING_JSON}}</script>
+  <script>
+  (function () {
+    var root = document.querySelector('.lmsbox-interactive-block[data-block-type="ordering"][data-block-id="{{BLOCK_ID}}"]');
+    if (!root || root.getAttribute('data-ordering-ready') === '1') return;
+    root.setAttribute('data-ordering-ready', '1');
+
+    var blockId = root.getAttribute('data-block-id');
+    var dataEl = document.getElementById('lmsbox-ordering-data-{{BLOCK_ID}}');
+    var config = { items: [], correctFeedback: '', incorrectFeedback: '' };
+    try { config = JSON.parse(dataEl ? dataEl.textContent : '{}') || config; } catch (e) {}
+    var source = Array.isArray(config.items) ? config.items : [];
+    if (source.length === 0) return;
+
+    var listEl = root.querySelector('[data-ordering-list]');
+    var checkBtn = root.querySelector('[data-ordering-check]');
+    var resetBtn = root.querySelector('[data-ordering-reset]');
+    var feedback = root.querySelector('[data-ordering-feedback]');
+    var progressEl = root.querySelector('[data-ordering-progress]');
+    var completed = false;
+    var locked = false;
+    var items = [];
+
+    function notifyComplete() {
+      if (completed) return;
+      completed = true;
+      var payload = { type: 'interactive-block-complete', blockId: Number(blockId) };
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, '*');
+      }
+      if (window.lmsboxInteractive && typeof window.lmsboxInteractive.notifyComplete === 'function') {
+        window.lmsboxInteractive.notifyComplete(Number(blockId));
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function shuffle(list) {
+      var next = list.slice();
+      for (var i = next.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = next[i];
+        next[i] = next[j];
+        next[j] = tmp;
+      }
+      var same = next.length > 1;
+      for (var k = 0; k < next.length; k++) {
+        if (next[k].correctIndex !== k) { same = false; break; }
+      }
+      if (same) {
+        var swap = next[0];
+        next[0] = next[1];
+        next[1] = swap;
+      }
+      return next;
+    }
+
+    function isCorrect() {
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].correctIndex !== i) return false;
+      }
+      return true;
+    }
+
+    function setFeedback(ok, title, message) {
+      if (!feedback) return;
+      var label = feedback.querySelector('.lms-question__feedback-label');
+      var titleEl = feedback.querySelector('[data-fb-title]');
+      var textEl = feedback.querySelector('[data-fb-text]');
+      if (label) label.textContent = ok ? "That's right" : "Let's look at that again";
+      if (titleEl) titleEl.textContent = title;
+      if (textEl) textEl.textContent = message || '';
+      feedback.setAttribute('data-correct', String(!!ok));
+      feedback.classList.add('is-on');
+      feedback.hidden = false;
+    }
+
+    function hideFeedback() {
+      if (!feedback) return;
+      feedback.classList.remove('is-on');
+      feedback.hidden = true;
+      feedback.removeAttribute('data-correct');
+    }
+
+    function move(index, delta) {
+      if (locked) return;
+      var next = index + delta;
+      if (next < 0 || next >= items.length) return;
+      var tmp = items[index];
+      items[index] = items[next];
+      items[next] = tmp;
+      render();
+    }
+
+    function render() {
+      listEl.innerHTML = items.map(function (item, index) {
+        return (
+          '<li class="lms-ordering__item">' +
+            '<span class="lms-ordering__num" aria-hidden="true">' + (index + 1) + '</span>' +
+            '<span class="lms-ordering__text">' + escapeHtml(item.text) + '</span>' +
+            '<span class="lms-ordering__move">' +
+              '<button type="button" class="lms-ordering__btn" data-move="up" data-index="' + index + '" aria-label="Move up" ' + (index === 0 || locked ? 'disabled' : '') + '>↑</button>' +
+              '<button type="button" class="lms-ordering__btn" data-move="down" data-index="' + index + '" aria-label="Move down" ' + (index === items.length - 1 || locked ? 'disabled' : '') + '>↓</button>' +
+            '</span>' +
+          '</li>'
+        );
+      }).join('');
+    }
+
+    listEl.addEventListener('click', function (event) {
+      var button = event.target.closest('[data-move]');
+      if (!button || button.disabled) return;
+      var index = Number(button.getAttribute('data-index'));
+      move(index, button.getAttribute('data-move') === 'up' ? -1 : 1);
+    });
+
+    if (checkBtn) {
+      checkBtn.addEventListener('click', function () {
+        var ok = isCorrect();
+        locked = ok;
+        if (ok) {
+          setFeedback(true, 'Correct', config.correctFeedback || 'You put every item in the right order.');
+          if (resetBtn) resetBtn.hidden = true;
+          if (checkBtn) checkBtn.hidden = true;
+          if (progressEl) progressEl.textContent = 'Correct order';
+        } else {
+          setFeedback(false, 'Not quite', config.incorrectFeedback || 'That order is not quite right. Rearrange the items and check again.');
+          if (resetBtn) resetBtn.hidden = false;
+          if (progressEl) progressEl.textContent = 'Checked — try a different order';
+        }
+        render();
+        notifyComplete();
+      });
+    }
+
+    if (resetBtn) {
+      resetBtn.addEventListener('click', function () {
+        locked = false;
+        hideFeedback();
+        if (checkBtn) checkBtn.hidden = false;
+        resetBtn.hidden = true;
+        items = shuffle(source.map(function (item, index) {
+          return { text: item.text || ('Item ' + (index + 1)), correctIndex: index };
+        }));
+        if (progressEl) progressEl.textContent = 'Rearrange the items, then check your answer';
+        render();
+      });
+    }
+
+    items = shuffle(source.map(function (item, index) {
+      return { text: item.text || ('Item ' + (index + 1)), correctIndex: index };
+    }));
+    if (progressEl) progressEl.textContent = 'Rearrange the items, then check your answer';
+    render();
+  })();
+  </script>
+</div>
