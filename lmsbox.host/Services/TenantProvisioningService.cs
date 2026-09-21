@@ -153,9 +153,161 @@ public static class TenantProvisioningService
         return (tenant, organisation, admin);
     }
 
-    public static TenantResponse ToResponse(Tenant tenant, IEnumerable<Organisation> orgs, string? tenantAdminEmail = null)
+    /// <summary>
+    /// Creates a TenantAdmin for the tenant, or upgrades an existing tenant user to TenantAdmin.
+    /// </summary>
+    public static async Task<EnsureTenantAdminResult> EnsureTenantAdminAsync(
+        ApplicationDbContext context,
+        UserManager<ApplicationUser> userManager,
+        Tenant tenant,
+        Organisation primaryOrg,
+        CreateTenantAdminRequest request,
+        string createdBy)
+    {
+        var email = request.Email.Trim();
+        var normalizedEmail = userManager.NormalizeEmail(email);
+        var existing = await context.Users.FirstOrDefaultAsync(u =>
+            u.NormalizedEmail == normalizedEmail && u.TenantId == tenant.Id);
+
+        if (existing != null)
+        {
+            if (await userManager.IsInRoleAsync(existing, "TenantAdmin"))
+            {
+                return new EnsureTenantAdminResult
+                {
+                    User = existing,
+                    AlreadyTenantAdmin = true
+                };
+            }
+
+            await PromoteToTenantAdminAsync(context, userManager, existing, primaryOrg, request, createdBy);
+            return new EnsureTenantAdminResult
+            {
+                User = existing,
+                Upgraded = true
+            };
+        }
+
+        if (string.IsNullOrWhiteSpace(request.FirstName))
+        {
+            throw new InvalidOperationException("First name is required to create a new tenant admin");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 6)
+        {
+            throw new InvalidOperationException("Password must be at least 6 characters to create a new tenant admin");
+        }
+
+        var admin = new ApplicationUser
+        {
+            UserName = TenantIdentity.BuildUserName(tenant.Id, email),
+            Email = email,
+            EmailConfirmed = true,
+            FirstName = request.FirstName.Trim(),
+            LastName = string.IsNullOrWhiteSpace(request.LastName) ? null : request.LastName.Trim(),
+            TenantId = tenant.Id,
+            OrganisationID = primaryOrg.Id,
+            CreatedBy = createdBy,
+            ActivatedBy = createdBy,
+            DeactivatedBy = createdBy,
+            ActiveStatus = 1,
+            ActivatedOn = DateTime.UtcNow,
+            CreatedOn = DateTime.UtcNow
+        };
+
+        var result = await userManager.CreateAsync(admin, request.Password);
+        if (!result.Succeeded)
+        {
+            throw new InvalidOperationException(
+                "Failed to create tenant admin: " + string.Join("; ", result.Errors.Select(e => e.Description)));
+        }
+
+        await userManager.AddToRoleAsync(admin, "TenantAdmin");
+        if (request.AlsoAssignOrgAdmin)
+        {
+            await userManager.AddToRoleAsync(admin, "OrgAdmin");
+            if (FavoriteReportDefaults.TryApplyDefaults(admin, "OrgAdmin"))
+            {
+                await userManager.UpdateAsync(admin);
+            }
+        }
+        else if (FavoriteReportDefaults.TryApplyDefaults(admin, "TenantAdmin"))
+        {
+            await userManager.UpdateAsync(admin);
+        }
+
+        return new EnsureTenantAdminResult
+        {
+            User = admin,
+            Created = true
+        };
+    }
+
+    private static async Task PromoteToTenantAdminAsync(
+        ApplicationDbContext context,
+        UserManager<ApplicationUser> userManager,
+        ApplicationUser user,
+        Organisation primaryOrg,
+        CreateTenantAdminRequest request,
+        string updatedBy)
+    {
+        if (!string.IsNullOrWhiteSpace(request.FirstName))
+        {
+            user.FirstName = request.FirstName.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.LastName))
+        {
+            user.LastName = request.LastName.Trim();
+        }
+
+        if (user.ActiveStatus != 1)
+        {
+            user.ActiveStatus = 1;
+            user.ActivatedOn = DateTime.UtcNow;
+            user.ActivatedBy = updatedBy;
+        }
+
+        if (!user.OrganisationID.HasValue)
+        {
+            user.OrganisationID = primaryOrg.Id;
+        }
+
+        var roles = await userManager.GetRolesAsync(user);
+        if (roles.Any(r => r.Equals("Learner", StringComparison.OrdinalIgnoreCase)))
+        {
+            await userManager.RemoveFromRoleAsync(user, "Learner");
+        }
+
+        if (!await userManager.IsInRoleAsync(user, "TenantAdmin"))
+        {
+            await userManager.AddToRoleAsync(user, "TenantAdmin");
+        }
+
+        if (request.AlsoAssignOrgAdmin && !await userManager.IsInRoleAsync(user, "OrgAdmin"))
+        {
+            await userManager.AddToRoleAsync(user, "OrgAdmin");
+        }
+
+        if (FavoriteReportDefaults.TryApplyDefaults(user, "TenantAdmin")
+            || FavoriteReportDefaults.TryApplyDefaults(user, "OrgAdmin"))
+        {
+            await userManager.UpdateAsync(user);
+        }
+        else
+        {
+            await context.SaveChangesAsync();
+        }
+    }
+
+    public static TenantResponse ToResponse(
+        Tenant tenant,
+        IEnumerable<Organisation> orgs,
+        string? tenantAdminEmail = null,
+        IEnumerable<TenantAdminSummaryResponse>? tenantAdmins = null)
     {
         var orgList = orgs.ToList();
+        var admins = tenantAdmins?.ToList() ?? new List<TenantAdminSummaryResponse>();
         var theme = TenantThemeHelper.Parse(tenant.ThemeSettings, tenant.CustomCss);
         return new TenantResponse
         {
@@ -177,7 +329,9 @@ public static class TenantProvisioningService
             OrganisationCount = orgList.Count,
             TotalUsers = orgList.Sum(o => o.Users?.Count ?? 0),
             PrimaryOrganisationId = orgList.OrderBy(o => o.Id).FirstOrDefault()?.Id,
-            TenantAdminEmail = tenantAdminEmail,
+            TenantAdminEmail = tenantAdminEmail
+                ?? (admins.Count > 0 ? string.Join(", ", admins.Select(a => a.Email)) : null),
+            TenantAdmins = admins,
             BrandName = tenant.BrandName,
             BannerUrl = tenant.BannerUrl,
             FaviconUrl = tenant.FaviconUrl,
@@ -204,4 +358,12 @@ public static class TenantProvisioningService
             }).ToList()
         };
     }
+}
+
+public sealed class EnsureTenantAdminResult
+{
+    public required ApplicationUser User { get; init; }
+    public bool Created { get; init; }
+    public bool Upgraded { get; init; }
+    public bool AlreadyTenantAdmin { get; init; }
 }

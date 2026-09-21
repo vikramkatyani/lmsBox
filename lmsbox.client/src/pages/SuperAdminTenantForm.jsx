@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import SuperAdminLayout from '../components/SuperAdminLayout';
 import usePageTitle from '../hooks/usePageTitle';
-import { getTenant, createTenant, updateTenant } from '../services/superAdminApi';
+import { getTenant, createTenant, updateTenant, createTenantAdmin } from '../services/superAdminApi';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
@@ -14,6 +14,14 @@ export default function SuperAdminTenantForm() {
 
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
+  const [savingAdmin, setSavingAdmin] = useState(false);
+  const [tenantAdmins, setTenantAdmins] = useState([]);
+  const [adminForm, setAdminForm] = useState({
+    email: '',
+    firstName: '',
+    lastName: '',
+    password: ''
+  });
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -44,6 +52,7 @@ export default function SuperAdminTenantForm() {
   const fetchTenant = async () => {
     try {
       const data = await getTenant(id);
+      setTenantAdmins(data.tenantAdmins || []);
       setFormData((prev) => ({
         ...prev,
         name: data.name || '',
@@ -131,6 +140,28 @@ export default function SuperAdminTenantForm() {
       toast.error(error.message || 'Save failed');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAddTenantAdmin = async (e) => {
+    e.preventDefault();
+    setSavingAdmin(true);
+    try {
+      const result = await createTenantAdmin(id, {
+        email: adminForm.email,
+        firstName: adminForm.firstName || undefined,
+        lastName: adminForm.lastName || undefined,
+        password: adminForm.password || undefined,
+        alsoAssignOrgAdmin: true
+      });
+      toast.success(result.message || 'Tenant admin saved');
+      setAdminForm({ email: '', firstName: '', lastName: '', password: '' });
+      const data = await getTenant(id);
+      setTenantAdmins(data.tenantAdmins || []);
+    } catch (error) {
+      toast.error(error.message || 'Failed to add tenant admin');
+    } finally {
+      setSavingAdmin(false);
     }
   };
 
@@ -338,6 +369,85 @@ export default function SuperAdminTenantForm() {
             </button>
           </div>
         </form>
+
+        {isEdit && (
+          <div className="bg-white shadow rounded-lg p-6 mt-6 space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900">Tenant admins</h2>
+            <p className="text-sm text-gray-600">
+              If the email already belongs to a user in this tenant, they are upgraded to Tenant Admin.
+              Otherwise a new Tenant Admin is created with the password you provide.
+            </p>
+
+            {tenantAdmins.length > 0 ? (
+              <ul className="divide-y divide-gray-200 border border-gray-200 rounded-md">
+                {tenantAdmins.map((admin) => (
+                  <li key={admin.id || admin.email} className="px-3 py-2 text-sm text-gray-800">
+                    <span className="font-medium">
+                      {[admin.firstName, admin.lastName].filter(Boolean).join(' ') || 'Tenant admin'}
+                    </span>
+                    <span className="text-gray-500"> · {admin.email}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-gray-500">No tenant admins found.</p>
+            )}
+
+            <form onSubmit={handleAddTenantAdmin} className="space-y-3 pt-2">
+              <h3 className="text-sm font-medium text-gray-900">Add another tenant admin</h3>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                <input
+                  required
+                  type="email"
+                  value={adminForm.email}
+                  onChange={(e) => setAdminForm((prev) => ({ ...prev, email: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">First name</label>
+                  <input
+                    value={adminForm.firstName}
+                    onChange={(e) => setAdminForm((prev) => ({ ...prev, firstName: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    placeholder="Required for new users"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Last name</label>
+                  <input
+                    value={adminForm.lastName}
+                    onChange={(e) => setAdminForm((prev) => ({ ...prev, lastName: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input
+                  type="password"
+                  minLength={6}
+                  value={adminForm.password}
+                  onChange={(e) => setAdminForm((prev) => ({ ...prev, password: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  placeholder="Required for new users (min 6 characters)"
+                />
+              </div>
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={savingAdmin}
+                  className="px-4 py-2 rounded-md text-sm font-medium text-white disabled:opacity-60"
+                  style={{ backgroundColor: '#1b365d' }}
+                >
+                  {savingAdmin ? 'Adding...' : 'Add tenant admin'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
     </SuperAdminLayout>
   );

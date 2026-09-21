@@ -80,6 +80,21 @@ export const updateTenant = async (id, tenantData) => {
   return response.json();
 };
 
+export const createTenantAdmin = async (tenantId, adminData) => {
+  const response = await fetch(`${API_BASE}/api/SuperAdmin/tenants/${tenantId}/admins`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(adminData)
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Failed to add tenant admin');
+  }
+
+  return response.json();
+};
+
 export const updateTenantBranding = async (id, branding) => {
   const response = await fetch(`${API_BASE}/api/SuperAdmin/tenants/${id}/branding`, {
     method: 'PUT',

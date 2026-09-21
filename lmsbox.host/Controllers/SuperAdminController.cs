@@ -99,13 +99,13 @@ public class SuperAdminController : ControllerBase
             .Include(o => o.Users)
             .ToListAsync();
 
-        var tenantAdminEmails = await GetTenantAdminEmailsAsync(tenants.Select(t => t.Id).ToList());
+        var tenantAdmins = await GetTenantAdminsByTenantAsync(tenants.Select(t => t.Id).ToList());
 
         var response = tenants.Select(t =>
             TenantProvisioningService.ToResponse(
                 t,
                 orgLookup.Where(o => o.TenantId == t.Id),
-                tenantAdminEmails.GetValueOrDefault(t.Id)));
+                tenantAdmins: tenantAdmins.GetValueOrDefault(t.Id)));
 
         return Ok(response);
     }
@@ -125,8 +125,8 @@ public class SuperAdminController : ControllerBase
             .Where(o => o.TenantId == id)
             .ToListAsync();
 
-        var adminEmails = await GetTenantAdminEmailsAsync(new List<long> { id });
-        return Ok(TenantProvisioningService.ToResponse(tenant, orgs, adminEmails.GetValueOrDefault(id)));
+        var tenantAdmins = await GetTenantAdminsByTenantAsync(new List<long> { id });
+        return Ok(TenantProvisioningService.ToResponse(tenant, orgs, tenantAdmins: tenantAdmins.GetValueOrDefault(id)));
     }
 
     [Authorize(Roles = "SuperAdmin")]
@@ -253,6 +253,68 @@ public class SuperAdminController : ControllerBase
 
         await _context.SaveChangesAsync();
         return Ok(new { message = "Tenant updated successfully" });
+    }
+
+    [Authorize(Roles = "SuperAdmin")]
+    [HttpPost("tenants/{id}/admins")]
+    public async Task<IActionResult> CreateTenantAdmin(long id, [FromBody] CreateTenantAdminRequest request)
+    {
+        var tenant = await _context.Tenants.FirstOrDefaultAsync(t => t.Id == id);
+        if (tenant == null)
+        {
+            return NotFound(new { error = "Tenant not found" });
+        }
+
+        var primaryOrg = await _context.Organisations
+            .Where(o => o.TenantId == id)
+            .OrderBy(o => o.Id)
+            .FirstOrDefaultAsync();
+        if (primaryOrg == null)
+        {
+            return BadRequest(new { error = "Tenant has no organisation" });
+        }
+
+        var actorEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? "system";
+
+        try
+        {
+            var result = await TenantProvisioningService.EnsureTenantAdminAsync(
+                _context, _userManager, tenant, primaryOrg, request, actorEmail);
+
+            if (result.AlreadyTenantAdmin)
+            {
+                return BadRequest(new { error = "This user is already a tenant admin" });
+            }
+
+            if (result.Created)
+            {
+                _logger.LogInformation(
+                    "SuperAdmin {Email} created TenantAdmin {AdminEmail} for tenant {TenantId}",
+                    actorEmail, result.User.Email, tenant.Id);
+                return Ok(new
+                {
+                    message = "Tenant admin created",
+                    email = result.User.Email,
+                    created = true,
+                    upgraded = false
+                });
+            }
+
+            _logger.LogInformation(
+                "SuperAdmin {Email} upgraded {AdminEmail} to TenantAdmin for tenant {TenantId}",
+                actorEmail, result.User.Email, tenant.Id);
+            return Ok(new
+            {
+                message = "Existing user upgraded to tenant admin",
+                email = result.User.Email,
+                created = false,
+                upgraded = true
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     [Authorize(Roles = "SuperAdmin")]
@@ -1425,9 +1487,9 @@ public class SuperAdminController : ControllerBase
         };
     }
 
-    private async Task<Dictionary<long, string?>> GetTenantAdminEmailsAsync(List<long> tenantIds)
+    private async Task<Dictionary<long, List<TenantAdminSummaryResponse>>> GetTenantAdminsByTenantAsync(List<long> tenantIds)
     {
-        var result = tenantIds.ToDictionary(id => id, _ => (string?)null);
+        var result = tenantIds.ToDictionary(id => id, _ => new List<TenantAdminSummaryResponse>());
         if (tenantIds.Count == 0)
         {
             return result;
@@ -1439,19 +1501,19 @@ public class SuperAdminController : ControllerBase
 
         foreach (var group in users.GroupBy(u => u.TenantId!.Value))
         {
-            var emails = new List<string>();
-            foreach (var user in group)
+            foreach (var user in group.OrderBy(u => u.Email))
             {
                 if (!string.IsNullOrWhiteSpace(user.Email)
                     && await _userManager.IsInRoleAsync(user, "TenantAdmin"))
                 {
-                    emails.Add(user.Email);
+                    result[group.Key].Add(new TenantAdminSummaryResponse
+                    {
+                        Id = user.Id,
+                        Email = user.Email,
+                        FirstName = user.FirstName,
+                        LastName = user.LastName
+                    });
                 }
-            }
-
-            if (emails.Count > 0)
-            {
-                result[group.Key] = string.Join(", ", emails);
             }
         }
 

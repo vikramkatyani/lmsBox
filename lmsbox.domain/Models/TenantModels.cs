@@ -198,6 +198,7 @@ public class TenantResponse
     public int TotalUsers { get; set; }
     public long? PrimaryOrganisationId { get; set; }
     public string? TenantAdminEmail { get; set; }
+    public List<TenantAdminSummaryResponse> TenantAdmins { get; set; } = new();
     public string? BrandName { get; set; }
     public string? BannerUrl { get; set; }
     public string? FaviconUrl { get; set; }
@@ -261,17 +262,25 @@ public class CreateTenantAdminRequest
     [EmailAddress]
     public string Email { get; set; } = null!;
 
-    [Required]
-    public string FirstName { get; set; } = null!;
+    /// <summary>Required when creating a new user. Optional when upgrading an existing tenant user.</summary>
+    public string? FirstName { get; set; }
 
     public string? LastName { get; set; }
 
-    [Required]
+    /// <summary>Required when creating a new user. Ignored when upgrading an existing tenant user.</summary>
     [MinLength(6)]
-    public string Password { get; set; } = null!;
+    public string? Password { get; set; }
 
     /// <summary>
-    /// When true (default for single-org tenants), also assign OrgAdmin on the primary organisation.
+    /// When true (default), also assign OrgAdmin on the primary organisation.
     /// </summary>
     public bool AlsoAssignOrgAdmin { get; set; } = true;
+}
+
+public class TenantAdminSummaryResponse
+{
+    public string Id { get; set; } = null!;
+    public string Email { get; set; } = null!;
+    public string FirstName { get; set; } = null!;
+    public string? LastName { get; set; }
 }

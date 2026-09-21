@@ -103,7 +103,12 @@ export default function SuperAdminTenantDetail() {
             <p className="text-sm text-gray-500 mt-1">
               Code: {tenant.code} · {tenant.allowsMultipleOrganisations ? 'Multi-organisation' : 'Single organisation'}
             </p>
-            <p className="text-sm text-gray-600 mt-2">Tenant Admin: {tenant.tenantAdminEmail || '—'}</p>
+            <p className="text-sm text-gray-600 mt-2">
+              Tenant Admin:{' '}
+              {tenant.tenantAdmins?.length
+                ? tenant.tenantAdmins.map((admin) => admin.email).join(', ')
+                : tenant.tenantAdminEmail || '—'}
+            </p>
             <p className="text-sm text-gray-600 mt-1">
               Login URL:{' '}
               <a

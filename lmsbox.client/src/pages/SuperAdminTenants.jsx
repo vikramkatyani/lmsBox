@@ -48,6 +48,7 @@ export default function SuperAdminTenants() {
       tenant.name?.toLowerCase().includes(search) ||
       tenant.code?.toLowerCase().includes(search) ||
       tenant.tenantAdminEmail?.toLowerCase().includes(search) ||
+      tenant.tenantAdmins?.some((admin) => admin.email?.toLowerCase().includes(search)) ||
       tenant.domain?.toLowerCase().includes(search)
     );
   });
