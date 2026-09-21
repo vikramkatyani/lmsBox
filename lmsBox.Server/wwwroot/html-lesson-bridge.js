@@ -1,6 +1,8 @@
 /**
  * HTML lesson completion bridge.
  * - If [data-lmsbox-complete-trigger] exists: complete when learner reaches it (scroll into view or click).
+ * - Short / no-scroll pages complete after a brief dwell, even when a trigger is present,
+ *   so learners are not stuck without a way to mark the lesson complete.
  * - Otherwise: complete when learner reaches the end of the content.
  */
 (function () {
@@ -26,6 +28,22 @@
         '*'
       );
     }
+  }
+
+  function getContentHeight() {
+    var doc = document.documentElement;
+    var body = document.body;
+    return Math.max(
+      doc.scrollHeight || 0,
+      body ? body.scrollHeight : 0,
+      doc.offsetHeight || 0
+    );
+  }
+
+  function isShortContent() {
+    var doc = document.documentElement;
+    var viewport = window.innerHeight || doc.clientHeight || 0;
+    return getContentHeight() <= viewport + END_THRESHOLD_PX;
   }
 
   function isElementInViewport(el) {
@@ -68,6 +86,7 @@
             }
             // Trigger placed above the fold: require scroll or click (click handled separately).
             // End sentinel / below-fold trigger: complete on intersection.
+            // Short pages cannot scroll, so allowImmediate completes them.
             if (allowImmediate || !wasInitiallyVisible || hasScrolled) {
               notifyComplete();
               observer.disconnect();
@@ -126,14 +145,9 @@
         return;
       }
       var doc = document.documentElement;
-      var body = document.body;
       var scrollTop = window.pageYOffset || doc.scrollTop || 0;
       var viewport = window.innerHeight || doc.clientHeight || 0;
-      var height = Math.max(
-        doc.scrollHeight || 0,
-        body ? body.scrollHeight : 0,
-        doc.offsetHeight || 0
-      );
+      var height = getContentHeight();
       if (height <= viewport + END_THRESHOLD_PX) {
         return; // short content handled by sentinel dwell
       }
@@ -148,11 +162,18 @@
 
   function setup() {
     var trigger = document.querySelector('[data-lmsbox-complete-trigger]');
+    var short = isShortContent();
     if (trigger) {
-      observeReach(trigger, { allowImmediate: false });
-      return;
+      observeReach(trigger, { allowImmediate: short });
+    } else {
+      setupEndOfContent();
     }
-    setupEndOfContent();
+
+    window.addEventListener('load', function () {
+      if (!completed && isShortContent()) {
+        notifyComplete();
+      }
+    });
   }
 
   if (document.readyState === 'loading') {

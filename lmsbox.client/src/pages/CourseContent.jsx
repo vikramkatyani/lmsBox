@@ -12,6 +12,11 @@ import toast from 'react-hot-toast';
 import usePageTitle from '../hooks/usePageTitle';
 import { API_BASE } from '../utils/apiBase';
 import { learnerFeatureFlags } from '../config/learnerFeatureFlags';
+import {
+  canNavigateToNext,
+  getNextButtonUnavailableReason,
+  isCurrentCurriculumItemComplete,
+} from '../utils/coursePlayerNavigation';
 
 const LESSON_COMPLETED_MESSAGE = 'Lesson completed';
 
@@ -124,6 +129,7 @@ function HtmlInlineLessonContent({ html, lessonId, isCompleted, onComplete }) {
       }
     };
 
+    const fitsWithoutScroll = root.scrollHeight <= root.clientHeight + 48;
     const trigger = root.querySelector('[data-lmsbox-complete-trigger]');
     const target = trigger || (() => {
       const sentinel = document.createElement('div');
@@ -134,7 +140,7 @@ function HtmlInlineLessonContent({ html, lessonId, isCompleted, onComplete }) {
       return sentinel;
     })();
 
-    const allowImmediate = !trigger;
+    const allowImmediate = !trigger || fitsWithoutScroll;
     const wasInitiallyVisible =
       target.getBoundingClientRect().top < (root.getBoundingClientRect().bottom) &&
       target.getBoundingClientRect().bottom > root.getBoundingClientRect().top;
@@ -353,9 +359,22 @@ function markLessonCompletedInCourse(prevCourse, lessonId) {
     prevCourse.lessonsLocked,
     prevCourse.requireSequentialLessons
   );
+  const allLessonsComplete = nextLessons.every((lesson) => lesson.isCompleted);
+  const updatedCourse = {
+    ...prevCourse,
+    lessons: nextLessons,
+    isCompleted: prevCourse.isCompleted || allLessonsComplete,
+  };
+
+  if (allLessonsComplete) {
+    updatedCourse.certificateEligible = isCertificateEligible({
+      ...updatedCourse,
+      certificateEligible: undefined,
+    });
+  }
 
   return {
-    updatedCourse: { ...prevCourse, lessons: nextLessons },
+    updatedCourse,
     newlyUnlockedLessonIds: resolveLessonIdsToAnimateUnlock(prevCourse, lessonId, nextLessons),
   };
 }
@@ -1662,6 +1681,7 @@ export default function CourseContent({ previewMode = false }) {
 
     const { updatedCourse, newlyUnlockedLessonIds } = markLessonCompletedInCourse(prevCourse, lessonId);
     setCourse(updatedCourse);
+    courseRef.current = updatedCourse;
     queueUnlockAnimation(newlyUnlockedLessonIds);
 
     setActiveLesson((prev) => {
@@ -1756,6 +1776,26 @@ export default function CourseContent({ previewMode = false }) {
       return;
     }
 
+    let updatedCourse = null;
+    let wereAllAlreadyComplete = false;
+
+    // Unlock Next immediately after completion so sequential learners are not
+    // stuck waiting for the progress POST (interactive lessons already persist
+    // completion via the block-progress API).
+    if (progressData.completed) {
+      wereAllAlreadyComplete = courseRef.current?.lessons.every((lesson) => lesson.isCompleted);
+      notifyLessonCompleted(lessonId, courseRef.current?.lessons);
+      updatedCourse = completeLessonLocally(lessonId);
+
+      if (updatedCourse) {
+        const allLessonsComplete = updatedCourse.lessons.every((lesson) => lesson.isCompleted);
+        if (allLessonsComplete && !wereAllAlreadyComplete && updatedCourse.hasPostSurvey && !updatedCourse.postSurveyCompleted) {
+          upsertPostSurveyItem(updatedCourse);
+          loadPostSurvey(updatedCourse);
+        }
+      }
+    }
+
     try {
       const token = localStorage.getItem('token');
       await fetch(`${API_BASE}/api/learner/courses/${courseId}/lessons/${lessonId}/progress`, {
@@ -1766,28 +1806,14 @@ export default function CourseContent({ previewMode = false }) {
         },
         body: JSON.stringify(progressData)
       });
-      
-      // Only update the local state when lesson is marked as completed
-      // This prevents interrupting video playback and avoids full page reload
-      if (progressData.completed) {
-        notifyLessonCompleted(lessonId, courseRef.current?.lessons);
 
-        const wereAllAlreadyComplete = courseRef.current?.lessons.every((lesson) => lesson.isCompleted);
-        const updatedCourse = completeLessonLocally(lessonId);
+      if (progressData.completed && updatedCourse) {
+        const allLessonsComplete = updatedCourse.lessons.every((lesson) => lesson.isCompleted);
 
-        if (updatedCourse) {
-          const allLessonsComplete = updatedCourse.lessons.every((lesson) => lesson.isCompleted);
-
-          if (allLessonsComplete && !wereAllAlreadyComplete) {
-            loadCourseDetails(null, { soft: true }).then(() => {
-              toast.success('🎉 Congratulations! You\'ve completed all lessons!');
-            });
-
-            if (updatedCourse.hasPostSurvey && !updatedCourse.postSurveyCompleted) {
-              upsertPostSurveyItem(updatedCourse);
-              loadPostSurvey(updatedCourse);
-            }
-          }
+        if (allLessonsComplete && !wereAllAlreadyComplete) {
+          loadCourseDetails(null, { soft: true }).then(() => {
+            toast.success('🎉 Congratulations! You\'ve completed all lessons!');
+          });
         }
       }
     } catch (error) {
@@ -2040,6 +2066,7 @@ export default function CourseContent({ previewMode = false }) {
       await loadCourseDetails(null, {
         soft: true,
         focusCertificate: surveyType === 'post',
+        focusFirstUnlockedLesson: surveyType === 'pre',
       });
     } catch (error) {
       console.error('Error submitting survey:', error);
@@ -2051,7 +2078,7 @@ export default function CourseContent({ previewMode = false }) {
 
 
 
-  const loadCourseDetails = async (signal = null, { soft = false, focusCertificate = false } = {}) => {
+  const loadCourseDetails = async (signal = null, { soft = false, focusCertificate = false, focusFirstUnlockedLesson = false } = {}) => {
     // Soft refresh updates course/survey state without unmounting the content panel
     // (avoids resetting the video intro screen after lesson completion).
     if (!soft) {
@@ -2099,6 +2126,17 @@ export default function CourseContent({ previewMode = false }) {
               setShowCertificate(true);
               setActiveLesson(null);
               setActiveSurvey(null);
+            }
+          } else if (focusFirstUnlockedLesson) {
+            const sortedLessons = [...(normalizedCourse.lessons ?? [])].sort(
+              (a, b) => (a.ordinal ?? 0) - (b.ordinal ?? 0)
+            );
+            const firstUnlockedLesson = sortedLessons.find((lesson) => !lesson.isLocked) || sortedLessons[0];
+            if (firstUnlockedLesson && (previewMode || !firstUnlockedLesson.isLocked)) {
+              setActiveLesson(firstUnlockedLesson);
+              setActiveSurvey(null);
+              setShowCertificate(false);
+              trackLessonAccess(firstUnlockedLesson.id);
             }
           }
         } else if (preSurveyItem && !normalizedCourse.preSurveyCompleted && !previewMode) {
@@ -2310,8 +2348,24 @@ export default function CourseContent({ previewMode = false }) {
       ? curriculumItems[activeCurriculumIndex + 1]
       : null;
   const canGoPrevious = Boolean(previousCurriculumItem);
-  const canGoNext =
-    Boolean(nextCurriculumItem) && !isCurriculumItemLocked(nextCurriculumItem);
+  const isCurrentComplete = isCurrentCurriculumItemComplete({
+    showCertificate,
+    activeSurvey,
+    activeLesson,
+  });
+  const canGoNext = canNavigateToNext({
+    nextItem: nextCurriculumItem,
+    isNextLocked: Boolean(nextCurriculumItem) && isCurriculumItemLocked(nextCurriculumItem),
+    requireSequentialLessons: course?.requireSequentialLessons === true,
+    isCurrentComplete,
+    previewMode,
+  });
+  const nextButtonUnavailableReason = getNextButtonUnavailableReason({
+    nextItem: nextCurriculumItem,
+    canGoNext,
+    requireSequentialLessons: course?.requireSequentialLessons === true,
+    isCurrentComplete,
+  });
   const showLessonNav =
     course?.showLessonNavigation === true &&
     activeCurriculumIndex >= 0 &&
@@ -2319,6 +2373,16 @@ export default function CourseContent({ previewMode = false }) {
 
   const handleNavigateToAdjacentItem = (item) => {
     if (!item) return;
+    const isMovingNext = nextCurriculumItem && item.id === nextCurriculumItem.id;
+    if (
+      isMovingNext &&
+      course?.requireSequentialLessons === true &&
+      !previewMode &&
+      !isCurrentComplete
+    ) {
+      toast('Complete this lesson to continue', { icon: '🔒' });
+      return;
+    }
     handleSidebarItemClick(item, isCurriculumItemLocked(item), isPreSurveyLockedForNav);
   };
 
@@ -2596,13 +2660,7 @@ export default function CourseContent({ previewMode = false }) {
                       : 'No next item'
                   }
                   title={
-                    nextCurriculumItem && !canGoNext
-                      ? nextCurriculumItem.type === 'certificate'
-                        ? 'Complete all course requirements to unlock your certificate'
-                        : nextCurriculumItem.type === 'survey'
-                          ? 'Complete all lessons to unlock this survey'
-                          : 'Complete the previous lesson to unlock the next one'
-                      : nextCurriculumItem?.title
+                    nextButtonUnavailableReason || nextCurriculumItem?.title
                   }
                   className={`
                     inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium

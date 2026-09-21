@@ -82,7 +82,7 @@ ${themeCss}
 ${blocksCss}
 :root{--shadow:none;--shadow-xs:none;--shadow-sm:none;--shadow-md:none;--shadow-lg:none;--shadow-btn:none;}
 .lms-card,.lms-panel,.lms-hero,.lms-reveal,.lms-accordion__item,.lms-flip__face,.lms-timeline__trigger,.lms-reflection,.lms-question,.lms-process,.lms-flowchart,.lms-tabs,.lms-ordering,.lms-hotspot,.lms-hotspot__panel,.lms-warning,.lms-compare__card,.lmsbox-text,.lmsbox-video,.lmsbox-carousel,.lmsbox-audio,.lmsbox-quiz__item,.lmsbox-interactive-block .lmsbox-accordion__item{box-shadow:none!important;}
-</style></head><body>${html}${runtimeScript}${resizeScript}</body></html>`;
+</style></head><body>${runtimeScript}${html}${resizeScript}</body></html>`;
 }
 
 export function nextIframeHeight(currentHeight, reportedHeight, minHeight = 200) {

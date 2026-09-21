@@ -7,10 +7,40 @@ import {
   INTERACTIVE_BLOCK_IFRAME_SANDBOX,
 } from '../utils/interactiveBlockIframe';
 
+const AUTO_COMPLETE_ON_VIEW_TYPES = new Set(['hero', 'cards', 'remember', 'warning']);
+const AUTO_COMPLETE_FALLBACK_MS = 400;
+
+function shouldAutoCompleteBlock(block, iframeEl) {
+  if (!block?.html) {
+    return true;
+  }
+
+  const type = String(block.blockType || '').toLowerCase();
+  if (AUTO_COMPLETE_ON_VIEW_TYPES.has(type)) {
+    return true;
+  }
+
+  if (type !== 'text') {
+    return false;
+  }
+
+  try {
+    const root = iframeEl?.contentDocument?.querySelector('[data-block-type="text"]');
+    return root?.getAttribute('data-show-continue') === '0';
+  } catch {
+    return false;
+  }
+}
+
 function BlockFrame({ block, onComplete }) {
   const iframeRef = useRef(null);
+  const fallbackTimerRef = useRef(null);
+  const onCompleteRef = useRef(onComplete);
+  const [listenerReady, setListenerReady] = useState(false);
   const initialHeight = block.blockType === 'hero' ? 420 : 200;
   const [height, setHeight] = useState(initialHeight);
+
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
     setHeight(block.blockType === 'hero' ? 420 : 200);
@@ -32,13 +62,49 @@ function BlockFrame({ block, onComplete }) {
       }
 
       if (data.type === 'interactive-block-complete') {
-        onComplete?.(data);
+        onCompleteRef.current?.(data);
       }
     };
 
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [onComplete, block.blockType]);
+    setListenerReady(true);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
+    };
+  }, [block.id, block.blockType]);
+
+  const requestComplete = useCallback(() => {
+    if (!block.id) return;
+    onCompleteRef.current?.({ type: 'interactive-block-complete', blockId: block.id });
+  }, [block.id]);
+
+  useEffect(() => {
+    if (block.isComplete || block.isLocked || block.html) {
+      return undefined;
+    }
+
+    requestComplete();
+    return undefined;
+  }, [block.isComplete, block.isLocked, block.html, requestComplete]);
+
+  const handleIframeLoad = () => {
+    if (block.isComplete || block.isLocked) {
+      return;
+    }
+    if (!shouldAutoCompleteBlock(block, iframeRef.current)) {
+      return;
+    }
+    if (fallbackTimerRef.current) {
+      clearTimeout(fallbackTimerRef.current);
+    }
+    fallbackTimerRef.current = setTimeout(() => {
+      requestComplete();
+    }, AUTO_COMPLETE_FALLBACK_MS);
+  };
 
   if (block.isLocked) {
     return null;
@@ -51,6 +117,8 @@ function BlockFrame({ block, onComplete }) {
       </div>
     );
   }
+
+  const srcDoc = listenerReady ? buildInteractiveBlockSrcDoc(block.html) : '';
 
   return (
     <iframe
@@ -65,7 +133,11 @@ function BlockFrame({ block, onComplete }) {
       allow={INTERACTIVE_BLOCK_IFRAME_ALLOW}
       allowFullScreen
       referrerPolicy="strict-origin-when-cross-origin"
-      srcDoc={buildInteractiveBlockSrcDoc(block.html)}
+      srcDoc={srcDoc}
+      onLoad={() => {
+        if (!srcDoc) return;
+        handleIframeLoad();
+      }}
     />
   );
 }
@@ -79,9 +151,14 @@ export default function InteractiveLessonPlayer({
   const [lesson, setLesson] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const lessonRef = useRef(null);
+  const completingIdsRef = useRef(new Set());
+  const reportedLessonCompleteRef = useRef(false);
 
-  const loadLesson = useCallback(async () => {
-    setLoading(true);
+  const loadLesson = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setLoading(true);
+    }
     setError('');
     try {
       const data = await interactiveLessonsService.getLearnerLesson(courseId, lessonId, preview);
@@ -97,13 +174,32 @@ export default function InteractiveLessonPlayer({
       console.error(err);
       setError(err.response?.data?.message || 'Failed to load interactive lesson.');
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [courseId, lessonId, preview]);
 
   useEffect(() => {
+    completingIdsRef.current = new Set();
+    reportedLessonCompleteRef.current = false;
     loadLesson();
   }, [loadLesson]);
+
+  useEffect(() => {
+    lessonRef.current = lesson;
+  }, [lesson]);
+
+  useEffect(() => {
+    if (preview || !lesson?.blocks?.length || reportedLessonCompleteRef.current) {
+      return;
+    }
+    if (!lesson.blocks.every((block) => block.isComplete)) {
+      return;
+    }
+    reportedLessonCompleteRef.current = true;
+    onLessonComplete?.();
+  }, [lesson, preview, onLessonComplete]);
 
   const applyLocalCompletion = useCallback((blockId) => {
     setLesson((prev) => {
@@ -139,6 +235,12 @@ export default function InteractiveLessonPlayer({
     const blockId = Number(data.blockId);
     if (!blockId) return;
 
+    const currentBlock = lessonRef.current?.blocks?.find((block) => block.id === blockId);
+    if (currentBlock?.isComplete || completingIdsRef.current.has(blockId)) {
+      return;
+    }
+    completingIdsRef.current.add(blockId);
+
     if (preview) {
       applyLocalCompletion(blockId);
       return;
@@ -152,11 +254,13 @@ export default function InteractiveLessonPlayer({
       applyLocalCompletion(blockId);
 
       if (result.lessonProgressUpdated && onLessonComplete) {
+        reportedLessonCompleteRef.current = true;
         onLessonComplete();
       }
 
-      await loadLesson();
+      await loadLesson({ silent: true });
     } catch (err) {
+      completingIdsRef.current.delete(blockId);
       console.error('Failed to save block progress', err);
     }
   }, [applyLocalCompletion, courseId, lessonId, preview, onLessonComplete, loadLesson]);
