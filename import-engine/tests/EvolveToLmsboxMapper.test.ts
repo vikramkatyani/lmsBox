@@ -361,6 +361,73 @@ describe('EvolveToLmsboxMapper', () => {
     expect(plan.report[0].message).toMatch(/queued for media attach/i);
   });
 
+  it('assigns leftover package images to graphics with empty _graphic', () => {
+    const graphic = makeComponent({
+      id: 'c-g',
+      type: 'graphic',
+      title: 'Graphic Title',
+      raw: { title: 'Graphic Title', _graphic: { alt: '', attribution: '' } },
+    });
+    const course = makeCourse([graphic]);
+    course.assets = [
+      {
+        id: 'asset:course/en/assets/kit.png',
+        filename: 'kit.png',
+        path: 'course/en/assets/kit.png',
+        mediaType: 'image/png',
+        exists: true,
+      },
+    ];
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    expect(plan.lessons[0].blocks[0].mediaAssets[0].sourcePath).toBe(
+      'course/en/assets/kit.png'
+    );
+    expect(plan.report[0].message).toMatch(/queued for media attach/i);
+  });
+
+  it('resolves Evolve Asset:image ObjectIds against package filenames', () => {
+    const assetId = '5f8a1b2c3d4e5f6a7b8c9d0e';
+    const graphic = makeComponent({
+      id: 'c-g',
+      type: 'graphic',
+      title: 'Graphic Title',
+      raw: {
+        title: 'Graphic Title',
+        _graphic: { src: assetId, alt: 'Kit' },
+      },
+    });
+    const course = makeCourse([graphic]);
+    course.assets = [
+      {
+        id: `asset:course/en/assets/${assetId}.png`,
+        filename: `${assetId}.png`,
+        path: `course/en/assets/${assetId}.png`,
+        mediaType: 'image/png',
+        exists: true,
+      },
+    ];
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    expect(plan.lessons[0].blocks[0].mediaAssets[0].sourcePath).toBe(
+      `course/en/assets/${assetId}.png`
+    );
+  });
+
+  it('decodes HTML entities in mapped titles', () => {
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-t',
+        type: 'text',
+        title: "What&rsquo;s next?",
+        raw: { title: "What&rsquo;s next? &nbsp;", body: '<p>Hi</p>' },
+      }),
+    ]);
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    expect(plan.lessons[0].blocks[0].title).toMatch(/What’s next/i);
+  });
+
   it('skips mcq components by default (assessment exclusion)', () => {
     const course = makeCourse([
       makeComponent({

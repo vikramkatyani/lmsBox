@@ -44,7 +44,22 @@ function resolveVfsFile(vfs, sourcePath) {
     const hit = getFile(vfs, candidate);
     if (hit) return hit;
   }
-  return findFileBySuffix(vfs, normalised.split('/').pop() || normalised) || null;
+  const filename = normalised.split('/').pop() || normalised;
+  const suffixHit = findFileBySuffix(vfs, filename);
+  if (suffixHit) return suffixHit;
+
+  const lower = filename.toLowerCase();
+  const isObjectId = /^[a-f0-9]{24}$/i.test(lower);
+  for (const path of vfs.paths || []) {
+    const base = String(path).split('/').pop()?.toLowerCase() || '';
+    if (
+      (isObjectId && (base.startsWith(lower) || String(path).toLowerCase().includes(`/${lower}`))) &&
+      /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(base)
+    ) {
+      return getFile(vfs, path);
+    }
+  }
+  return null;
 }
 
 function applyTargetField(formPayload, targetField, url, alt) {
@@ -127,8 +142,8 @@ export async function attachEvolveMedia({ importResult, plan, vfs, onProgress })
               continue;
             }
 
-            const mime = attachment.contentType || guessMime(attachment.fileName || pathKey);
-            const file = new File([fileEntry.data], attachment.fileName || 'asset', {
+            const mime = attachment.contentType || guessMime(fileEntry.filename || attachment.fileName || pathKey);
+            const file = new File([fileEntry.data], fileEntry.filename || attachment.fileName || 'asset', {
               type: mime,
             });
 

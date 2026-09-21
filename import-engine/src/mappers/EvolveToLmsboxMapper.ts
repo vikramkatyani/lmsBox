@@ -4,6 +4,16 @@ import type { Course } from '../models/Course';
 import type { Lesson } from '../models/Lesson';
 import type { Page } from '../models/Page';
 import {
+  decodeHtmlEntities,
+  expandPackagePath,
+  extractImgSrcFromHtml,
+  extractMediaPath,
+  findFirstMediaString,
+  isChromeAsset,
+  isImageAsset,
+  matchAssetByTitle,
+} from '../utils/evolveMedia';
+import {
   evolveAssessmentSkipMessage,
   isEvolveAssessmentComponentType,
   isEvolveAssessmentNode,
@@ -71,9 +81,24 @@ export interface MapEvolveOptions {
  */
 export class EvolveToLmsboxMapper {
   private courseAssets: Asset[] = [];
+  private leftoverImages: Asset[] = [];
 
   map(course: Course, options: MapEvolveOptions = {}): ImportDraftPlan {
     this.courseAssets = course.assets ?? [];
+    const referenced = new Set(
+      (course.components ?? []).flatMap((component) =>
+        (component.assets ?? [])
+          .filter(isImageAsset)
+          .map((asset) => asset.path.toLowerCase())
+      )
+    );
+    this.leftoverImages = this.courseAssets.filter(
+      (asset) =>
+        isImageAsset(asset) &&
+        asset.exists !== false &&
+        !referenced.has(asset.path.toLowerCase()) &&
+        !isChromeAsset(asset)
+    );
     const skipAssessments = options.skipAssessments !== false;
     const report: MappingReportItem[] = [];
     const lessons: MappedLesson[] = [];
@@ -440,7 +465,7 @@ export class EvolveToLmsboxMapper {
     const mediaAssets: PendingMediaAttachment[] = [];
 
     if (sourceType === 'graphic') {
-      const src = resolveEvolveGraphicSrc(raw, component, this.courseAssets);
+      const src = this.resolveImageSource(raw, component);
       const alt = resolveEvolveGraphicAlt(raw) || heading;
       if (src && isAbsoluteUrl(src)) {
         bodyHtml = `<p><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" /></p>${bodyHtml}`;
@@ -764,7 +789,7 @@ export class EvolveToLmsboxMapper {
     message: string;
     mediaAssets: PendingMediaAttachment[];
   } {
-    const imageSrc = resolveEvolveGraphicSrc(raw, component, this.courseAssets);
+    const imageSrc = this.resolveImageSource(raw, component);
     const alt =
       resolveEvolveGraphicAlt(raw) ||
       resolveHumanTitle(component, raw, 'hotspot') ||
@@ -1104,6 +1129,36 @@ export class EvolveToLmsboxMapper {
       mediaAssets: [],
     };
   }
+
+  private resolveImageSource(
+    raw: Record<string, unknown>,
+    component: Component
+  ): string {
+    const found = resolveEvolveGraphicSrc(raw, component, this.courseAssets);
+    if (found) {
+      this.markImageUsed(found);
+      return found;
+    }
+    const title = resolveHumanTitle(component, raw, component.type);
+    return this.takePackageImage(title);
+  }
+
+  private markImageUsed(path: string): void {
+    const lower = path.toLowerCase();
+    const filename = lower.split('/').pop() || lower;
+    this.leftoverImages = this.leftoverImages.filter((asset) => {
+      const assetPath = asset.path.toLowerCase();
+      return assetPath !== lower && asset.filename.toLowerCase() !== filename;
+    });
+  }
+
+  private takePackageImage(title: string): string {
+    if (this.leftoverImages.length === 0) return '';
+    const byTitle = matchAssetByTitle(title, this.leftoverImages);
+    const chosen = byTitle ?? this.leftoverImages[0];
+    this.markImageUsed(chosen.path);
+    return chosen.path;
+  }
 }
 
 function countPages(pages: Page[]): number {
@@ -1139,12 +1194,8 @@ function nested(
 }
 
 function stripHtml(html: string): string {
-  return html
+  return decodeHtmlEntities(html)
     .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -1201,6 +1252,7 @@ function resolveEvolveGraphicSrc(
   courseAssets: Asset[] = [],
   options: { allowAssetFallback?: boolean } = {}
 ): string {
+  const pool = [...(component?.assets ?? []), ...courseAssets];
   const fromJson = [
     extractMediaPath(raw._graphic),
     extractMediaPath(raw.graphic),
@@ -1211,108 +1263,16 @@ function resolveEvolveGraphicSrc(
     extractMediaPath(raw.src),
     extractMediaPath(raw._src),
     extractImgSrcFromHtml(asString(raw.body)),
+    findFirstMediaString(raw._items),
+    findFirstMediaString(raw.items),
+    findFirstMediaString(raw),
   ].find(Boolean);
 
   if (fromJson) {
-    return expandPackagePath(fromJson, [
-      ...(component?.assets ?? []),
-      ...courseAssets,
-    ]);
+    return expandPackagePath(fromJson, pool);
   }
   if (options.allowAssetFallback === false) return '';
   return pickImagePathFromAssets(raw, component, courseAssets);
-}
-
-function expandPackagePath(path: string, assets: Asset[]): string {
-  if (!path || isAbsoluteUrl(path) || path.includes('/')) return path;
-  const lower = path.toLowerCase();
-  const hit = assets.find(
-    (asset) =>
-      asset.filename.toLowerCase() === lower ||
-      asset.path.toLowerCase().endsWith(`/${lower}`)
-  );
-  return hit?.path || path;
-}
-
-const MEDIA_OBJECT_KEYS = [
-  'src',
-  '_src',
-  'large',
-  'small',
-  'path',
-  '_path',
-  'url',
-  '_url',
-  'href',
-  'original',
-  'poster',
-  'desktop',
-  'mobile',
-  'tablet',
-  'image',
-  '_image',
-  'filename',
-  '_default',
-] as const;
-
-function extractMediaPath(value: unknown, depth = 0): string {
-  if (value == null || depth > 4) return '';
-
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    return looksLikeMediaPath(trimmed) ? trimmed.replace(/\\/g, '/') : '';
-  }
-
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const found = extractMediaPath(item, depth + 1);
-      if (found) return found;
-    }
-    return '';
-  }
-
-  if (typeof value !== 'object') return '';
-  const obj = value as Record<string, unknown>;
-
-  for (const key of MEDIA_OBJECT_KEYS) {
-    if (obj[key] === undefined) continue;
-    const found = extractMediaPath(obj[key], depth + 1);
-    if (found) return found;
-  }
-
-  const numericKeys = Object.keys(obj)
-    .filter((key) => /^\d+$/.test(key))
-    .map(Number)
-    .sort((a, b) => b - a);
-  for (const breakpoint of numericKeys) {
-    const found = extractMediaPath(obj[String(breakpoint)], depth + 1);
-    if (found) return found;
-  }
-
-  return '';
-}
-
-function looksLikeMediaPath(value: string): boolean {
-  if (!value || value.length > 500) return false;
-  if (/^(https?:\/\/|data:|blob:)/i.test(value)) return true;
-  if (/\.(jpg|jpeg|png|gif|webp|svg|bmp|mp4|webm|mp3|wav|ogg|pdf)(\?|#|$)/i.test(value)) {
-    return true;
-  }
-  if (/(^|\/)(course|assets|images|media|video|audio)\//i.test(value)) return true;
-  return false;
-}
-
-function extractImgSrcFromHtml(html: string): string {
-  if (!html) return '';
-  const match = html.match(/<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/i);
-  if (!match?.[1]) return '';
-  return looksLikeMediaPath(match[1]) ? match[1].replace(/\\/g, '/') : '';
-}
-
-function isImageAsset(asset: Asset): boolean {
-  const media = (asset.mediaType || '').toLowerCase();
-  if (media.startsWith('image/')) return true;
-  return /\.(jpg|jpeg|png|gif|webp|svg|bmp)(\?|#|$)/i.test(asset.filename || asset.path);
 }
 
 function pickImagePathFromAssets(
@@ -1411,7 +1371,7 @@ function resolveHumanTitle(
     stripHtml(asString(raw.body) || component.body || ''),
     asString(raw.instruction),
   ]
-    .map((s) => s.trim())
+    .map((s) => decodeHtmlEntities(s).trim())
     .filter(Boolean)
     .filter((s) => !looksLikeEvolveId(s));
 

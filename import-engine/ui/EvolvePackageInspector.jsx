@@ -29,6 +29,7 @@ export function EvolvePackageInspector({ onCreateDraftCourse }) {
   const [draftPlan, setDraftPlan] = useState(null);
   const [importResult, setImportResult] = useState(null);
   const [skipAssessments, setSkipAssessments] = useState(true);
+  const [courseTreeCollapsed, setCourseTreeCollapsed] = useState(false);
 
   const orchestrator = useMemo(() => new ImportEngineOrchestrator(), []);
   const mapper = useMemo(() => new EvolveToLmsboxMapper(), []);
@@ -52,6 +53,7 @@ export function EvolvePackageInspector({ onCreateDraftCourse }) {
       setSelectedKey(null);
       setDraftPlan(null);
       setImportResult(null);
+      setCourseTreeCollapsed(false);
 
       try {
         const inspection = await orchestrator.inspectPackage(file, {
@@ -84,6 +86,11 @@ export function EvolvePackageInspector({ onCreateDraftCourse }) {
     },
     [rebuildPlan, result]
   );
+
+  const openConversionReport = useCallback(() => {
+    setActiveTab('mapping');
+    setCourseTreeCollapsed(true);
+  }, []);
 
   const handleCreateDraft = useCallback(async () => {
     if (!draftPlan || !onCreateDraftCourse) return;
@@ -223,7 +230,7 @@ export function EvolvePackageInspector({ onCreateDraftCourse }) {
               <button
                 type="button"
                 className="ml-2 text-[#1b365d] underline"
-                onClick={() => setActiveTab('mapping')}
+                onClick={openConversionReport}
               >
                 View conversion report
               </button>
@@ -247,7 +254,13 @@ export function EvolvePackageInspector({ onCreateDraftCourse }) {
               {importResult.blockCount} block(s) — all Draft (not generated/approved).
             </p>
             {draftPlan && (
-              <ConversionNotice plan={draftPlan} onOpenReport={() => setActiveTab('import')} />
+              <ConversionNotice
+                plan={draftPlan}
+                onOpenReport={() => {
+                  setActiveTab('import');
+                  setCourseTreeCollapsed(true);
+                }}
+              />
             )}
             {importResult.mediaAttach && !importResult.mediaAttach.skipped && (
               <p className="mt-1">
@@ -282,27 +295,54 @@ export function EvolvePackageInspector({ onCreateDraftCourse }) {
       )}
 
       {result && !busy && (
-        <div className="grid min-h-[640px] grid-cols-1 gap-4 xl:grid-cols-12">
-          <aside className="xl:col-span-4 flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <div
+          className={`grid grid-cols-1 gap-4 ${
+            courseTreeCollapsed ? '' : 'min-h-[640px] xl:grid-cols-12'
+          }`}
+        >
+          <aside
+            className={`${
+              courseTreeCollapsed ? '' : 'xl:col-span-4 min-h-[200px]'
+            } flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm`}
+          >
+            <button
+              type="button"
+              onClick={() => setCourseTreeCollapsed((collapsed) => !collapsed)}
+              aria-expanded={!courseTreeCollapsed}
+              className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hover:bg-slate-50 ${
+                courseTreeCollapsed ? '' : 'border-b border-slate-200'
+              }`}
+            >
+              <span
+                className="inline-flex h-4 w-4 items-center justify-center text-[10px] text-slate-400"
+                aria-hidden="true"
+              >
+                {courseTreeCollapsed ? '▶' : '▼'}
+              </span>
               Course Tree
-            </div>
-            <div className="flex-1 overflow-auto p-2">
-              {result.tree?.root ? (
-                <CourseTree
-                  root={result.tree.root}
-                  selectedKey={selectedKey}
-                  onSelect={setSelectedKey}
-                />
-              ) : (
-                <p className="p-3 text-sm text-slate-500">
-                  No tree available ({result.detection?.reason ?? 'unsupported package'})
-                </p>
-              )}
-            </div>
+            </button>
+            {!courseTreeCollapsed && (
+              <div className="flex-1 overflow-auto p-2">
+                {result.tree?.root ? (
+                  <CourseTree
+                    root={result.tree.root}
+                    selectedKey={selectedKey}
+                    onSelect={setSelectedKey}
+                  />
+                ) : (
+                  <p className="p-3 text-sm text-slate-500">
+                    No tree available ({result.detection?.reason ?? 'unsupported package'})
+                  </p>
+                )}
+              </div>
+            )}
           </aside>
 
-          <section className="xl:col-span-8 flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <section
+            className={`${
+              courseTreeCollapsed ? 'min-h-[640px]' : 'xl:col-span-8'
+            } flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm`}
+          >
             <div className="flex flex-wrap border-b border-slate-200">
               {[
                 { id: 'inspector', label: 'Inspector' },

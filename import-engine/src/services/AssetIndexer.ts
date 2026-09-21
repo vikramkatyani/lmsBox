@@ -6,6 +6,7 @@ import {
   normalisePackagePath,
   type VirtualFileSystem,
 } from '../types/VirtualFileSystem';
+import { looksLikeAssetId, looksLikeMediaPath } from '../utils/evolveMedia';
 
 export interface AssetIndexInput {
   /** Assets already harvested from component JSON */
@@ -136,7 +137,23 @@ export class AssetIndexer {
             });
           }
         }
+        const SKIP_REF_KEYS = new Set([
+          '_id',
+          'id',
+          '_parentId',
+          '_type',
+          '_component',
+          '_classes',
+          '_layout',
+          '_trackingId',
+          'title',
+          'displayTitle',
+          'body',
+          'alt',
+        ]);
         for (const [key, value] of Object.entries(obj)) {
+          if (SKIP_REF_KEYS.has(key) && trail.length === 0) continue;
+          if (key === '_parentId' || key === '_type' || key === '_component') continue;
           visit(value, [...trail, key]);
         }
       }
@@ -172,7 +189,9 @@ export class AssetIndexer {
 
   private looksLikeAssetPath(path: string, contentRoot: string): boolean {
     const lower = path.toLowerCase();
+    if (/(^|\/)(libraries|node_modules|core|fonts|css)\//.test(lower)) return false;
     if (this.isMediaFolderPath(lower)) return true;
+    if (/\.(jpg|jpeg|png|gif|webp|svg|bmp|mp4|webm|mp3|wav|ogg)$/i.test(lower)) return true;
     if (contentRoot) {
       const prefix = `${contentRoot.toLowerCase()}/`;
       if (lower.startsWith(prefix) && this.isMediaFolderPath(lower.slice(prefix.length))) {
@@ -190,14 +209,9 @@ export class AssetIndexer {
   }
 
   private looksLikeMediaRef(value: string): boolean {
-    if (!value || value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:')) {
-      // Still index remote URLs as assets (exists=false unless later verified)
-      if (value.startsWith('http://') || value.startsWith('https://')) {
-        return /\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mp3|wav|ogg|pdf|vtt)(\?|$)/i.test(value);
-      }
-      return false;
-    }
-    return /\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mp3|wav|ogg|pdf|vtt|json)$/i.test(value);
+    if (!value) return false;
+    if (looksLikeAssetId(value)) return true;
+    return looksLikeMediaPath(value);
   }
 
   private mediaTypeFromFilename(filename: string): string {
@@ -237,11 +251,20 @@ export class AssetIndexer {
       if (hit) return hit;
     }
 
-    // Suffix match on filename
+    // Suffix match on filename, or ObjectId prefix (Evolve Asset:image ids)
     const filename = path.split('/').pop()?.toLowerCase();
     if (!filename) return undefined;
     for (const p of vfs.paths) {
-      if (p.toLowerCase().endsWith(`/${filename}`) || p.toLowerCase() === filename) {
+      const lower = p.toLowerCase();
+      const base = lower.split('/').pop() ?? '';
+      if (lower.endsWith(`/${filename}`) || lower === filename) {
+        return getFile(vfs, p);
+      }
+      if (
+        looksLikeAssetId(filename) &&
+        (base.startsWith(filename) || lower.includes(`/${filename}`)) &&
+        /\.(jpg|jpeg|png|gif|webp|svg|bmp|mp4|webm|mp3)$/i.test(base)
+      ) {
         return getFile(vfs, p);
       }
     }
