@@ -11,17 +11,20 @@ public class TenantBrandingAssetService
     private readonly IWebHostEnvironment _environment;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<TenantBrandingAssetService> _logger;
+    private readonly IContentBlobLifecycleService _blobLifecycle;
 
     public TenantBrandingAssetService(
         IAzureBlobService blobService,
         IWebHostEnvironment environment,
         IHttpContextAccessor httpContextAccessor,
-        ILogger<TenantBrandingAssetService> logger)
+        ILogger<TenantBrandingAssetService> logger,
+        IContentBlobLifecycleService blobLifecycle)
     {
         _blobService = blobService;
         _environment = environment;
         _httpContextAccessor = httpContextAccessor;
         _logger = logger;
+        _blobLifecycle = blobLifecycle;
     }
 
     public async Task<string> SaveAsync(Tenant tenant, IFormFile file, string assetType)
@@ -40,6 +43,13 @@ public class TenantBrandingAssetService
 
         var fileName = $"{normalizedType}_{Guid.NewGuid():N}{extension}";
         string url;
+        var previousUrl = normalizedType switch
+        {
+            "logo" => tenant.BannerUrl,
+            "favicon" => tenant.FaviconUrl,
+            "loginhero" => tenant.LoginHeroUrl,
+            _ => null
+        };
 
         if (_blobService.IsConfigured())
         {
@@ -70,6 +80,12 @@ public class TenantBrandingAssetService
                 tenant.LoginHeroUrl = url;
                 break;
         }
+
+        await _blobLifecycle.ReleaseReplacedAsync(
+            ContentBlobCollector.FromUrls(previousUrl),
+            ContentBlobCollector.FromUrls(url),
+            organisationId: null,
+            new BlobReferenceExclusion { TenantId = tenant.Id });
 
         return url;
     }

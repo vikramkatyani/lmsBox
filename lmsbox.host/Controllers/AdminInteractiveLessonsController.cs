@@ -46,6 +46,7 @@ public class AdminInteractiveLessonsController : ControllerBase
     private readonly IAzureBlobService _blobService;
     private readonly IStorageQuotaService _storageQuotaService;
     private readonly ILogger<AdminInteractiveLessonsController> _logger;
+    private readonly IContentBlobLifecycleService _blobLifecycle;
 
     public AdminInteractiveLessonsController(
         ApplicationDbContext context,
@@ -55,7 +56,8 @@ public class AdminInteractiveLessonsController : ControllerBase
         IAIAssistantService aiService,
         IAzureBlobService azureBlobService,
         IStorageQuotaService storageQuotaService,
-        ILogger<AdminInteractiveLessonsController> logger)
+        ILogger<AdminInteractiveLessonsController> logger,
+        IContentBlobLifecycleService blobLifecycle)
     {
         _context = context;
         _promptService = promptService;
@@ -65,6 +67,7 @@ public class AdminInteractiveLessonsController : ControllerBase
         _blobService = azureBlobService;
         _storageQuotaService = storageQuotaService;
         _logger = logger;
+        _blobLifecycle = blobLifecycle;
     }
 
     [HttpPost("courses/{courseId}/interactive-lessons")]
@@ -443,6 +446,9 @@ public class AdminInteractiveLessonsController : ControllerBase
             return accessError;
         }
 
+        var previousBlobs = ContentBlobCollector.FromBlock(block, lessonId, _blobLifecycle.ContentContainer);
+        var organisationId = await GetCourseOrganisationIdAsync(lesson.CourseId);
+
         if (!string.IsNullOrWhiteSpace(request.Title))
         {
             block.Title = request.Title.Trim();
@@ -481,6 +487,12 @@ public class AdminInteractiveLessonsController : ControllerBase
         block.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
+        await _blobLifecycle.ReleaseReplacedAsync(
+            previousBlobs,
+            ContentBlobCollector.FromBlock(block, lessonId, _blobLifecycle.ContentContainer),
+            organisationId,
+            new BlobReferenceExclusion { BlockId = block.Id });
+
         return Ok(await MapBlockDtoAsync(block));
     }
 
@@ -500,8 +512,16 @@ public class AdminInteractiveLessonsController : ControllerBase
             return accessError;
         }
 
+        var blobsToRelease = ContentBlobCollector.FromBlock(block, lessonId, _blobLifecycle.ContentContainer);
+        var organisationId = await GetCourseOrganisationIdAsync(lesson.CourseId);
+
         _context.InteractiveBlocks.Remove(block);
         await _context.SaveChangesAsync();
+
+        await _blobLifecycle.ReleaseAsync(
+            blobsToRelease,
+            organisationId,
+            new BlobReferenceExclusion { BlockId = blockId });
 
         var remaining = await _context.InteractiveBlocks
             .Where(b => b.InteractiveLessonSettingsId == block.InteractiveLessonSettingsId)
@@ -872,6 +892,14 @@ public class AdminInteractiveLessonsController : ControllerBase
         }
 
         return (settings.Lesson, settings);
+    }
+
+    private async Task<long?> GetCourseOrganisationIdAsync(string courseId)
+    {
+        return await _context.Courses
+            .Where(c => c.Id == courseId)
+            .Select(c => (long?)c.OrganisationId)
+            .FirstOrDefaultAsync();
     }
 
     private async Task<InteractiveBlock?> GetBlockForLessonAsync(long lessonId, long blockId)

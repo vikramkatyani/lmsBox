@@ -27,6 +27,7 @@ public class SuperAdminController : ControllerBase
     private readonly ILogger<SuperAdminController> _logger;
     private readonly IAzureBlobService _blobService;
     private readonly TenantBrandingAssetService _brandingAssets;
+    private readonly IContentBlobLifecycleService _blobLifecycle;
 
     public SuperAdminController(
         ApplicationDbContext context,
@@ -34,7 +35,8 @@ public class SuperAdminController : ControllerBase
         IConfiguration configuration,
         ILogger<SuperAdminController> logger,
         IAzureBlobService blobService,
-        TenantBrandingAssetService brandingAssets)
+        TenantBrandingAssetService brandingAssets,
+        IContentBlobLifecycleService blobLifecycle)
     {
         _context = context;
         _userManager = userManager;
@@ -42,6 +44,7 @@ public class SuperAdminController : ControllerBase
         _logger = logger;
         _blobService = blobService;
         _brandingAssets = brandingAssets;
+        _blobLifecycle = blobLifecycle;
     }
 
     // Super Admin Login (separate endpoint)
@@ -263,11 +266,19 @@ public class SuperAdminController : ControllerBase
         }
 
         var superAdminEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? "system";
+        var previousBranding = ContentBlobCollector.FromTenant(tenant);
         TenantThemeHelper.ApplyStructuredFields(tenant, request);
         tenant.UpdatedOn = DateTime.UtcNow;
         tenant.UpdatedBy = superAdminEmail;
 
         await _context.SaveChangesAsync();
+
+        await _blobLifecycle.ReleaseReplacedAsync(
+            previousBranding,
+            ContentBlobCollector.FromTenant(tenant),
+            organisationId: null,
+            new BlobReferenceExclusion { TenantId = tenant.Id });
+
         return Ok(BrandingResolver.FromTenant(tenant));
     }
 
@@ -468,6 +479,7 @@ public class SuperAdminController : ControllerBase
             return NotFound(new { error = "Organisation not found" });
 
         var superAdminEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? "system";
+        var previousBranding = ContentBlobCollector.FromOrganisation(organisation);
 
         // Update properties
         organisation.Name = request.Name;
@@ -498,6 +510,12 @@ public class SuperAdminController : ControllerBase
         organisation.UpdatedBy = superAdminEmail;
 
         await _context.SaveChangesAsync();
+
+        await _blobLifecycle.ReleaseReplacedAsync(
+            previousBranding,
+            ContentBlobCollector.FromOrganisation(organisation),
+            organisation.Id,
+            new BlobReferenceExclusion { OrganisationId = organisation.Id });
 
         _logger.LogInformation("SuperAdmin {Email} updated organisation {OrgName} (ID: {OrgId})", 
             superAdminEmail, organisation.Name, organisation.Id);
@@ -782,6 +800,7 @@ public class SuperAdminController : ControllerBase
             return NotFound(new { error = "Content not found" });
 
         var superAdminEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? "system";
+        var previousThumbnail = content.ThumbnailUrl;
 
         // Update editable fields
         content.Title = title;
@@ -819,6 +838,12 @@ public class SuperAdminController : ControllerBase
         }
 
         await _context.SaveChangesAsync();
+
+        await _blobLifecycle.ReleaseReplacedAsync(
+            ContentBlobCollector.FromUrls(previousThumbnail),
+            ContentBlobCollector.FromUrls(content.ThumbnailUrl),
+            organisationId: null,
+            new BlobReferenceExclusion { GlobalLibraryId = content.Id });
 
         _logger.LogInformation("SuperAdmin {Email} updated global library content: {Title}", superAdminEmail, content.Title);
 
@@ -1324,6 +1349,41 @@ public class SuperAdminController : ControllerBase
         _logger.LogInformation("SuperAdmin {Email} deleted global library content: {Title}", superAdminEmail, content.Title);
 
         return Ok(new { message = "Content deleted successfully" });
+    }
+
+    [Authorize(Roles = "SuperAdmin")]
+    [HttpDelete("global-library/{id}/permanent")]
+    public async Task<IActionResult> PermanentlyDeleteGlobalLibraryContent(long id)
+    {
+        var content = await _context.GlobalLibraryContents.FindAsync(id);
+        if (content == null)
+            return NotFound(new { error = "Content not found" });
+
+        var stillUsed = await _context.Lessons.AnyAsync(l => l.GlobalLibraryContentId == id);
+        if (stillUsed)
+        {
+            return Conflict(new
+            {
+                error = "This library item is still used by one or more lessons. Remove those lessons first, then purge storage."
+            });
+        }
+
+        var blobs = ContentBlobCollector.FromGlobalLibrary(content, _blobLifecycle.ContentContainer);
+        var superAdminEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? "system";
+
+        _context.GlobalLibraryContents.Remove(content);
+        await _context.SaveChangesAsync();
+
+        await _blobLifecycle.ReleaseAsync(
+            blobs,
+            organisationId: null,
+            new BlobReferenceExclusion { GlobalLibraryId = id });
+
+        await _blobLifecycle.PurgeOwnerAsync(ContentBlobOwners.GlobalLibrary, id.ToString(), organisationId: null);
+
+        _logger.LogInformation("SuperAdmin {Email} permanently deleted global library content {Id} ({Title})", superAdminEmail, id, content.Title);
+
+        return Ok(new { message = "Content and Azure blobs deleted permanently" });
     }
 
     // Helper method to generate JWT token

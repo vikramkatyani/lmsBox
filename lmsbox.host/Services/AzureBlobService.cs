@@ -556,27 +556,118 @@ public class AzureBlobService : IAzureBlobService
 
     public async Task<bool> DeleteFileAsync(string blobUrl)
     {
-        if (_containerClient == null)
+        var result = await DeleteBlobAsync(blobUrl);
+        return result.Deleted;
+    }
+
+    public async Task<BlobDeletionResult> DeleteBlobAsync(string blobUrl)
+    {
+        var empty = new BlobDeletionResult();
+        if (string.IsNullOrWhiteSpace(_connectionString))
         {
-            throw new InvalidOperationException("Azure Blob Storage is not configured");
+            _logger.LogWarning("Azure Blob Storage is not configured; skipping blob delete");
+            return empty;
+        }
+
+        var locator = AzureBlobPath.TryParse(blobUrl, _containerName, asPrefix: false, promoteScorm: false);
+        if (locator == null)
+        {
+            _logger.LogWarning("Cannot parse blob URL for delete: {BlobUrl}", blobUrl);
+            return empty;
+        }
+
+        if (locator.IsPrefix)
+        {
+            return await DeletePrefixAsync(locator.Container, locator.BlobName);
         }
 
         try
         {
-            // Extract blob name from URL
-            var uri = new Uri(blobUrl);
-            var blobName = uri.AbsolutePath.Split(new[] { _containerName + "/" }, StringSplitOptions.None).Last();
+            var containerClient = GetContainerClient(locator.Container);
+            var blobClient = containerClient.GetBlobClient(locator.BlobName);
+            long size = 0;
+            try
+            {
+                var properties = await blobClient.GetPropertiesAsync();
+                size = properties.Value.ContentLength;
+            }
+            catch (Azure.RequestFailedException)
+            {
+                return empty;
+            }
 
-            var blobClient = _containerClient.GetBlobClient(blobName);
             var response = await blobClient.DeleteIfExistsAsync();
+            if (!response.Value)
+            {
+                return empty;
+            }
 
-            return response.Value;
+            _logger.LogInformation("Deleted blob {Container}/{BlobName} ({Bytes} bytes)", locator.Container, locator.BlobName, size);
+            return new BlobDeletionResult
+            {
+                Deleted = true,
+                FilesDeleted = 1,
+                BytesDeleted = size
+            };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error deleting file from blob storage");
-            return false;
+            _logger.LogError(ex, "Error deleting blob {BlobUrl}", blobUrl);
+            return empty;
         }
+    }
+
+    public async Task<BlobDeletionResult> DeletePrefixAsync(string container, string prefix)
+    {
+        var result = new BlobDeletionResult();
+        if (string.IsNullOrWhiteSpace(_connectionString) || string.IsNullOrWhiteSpace(prefix))
+        {
+            return result;
+        }
+
+        try
+        {
+            var containerClient = GetContainerClient(container);
+            var normalizedPrefix = prefix.TrimEnd('/') + "/";
+
+            await foreach (var blobItem in containerClient.GetBlobsAsync(prefix: normalizedPrefix))
+            {
+                var blobClient = containerClient.GetBlobClient(blobItem.Name);
+                var size = blobItem.Properties.ContentLength ?? 0;
+                var deleted = await blobClient.DeleteIfExistsAsync();
+                if (deleted.Value)
+                {
+                    result.Deleted = true;
+                    result.FilesDeleted++;
+                    result.BytesDeleted += size;
+                }
+            }
+
+            if (result.FilesDeleted > 0)
+            {
+                _logger.LogInformation(
+                    "Deleted {Count} blobs under {Container}/{Prefix} ({Bytes} bytes)",
+                    result.FilesDeleted, container, normalizedPrefix, result.BytesDeleted);
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting blob prefix {Container}/{Prefix}", container, prefix);
+            return result;
+        }
+    }
+
+    private BlobContainerClient GetContainerClient(string containerName)
+    {
+        if (string.Equals(containerName, _containerName, StringComparison.OrdinalIgnoreCase) && _containerClient != null)
+        {
+            return _containerClient;
+        }
+
+        var blobServiceClient = new BlobServiceClient(_connectionString);
+        return blobServiceClient.GetBlobContainerClient(containerName);
     }
 
     public async Task<string> GetSasUrlAsync(string blobUrl, int expiryHours = 24)

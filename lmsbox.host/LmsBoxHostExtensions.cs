@@ -219,6 +219,7 @@ public static class LmsBoxHostExtensions
         builder.Services.AddHttpClient();
         builder.Services.AddScoped<IEmailService, EmailService>();
         builder.Services.AddScoped<IAzureBlobService, AzureBlobService>();
+        builder.Services.AddScoped<IContentBlobLifecycleService, ContentBlobLifecycleService>();
         builder.Services.AddScoped<IStorageQuotaService, StorageQuotaService>();
         builder.Services.AddScoped<IAuditLogService, AuditLogService>();
         builder.Services.AddScoped<ICertificateService, CertificateServiceStub>();

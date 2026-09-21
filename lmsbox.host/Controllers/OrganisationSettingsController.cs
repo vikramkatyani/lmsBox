@@ -16,15 +16,18 @@ public class OrganisationSettingsController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly ILogger<OrganisationSettingsController> _logger;
     private readonly IAzureBlobService _blobService;
+    private readonly IContentBlobLifecycleService _blobLifecycle;
 
     public OrganisationSettingsController(
         ApplicationDbContext context,
         ILogger<OrganisationSettingsController> logger,
-        IAzureBlobService blobService)
+        IAzureBlobService blobService,
+        IContentBlobLifecycleService blobLifecycle)
     {
         _context = context;
         _logger = logger;
         _blobService = blobService;
+        _blobLifecycle = blobLifecycle;
     }
 
     // GET: api/OrganisationSettings
@@ -171,6 +174,8 @@ public class OrganisationSettingsController : ControllerBase
             organisation.Description = request.Description?.Trim();
             organisation.UseTenantBranding = request.UseTenantBranding;
 
+            var previousBranding = ContentBlobCollector.FromOrganisation(organisation);
+
             if (request.UseTenantBranding)
             {
                 // Keep stored custom fields but they are ignored while UseTenantBranding is true
@@ -198,6 +203,12 @@ public class OrganisationSettingsController : ControllerBase
             organisation.UpdatedBy = userId;
 
             await _context.SaveChangesAsync();
+
+            await _blobLifecycle.ReleaseReplacedAsync(
+                previousBranding,
+                ContentBlobCollector.FromOrganisation(organisation),
+                organisation.Id,
+                new BlobReferenceExclusion { OrganisationId = organisation.Id });
 
             var effective = BrandingResolver.Resolve(organisation, organisation.Tenant);
 
@@ -299,6 +310,7 @@ public class OrganisationSettingsController : ControllerBase
             var folderPath = $"{companyName}";
 
             string imageUrl;
+            var previousBanner = organisation.BannerUrl;
             using (var stream = image.OpenReadStream())
             {
                 imageUrl = await _blobService.UploadToBrandingContainerAsync(
@@ -317,6 +329,12 @@ public class OrganisationSettingsController : ControllerBase
             organisation.UpdatedBy = userId;
 
             await _context.SaveChangesAsync();
+
+            await _blobLifecycle.ReleaseReplacedAsync(
+                ContentBlobCollector.FromUrls(previousBanner),
+                ContentBlobCollector.FromUrls(imageUrl),
+                organisation.Id,
+                new BlobReferenceExclusion { OrganisationId = organisation.Id });
 
             return Ok(new { url = imageUrl, message = "Banner uploaded successfully", useTenantBranding = false });
         }

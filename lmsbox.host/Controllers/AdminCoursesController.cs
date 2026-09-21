@@ -21,6 +21,7 @@ public class AdminCoursesController : ControllerBase
     private readonly IAzureBlobService _blobService;
     private readonly IStorageQuotaService _storageQuotaService;
     private readonly IEngagementTrackingService _engagementService;
+    private readonly IContentBlobLifecycleService _blobLifecycle;
 
     /// <summary>Matches the max length configured for Course.Title.</summary>
     private const int MaxCourseTitleLength = 250;
@@ -30,13 +31,15 @@ public class AdminCoursesController : ControllerBase
         ILogger<AdminCoursesController> logger,
         IAzureBlobService blobService,
         IStorageQuotaService storageQuotaService,
-        IEngagementTrackingService engagementService)
+        IEngagementTrackingService engagementService,
+        IContentBlobLifecycleService blobLifecycle)
     {
         _context = context;
         _logger = logger;
         _blobService = blobService;
         _storageQuotaService = storageQuotaService;
         _engagementService = engagementService;
+        _blobLifecycle = blobLifecycle;
     }
 
     /// <summary>
@@ -694,6 +697,8 @@ public class AdminCoursesController : ControllerBase
             var course = await _context.Courses
                 .Include(c => c.Organisation)
                 .Include(c => c.Lessons)
+                    .ThenInclude(l => l.InteractiveLessonSettings!)
+                        .ThenInclude(s => s.Blocks)
                 .FirstOrDefaultAsync(c => c.Id == courseId && !c.IsDeleted);
 
             if (course == null)
@@ -761,6 +766,7 @@ public class AdminCoursesController : ControllerBase
                 }
             }
 
+            var previousBanner = course.BannerUrl;
             // Update course fields
             course.Title = request.Title.Trim();
             course.Description = request.Description?.Trim();
@@ -790,6 +796,10 @@ public class AdminCoursesController : ControllerBase
             {
                 return BadRequest(new { message = "Cannot modify survey or lesson access settings for published courses." });
             }
+
+            var previousLessonBlobs = course.Lessons
+                .SelectMany(l => ContentBlobCollector.FromLesson(l, _blobLifecycle.ContentContainer))
+                .ToList();
 
             // Only allow lesson modifications if course is NOT published
             if (request.Lessons != null)
@@ -866,6 +876,23 @@ public class AdminCoursesController : ControllerBase
             }
 
             await _context.SaveChangesAsync();
+
+            var remainingLessons = await _context.Lessons
+                .Include(l => l.InteractiveLessonSettings!)
+                    .ThenInclude(s => s.Blocks)
+                .Where(l => l.CourseId == courseId)
+                .ToListAsync();
+
+            await _blobLifecycle.ReleaseReplacedAsync(
+                previousLessonBlobs,
+                remainingLessons.SelectMany(l => ContentBlobCollector.FromLesson(l, _blobLifecycle.ContentContainer)),
+                course.OrganisationId);
+
+            await _blobLifecycle.ReleaseReplacedAsync(
+                ContentBlobCollector.FromUrls(previousBanner),
+                ContentBlobCollector.FromUrls(course.BannerUrl),
+                course.OrganisationId,
+                new BlobReferenceExclusion { CourseId = courseId });
 
             _logger.LogInformation("Course {CourseId} updated by user {UserId}", courseId, userId);
 
@@ -1415,14 +1442,7 @@ public class AdminCoursesController : ControllerBase
 
             var course = await _context.Courses
                 .Include(c => c.Lessons)
-                    .ThenInclude(l => l.Quiz!)
-                        .ThenInclude(q => q.Questions)
-                            .ThenInclude(qq => qq.Options)
                 .Include(c => c.Quizzes)
-                    .ThenInclude(q => q.Questions)
-                        .ThenInclude(qq => qq.Options)
-                .Include(c => c.GroupCourses)
-                .Include(c => c.CourseAssignments)
                 .FirstOrDefaultAsync(c => c.Id == courseId);
 
             if (course == null)
@@ -1462,43 +1482,26 @@ public class AdminCoursesController : ControllerBase
             var lessonCount = lessonIds.Count;
             var quizCount = quizIds.Count;
 
-            // The course row itself survives (soft delete), but lessons/quizzes are removed for real,
-            // so every row pointing at them has to go first and in dependency order.
+            // Soft-delete keeps authoring content (lessons, interactive blocks, quizzes) so
+            // Azure blobs stay referenced by live rows and a later restore is possible.
+            // Runtime data (progress, attempts, assignments) is still removed.
             await using var transaction = await _context.Database.BeginTransactionAsync();
+
+            var certificateUrls = await _context.LearnerProgresses
+                .Where(lp => lp.CourseId == courseId && lp.CertificateUrl != null)
+                .Select(lp => lp.CertificateUrl)
+                .ToListAsync();
+            await _blobLifecycle.RetainAsync(
+                ContentBlobOwners.Course,
+                courseId,
+                course.OrganisationId,
+                ContentBlobCollector.FromUrls(certificateUrls.ToArray()));
 
             if (lessonIds.Count > 0)
             {
-                var settingsIds = await _context.InteractiveLessonSettings
-                    .Where(s => lessonIds.Contains(s.LessonId))
-                    .Select(s => s.Id)
-                    .ToListAsync();
-
                 await _context.InteractiveBlockProgresses
                     .Where(p => lessonIds.Contains(p.LessonId))
                     .ExecuteDeleteAsync();
-
-                if (settingsIds.Count > 0)
-                {
-                    var blockIds = await _context.InteractiveBlocks
-                        .Where(b => settingsIds.Contains(b.InteractiveLessonSettingsId))
-                        .Select(b => b.Id)
-                        .ToListAsync();
-
-                    if (blockIds.Count > 0)
-                    {
-                        await _context.InteractiveBlockProgresses
-                            .Where(p => blockIds.Contains(p.BlockId))
-                            .ExecuteDeleteAsync();
-
-                        await _context.InteractiveBlocks
-                            .Where(b => blockIds.Contains(b.Id))
-                            .ExecuteDeleteAsync();
-                    }
-
-                    await _context.InteractiveLessonSettings
-                        .Where(s => settingsIds.Contains(s.Id))
-                        .ExecuteDeleteAsync();
-                }
             }
 
             if (quizIds.Count > 0)
@@ -1532,85 +1535,41 @@ public class AdminCoursesController : ControllerBase
                 .Where(s => s.CourseId == courseId)
                 .ExecuteDeleteAsync();
 
-            // Engagement rows keep NoAction FKs to Course and Lesson; remove them before
-            // hard-deleting lessons (the course row itself is only soft-deleted).
             await _context.UserEngagements
                 .Where(e => e.CourseId == courseId
                     || (e.LessonId != null && lessonIds.Contains(e.LessonId.Value)))
                 .ExecuteDeleteAsync();
 
-            // Delete all related learner progress records (course-level and lesson-level)
             var deletedProgressCount = await _context.LearnerProgresses
                 .Where(lp => lp.CourseId == courseId
                     || (lp.LessonId != null && lessonIds.Contains(lp.LessonId.Value)))
                 .ExecuteDeleteAsync();
 
-            // Delete all feedback related to this course
             var deletedFeedbackCount = await _context.Feedbacks
                 .Where(f => f.CourseId == courseId)
                 .ExecuteDeleteAsync();
 
-            // Delete all pathway course mappings
             await _context.PathwayCourses
                 .Where(pc => pc.CourseId == courseId)
                 .ExecuteDeleteAsync();
 
-            // Delete all group course mappings
             await _context.GroupCourses
                 .Where(gc => gc.CourseId == courseId)
                 .ExecuteDeleteAsync();
 
-            // Delete all course assignments
             await _context.CourseAssignments
                 .Where(ca => ca.CourseId == courseId)
                 .ExecuteDeleteAsync();
 
-            if (quizIds.Count > 0)
-            {
-                var questionIds = await _context.QuizQuestions
-                    .Where(q => quizIds.Contains(q.QuizId))
-                    .Select(q => q.Id)
-                    .ToListAsync();
-
-                if (questionIds.Count > 0)
-                {
-                    await _context.QuizQuestionOptions
-                        .Where(o => questionIds.Contains(o.QuizQuestionId))
-                        .ExecuteDeleteAsync();
-
-                    await _context.QuizQuestions
-                        .Where(q => questionIds.Contains(q.Id))
-                        .ExecuteDeleteAsync();
-                }
-            }
-
-            // Lessons point at quizzes, so they must go before the quizzes themselves
-            if (lessonIds.Count > 0)
-            {
-                await _context.Lessons
-                    .Where(l => lessonIds.Contains(l.Id))
-                    .ExecuteDeleteAsync();
-            }
-
-            if (quizIds.Count > 0)
-            {
-                await _context.Quizzes
-                    .Where(q => quizIds.Contains(q.Id))
-                    .ExecuteDeleteAsync();
-            }
-
-            // Create audit log
             var auditLog = new AuditLog
             {
                 Action = $"Course Deleted: {course.Title} (ID: {courseId})",
                 PerformedBy = $"{user.FirstName} {user.LastName} ({user.Email})",
                 PerformedAt = DateTime.UtcNow,
-                Details = $"Course ID: {courseId}, Course Title: {course.Title}, Organization: {course.OrganisationId}, Deleted Lessons: {lessonCount}, Deleted Quizzes: {quizCount}, Deleted Progress Records: {deletedProgressCount}, Deleted Feedback: {deletedFeedbackCount}"
+                Details = $"Course ID: {courseId}, Course Title: {course.Title}, Organization: {course.OrganisationId}, Retained Lessons: {lessonCount}, Retained Quizzes: {quizCount}, Deleted Progress Records: {deletedProgressCount}, Deleted Feedback: {deletedFeedbackCount}"
             };
             _context.AuditLogs.Add(auditLog);
 
-            // The loaded lessons/quizzes stay tracked as Unchanged, so SaveChanges only writes
-            // the soft-delete flags on the course plus the audit log.
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
@@ -1626,6 +1585,91 @@ public class AdminCoursesController : ControllerBase
         {
             _logger.LogError(ex, "Error deleting course {CourseId}", courseId);
             return StatusCode(500, new { message = "An error occurred while deleting the course", details = ex.GetBaseException().Message });
+        }
+    }
+
+    /// <summary>
+    /// Permanently remove Azure blobs that nothing else references for a soft-deleted course
+    /// (resources, banner, and retained certificate files). Lesson/SCORM/interactive files stay
+    /// because lessons are kept with the course until they are deleted separately.
+    /// </summary>
+    [HttpPost("{courseId}/purge-blobs")]
+    public async Task<ActionResult> PurgeDeletedCourseBlobs(string courseId)
+    {
+        try
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userRole = User.FindFirstValue(ClaimTypes.Role);
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { message = "User not authenticated" });
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
+
+            var course = await _context.Courses
+                .Include(c => c.Resources)
+                .FirstOrDefaultAsync(c => c.Id == courseId);
+
+            if (course == null)
+            {
+                return NotFound(new { message = "Course not found" });
+            }
+
+            if (!course.IsDeleted)
+            {
+                return BadRequest(new { message = "Only deleted courses can have their storage purged. Delete the course first." });
+            }
+
+            if (userRole == "OrgAdmin" || User.IsInRole("OrgAdmin") || User.IsInRole("TenantAdmin"))
+            {
+                var scope = await AccessScope.ResolveAsync(User, _context);
+                if (scope.IsTenantAdmin && scope.TenantId.HasValue)
+                {
+                    var orgOk = await _context.Organisations.AnyAsync(o =>
+                        o.Id == course.OrganisationId && o.TenantId == scope.TenantId);
+                    if (!orgOk) return Forbid();
+                }
+                else if (course.OrganisationId != user.OrganisationID)
+                {
+                    return Forbid();
+                }
+            }
+
+            var resourceBlobs = course.Resources
+                .SelectMany(ContentBlobCollector.FromResource)
+                .ToList();
+            var bannerBlobs = ContentBlobCollector.FromCourseSurface(course);
+
+            _context.CourseResources.RemoveRange(course.Resources);
+            course.BannerUrl = null;
+            await _context.SaveChangesAsync();
+
+            await _blobLifecycle.ReleaseAsync(
+                resourceBlobs.Concat(bannerBlobs),
+                course.OrganisationId,
+                new BlobReferenceExclusion { CourseId = courseId });
+
+            await _blobLifecycle.PurgeOwnerAsync(
+                ContentBlobOwners.Course,
+                courseId,
+                course.OrganisationId);
+
+            _logger.LogInformation("Purged unreferenced Azure blobs for soft-deleted course {CourseId}", courseId);
+            return Ok(new
+            {
+                message = "Unreferenced course storage purged. Lesson files were kept because lessons remain on the soft-deleted course."
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error purging blobs for course {CourseId}", courseId);
+            return StatusCode(500, new { message = "An error occurred while purging course storage" });
         }
     }
 

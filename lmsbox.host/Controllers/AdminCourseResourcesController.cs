@@ -17,6 +17,7 @@ public class AdminCourseResourcesController : ControllerBase
     private readonly IAzureBlobService _blobService;
     private readonly IStorageQuotaService _storageQuotaService;
     private readonly ILogger<AdminCourseResourcesController> _logger;
+    private readonly IContentBlobLifecycleService _blobLifecycle;
 
     private static readonly string[] ValidResourceTypes = ["pdf", "html", "video"];
 
@@ -24,12 +25,14 @@ public class AdminCourseResourcesController : ControllerBase
         ApplicationDbContext context,
         IAzureBlobService blobService,
         IStorageQuotaService storageQuotaService,
-        ILogger<AdminCourseResourcesController> logger)
+        ILogger<AdminCourseResourcesController> logger,
+        IContentBlobLifecycleService blobLifecycle)
     {
         _context = context;
         _blobService = blobService;
         _storageQuotaService = storageQuotaService;
         _logger = logger;
+        _blobLifecycle = blobLifecycle;
     }
 
     [HttpGet]
@@ -222,6 +225,8 @@ public class AdminCourseResourcesController : ControllerBase
                 return validationError;
             }
 
+            var previousBlobs = ContentBlobCollector.FromResource(resource);
+
             resource.Title = request.Title.Trim();
             resource.Description = request.Description?.Trim();
             resource.Ordinal = request.Ordinal;
@@ -238,6 +243,11 @@ public class AdminCourseResourcesController : ControllerBase
             }
 
             await _context.SaveChangesAsync();
+            await _blobLifecycle.ReleaseReplacedAsync(
+                previousBlobs,
+                ContentBlobCollector.FromResource(resource),
+                resource.Course?.OrganisationId,
+                new BlobReferenceExclusion { ResourceId = resource.Id });
             return Ok(MapToDto(resource));
         }
         catch (Exception ex)
@@ -273,6 +283,10 @@ public class AdminCourseResourcesController : ControllerBase
                 }
             }
 
+            var blobsToRelease = ContentBlobCollector.FromResource(resource);
+            var organisationId = resource.Course?.OrganisationId;
+            var resourceIdToExclude = resource.Id;
+
             _context.CourseResources.Remove(resource);
             if (resource.Course != null)
             {
@@ -280,6 +294,10 @@ public class AdminCourseResourcesController : ControllerBase
             }
 
             await _context.SaveChangesAsync();
+            await _blobLifecycle.ReleaseAsync(
+                blobsToRelease,
+                organisationId,
+                new BlobReferenceExclusion { ResourceId = resourceIdToExclude });
             return Ok(new { message = "Resource deleted successfully" });
         }
         catch (Exception ex)

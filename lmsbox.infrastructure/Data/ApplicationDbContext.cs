@@ -73,6 +73,9 @@ namespace lmsbox.infrastructure.Data
         // Global Library Content (Super Admin managed)
         public DbSet<GlobalLibraryContent> GlobalLibraryContents { get; set; } = null!;
 
+        // Azure blobs retained after LMS soft-delete until a later purge
+        public DbSet<RetainedContentBlob> RetainedContentBlobs { get; set; } = null!;
+
         // Surveys
         public DbSet<Survey> Surveys { get; set; } = null!;
         public DbSet<SurveyQuestion> SurveyQuestions { get; set; } = null!;
@@ -104,6 +107,7 @@ namespace lmsbox.infrastructure.Data
             builder.ApplyConfiguration(new SurveyQuestionConfiguration());
             builder.ApplyConfiguration(new SurveyQuestionResponseConfiguration());
             builder.ApplyConfiguration(new UserEngagementConfiguration());
+            builder.ApplyConfiguration(new RetainedContentBlobConfiguration());
 
             // Optional: keep revoked tokens short-lived and index expiry for cleanup queries
             builder.Entity<RevokedToken>()

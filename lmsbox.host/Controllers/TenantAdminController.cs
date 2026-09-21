@@ -19,17 +19,20 @@ public class TenantAdminController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ILogger<TenantAdminController> _logger;
     private readonly TenantBrandingAssetService _brandingAssets;
+    private readonly IContentBlobLifecycleService _blobLifecycle;
 
     public TenantAdminController(
         ApplicationDbContext context,
         UserManager<ApplicationUser> userManager,
         ILogger<TenantAdminController> logger,
-        TenantBrandingAssetService brandingAssets)
+        TenantBrandingAssetService brandingAssets,
+        IContentBlobLifecycleService blobLifecycle)
     {
         _context = context;
         _userManager = userManager;
         _logger = logger;
         _brandingAssets = brandingAssets;
+        _blobLifecycle = blobLifecycle;
     }
 
     private async Task<(AccessScope Scope, Tenant? Tenant, IActionResult? Error)> ResolveTenantContextAsync(long? tenantIdFromRoute = null)
@@ -109,10 +112,17 @@ public class TenantAdminController : ControllerBase
         if (error != null) return error;
 
         var actor = User.FindFirst(ClaimTypes.Email)?.Value ?? "system";
+        var previousBranding = ContentBlobCollector.FromTenant(tenant!);
         TenantThemeHelper.ApplyStructuredFields(tenant!, request);
         tenant!.UpdatedOn = DateTime.UtcNow;
         tenant.UpdatedBy = actor;
         await _context.SaveChangesAsync();
+
+        await _blobLifecycle.ReleaseReplacedAsync(
+            previousBranding,
+            ContentBlobCollector.FromTenant(tenant),
+            organisationId: null,
+            new BlobReferenceExclusion { TenantId = tenant.Id });
 
         return Ok(BrandingResolver.FromTenant(tenant));
     }
@@ -266,6 +276,7 @@ public class TenantAdminController : ControllerBase
         }
 
         var actor = User.FindFirst(ClaimTypes.Email)?.Value ?? "system";
+        var previousBranding = ContentBlobCollector.FromOrganisation(organisation);
         organisation.Name = request.Name;
         organisation.Description = request.Description;
         organisation.MaxUsers = request.MaxUsers;
@@ -294,6 +305,13 @@ public class TenantAdminController : ControllerBase
         organisation.UpdatedBy = actor;
 
         await _context.SaveChangesAsync();
+
+        await _blobLifecycle.ReleaseReplacedAsync(
+            previousBranding,
+            ContentBlobCollector.FromOrganisation(organisation),
+            organisation.Id,
+            new BlobReferenceExclusion { OrganisationId = organisation.Id });
+
         return Ok(new { message = "Organisation updated successfully" });
     }
 

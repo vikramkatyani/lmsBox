@@ -38,6 +38,16 @@ public interface IAzureBlobService
     Task<bool> DeleteFileAsync(string blobUrl);
 
     /// <summary>
+    /// Delete a single blob and return bytes removed (0 if missing).
+    /// </summary>
+    Task<BlobDeletionResult> DeleteBlobAsync(string blobUrl);
+
+    /// <summary>
+    /// Delete every blob under a folder prefix (used for SCORM packages and interactive media).
+    /// </summary>
+    Task<BlobDeletionResult> DeletePrefixAsync(string container, string prefix);
+
+    /// <summary>
     /// Get a SAS token URL for secure access to a blob
     /// </summary>
     Task<string> GetSasUrlAsync(string blobUrl, int expiryHours = 24);
@@ -68,6 +78,13 @@ public class BlobFileInfo
     public string FileType { get; set; } = null!; // video, document, scorm, other
     public string Category { get; set; } = "content"; // branding or content
     public string Path { get; set; } = null!; // Full blob path for reference
+}
+
+public class BlobDeletionResult
+{
+    public bool Deleted { get; set; }
+    public int FilesDeleted { get; set; }
+    public long BytesDeleted { get; set; }
 }
 
 public class ScormPackageInfo

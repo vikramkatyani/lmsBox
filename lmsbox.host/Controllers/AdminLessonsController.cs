@@ -18,19 +18,22 @@ public class AdminLessonsController : ControllerBase
     private readonly IStorageQuotaService _storageQuotaService;
     private readonly ILogger<AdminLessonsController> _logger;
     private readonly IEngagementTrackingService _engagementService;
+    private readonly IContentBlobLifecycleService _blobLifecycle;
 
     public AdminLessonsController(
         ApplicationDbContext context,
         IAzureBlobService blobService,
         IStorageQuotaService storageQuotaService,
         ILogger<AdminLessonsController> logger,
-        IEngagementTrackingService engagementService)
+        IEngagementTrackingService engagementService,
+        IContentBlobLifecycleService blobLifecycle)
     {
         _context = context;
         _blobService = blobService;
         _storageQuotaService = storageQuotaService;
         _logger = logger;
         _engagementService = engagementService;
+        _blobLifecycle = blobLifecycle;
     }
 
     /// <summary>
@@ -370,6 +373,8 @@ public class AdminLessonsController : ControllerBase
             var lesson = await _context.Lessons
                 .Include(l => l.Course)
                 .Include(l => l.Quiz)
+                .Include(l => l.InteractiveLessonSettings!)
+                    .ThenInclude(s => s.Blocks)
                 .FirstOrDefaultAsync(l => l.Id == lessonId && l.CourseId == courseId);
 
             if (lesson == null)
@@ -412,6 +417,8 @@ public class AdminLessonsController : ControllerBase
                 return practicalLimitError;
             }
 
+            var previousBlobs = ContentBlobCollector.FromLesson(lesson, _blobLifecycle.ContentContainer);
+
             // Update lesson properties
             lesson.Title = request.Title;
             lesson.Content = request.Content;
@@ -437,6 +444,12 @@ public class AdminLessonsController : ControllerBase
             }
 
             await _context.SaveChangesAsync();
+
+            await _blobLifecycle.ReleaseReplacedAsync(
+                previousBlobs,
+                ContentBlobCollector.FromLesson(lesson, _blobLifecycle.ContentContainer),
+                lesson.Course?.OrganisationId,
+                new BlobReferenceExclusion { LessonId = lesson.Id });
 
             _logger.LogInformation("Lesson {LessonId} updated by user {UserId}", lessonId, userId);
 
@@ -487,6 +500,8 @@ public class AdminLessonsController : ControllerBase
 
             var lesson = await _context.Lessons
                 .Include(l => l.Course)
+                .Include(l => l.InteractiveLessonSettings!)
+                    .ThenInclude(s => s.Blocks)
                 .FirstOrDefaultAsync(l => l.Id == lessonId && l.CourseId == courseId);
 
             if (lesson == null)
@@ -522,6 +537,9 @@ public class AdminLessonsController : ControllerBase
                 return BadRequest(new { message = "Cannot delete lessons from published courses. Please unpublish the course first." });
             }
 
+            var blobsToRelease = ContentBlobCollector.FromLesson(lesson, _blobLifecycle.ContentContainer);
+            var organisationId = lesson.Course?.OrganisationId;
+
             _context.Lessons.Remove(lesson);
 
             // Update course timestamp
@@ -531,6 +549,11 @@ public class AdminLessonsController : ControllerBase
             }
 
             await _context.SaveChangesAsync();
+
+            await _blobLifecycle.ReleaseAsync(
+                blobsToRelease,
+                organisationId,
+                new BlobReferenceExclusion { LessonId = lessonId });
 
             _logger.LogInformation("Lesson {LessonId} deleted by user {UserId}", lessonId, userId);
 
@@ -753,6 +776,7 @@ public class AdminLessonsController : ControllerBase
                 }
             }
 
+            var previousCaption = lesson.CaptionUrl;
             lesson.CaptionUrl = string.IsNullOrWhiteSpace(request.CaptionUrl) ? null : request.CaptionUrl.Trim();
 
             if (lesson.Course != null)
@@ -761,6 +785,12 @@ public class AdminLessonsController : ControllerBase
             }
 
             await _context.SaveChangesAsync();
+
+            await _blobLifecycle.ReleaseReplacedAsync(
+                ContentBlobCollector.FromUrls(previousCaption),
+                ContentBlobCollector.FromUrls(lesson.CaptionUrl),
+                lesson.Course?.OrganisationId,
+                new BlobReferenceExclusion { LessonId = lesson.Id });
 
             _logger.LogInformation("Caption updated for lesson {LessonId} by user {UserId}", lessonId, userId);
 
