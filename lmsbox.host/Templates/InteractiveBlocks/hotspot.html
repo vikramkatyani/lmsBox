@@ -46,6 +46,7 @@
     }
 
     function closeAll() {
+      wrap.style.paddingBottom = '';
       pins.forEach(function (pin) {
         pin.setAttribute('aria-expanded', 'false');
       });
@@ -54,6 +55,27 @@
         panel.setAttribute('data-open', '0');
         panel.hidden = true;
       });
+    }
+
+    function placePanel(pin, panel) {
+      var wrapRect = wrap.getBoundingClientRect();
+      var pinRect = pin.getBoundingClientRect();
+      panel.style.top = '0px';
+      panel.style.left = '0px';
+      var panelRect = panel.getBoundingClientRect();
+      var left = pinRect.left - wrapRect.left;
+      if (left + panelRect.width > wrapRect.width - 8) {
+        left = Math.max(8, wrapRect.width - panelRect.width - 8);
+      }
+      var top = pinRect.bottom - wrapRect.top + 8;
+      var above = pinRect.top - wrapRect.top - panelRect.height - 8;
+      if (top + panelRect.height > wrapRect.height && above >= 8) {
+        top = above;
+      }
+      panel.style.top = top + 'px';
+      panel.style.left = left + 'px';
+      var overflow = top + panelRect.height - wrapRect.height;
+      wrap.style.paddingBottom = overflow > 0 ? (overflow + 12) + 'px' : '';
     }
 
     closeAll();
@@ -84,14 +106,7 @@
         panel.hidden = false;
         panel.classList.add('is-open');
         panel.setAttribute('data-open', '1');
-
-        // Anchor the panel near its pin while keeping it inside the image.
-        var top = parseFloat(pin.style.top);
-        var left = parseFloat(pin.style.left);
-        if (!isNaN(top) && !isNaN(left)) {
-          panel.style.top = Math.min(top + 4, 72) + '%';
-          panel.style.left = Math.min(Math.max(left, 8), 55) + '%';
-        }
+        placePanel(pin, panel);
 
         opened[index] = true;
         updateProgress();

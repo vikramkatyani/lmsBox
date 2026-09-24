@@ -1835,7 +1835,7 @@
   margin-top: var(--space-xl);
   position: relative;
   border-radius: var(--radius-xl);
-  overflow: hidden;
+  overflow: visible;
   box-shadow: none;
   background: var(--surface);
   border: 1px solid var(--border);

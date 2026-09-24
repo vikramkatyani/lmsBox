@@ -1004,7 +1004,7 @@ export class EvolveToLmsboxMapper {
         let pinImageUrl = '';
         if (pinImageSrc && isAbsoluteUrl(pinImageSrc)) {
           pinImageUrl = pinImageSrc;
-        } else if (pinImageSrc && pinImageSrc !== imageSrc) {
+        } else if (pinImageSrc) {
           mediaAssets.push(makePendingMedia(pinImageSrc, `pins.${index}.imageUrl`, pinAlt));
         }
         return {
@@ -1476,6 +1476,7 @@ function resolveEvolveGraphicSrc(
     extractImgSrcFromHtml(asString(raw.body)),
     extractImgSrcFromHtml(asString(raw.text)),
     extractImgSrcFromHtml(asString(raw.description)),
+    extractMediaPath(raw),
     findFirstMediaString(raw._items),
     findFirstMediaString(raw.items),
     findFirstMediaString(raw),

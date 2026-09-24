@@ -829,6 +829,48 @@ describe('EvolveToLmsboxMapper', () => {
     expect(nodes[2].variant).toBe('end');
   });
 
+  it('links flowchart stage images stored as per-device asset ids', () => {
+    const assetId = '5f8a1b2c3d4e5f6a7b8c9d0e';
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-flow',
+        type: 'flowChart',
+        title: 'HIV progression',
+        raw: {
+          _items: [
+            {
+              body: '<p>Why are CD4+ T cell counts important?</p>',
+              _graphic: {
+                alt: 'HIV Progression',
+                _srcAdvanced: {
+                  _isEnabled: true,
+                  _large: { _id: assetId, _extension: 'png', _type: 'image' },
+                },
+              },
+            },
+          ],
+        },
+      }),
+    ]);
+    course.assets = [
+      {
+        id: `asset:course/en/assets/${assetId}/original.png`,
+        filename: 'original.png',
+        path: `course/en/assets/${assetId}/original.png`,
+        mediaType: 'image/png',
+        exists: true,
+      },
+    ];
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    const block = plan.lessons[0].blocks[0];
+
+    expect(block.mediaAssets[0]).toMatchObject({
+      sourcePath: `course/en/assets/${assetId}/original.png`,
+      targetField: 'nodes.0.imageUrl',
+    });
+  });
+
   it('links an image on each flowChart stage', () => {
     const course = makeCourse([
       makeComponent({

@@ -125,6 +125,9 @@ export function extractMediaPath(value: unknown, depth = 0): string {
   if (typeof value !== 'object') return '';
   const obj = value as Record<string, unknown>;
 
+  const assetId = imageAssetIdFrom(obj);
+  if (assetId) return assetId;
+
   for (const key of MEDIA_OBJECT_KEYS) {
     if (obj[key] === undefined) continue;
     const found = extractMediaPath(obj[key], depth + 1);
@@ -140,6 +143,31 @@ export function extractMediaPath(value: unknown, depth = 0): string {
     if (found) return found;
   }
 
+  // Per-device renditions use keys such as _large / _small that are not in the known list.
+  for (const [key, child] of Object.entries(obj)) {
+    if (MEDIA_OBJECT_KEYS.includes(key as (typeof MEDIA_OBJECT_KEYS)[number])) continue;
+    if (child && typeof child === 'object') {
+      const found = extractMediaPath(child, depth + 1);
+      if (found) return found;
+    } else if (typeof child === 'string' && /<img\b|url\s*\(/i.test(child)) {
+      const fromHtml = extractImgSrcFromHtml(child);
+      if (fromHtml) return fromHtml;
+    }
+  }
+
+  return '';
+}
+
+function imageAssetIdFrom(obj: Record<string, unknown>): string {
+  const id = [obj._id, obj.id, obj.assetId, obj._assetId].find(
+    (value) => typeof value === 'string' && looksLikeAssetId(value)
+  );
+  if (typeof id !== 'string') return '';
+  const ext = String(obj._extension || obj.extension || '');
+  const type = String(obj._type || obj.type || '');
+  if (/(png|jpe?g|gif|webp|svg|bmp)/i.test(ext) || /image/i.test(type)) {
+    return id.trim();
+  }
   return '';
 }
 
