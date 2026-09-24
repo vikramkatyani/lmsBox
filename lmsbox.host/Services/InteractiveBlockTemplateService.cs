@@ -527,6 +527,10 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
             var body = ReadText(pin?["body"]);
             var number = i + 1;
             var panelId = $"lmsbox-hotspot-panel-{blockId}-{number}";
+            var pinImageHtml = RenderOptionalImage(
+                ReadText(pin?["imageUrl"]),
+                "lms-hotspot__panel-image",
+                title);
 
             InteractiveBlockPromptService.TryReadPercent(pin?["topPercent"], out var top);
             InteractiveBlockPromptService.TryReadPercent(pin?["leftPercent"], out var left);
@@ -539,8 +543,9 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
             panelsMarkup.Append(
                 $"""
                 <div id="{panelId}" class="lms-hotspot__panel" role="dialog" aria-label="Hotspot {number}: {HtmlEncodeAttribute(title)}" hidden>
+                  <button class="lms-hotspot__close" type="button" data-hotspot-close aria-label="Close">×</button>
                   <h3 class="lms-hotspot__panel-title">{HtmlEncode(title)}</h3>
-                  {RenderParagraphs(body, "lms-hotspot__panel-body")}
+                  {pinImageHtml}{RenderParagraphs(body, "lms-hotspot__panel-body")}
                 </div>
                 """);
         }

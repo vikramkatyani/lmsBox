@@ -58,6 +58,15 @@
 
     closeAll();
 
+    panels.forEach(function (panel) {
+      var closeBtn = panel.querySelector('[data-hotspot-close]');
+      if (!closeBtn) return;
+      closeBtn.addEventListener('click', function (event) {
+        event.stopPropagation();
+        closeAll();
+      });
+    });
+
     pins.forEach(function (pin, index) {
       var panel = panels[index] || null;
       var targetId = pin.getAttribute('aria-controls');

@@ -907,6 +907,11 @@ You MUST follow these LMSBOX design and technical rules:
             {
                 throw new ArgumentException($"Pin {i + 1} left position must be a number between 0 and 100.");
             }
+
+            LimitOptionalHttpUrl(
+                pin?["imageUrl"],
+                $"Pin {i + 1} image",
+                InteractiveLessonConstants.MaxBlockImageUrlLength);
         }
     }
 

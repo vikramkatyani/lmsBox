@@ -997,9 +997,20 @@ export class EvolveToLmsboxMapper {
           stripHtml(asString(row.body) || asString(row.text) || '') || title;
         const top = Number(row._top ?? row.top ?? row.topPercent ?? 50);
         const left = Number(row._left ?? row.left ?? row.leftPercent ?? 50);
+        const pinImageSrc = resolveEvolveGraphicSrc(row, component, this.courseAssets, {
+          allowAssetFallback: false,
+        });
+        const pinAlt = resolveEvolveGraphicAlt(row) || title;
+        let pinImageUrl = '';
+        if (pinImageSrc && isAbsoluteUrl(pinImageSrc)) {
+          pinImageUrl = pinImageSrc;
+        } else if (pinImageSrc && pinImageSrc !== imageSrc) {
+          mediaAssets.push(makePendingMedia(pinImageSrc, `pins.${index}.imageUrl`, pinAlt));
+        }
         return {
           title: truncate(title, 200),
           body,
+          imageUrl: pinImageUrl,
           topPercent: clampPercent(top),
           leftPercent: clampPercent(left),
         };
@@ -1007,6 +1018,7 @@ export class EvolveToLmsboxMapper {
       .filter(Boolean) as Array<{
       title: string;
       body: string;
+      imageUrl: string;
       topPercent: number;
       leftPercent: number;
     }>;
@@ -1015,6 +1027,7 @@ export class EvolveToLmsboxMapper {
       pins.push({
         title: component.title || 'Hotspot',
         body: stripHtml(component.body || '') || 'Imported hotspot pin.',
+        imageUrl: '',
         topPercent: 50,
         leftPercent: 50,
       });
@@ -1456,7 +1469,13 @@ function resolveEvolveGraphicSrc(
     extractMediaPath(raw._backgroundImage),
     extractMediaPath(raw.src),
     extractMediaPath(raw._src),
+    extractMediaPath(raw._image),
+    extractMediaPath(raw.image),
+    extractMediaPath(raw._srcAdvanced),
+    extractMediaPath(raw.srcAdvanced),
     extractImgSrcFromHtml(asString(raw.body)),
+    extractImgSrcFromHtml(asString(raw.text)),
+    extractImgSrcFromHtml(asString(raw.description)),
     findFirstMediaString(raw._items),
     findFirstMediaString(raw.items),
     findFirstMediaString(raw),

@@ -9,7 +9,7 @@ const MAX_IMAGE_ALT = 300;
 const MAX_PIN_TITLE = 120;
 const MAX_PIN_BODY = 600;
 
-const EMPTY_PIN = { topPercent: 50, leftPercent: 50, title: '', body: '' };
+const EMPTY_PIN = { topPercent: 50, leftPercent: 50, title: '', body: '', imageUrl: '' };
 
 function clampPercent(raw) {
   const parsed = Number.parseFloat(raw);
@@ -187,6 +187,13 @@ export default function HotspotBlockForm({ value, onChange }) {
                 maxLength={MAX_PIN_BODY}
               />
             </div>
+
+            <InteractiveBlockImageField
+              label="Popup image (optional)"
+              url={pin.imageUrl || ''}
+              onChange={(imageUrl) => updatePin(index, { imageUrl })}
+              altPreview={pin.title}
+            />
           </div>
         ))}
 

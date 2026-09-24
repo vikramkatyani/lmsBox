@@ -110,6 +110,16 @@ public class InteractiveBlockDisplayService : IInteractiveBlockDisplayService
         else if (type == "hotspot")
         {
             await SignJsonStringPropertyAsync(root, "imageUrl");
+            if (root["pins"] is JsonArray hotspotPins)
+            {
+                foreach (var node in hotspotPins)
+                {
+                    if (node is JsonObject pin)
+                    {
+                        await SignJsonStringPropertyAsync(pin, "imageUrl");
+                    }
+                }
+            }
         }
         else if (type == "carousel" && root["slides"] is JsonArray slides)
         {

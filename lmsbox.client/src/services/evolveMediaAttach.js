@@ -83,7 +83,7 @@ function applyTargetField(formPayload, targetField, url, alt) {
     return next;
   }
 
-  const slideMatch = /^(slides|panels|nodes)\.(\d+)\.imageUrl$/.exec(targetField);
+  const slideMatch = /^(slides|panels|nodes|pins)\.(\d+)\.imageUrl$/.exec(targetField);
   if (slideMatch) {
     const key = slideMatch[1];
     const index = Number(slideMatch[2]);

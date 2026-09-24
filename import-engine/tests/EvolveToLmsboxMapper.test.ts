@@ -275,6 +275,40 @@ describe('EvolveToLmsboxMapper', () => {
     expect(block.mediaAssets[0].targetField).toBe('imageUrl');
   });
 
+  it('queues a popup image for each hotspot pin', () => {
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-h',
+        type: 'hotgraphic',
+        title: 'Device',
+        raw: {
+          _graphic: { src: 'course/assets/device.png', alt: 'Device' },
+          _items: [
+            {
+              title: 'Cap',
+              body: 'Remove the cap',
+              _top: 20,
+              _left: 30,
+              _graphic: { src: 'course/assets/cap.png', alt: 'Cap' },
+            },
+          ],
+        },
+      }),
+    ]);
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    const block = plan.lessons[0].blocks[0];
+
+    expect(block.mediaAssets.map((asset) => asset.targetField)).toEqual([
+      'imageUrl',
+      'pins.0.imageUrl',
+    ]);
+    expect(block.mediaAssets.map((asset) => asset.sourcePath)).toEqual([
+      'course/assets/device.png',
+      'course/assets/cap.png',
+    ]);
+  });
+
   it('queues graphics when Evolve stores _graphic as an Asset:image string', () => {
     const course = makeCourse([
       makeComponent({
@@ -793,6 +827,51 @@ describe('EvolveToLmsboxMapper', () => {
     expect(nodes[0].variant).toBe('start');
     expect(nodes[1].variant).toBe('decision');
     expect(nodes[2].variant).toBe('end');
+  });
+
+  it('links an image on each flowChart stage', () => {
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-flow',
+        type: 'flowChart',
+        title: 'HIV progression',
+        raw: {
+          instruction: 'Select a stage to read more',
+          _items: [
+            {
+              title: 'Stage 1',
+              body: '<p>Why are CD4+ T cell counts important?</p>',
+              _graphic: {
+                src: 'course/en/assets/hiv-progression.png',
+                alt: 'HIV Progression',
+              },
+            },
+            {
+              title: 'Stage 2',
+              body: '<p>Acute infection <img src="course/en/assets/acute.png" alt="Acute"></p>',
+            },
+            {
+              title: 'Stage 3',
+              body: '<p>Chronic</p><div style="background-image:url(course/en/assets/chronic.jpg)"></div>',
+            },
+          ],
+        },
+      }),
+    ]);
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    const block = plan.lessons[0].blocks[0];
+
+    expect(block.mediaAssets.map((asset) => asset.targetField)).toEqual([
+      'nodes.0.imageUrl',
+      'nodes.1.imageUrl',
+      'nodes.2.imageUrl',
+    ]);
+    expect(block.mediaAssets.map((asset) => asset.sourcePath)).toEqual([
+      'course/en/assets/hiv-progression.png',
+      'course/en/assets/acute.png',
+      'course/en/assets/chronic.jpg',
+    ]);
   });
 
   it('maps ordering items in source order', () => {

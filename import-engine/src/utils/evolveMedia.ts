@@ -229,9 +229,34 @@ export function decodeHtmlEntities(text: string): string {
     .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => String.fromCharCode(parseInt(hex, 16)));
 }
 
+function acceptImageRef(value: string): string {
+  const trimmed = decodeHtmlEntities(value).trim().replace(/\\/g, '/');
+  if (!trimmed || /^about:blank$/i.test(trimmed)) return '';
+  const unquoted = trimmed.replace(/^['"]|['"]$/g, '');
+  return looksLikeMediaPath(unquoted, { allowAssetId: true }) ? unquoted : '';
+}
+
+/**
+ * Pull the first content image out of Evolve rich text.
+ * Item graphics are often an <img>, a srcset, or a CSS background on the step body.
+ */
 export function extractImgSrcFromHtml(html: string): string {
   if (!html) return '';
-  const match = html.match(/<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/i);
-  if (!match?.[1]) return '';
-  return looksLikeMediaPath(match[1]) ? match[1].replace(/\\/g, '/') : '';
+  const decoded = decodeHtmlEntities(html);
+
+  const attr =
+    decoded.match(/<img\b[^>]*\b(?:src|data-src|data-orig-src|data-path)\s*=\s*["']([^"']+)["']/i) ||
+    decoded.match(/<img\b[^>]*\bsrc\s*=\s*([^\s>"']+)/i);
+  const fromAttr = attr?.[1] ? acceptImageRef(attr[1]) : '';
+  if (fromAttr) return fromAttr;
+
+  const srcset = decoded.match(/\bsrcset\s*=\s*["']([^"']+)["']/i);
+  if (srcset?.[1]) {
+    const first = srcset[1].split(',')[0]?.trim().split(/\s+/)[0] || '';
+    const fromSrcset = acceptImageRef(first);
+    if (fromSrcset) return fromSrcset;
+  }
+
+  const background = decoded.match(/url\(\s*['"]?([^'")]+)['"]?\s*\)/i);
+  return background?.[1] ? acceptImageRef(background[1]) : '';
 }
