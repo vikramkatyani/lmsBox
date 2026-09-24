@@ -51,6 +51,9 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
     private const string ArrowSvg =
         """<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14M13 6l6 6-6 6"/></svg>""";
 
+    private const string DownArrowSvg =
+        """<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>""";
+
     private const string DocumentNodeSvg =
         """<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5h10v14"/><path d="M14 8h4l2 3v8h-6z"/></svg>""";
 
@@ -860,7 +863,6 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
             ?? throw new ArgumentException("At least one stage is required.");
 
         var nodesMarkup = new StringBuilder();
-        var panelsMarkup = new StringBuilder();
 
         for (var i = 0; i < nodesArray.Count; i++)
         {
@@ -868,7 +870,8 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
             var title = ReadText(node?["title"]);
             var body = ReadText(node?["body"]);
             var variant = NormaliseFlowchartVariant(ReadText(node?["variant"]), i, nodesArray.Count);
-            var selected = i == 0;
+            var isFirst = i == 0;
+            var isLast = i == nodesArray.Count - 1;
             var fallbackIcon = variant switch
             {
                 "start" => DocumentNodeSvg,
@@ -881,24 +884,29 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
                 ReadText(node?["imageUrl"]),
                 "lms-block-media",
                 title);
+            var nextControl = isLast
+                ? ""
+                : $"""
+                  <button type="button" class="lms-flowchart__next" data-flowchart-next aria-label="Open the next step"{(isFirst ? "" : " hidden")}>
+                    {DownArrowSvg}
+                  </button>
+                  <span class="lms-flowchart__connector" aria-hidden="true"></span>
+                  """;
 
             nodesMarkup.Append(
                 $"""
-                <li class="lms-flowchart__item{(selected ? " is-on" : "")}" data-flowchart-node data-variant="{variant}">
-                  <button class="lms-flowchart__node" type="button" aria-pressed="{(selected ? "true" : "false")}">
-                    <span class="lms-flowchart__shape" aria-hidden="true">{icon}</span>
-                    <span class="lms-flowchart__title">{HtmlEncode(title)}</span>
-                  </button>
-                  <span class="lms-flowchart__connector" aria-hidden="true"></span>
+                <li class="lms-flowchart__item{(isFirst ? " is-open is-latest" : "")}" data-flowchart-node data-variant="{variant}"{(isFirst ? "" : " hidden")}>
+                  <div class="lms-flowchart__card">
+                    <div class="lms-flowchart__node">
+                      <span class="lms-flowchart__shape" aria-hidden="true">{icon}</span>
+                      <h3 class="lms-flowchart__title">{HtmlEncode(title)}</h3>
+                    </div>
+                    <div class="lms-flowchart__panel" data-flowchart-panel>
+                      {imageHtml}{RenderParagraphs(body)}
+                    </div>
+                  </div>
+                  {nextControl}
                 </li>
-                """);
-
-            panelsMarkup.Append(
-                $"""
-                <article class="lms-flowchart__panel{(selected ? " is-on" : "")}" data-flowchart-panel {(selected ? "" : "hidden")}>
-                  <h3>{HtmlEncode(title)}</h3>
-                  {imageHtml}{RenderParagraphs(body)}
-                </article>
                 """);
         }
 
@@ -913,8 +921,7 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
             ("{{HEADING_HTML}}", RenderOptionalHeading(ReadText(root["heading"]), "lms-flowchart__heading")),
             ("{{INTRO_HTML}}", RenderOptionalIntro(ReadText(root["intro"]), "lms-flowchart__intro")),
             ("{{HINT_HTML}}", hintHtml),
-            ("{{NODES_HTML}}", nodesMarkup.ToString()),
-            ("{{PANELS_HTML}}", panelsMarkup.ToString()));
+            ("{{NODES_HTML}}", nodesMarkup.ToString()));
 
         var completionRule = JsonSerializer.Serialize(new
         {

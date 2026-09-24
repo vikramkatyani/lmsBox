@@ -1,6 +1,7 @@
 import themeCss from '../styles/lmsbox-theme.css?raw';
 import blocksCss from '../styles/lmsbox-interactive-blocks.css?raw';
 import { API_BASE } from './apiBase';
+import { buildInteractiveLessonThemeCss, interactiveLessonFontHref } from './interactiveLessonTheme';
 
 /** Permissions needed for HTML5 video, YouTube/Vimeo embeds, and block scripts. */
 export const INTERACTIVE_BLOCK_IFRAME_SANDBOX =
@@ -17,8 +18,11 @@ export const INTERACTIVE_BLOCK_IFRAME_ALLOW =
  * Design-system CSS is inlined so blocks inherit LMSbox styling without
  * depending on an external stylesheet fetch inside the srcDoc iframe.
  */
-export function buildInteractiveBlockSrcDoc(html) {
+export function buildInteractiveBlockSrcDoc(html, theme) {
   if (!html) return '';
+
+  const tenantThemeCss = buildInteractiveLessonThemeCss(theme);
+  const fontHref = interactiveLessonFontHref(theme);
 
   const runtimeScript = `<script src="${API_BASE}/interactive-lesson-runtime.js"></script>`;
   const resizeScript = `<script>
@@ -75,11 +79,12 @@ export function buildInteractiveBlockSrcDoc(html) {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="${fontHref}" rel="stylesheet">
 <style>
 html,body{margin:0;padding:0;background:transparent!important;height:auto!important;min-height:0!important;overflow:hidden;}
 ${themeCss}
 ${blocksCss}
+${tenantThemeCss}
 :root{--shadow:none;--shadow-xs:none;--shadow-sm:none;--shadow-md:none;--shadow-lg:none;--shadow-btn:none;}
 .lms-card,.lms-panel,.lms-hero,.lms-reveal,.lms-accordion__item,.lms-flip__face,.lms-timeline__trigger,.lms-reflection,.lms-question,.lms-process,.lms-flowchart,.lms-tabs,.lms-ordering,.lms-hotspot,.lms-hotspot__panel,.lms-warning,.lms-compare__card,.lmsbox-text,.lmsbox-video,.lmsbox-carousel,.lmsbox-audio,.lmsbox-quiz__item,.lmsbox-interactive-block .lmsbox-accordion__item{box-shadow:none!important;}
 </style></head><body>${runtimeScript}${html}${resizeScript}</body></html>`;

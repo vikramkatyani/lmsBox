@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useTheme } from '../theme/ThemeContext';
 import {
   buildInteractiveBlockSrcDoc,
   nextIframeHeight,
@@ -13,6 +14,7 @@ export default function InteractiveBlockPreview({
   emptyMessage,
   blockType,
 }) {
+  const theme = useTheme();
   const iframeRef = useRef(null);
   const resolvedMinHeight = minHeight ?? (blockType === 'hero' ? 420 : 160);
   const [height, setHeight] = useState(resolvedMinHeight);
@@ -55,7 +57,7 @@ export default function InteractiveBlockPreview({
       allow={INTERACTIVE_BLOCK_IFRAME_ALLOW}
       allowFullScreen
       referrerPolicy="strict-origin-when-cross-origin"
-      srcDoc={buildInteractiveBlockSrcDoc(html)}
+      srcDoc={buildInteractiveBlockSrcDoc(html, theme)}
     />
   );
 }

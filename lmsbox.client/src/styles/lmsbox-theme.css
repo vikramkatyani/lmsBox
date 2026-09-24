@@ -963,7 +963,7 @@
   left: 34%;
   bottom: -100px;
   animation-delay: -6s;
-  background: radial-gradient(circle at 30% 30%, rgba(0, 89, 163, 0.45), transparent 70%);
+  background: radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--secondary) 45%, transparent), transparent 70%);
 }
 
 .lms-hero__content {

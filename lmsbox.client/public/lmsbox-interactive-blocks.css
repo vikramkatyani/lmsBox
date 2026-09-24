@@ -1435,10 +1435,8 @@
    ========================================================================== */
 
 .lms-flowchart {
-  display: grid;
-  grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
-  gap: 1.5rem;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   margin-top: 0;
 }
@@ -1456,6 +1454,36 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%;
+}
+
+.lms-flowchart__item[hidden] {
+  display: none;
+}
+
+.lms-flowchart__card {
+  width: 100%;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, var(--lmsbox-navy-08, rgba(0, 46, 98, 0.08)));
+  border-left: 4px solid var(--secondary, var(--lmsbox-blue, #0059a3));
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.lms-flowchart__item[data-variant="decision"] .lms-flowchart__card {
+  border-color: var(--accent-strong, var(--lmsbox-orange, #e74011));
+  border-left-color: var(--accent-strong, var(--lmsbox-orange, #e74011));
+  border-radius: 8px;
+}
+
+.lms-flowchart__item[data-variant="start"] .lms-flowchart__card,
+.lms-flowchart__item[data-variant="end"] .lms-flowchart__card {
+  border-radius: 24px;
+}
+
+.lms-flowchart__item.is-on .lms-flowchart__card {
+  border-color: var(--accent-strong, var(--lmsbox-orange, #e74011));
+  background: var(--accent-strong-13, rgba(231, 64, 17, 0.04));
 }
 
 .lms-flowchart__node {
@@ -1465,31 +1493,22 @@
   width: 100%;
   min-height: 48px;
   padding: 0.85rem 1rem;
-  border: 1px solid var(--border, var(--lmsbox-navy-08, rgba(0, 46, 98, 0.08)));
-  border-radius: 16px;
-  background: var(--surface, #fff);
+  border: 0;
+  border-bottom: 1px solid var(--border, var(--lmsbox-navy-08, rgba(0, 46, 98, 0.08)));
+  background: transparent;
   color: var(--primary, var(--lmsbox-navy, #002e62));
   font: inherit;
   font-size: 0.95rem;
   font-weight: var(--font-weight-medium, 500);
   text-align: left;
-  cursor: pointer;
 }
 
-.lms-flowchart__item[data-variant="decision"] .lms-flowchart__node {
-  border-radius: 8px;
-  transform: none;
-  border-color: var(--accent-strong, var(--lmsbox-orange, #e74011));
-}
-
-.lms-flowchart__item[data-variant="start"] .lms-flowchart__node,
-.lms-flowchart__item[data-variant="end"] .lms-flowchart__node {
-  border-radius: 999px;
-}
-
-.lms-flowchart__item.is-on .lms-flowchart__node {
-  border-color: var(--accent-strong, var(--lmsbox-orange, #e74011));
-  background: var(--accent-strong-13, rgba(231, 64, 17, 0.08));
+.lms-flowchart__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: var(--font-weight-medium, 500);
+  line-height: 1.35;
+  color: inherit;
 }
 
 .lms-flowchart__shape {
@@ -1514,43 +1533,48 @@
 }
 
 .lms-flowchart__connector {
+  display: none;
   width: 2px;
   height: 18px;
+  margin: 0.15rem 0;
   background: var(--border, rgba(0, 46, 98, 0.18));
 }
 
-.lms-flowchart__item:last-child .lms-flowchart__connector {
-  display: none;
+.lms-flowchart__item.is-open:not(.is-latest) .lms-flowchart__connector {
+  display: block;
 }
 
-.lms-flowchart__detail {
+.lms-flowchart__next {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 0.45rem 0 0.15rem;
+  padding: 0;
+  border: 1px solid var(--border, rgba(0, 46, 98, 0.18));
+  border-radius: 999px;
   background: var(--surface, #fff);
-  border: 1px solid var(--border, var(--lmsbox-navy-08, rgba(0, 46, 98, 0.08)));
-  border-left: 4px solid var(--secondary, var(--lmsbox-blue, #0059a3));
-  border-radius: 16px;
-  padding: 0 0 1.5rem;
-  min-height: 8rem;
-  overflow: hidden;
+  color: var(--primary, var(--lmsbox-navy, #002e62));
+  cursor: pointer;
 }
 
-.lms-flowchart__detail > .lms-flowchart__progress {
-  margin: 0 0 1rem;
-  padding: 0.75rem 1.6rem;
-  border-bottom: 1px solid var(--border, var(--lmsbox-navy-08, rgba(0, 46, 98, 0.08)));
+.lms-flowchart__next:hover {
+  background: var(--accent-strong-13, rgba(231, 64, 17, 0.08));
+  border-color: var(--accent-strong, var(--lmsbox-orange, #e74011));
+  color: var(--accent-strong, var(--lmsbox-orange, #e74011));
 }
 
-.lms-flowchart__detail > .lms-flowchart__panel {
-  padding: 0 1.6rem;
-}
-
-.lms-flowchart__panel[hidden] {
+.lms-flowchart__next[hidden] {
   display: none;
 }
 
-.lms-flowchart__panel h3 {
-  margin: 0 0 0.75rem;
-  font-size: 1.125rem;
-  color: var(--primary, var(--lmsbox-navy, #002e62));
+.lms-flowchart__next svg {
+  width: 22px;
+  height: 22px;
+}
+
+.lms-flowchart__panel {
+  padding: 1rem 1.15rem 1.15rem;
 }
 
 .lms-flowchart__panel p {
@@ -1713,10 +1737,6 @@
     padding-right: 1.35rem;
   }
 
-  .lms-flowchart {
-    grid-template-columns: 1fr;
-  }
-
   .lms-tabs__list {
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -1739,6 +1759,7 @@
   .lmsbox-video__continue,
   .lms-tabs__tab,
   .lms-flowchart__node,
+  .lms-flowchart__next,
   .lms-ordering__item,
   .lms-ordering__btn {
     animation: none !important;

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import interactiveLessonsService from '../services/interactiveLessons';
+import { useTheme } from '../theme/ThemeContext';
 import {
   buildInteractiveBlockSrcDoc,
   nextIframeHeight,
@@ -32,7 +33,7 @@ function shouldAutoCompleteBlock(block, iframeEl) {
   }
 }
 
-function BlockFrame({ block, onComplete }) {
+function BlockFrame({ block, onComplete, theme }) {
   const iframeRef = useRef(null);
   const fallbackTimerRef = useRef(null);
   const onCompleteRef = useRef(onComplete);
@@ -118,7 +119,7 @@ function BlockFrame({ block, onComplete }) {
     );
   }
 
-  const srcDoc = listenerReady ? buildInteractiveBlockSrcDoc(block.html) : '';
+  const srcDoc = listenerReady ? buildInteractiveBlockSrcDoc(block.html, theme) : '';
 
   return (
     <iframe
@@ -148,6 +149,7 @@ export default function InteractiveLessonPlayer({
   preview = false,
   onLessonComplete,
 }) {
+  const theme = useTheme();
   const [lesson, setLesson] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -285,7 +287,7 @@ export default function InteractiveLessonPlayer({
     <div className="mx-auto w-full max-w-[1080px] space-y-8">
       {visibleBlocks.map((block) => (
         <section key={`${block.id}-${block.isLocked ? 'locked' : 'open'}`} className="w-full">
-          <BlockFrame block={block} onComplete={handleBlockComplete} />
+          <BlockFrame block={block} theme={theme} onComplete={handleBlockComplete} />
         </section>
       ))}
     </div>
