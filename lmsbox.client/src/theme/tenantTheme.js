@@ -7,6 +7,9 @@ export const DEFAULT_TENANT_THEME = {
   pageBackgroundColor: '#F5F5EF',
   buttonColor: '#2afeae',
   buttonTextColor: '#1b365d',
+  navBarColor: '',
+  navMenuColor: '',
+  navMenuActiveColor: '',
   accentColor: '#2afeae',
   fontFamily: '',
   customCss: ''
@@ -30,6 +33,9 @@ export function brandingToForm(data = {}) {
     pageBackgroundColor: data.pageBackgroundColor || DEFAULT_TENANT_THEME.pageBackgroundColor,
     buttonColor: data.buttonColor || data.accentColor || DEFAULT_TENANT_THEME.buttonColor,
     buttonTextColor: data.buttonTextColor || DEFAULT_TENANT_THEME.buttonTextColor,
+    navBarColor: data.navBarColor || '',
+    navMenuColor: data.navMenuColor || '',
+    navMenuActiveColor: data.navMenuActiveColor || '',
     accentColor: data.accentColor || DEFAULT_TENANT_THEME.accentColor,
     fontFamily: data.fontFamily || '',
     customCss: data.customCss || ''
@@ -46,6 +52,9 @@ export function formToBrandingPayload(form) {
     pageBackgroundColor: form.pageBackgroundColor || null,
     buttonColor: form.buttonColor || null,
     buttonTextColor: form.buttonTextColor || null,
+    navBarColor: form.navBarColor || '',
+    navMenuColor: form.navMenuColor || '',
+    navMenuActiveColor: form.navMenuActiveColor || '',
     accentColor: form.accentColor || null,
     fontFamily: form.fontFamily || null,
     customCss: form.customCss || null

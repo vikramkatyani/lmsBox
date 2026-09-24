@@ -113,6 +113,12 @@ public class UpdateTenantRequest
 
     public string? ButtonTextColor { get; set; }
 
+    public string? NavBarColor { get; set; }
+
+    public string? NavMenuColor { get; set; }
+
+    public string? NavMenuActiveColor { get; set; }
+
     public string? FontFamily { get; set; }
 }
 
@@ -130,6 +136,9 @@ public class UpdateTenantBrandingRequest
     public string? PageBackgroundColor { get; set; }
     public string? ButtonColor { get; set; }
     public string? ButtonTextColor { get; set; }
+    public string? NavBarColor { get; set; }
+    public string? NavMenuColor { get; set; }
+    public string? NavMenuActiveColor { get; set; }
     public string? FontFamily { get; set; }
     public string? LoginHeroUrl { get; set; }
 }
@@ -149,6 +158,9 @@ public class BrandingDto
     public string? PageBackgroundColor { get; set; }
     public string? ButtonColor { get; set; }
     public string? ButtonTextColor { get; set; }
+    public string? NavBarColor { get; set; }
+    public string? NavMenuColor { get; set; }
+    public string? NavMenuActiveColor { get; set; }
     public string? FontFamily { get; set; }
     public string? LoginHeroUrl { get; set; }
     public bool UseTenantBranding { get; set; }
@@ -175,6 +187,9 @@ public class PublicTenantBrandingDto
     public string? PageBackgroundColor { get; set; }
     public string? ButtonColor { get; set; }
     public string? ButtonTextColor { get; set; }
+    public string? NavBarColor { get; set; }
+    public string? NavMenuColor { get; set; }
+    public string? NavMenuActiveColor { get; set; }
 }
 
 public class TenantResponse
@@ -213,6 +228,9 @@ public class TenantResponse
     public string? PageBackgroundColor { get; set; }
     public string? ButtonColor { get; set; }
     public string? ButtonTextColor { get; set; }
+    public string? NavBarColor { get; set; }
+    public string? NavMenuColor { get; set; }
+    public string? NavMenuActiveColor { get; set; }
     public string LoginPath { get; set; } = "/login";
     public List<OrganisationSummaryResponse> Organisations { get; set; } = new();
 }

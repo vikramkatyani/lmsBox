@@ -1,4 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import RichTextEditor from './RichTextEditor';
+import { initialRichHtml } from '../utils/plainTextToHtml';
+import BlockLeadFields from './BlockLeadFields';
 import interactiveLessonsService from '../services/interactiveLessons';
 import InteractiveBlockPreview from './InteractiveBlockPreview';
 import InteractiveBlockImageField from './InteractiveBlockImageField';
@@ -12,9 +15,15 @@ const PREVIEW_DEBOUNCE_MS = 450;
 
 const EMPTY_PANEL = { title: '', body: '', imageUrl: '', icon: '' };
 
+function panelHasBody(panel) {
+  if (panel.body?.trim()) return true;
+  const html = panel.bodyHtml || '';
+  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim().length > 0;
+}
+
 function panelsReadyForPreview(panels) {
   if (!Array.isArray(panels) || panels.length === 0) return false;
-  return panels.every((panel) => panel.title?.trim() && panel.body?.trim());
+  return panels.every((panel) => panel.title?.trim() && panelHasBody(panel));
 }
 
 export default function AccordionBlockForm({ value, onChange, blockId }) {
@@ -31,14 +40,17 @@ export default function AccordionBlockForm({ value, onChange, blockId }) {
     if (!panelsReadyForPreview(panels)) return '';
     return JSON.stringify({
       contentDescription: value.contentDescription || 'Accordion preview',
+      heading: value.heading || '',
+      intro: value.intro || '',
       panels: withoutPendingImageUrls(panels).map((panel) => ({
         title: panel.title || '',
         body: panel.body || '',
+        bodyHtml: panel.bodyHtml || '',
         imageUrl: panel.imageUrl || '',
         icon: panel.icon || '',
       })),
     });
-  }, [panels, value.contentDescription]);
+  }, [panels, value.contentDescription, value.heading, value.intro]);
 
   useEffect(() => {
     if (!previewPayloadKey) {
@@ -153,6 +165,7 @@ export default function AccordionBlockForm({ value, onChange, blockId }) {
 
   return (
     <div className="space-y-4 border-t pt-4">
+      <BlockLeadFields value={value} onChange={onChange} />
       <div>
         <label className="block text-sm font-medium mb-1">Content description *</label>
         <textarea
@@ -219,12 +232,9 @@ export default function AccordionBlockForm({ value, onChange, blockId }) {
 
             <div>
               <label className="block text-sm font-medium mb-1">Panel body *</label>
-              <textarea
-                value={panel.body || ''}
-                onChange={(e) => updatePanel(index, { body: e.target.value })}
-                className="w-full border rounded px-3 py-2"
-                rows={4}
-                placeholder="Content revealed when the panel is expanded"
+              <AccordionBodyEditor
+                panel={panel}
+                onChange={(patch) => updatePanel(index, patch)}
               />
             </div>
 
@@ -306,5 +316,19 @@ export default function AccordionBlockForm({ value, onChange, blockId }) {
         </div>
       </div>
     </div>
+  );
+}
+
+const MAX_PANEL_BODY = 10000;
+
+function AccordionBodyEditor({ panel, onChange }) {
+  return (
+    <RichTextEditor
+      value={initialRichHtml(panel, 'bodyHtml', 'body')}
+      onChange={({ html, text }) => onChange({ bodyHtml: html, body: text })}
+      ariaLabel="Accordion panel body"
+      placeholder="Content revealed when the panel is expanded"
+      maxCharacters={MAX_PANEL_BODY}
+    />
   );
 }

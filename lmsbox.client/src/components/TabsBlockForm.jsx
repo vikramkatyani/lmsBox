@@ -5,6 +5,7 @@ import InteractiveBlockIconPicker from './InteractiveBlockIconPicker';
 import InteractiveBlockPreview from './InteractiveBlockPreview';
 import interactiveLessonsService from '../services/interactiveLessons';
 import { withoutPendingImageUrls } from '../utils/pendingBlockImages';
+import BlockLeadFields from './BlockLeadFields';
 
 const MAX_PANELS = 10;
 const MAX_TITLE = 200;
@@ -30,6 +31,7 @@ export default function TabsBlockForm({ value, onChange, blockId }) {
     if (!panelsReady(panels)) return '';
     return JSON.stringify({
       heading: value.heading || '',
+      intro: value.intro || '',
       panels: withoutPendingImageUrls(panels).map((panel) => ({
         title: panel.title || '',
         body: panel.body || '',
@@ -37,7 +39,7 @@ export default function TabsBlockForm({ value, onChange, blockId }) {
         icon: panel.icon || '',
       })),
     });
-  }, [panels, value.heading]);
+  }, [panels, value.heading, value.intro]);
 
   useEffect(() => {
     if (!previewPayloadKey) {
@@ -118,6 +120,8 @@ export default function TabsBlockForm({ value, onChange, blockId }) {
           maxLength={MAX_HEADING}
         />
       </div>
+
+      <BlockLeadFields value={value} onChange={onChange} showHeading={false} />
 
       <div className="space-y-4">
         <h4 className="font-medium">Tabs ({panels.length}/{MAX_PANELS})</h4>

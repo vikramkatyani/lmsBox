@@ -299,6 +299,7 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
         var html = FillTemplate(
             "reveal.html",
             blockId,
+            ("{{LEAD_HTML}}", RenderBlockLead(root)),
             ("{{ITEMS_HTML}}", itemsMarkup.ToString()),
             ("{{HINT_HTML}}", hintHtml));
 
@@ -325,6 +326,7 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
             var card = node as JsonObject;
             var frontTitle = ReadText(card?["frontTitle"]);
             var backBody = ReadText(card?["backBody"]);
+            var backBodyHtml = ReadText(card?["backBodyHtml"]);
             var frontHint = ReadText(card?["frontHint"]);
             var backHint = ReadText(card?["backHint"]);
 
@@ -348,7 +350,7 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
                     </div>
                     <div class="lms-flip__face lms-flip__back">
                       <span class="lms-flip__hint">{HtmlEncode(backHint)}</span>
-                      {RenderParagraphs(backBody, "lms-flip__body")}
+                      {RenderRichOrPlain(backBodyHtml, backBody, "lms-flip__body")}
                     </div>
                   </div>
                 </button>
@@ -360,6 +362,7 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
         var html = FillTemplate(
             "flip.html",
             blockId,
+            ("{{LEAD_HTML}}", RenderBlockLead(root)),
             ("{{GRID_CLASS}}", gridClass),
             ("{{CARDS_HTML}}", cardsMarkup.ToString()));
 
@@ -390,7 +393,7 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
             $"{kind}.html",
             blockId,
             ("{{LABEL}}", HtmlEncode(label)),
-            ("{{BODY_HTML}}", RenderParagraphs(body)));
+            ("{{BODY_HTML}}", RenderRichOrPlain(ReadText(root["bodyHtml"]), body)));
 
         var completionRule = JsonSerializer.Serialize(new
         {
@@ -445,6 +448,7 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
         var html = FillTemplate(
             "timeline.html",
             blockId,
+            ("{{LEAD_HTML}}", RenderBlockLead(root)),
             ("{{STAGES_HTML}}", stagesMarkup.ToString()),
             ("{{HINT_HTML}}", hintHtml));
 
@@ -544,6 +548,7 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
         var html = FillTemplate(
             "hotspot.html",
             blockId,
+            ("{{LEAD_HTML}}", RenderBlockLead(root, inset: true)),
             ("{{IMAGE_URL}}", HtmlEncodeAttribute(imageUrl)),
             ("{{IMAGE_ALT}}", HtmlEncodeAttribute(imageAlt)),
             ("{{PINS_HTML}}", pinsMarkup.ToString()),
@@ -670,6 +675,7 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
         var html = FillTemplate(
             "process.html",
             blockId,
+            ("{{LEAD_HTML}}", RenderBlockLead(root, inset: true)),
             ("{{NODES_HTML}}", nodesMarkup.ToString()),
             ("{{STEPS_HTML}}", stepsMarkup.ToString()),
             ("{{START_LABEL}}", HtmlEncodeAttribute(startLabel)),
@@ -707,6 +713,7 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
         var html = FillTemplate(
             "carousel.html",
             blockId,
+            ("{{LEAD_HTML}}", RenderBlockLead(root, inset: true)),
             ("{{SLIDES_JSON}}", EscapeForScriptJson(JsonSerializer.Serialize(slides, CamelCaseJson))));
 
         var completionRule = JsonSerializer.Serialize(new
@@ -732,6 +739,7 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
             var panel = panelsArray[i] as JsonObject;
             var title = ReadText(panel?["title"]);
             var body = ReadText(panel?["body"]);
+            var bodyHtml = ReadText(panel?["bodyHtml"]);
             var triggerId = $"lmsbox-accordion-trigger-{blockId}-{i}";
             var bodyId = $"lmsbox-accordion-body-{blockId}-{i}";
             var iconHtml = "";
@@ -754,7 +762,7 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
                     <span class="lms-plus lms-plus--sm" aria-hidden="true">{PlusSvg}</span>
                   </button>
                   <div class="lms-accordion__body" id="{bodyId}" role="region" aria-labelledby="{triggerId}">
-                    <div class="lms-accordion__inner">{imageHtml}{RenderParagraphs(body)}</div>
+                    <div class="lms-accordion__inner">{imageHtml}{RenderRichOrPlain(bodyHtml, body)}</div>
                   </div>
                 </div>
                 """);
@@ -763,6 +771,7 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
         var html = FillTemplate(
             "accordion.html",
             blockId,
+            ("{{LEAD_HTML}}", RenderBlockLead(root)),
             ("{{PANELS_HTML}}", panelsMarkup.ToString()));
 
         var completionRule = JsonSerializer.Serialize(new
@@ -824,6 +833,7 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
             "tabs.html",
             blockId,
             ("{{HEADING_HTML}}", RenderOptionalHeading(ReadText(root["heading"]), "lms-tabs__heading")),
+            ("{{INTRO_HTML}}", RenderOptionalIntro(ReadText(root["intro"]), "lms-tabs__intro")),
             ("{{TABS_HTML}}", tabsMarkup.ToString()),
             ("{{PANELS_HTML}}", panelsMarkup.ToString()));
 
@@ -896,6 +906,7 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
             "flowchart.html",
             blockId,
             ("{{HEADING_HTML}}", RenderOptionalHeading(ReadText(root["heading"]), "lms-flowchart__heading")),
+            ("{{INTRO_HTML}}", RenderOptionalIntro(ReadText(root["intro"]), "lms-flowchart__intro")),
             ("{{HINT_HTML}}", hintHtml),
             ("{{NODES_HTML}}", nodesMarkup.ToString()),
             ("{{PANELS_HTML}}", panelsMarkup.ToString()));
@@ -943,6 +954,7 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
         var html = FillTemplate(
             "ordering.html",
             blockId,
+            ("{{HEADING_HTML}}", RenderOptionalHeading(ReadText(root["heading"]), "lms-ordering__title")),
             ("{{INSTRUCTION_HTML}}", instructionHtml),
             ("{{HINT_HTML}}", hintHtml),
             ("{{ORDERING_JSON}}", EscapeForScriptJson(JsonSerializer.Serialize(payload, CamelCaseJson))));
@@ -972,6 +984,28 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
         => string.IsNullOrWhiteSpace(heading)
             ? ""
             : $"""<h2 class="{className}">{System.Net.WebUtility.HtmlEncode(heading)}</h2>""";
+
+    private static string RenderOptionalIntro(string intro, string className)
+        => string.IsNullOrWhiteSpace(intro)
+            ? ""
+            : $"""<p class="{className}">{HtmlEncode(intro)}</p>""";
+
+    /// <summary>
+    /// Optional learner-facing title and introduction. Empty values render nothing.
+    /// Inset leads sit inside an existing white card; the default lead joins the card below it.
+    /// </summary>
+    private static string RenderBlockLead(JsonObject root, bool inset = false)
+    {
+        var heading = RenderOptionalHeading(ReadText(root["heading"]), "lmsbox-block-lead__heading");
+        var intro = RenderOptionalIntro(ReadText(root["intro"]), "lmsbox-block-lead__intro");
+        if (heading.Length == 0 && intro.Length == 0)
+        {
+            return "";
+        }
+
+        var classes = inset ? "lmsbox-block-lead lmsbox-block-lead--inset" : "lmsbox-block-lead";
+        return $"""<div class="{classes}">{heading}{intro}</div>""";
+    }
 
     private (string Html, string CompletionRuleJson) RenderQuestionnaire(long blockId, string formPayloadJson)
     {
@@ -1023,6 +1057,7 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
         var html = FillTemplate(
             "questionnaire.html",
             blockId,
+            ("{{LEAD_HTML}}", RenderBlockLead(root)),
             ("{{QUESTIONNAIRE_JSON}}", EscapeForScriptJson(JsonSerializer.Serialize(payload, CamelCaseJson))));
 
         var completionRule = JsonSerializer.Serialize(new
@@ -1357,6 +1392,26 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
         }
 
         return $"""<img class="{className}" src="{HtmlEncodeAttribute(url)}" alt="{HtmlEncodeAttribute(alt)}" />""";
+    }
+
+    /// <summary>
+    /// Uses sanitized rich text when the author saved HTML, and plain paragraphs otherwise
+    /// so blocks created before the editor still render.
+    /// </summary>
+    private static string RenderRichOrPlain(string? html, string plain, string? className = null)
+    {
+        if (InteractiveRichTextSanitizer.HasVisibleContent(html))
+        {
+            var sanitized = InteractiveRichTextSanitizer.Sanitize(html);
+            if (string.IsNullOrWhiteSpace(className))
+            {
+                return sanitized;
+            }
+
+            return $"""<div class="{className}">{sanitized}</div>""";
+        }
+
+        return RenderParagraphs(plain, className);
     }
 
     /// <summary>Wraps plain text in paragraphs so authored line breaks survive rendering.</summary>

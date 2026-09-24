@@ -194,7 +194,7 @@ export default function Login() {
         <div className="bg-login-box-bg p-8 rounded-lg shadow-lg max-w-md w-full mx-auto">
           <div className="mb-8 text-center">
             <div className="login-logo-frame inline-flex mx-auto mb-4">
-              <img src={logoSrc} alt={`${tenantName} Logo`} className="h-12 w-auto" />
+              <img src={logoSrc} alt={`${tenantName} Logo`} className="h-20 w-auto" />
             </div>
             <h1 className="text-3xl font-semibold text-login-box-text">Sign in</h1>
             <p className="text-login-box-text text-sm mt-2">

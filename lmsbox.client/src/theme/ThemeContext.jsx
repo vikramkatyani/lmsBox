@@ -5,6 +5,7 @@ import '../styles/tenants/bifa-theme.css';
 import api from '../utils/api';
 import { getTenantCodeFromPath, getStoredTenantCode, setStoredTenantCode } from '../utils/tenant';
 import { decodeToken, getAuthToken } from '../utils/auth';
+import { applyNavChromeColors } from './navChrome';
 
 const ThemeContext = createContext();
 
@@ -19,6 +20,9 @@ const DEFAULT_THEME = {
   pageBackgroundColor: '#F5F5EF',
   buttonColor: '#2afeae',
   buttonTextColor: '#1b365d',
+  navBarColor: '',
+  navMenuColor: '',
+  navMenuActiveColor: '',
   fontFamily: tenants.default?.fontFamily,
   faviconUrl: tenants.default?.logo || '/assets/lmsbox-logo.png',
   loginHeroUrl: '',
@@ -72,6 +76,9 @@ function brandingToTheme(branding, fallbackKey = 'default') {
     pageBackgroundColor: branding.pageBackgroundColor || DEFAULT_THEME.pageBackgroundColor,
     buttonColor: branding.buttonColor || branding.accentColor || DEFAULT_THEME.buttonColor,
     buttonTextColor: branding.buttonTextColor || DEFAULT_THEME.buttonTextColor,
+    navBarColor: branding.navBarColor || '',
+    navMenuColor: branding.navMenuColor || '',
+    navMenuActiveColor: branding.navMenuActiveColor || '',
     fontFamily: branding.fontFamily || preset?.fontFamily,
     faviconUrl: branding.faviconUrl || branding.logoUrl || DEFAULT_THEME.faviconUrl,
     loginHeroUrl: branding.loginHeroUrl || '',
@@ -112,6 +119,7 @@ function applyTenantToDocument(theme) {
   if (theme.accentColor || theme.buttonColor) {
     root.style.setProperty('--color-boxlms-navbar-active', theme.accentColor || theme.buttonColor);
   }
+  applyNavChromeColors(theme);
 
   if (theme.secondaryColor) {
     root.style.setProperty('--tenant-secondary', theme.secondaryColor);
@@ -259,6 +267,16 @@ export function ThemeProvider({ children }) {
     applyTenantToDocument(theme);
     ensureTenantFont(theme);
   }, [theme]);
+
+  useEffect(() => {
+    const onBrandingUpdated = (event) => {
+      const detail = event.detail;
+      if (!detail || typeof detail !== 'object') return;
+      setTheme((prev) => ({ ...prev, ...detail }));
+    };
+    window.addEventListener('lmsbox-branding-updated', onBrandingUpdated);
+    return () => window.removeEventListener('lmsbox-branding-updated', onBrandingUpdated);
+  }, []);
 
   const value = useMemo(
     () => ({

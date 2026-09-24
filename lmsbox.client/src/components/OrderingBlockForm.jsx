@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import InteractiveBlockPreview from './InteractiveBlockPreview';
 import interactiveLessonsService from '../services/interactiveLessons';
+import BlockLeadFields from './BlockLeadFields';
 
 const MIN_ITEMS = 2;
 const MAX_ITEMS = 10;
@@ -30,13 +31,14 @@ export default function OrderingBlockForm({ value, onChange, blockId }) {
   const previewPayloadKey = useMemo(() => {
     if (!itemsReady(items)) return '';
     return JSON.stringify({
+      heading: value.heading || '',
       instruction: value.instruction || '',
       hint: value.hint || '',
       correctFeedback: value.correctFeedback || '',
       incorrectFeedback: value.incorrectFeedback || '',
       items: items.map((item) => ({ text: item.text || '' })),
     });
-  }, [items, value.instruction, value.hint, value.correctFeedback, value.incorrectFeedback]);
+  }, [items, value.heading, value.instruction, value.hint, value.correctFeedback, value.incorrectFeedback]);
 
   useEffect(() => {
     if (!previewPayloadKey) {
@@ -106,6 +108,8 @@ export default function OrderingBlockForm({ value, onChange, blockId }) {
       <p className="text-xs text-gray-500">
         Add items in the correct order. Learners see them shuffled and rearrange them. Completes after they check their answer.
       </p>
+
+      <BlockLeadFields value={value} onChange={onChange} showIntro={false} />
 
       <div>
         <label className="block text-sm font-medium mb-1">Instruction</label>

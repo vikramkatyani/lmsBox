@@ -24,6 +24,7 @@ public static class InteractiveLessonConstants
     public const int MaxAiAccordionPanels = 10;
     public const int MaxTextHeadingLength = 200;
     public const int MaxTextSubheadingLength = 300;
+    public const int MaxBlockIntroLength = 500;
     public const int MaxTextBodyLength = 10000;
 
     /// <summary>Ceiling on the raw rich text markup, which carries tags on top of the visible text.</summary>

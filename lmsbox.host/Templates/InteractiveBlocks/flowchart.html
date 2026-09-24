@@ -1,11 +1,12 @@
 <div class="lmsbox-interactive-block" data-block-id="{{BLOCK_ID}}" data-block-type="flowchart" role="region" aria-label="Lesson flowchart">
 
   {{HEADING_HTML}}
+  {{INTRO_HTML}}
   {{HINT_HTML}}
-  <p class="lms-caption lms-flowchart__progress" data-flowchart-progress aria-live="polite"></p>
   <div class="lms-flowchart" data-flowchart>
     <ol class="lms-flowchart__track">{{NODES_HTML}}</ol>
     <div class="lms-flowchart__detail" data-flowchart-detail>
+      <p class="lms-caption lms-flowchart__progress" data-flowchart-progress aria-live="polite"></p>
       {{PANELS_HTML}}
     </div>
   </div>

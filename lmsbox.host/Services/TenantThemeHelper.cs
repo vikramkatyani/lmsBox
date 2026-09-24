@@ -22,6 +22,9 @@ public static class TenantThemeHelper
         dto.PageBackgroundColor = parsed.PageBackgroundColor;
         dto.ButtonColor = parsed.ButtonColor;
         dto.ButtonTextColor = parsed.ButtonTextColor;
+        dto.NavBarColor = parsed.NavBarColor;
+        dto.NavMenuColor = parsed.NavMenuColor;
+        dto.NavMenuActiveColor = parsed.NavMenuActiveColor;
         dto.FontFamily = parsed.FontFamily;
         dto.CustomCss = parsed.CustomCss ?? dto.CustomCss;
         dto.LoginHeroUrl ??= parsed.LoginHeroUrl;
@@ -47,6 +50,9 @@ public static class TenantThemeHelper
             theme.PageBackgroundColor = GetString(root, "pageBackgroundColor");
             theme.ButtonColor = GetString(root, "buttonColor");
             theme.ButtonTextColor = GetString(root, "buttonTextColor");
+            theme.NavBarColor = GetString(root, "navBarColor");
+            theme.NavMenuColor = GetString(root, "navMenuColor");
+            theme.NavMenuActiveColor = GetString(root, "navMenuActiveColor");
             theme.FontFamily = GetString(root, "fontFamily");
             theme.Logo = GetString(root, "logo");
             theme.Name = GetString(root, "name");
@@ -91,6 +97,9 @@ public static class TenantThemeHelper
         Set(map, "pageBackgroundColor", request.PageBackgroundColor);
         Set(map, "buttonColor", request.ButtonColor);
         Set(map, "buttonTextColor", request.ButtonTextColor);
+        Set(map, "navBarColor", request.NavBarColor);
+        Set(map, "navMenuColor", request.NavMenuColor);
+        Set(map, "navMenuActiveColor", request.NavMenuActiveColor);
         Set(map, "fontFamily", request.FontFamily);
 
         if (map.Count == 0)
@@ -120,7 +129,10 @@ public static class TenantThemeHelper
             || !string.IsNullOrWhiteSpace(parsed.PrimaryColor)
             || !string.IsNullOrWhiteSpace(parsed.ButtonColor)
             || !string.IsNullOrWhiteSpace(parsed.PageBackgroundColor)
-            || !string.IsNullOrWhiteSpace(parsed.FontFamily);
+            || !string.IsNullOrWhiteSpace(parsed.FontFamily)
+            || !string.IsNullOrWhiteSpace(parsed.NavBarColor)
+            || !string.IsNullOrWhiteSpace(parsed.NavMenuColor)
+            || !string.IsNullOrWhiteSpace(parsed.NavMenuActiveColor);
 
         return new PublicTenantBrandingDto
         {
@@ -139,6 +151,9 @@ public static class TenantThemeHelper
             PageBackgroundColor = FirstNonEmpty(parsed.PageBackgroundColor, DefaultPageBackgroundColor),
             ButtonColor = FirstNonEmpty(parsed.ButtonColor, parsed.AccentColor, DefaultButtonColor),
             ButtonTextColor = FirstNonEmpty(parsed.ButtonTextColor, DefaultButtonTextColor),
+            NavBarColor = parsed.NavBarColor,
+            NavMenuColor = parsed.NavMenuColor,
+            NavMenuActiveColor = parsed.NavMenuActiveColor,
             FontFamily = parsed.FontFamily,
             CustomCss = parsed.CustomCss,
             LoginPath = TenantPortalUrl.TenantLoginPath(tenant.Code)
@@ -218,6 +233,9 @@ public class TenantTheme
     public string? PageBackgroundColor { get; set; }
     public string? ButtonColor { get; set; }
     public string? ButtonTextColor { get; set; }
+    public string? NavBarColor { get; set; }
+    public string? NavMenuColor { get; set; }
+    public string? NavMenuActiveColor { get; set; }
     public string? FontFamily { get; set; }
     public string? Logo { get; set; }
     public string? LoginHeroUrl { get; set; }

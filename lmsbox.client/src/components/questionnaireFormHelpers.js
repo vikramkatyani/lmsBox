@@ -30,6 +30,8 @@ function cloneQuestion(question = EMPTY_QUESTION) {
 export function createEmptyQuestionnaireFormData() {
   return {
     contentDescription: '',
+    heading: '',
+    intro: '',
     showFeedbackPerQuestion: true,
     questions: [cloneQuestion()],
   };

@@ -4,6 +4,7 @@ import InteractiveBlockPreview from './InteractiveBlockPreview';
 import InteractiveBlockImageField from './InteractiveBlockImageField';
 import { withoutPendingImageUrls } from '../utils/pendingBlockImages';
 import toast from 'react-hot-toast';
+import BlockLeadFields from './BlockLeadFields';
 
 const MAX_SLIDES = 10;
 const MAX_AI_SLIDES = 10;
@@ -34,13 +35,15 @@ export default function CarouselBlockForm({
     if (!slidesReadyForPreview(slides)) return '';
     return JSON.stringify({
       contentDescription: value.contentDescription || 'Carousel preview',
+      heading: value.heading || '',
+      intro: value.intro || '',
       slides: withoutPendingImageUrls(slides).map((slide) => ({
         title: slide.title || '',
         body: slide.body || '',
         imageUrl: slide.imageUrl || '',
       })),
     });
-  }, [slides, value.contentDescription]);
+  }, [slides, value.contentDescription, value.heading, value.intro]);
 
   useEffect(() => {
     if (!previewPayloadKey) {
@@ -155,6 +158,7 @@ export default function CarouselBlockForm({
 
   return (
     <div className="space-y-4 border-t pt-4">
+      <BlockLeadFields value={value} onChange={onChange} />
       <div>
         <label className="block text-sm font-medium mb-1">Content description *</label>
         <textarea

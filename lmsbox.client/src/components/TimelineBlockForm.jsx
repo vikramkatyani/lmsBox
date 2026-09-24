@@ -1,5 +1,6 @@
 import React from 'react';
 import toast from 'react-hot-toast';
+import BlockLeadFields from './BlockLeadFields';
 
 const MAX_STAGES = 10;
 const MAX_TITLE = 200;
@@ -40,6 +41,7 @@ export default function TimelineBlockForm({ value, onChange }) {
 
   return (
     <div className="space-y-4 border-t pt-4">
+      <BlockLeadFields value={value} onChange={onChange} />
       <p className="text-xs text-gray-500">
         Completes after every stage has been opened. Stages are numbered automatically.
       </p>

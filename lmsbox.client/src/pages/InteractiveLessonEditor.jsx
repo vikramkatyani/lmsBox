@@ -67,11 +67,15 @@ const EMPTY_QUESTIONNAIRE = createEmptyQuestionnaireFormData();
 
 const EMPTY_CAROUSEL = {
   contentDescription: '',
+  heading: '',
+  intro: '',
   slides: [],
 };
 
 const EMPTY_ACCORDION = {
   contentDescription: '',
+  heading: '',
+  intro: '',
   panels: [],
 };
 
@@ -108,11 +112,15 @@ const EMPTY_CARDS = {
 };
 
 const EMPTY_REVEAL = {
+  heading: '',
+  intro: '',
   items: [],
   hint: '',
 };
 
 const EMPTY_FLIP = {
+  heading: '',
+  intro: '',
   cards: [],
 };
 
@@ -127,6 +135,8 @@ const EMPTY_WARNING = {
 };
 
 const EMPTY_TIMELINE = {
+  heading: '',
+  intro: '',
   stages: [],
   hint: 'Select a stage to expand it',
 };
@@ -139,12 +149,16 @@ const EMPTY_REFLECTION = {
 };
 
 const EMPTY_HOTSPOT = {
+  heading: '',
+  intro: '',
   imageUrl: '',
   imageAlt: '',
   pins: [],
 };
 
 const EMPTY_PROCESS = {
+  heading: '',
+  intro: '',
   nodes: [],
   steps: [],
   finishMessage: '',
@@ -153,16 +167,19 @@ const EMPTY_PROCESS = {
 
 const EMPTY_TABS = {
   heading: '',
+  intro: '',
   panels: [],
 };
 
 const EMPTY_FLOWCHART = {
   heading: '',
+  intro: '',
   hint: 'Select a stage to read more',
   nodes: [],
 };
 
 const EMPTY_ORDERING = {
+  heading: '',
   instruction: '',
   hint: 'Use the arrows to rearrange, then check your answer.',
   items: [],

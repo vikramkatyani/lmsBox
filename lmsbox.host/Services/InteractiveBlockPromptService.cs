@@ -409,6 +409,22 @@ You MUST follow these LMSBOX design and technical rules:
             {
                 new()
                 {
+                    Name = "heading",
+                    Label = "Title",
+                    FieldType = "text",
+                    Required = false,
+                    HelpText = "Optional title shown to learners at the top of this block."
+                },
+                new()
+                {
+                    Name = "intro",
+                    Label = "Introduction",
+                    FieldType = "textarea",
+                    Required = false,
+                    HelpText = "Optional short introduction under the title."
+                },
+                new()
+                {
                     Name = "items",
                     Label = "Reveal panels",
                     FieldType = "reveal-item-list",
@@ -429,6 +445,7 @@ You MUST follow these LMSBOX design and technical rules:
 
     private static void ValidateReveal(JsonObject root)
     {
+        LimitOptionalLead(root);
         if (root["items"] is not JsonArray items || items.Count == 0)
         {
             throw new ArgumentException("At least one reveal panel is required.");
@@ -486,11 +503,27 @@ You MUST follow these LMSBOX design and technical rules:
             {
                 new()
                 {
+                    Name = "heading",
+                    Label = "Title",
+                    FieldType = "text",
+                    Required = false,
+                    HelpText = "Optional title shown to learners at the top of this block."
+                },
+                new()
+                {
+                    Name = "intro",
+                    Label = "Introduction",
+                    FieldType = "textarea",
+                    Required = false,
+                    HelpText = "Optional short introduction under the title."
+                },
+                new()
+                {
                     Name = "cards",
                     Label = "Flip cards",
                     FieldType = "flip-card-list",
                     Required = true,
-                    HelpText = "Add cards with a front title and back body, plus optional hint labels for each side."
+                    HelpText = "Add cards with a front title and a formatted back body, plus optional hint labels for each side."
                 }
             }
         };
@@ -498,6 +531,7 @@ You MUST follow these LMSBOX design and technical rules:
 
     private static void ValidateFlip(JsonObject root)
     {
+        LimitOptionalLead(root);
         if (root["cards"] is not JsonArray cards || cards.Count == 0)
         {
             throw new ArgumentException("At least one flip card is required.");
@@ -518,8 +552,10 @@ You MUST follow these LMSBOX design and technical rules:
                 $"Flip card {i + 1} front title",
                 InteractiveLessonConstants.MaxFlipFrontTitleLength);
 
-            RequireText(
-                card?["backBody"],
+            RequireRichOrPlain(
+                card,
+                "backBodyHtml",
+                "backBody",
                 $"Flip card {i + 1} back body",
                 InteractiveLessonConstants.MaxFlipBackBodyLength);
 
@@ -555,11 +591,19 @@ You MUST follow these LMSBOX design and technical rules:
                 },
                 new()
                 {
-                    Name = "body",
+                    Name = "bodyHtml",
                     Label = "Message",
-                    FieldType = "textarea",
+                    FieldType = "richtext",
                     Required = true,
-                    HelpText = "The key point learners should remember."
+                    HelpText = "Formatted message learners should remember. Supports bold, lists, and links."
+                },
+                new()
+                {
+                    Name = "body",
+                    Label = "Message (plain)",
+                    FieldType = "textarea",
+                    Required = false,
+                    HelpText = "Plain text version of the message, kept in sync with the formatted content."
                 }
             }
         };
@@ -568,7 +612,7 @@ You MUST follow these LMSBOX design and technical rules:
     private static void ValidateRemember(JsonObject root)
     {
         LimitOptionalText(root["label"], "Label", InteractiveLessonConstants.MaxRememberLabelLength);
-        RequireText(root["body"], "Message", InteractiveLessonConstants.MaxRememberBodyLength);
+        RequireRichOrPlain(root, "bodyHtml", "body", "Message", InteractiveLessonConstants.MaxRememberBodyLength);
     }
 
     private static InteractiveBlockTypeSchema GetWarningSchema()
@@ -591,11 +635,19 @@ You MUST follow these LMSBOX design and technical rules:
                 },
                 new()
                 {
-                    Name = "body",
+                    Name = "bodyHtml",
                     Label = "Message",
-                    FieldType = "textarea",
+                    FieldType = "richtext",
                     Required = true,
-                    HelpText = "The caution learners need to be aware of."
+                    HelpText = "Formatted caution for learners. Supports bold, lists, and links."
+                },
+                new()
+                {
+                    Name = "body",
+                    Label = "Message (plain)",
+                    FieldType = "textarea",
+                    Required = false,
+                    HelpText = "Plain text version of the message, kept in sync with the formatted content."
                 }
             }
         };
@@ -604,7 +656,7 @@ You MUST follow these LMSBOX design and technical rules:
     private static void ValidateWarning(JsonObject root)
     {
         LimitOptionalText(root["label"], "Label", InteractiveLessonConstants.MaxWarningLabelLength);
-        RequireText(root["body"], "Message", InteractiveLessonConstants.MaxWarningBodyLength);
+        RequireRichOrPlain(root, "bodyHtml", "body", "Message", InteractiveLessonConstants.MaxWarningBodyLength);
     }
 
     private static InteractiveBlockTypeSchema GetTimelineSchema()
@@ -616,6 +668,22 @@ You MUST follow these LMSBOX design and technical rules:
             Description = "Numbered stages learners expand in sequence. Completes after every stage has been expanded.",
             Fields = new List<InteractiveBlockFormField>
             {
+                new()
+                {
+                    Name = "heading",
+                    Label = "Title",
+                    FieldType = "text",
+                    Required = false,
+                    HelpText = "Optional title shown to learners at the top of this block."
+                },
+                new()
+                {
+                    Name = "intro",
+                    Label = "Introduction",
+                    FieldType = "textarea",
+                    Required = false,
+                    HelpText = "Optional short introduction under the title."
+                },
                 new()
                 {
                     Name = "stages",
@@ -639,6 +707,7 @@ You MUST follow these LMSBOX design and technical rules:
 
     private static void ValidateTimeline(JsonObject root)
     {
+        LimitOptionalLead(root);
         if (root["stages"] is not JsonArray stages || stages.Count == 0)
         {
             throw new ArgumentException("At least one stage is required.");
@@ -737,6 +806,22 @@ You MUST follow these LMSBOX design and technical rules:
             {
                 new()
                 {
+                    Name = "heading",
+                    Label = "Title",
+                    FieldType = "text",
+                    Required = false,
+                    HelpText = "Optional title shown to learners at the top of this block."
+                },
+                new()
+                {
+                    Name = "intro",
+                    Label = "Introduction",
+                    FieldType = "textarea",
+                    Required = false,
+                    HelpText = "Optional short introduction under the title."
+                },
+                new()
+                {
                     Name = "imageUrl",
                     Label = "Diagram image",
                     FieldType = "image",
@@ -765,6 +850,7 @@ You MUST follow these LMSBOX design and technical rules:
 
     private static void ValidateHotspot(JsonObject root)
     {
+        LimitOptionalLead(root);
         var imageUrl = root["imageUrl"]?.GetValue<string>()?.Trim();
         // Allow empty imageUrl on draft save (e.g. Evolve import before media attach).
         if (!string.IsNullOrWhiteSpace(imageUrl))
@@ -835,6 +921,22 @@ You MUST follow these LMSBOX design and technical rules:
             {
                 new()
                 {
+                    Name = "heading",
+                    Label = "Title",
+                    FieldType = "text",
+                    Required = false,
+                    HelpText = "Optional title shown to learners at the top of this block."
+                },
+                new()
+                {
+                    Name = "intro",
+                    Label = "Introduction",
+                    FieldType = "textarea",
+                    Required = false,
+                    HelpText = "Optional short introduction under the title."
+                },
+                new()
+                {
                     Name = "steps",
                     Label = "Steps",
                     FieldType = "process-step-list",
@@ -872,6 +974,7 @@ You MUST follow these LMSBOX design and technical rules:
 
     private static void ValidateProcess(JsonObject root)
     {
+        LimitOptionalLead(root);
         if (root["steps"] is not JsonArray steps || steps.Count == 0)
         {
             throw new ArgumentException("At least one step is required.");
@@ -967,6 +1070,14 @@ You MUST follow these LMSBOX design and technical rules:
                 },
                 new()
                 {
+                    Name = "intro",
+                    Label = "Introduction",
+                    FieldType = "textarea",
+                    Required = false,
+                    HelpText = "Optional short introduction under the heading."
+                },
+                new()
+                {
                     Name = "hint",
                     Label = "Hint",
                     FieldType = "text",
@@ -989,6 +1100,7 @@ You MUST follow these LMSBOX design and technical rules:
     private static void ValidateFlowchart(JsonObject root)
     {
         LimitOptionalText(root["heading"], "Heading", InteractiveLessonConstants.MaxFlowchartHeadingLength);
+        LimitOptionalText(root["intro"], "Introduction", InteractiveLessonConstants.MaxBlockIntroLength);
         LimitOptionalText(root["hint"], "Hint", InteractiveLessonConstants.MaxFlowchartHintLength);
 
         if (root["nodes"] is not JsonArray nodes || nodes.Count == 0)
@@ -1067,6 +1179,48 @@ You MUST follow these LMSBOX design and technical rules:
         return !double.IsNaN(percent) && !double.IsInfinity(percent) && percent is >= 0 and <= 100;
     }
 
+    private static void RequireRichOrPlain(
+        JsonObject? owner,
+        string htmlName,
+        string plainName,
+        string fieldLabel,
+        int maxLength)
+    {
+        var html = ReadText(owner?[htmlName]);
+        if (InteractiveRichTextSanitizer.HasVisibleContent(html))
+        {
+            ValidateRichText(html, fieldLabel, maxLength);
+            return;
+        }
+
+        RequireText(owner?[plainName], fieldLabel, maxLength);
+    }
+
+    private static void ValidateRichText(string html, string fieldLabel, int maxCharacters)
+    {
+        if (html.Length > InteractiveLessonConstants.MaxTextBodyHtmlLength)
+        {
+            throw new ArgumentException($"{fieldLabel} is too long. Please shorten the formatted content.");
+        }
+
+        var characters = InteractiveRichTextSanitizer.CountCharacters(html);
+        if (characters == 0)
+        {
+            throw new ArgumentException($"{fieldLabel} is required.");
+        }
+
+        if (characters > maxCharacters)
+        {
+            throw new ArgumentException($"{fieldLabel} must be at most {maxCharacters} characters.");
+        }
+
+        if (InteractiveRichTextSanitizer.TryFindUnsupportedLink(html, out var href))
+        {
+            throw new ArgumentException(
+                $"Link \"{href}\" is not supported. Links must be a full http, https, or mailto address.");
+        }
+    }
+
     private static void RequireText(JsonNode? node, string fieldLabel, int maxLength)
     {
         var value = ReadText(node);
@@ -1079,6 +1233,12 @@ You MUST follow these LMSBOX design and technical rules:
         {
             throw new ArgumentException($"{fieldLabel} must be at most {maxLength} characters.");
         }
+    }
+
+    private static void LimitOptionalLead(JsonObject root)
+    {
+        LimitOptionalText(root["heading"], "Title", InteractiveLessonConstants.MaxTextHeadingLength);
+        LimitOptionalText(root["intro"], "Introduction", InteractiveLessonConstants.MaxBlockIntroLength);
     }
 
     private static void LimitOptionalText(JsonNode? node, string fieldLabel, int maxLength)
@@ -1152,6 +1312,22 @@ You MUST follow these LMSBOX design and technical rules:
                 },
                 new()
                 {
+                    Name = "heading",
+                    Label = "Title",
+                    FieldType = "text",
+                    Required = false,
+                    HelpText = "Optional title shown to learners at the top of this block."
+                },
+                new()
+                {
+                    Name = "intro",
+                    Label = "Introduction",
+                    FieldType = "textarea",
+                    Required = false,
+                    HelpText = "Optional short introduction under the title."
+                },
+                new()
+                {
                     Name = "showFeedbackPerQuestion",
                     Label = "Show feedback after each question",
                     FieldType = "checkbox",
@@ -1174,6 +1350,7 @@ You MUST follow these LMSBOX design and technical rules:
 
     private static void ValidateQuestionnaire(JsonObject root)
     {
+        LimitOptionalLead(root);
         var description = root["contentDescription"]?.GetValue<string>();
         if (string.IsNullOrWhiteSpace(description))
         {
@@ -1281,6 +1458,14 @@ Return ONLY the HTML fragment.
             {
                 new()
                 {
+                    Name = "heading",
+                    Label = "Title",
+                    FieldType = "text",
+                    Required = false,
+                    HelpText = "Optional title shown above the activity."
+                },
+                new()
+                {
                     Name = "instruction",
                     Label = "Instruction",
                     FieldType = "textarea",
@@ -1323,6 +1508,7 @@ Return ONLY the HTML fragment.
 
     private static void ValidateOrdering(JsonObject root)
     {
+        LimitOptionalLead(root);
         LimitOptionalText(
             root["instruction"],
             "Instruction",
@@ -1378,6 +1564,22 @@ Return ONLY the HTML fragment.
                 },
                 new()
                 {
+                    Name = "heading",
+                    Label = "Title",
+                    FieldType = "text",
+                    Required = false,
+                    HelpText = "Optional title shown to learners at the top of this block."
+                },
+                new()
+                {
+                    Name = "intro",
+                    Label = "Introduction",
+                    FieldType = "textarea",
+                    Required = false,
+                    HelpText = "Optional short introduction under the title."
+                },
+                new()
+                {
                     Name = "slides",
                     Label = "Slides",
                     FieldType = "slide-list",
@@ -1390,6 +1592,7 @@ Return ONLY the HTML fragment.
 
     private static void ValidateCarousel(JsonObject root)
     {
+        LimitOptionalLead(root);
         var description = root["contentDescription"]?.GetValue<string>();
         if (string.IsNullOrWhiteSpace(description))
         {
@@ -1486,11 +1689,27 @@ Return ONLY the HTML fragment.
                 },
                 new()
                 {
+                    Name = "heading",
+                    Label = "Title",
+                    FieldType = "text",
+                    Required = false,
+                    HelpText = "Optional title shown to learners at the top of this block."
+                },
+                new()
+                {
+                    Name = "intro",
+                    Label = "Introduction",
+                    FieldType = "textarea",
+                    Required = false,
+                    HelpText = "Optional short introduction under the title."
+                },
+                new()
+                {
                     Name = "panels",
                     Label = "Panels",
                     FieldType = "panel-list",
                     Required = true,
-                    HelpText = "Add panels with a title, body text, optional image, and optional icon."
+                    HelpText = "Add panels with a title, formatted body, optional image, and optional icon."
                 }
             }
         };
@@ -1498,6 +1717,7 @@ Return ONLY the HTML fragment.
 
     private static void ValidateAccordion(JsonObject root)
     {
+        LimitOptionalLead(root);
         var description = root["contentDescription"]?.GetValue<string>();
         if (string.IsNullOrWhiteSpace(description))
         {
@@ -1519,14 +1739,18 @@ Return ONLY the HTML fragment.
         {
             var panel = panels[i] as JsonObject;
             var title = panel?["title"]?.GetValue<string>();
-            var body = panel?["body"]?.GetValue<string>();
+            var bodyHtml = ReadText(panel?["bodyHtml"]);
 
             if (string.IsNullOrWhiteSpace(title))
             {
                 throw new ArgumentException($"Panel {i + 1} title is required.");
             }
 
-            if (string.IsNullOrWhiteSpace(body))
+            if (InteractiveRichTextSanitizer.HasVisibleContent(bodyHtml))
+            {
+                ValidateRichText(bodyHtml, $"Panel {i + 1} body", InteractiveLessonConstants.MaxTextBodyLength);
+            }
+            else if (string.IsNullOrWhiteSpace(panel?["body"]?.GetValue<string>()))
             {
                 throw new ArgumentException($"Panel {i + 1} body is required.");
             }
@@ -1600,6 +1824,14 @@ Return ONLY the HTML fragment.
                 },
                 new()
                 {
+                    Name = "intro",
+                    Label = "Introduction",
+                    FieldType = "textarea",
+                    Required = false,
+                    HelpText = "Optional short introduction under the heading."
+                },
+                new()
+                {
                     Name = "panels",
                     Label = "Tabs",
                     FieldType = "tab-list",
@@ -1613,6 +1845,7 @@ Return ONLY the HTML fragment.
     private static void ValidateTabs(JsonObject root)
     {
         LimitOptionalText(root["heading"], "Heading", InteractiveLessonConstants.MaxTabsHeadingLength);
+        LimitOptionalText(root["intro"], "Introduction", InteractiveLessonConstants.MaxBlockIntroLength);
 
         if (root["panels"] is not JsonArray panels || panels.Count == 0)
         {

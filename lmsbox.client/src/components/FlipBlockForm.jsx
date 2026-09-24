@@ -1,5 +1,8 @@
 import React from 'react';
 import toast from 'react-hot-toast';
+import RichTextEditor from './RichTextEditor';
+import { initialRichHtml } from '../utils/plainTextToHtml';
+import BlockLeadFields from './BlockLeadFields';
 
 const MAX_CARDS = 8;
 const MAX_FRONT_TITLE = 200;
@@ -40,6 +43,7 @@ export default function FlipBlockForm({ value, onChange }) {
 
   return (
     <div className="space-y-4 border-t pt-4">
+      <BlockLeadFields value={value} onChange={onChange} />
       <p className="text-xs text-gray-500">
         Completes after every card has been flipped once. A single card fills the width, otherwise cards use a 2-column grid.
       </p>
@@ -95,13 +99,9 @@ export default function FlipBlockForm({ value, onChange }) {
 
             <div>
               <label className="block text-sm font-medium mb-1">Back body *</label>
-              <textarea
-                value={card.backBody || ''}
-                onChange={(e) => updateCard(index, { backBody: e.target.value })}
-                className="w-full border rounded px-3 py-2"
-                rows={3}
-                placeholder="The answer revealed on the back"
-                maxLength={MAX_BACK_BODY}
+              <FlipBackEditor
+                card={card}
+                onChange={(patch) => updateCard(index, patch)}
               />
             </div>
 
@@ -140,5 +140,17 @@ export default function FlipBlockForm({ value, onChange }) {
         </button>
       </div>
     </div>
+  );
+}
+
+function FlipBackEditor({ card, onChange }) {
+  return (
+    <RichTextEditor
+      value={initialRichHtml(card, 'backBodyHtml', 'backBody')}
+      onChange={({ html, text }) => onChange({ backBodyHtml: html, backBody: text })}
+      ariaLabel="Flip card back"
+      placeholder="The answer revealed on the back"
+      maxCharacters={MAX_BACK_BODY}
+    />
   );
 }

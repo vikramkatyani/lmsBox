@@ -2,6 +2,7 @@ import React from 'react';
 import toast from 'react-hot-toast';
 import InteractiveBlockImageField from './InteractiveBlockImageField';
 import InteractiveBlockIconPicker from './InteractiveBlockIconPicker';
+import BlockLeadFields from './BlockLeadFields';
 
 const MAX_STEPS = 8;
 const MAX_STEP_TITLE = 200;
@@ -73,6 +74,7 @@ export default function ProcessBlockForm({ value, onChange }) {
 
   return (
     <div className="space-y-4 border-t pt-4">
+      <BlockLeadFields value={value} onChange={onChange} />
       <p className="text-xs text-gray-500">
         Completes after every step has been revealed. Learners reveal one step at a time.
       </p>

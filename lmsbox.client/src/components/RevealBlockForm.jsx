@@ -2,6 +2,7 @@ import React from 'react';
 import toast from 'react-hot-toast';
 import InteractiveBlockImageField from './InteractiveBlockImageField';
 import InteractiveBlockIconPicker from './InteractiveBlockIconPicker';
+import BlockLeadFields from './BlockLeadFields';
 
 const MAX_ITEMS = 8;
 const MAX_LABEL = 60;
@@ -48,6 +49,7 @@ export default function RevealBlockForm({ value, onChange }) {
 
   return (
     <div className="space-y-4 border-t pt-4">
+      <BlockLeadFields value={value} onChange={onChange} />
       <p className="text-xs text-gray-500">
         Completes after every reveal is opened.
       </p>

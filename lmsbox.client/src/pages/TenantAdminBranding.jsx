@@ -4,6 +4,7 @@ import TenantThemeEditor from '../components/TenantThemeEditor';
 import usePageTitle from '../hooks/usePageTitle';
 import { getMyTenant, getTenantBranding, updateTenantBranding, uploadTenantBrandingAsset } from '../services/tenantAdminApi';
 import { brandingToForm, formToBrandingPayload } from '../theme/tenantTheme';
+import { publishBrandingUpdate } from '../theme/navChrome';
 import toast from 'react-hot-toast';
 
 export default function TenantAdminBranding() {
@@ -55,7 +56,13 @@ export default function TenantAdminBranding() {
     setSaving(true);
     try {
       const saved = await updateTenantBranding(formToBrandingPayload(form));
-      setForm(brandingToForm({ ...form, ...saved }));
+      const nextForm = brandingToForm({ ...form, ...saved });
+      setForm(nextForm);
+      publishBrandingUpdate({
+        navBarColor: nextForm.navBarColor,
+        navMenuColor: nextForm.navMenuColor,
+        navMenuActiveColor: nextForm.navMenuActiveColor
+      });
       toast.success('Tenant branding updated. Organisations using tenant branding will inherit these settings.');
     } catch (error) {
       toast.error(error.message || 'Failed to save branding');

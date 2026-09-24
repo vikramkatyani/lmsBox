@@ -5,6 +5,7 @@ import TenantThemeEditor from '../components/TenantThemeEditor';
 import usePageTitle from '../hooks/usePageTitle';
 import { getTenant, updateTenantBranding, uploadTenantAsset } from '../services/superAdminApi';
 import { brandingToForm, formToBrandingPayload } from '../theme/tenantTheme';
+import { publishBrandingUpdate } from '../theme/navChrome';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
@@ -59,7 +60,13 @@ export default function SuperAdminTenantTheme() {
     setSaving(true);
     try {
       const saved = await updateTenantBranding(id, formToBrandingPayload(form));
-      setForm(brandingToForm({ ...form, ...saved }));
+      const nextForm = brandingToForm({ ...form, ...saved });
+      setForm(nextForm);
+      publishBrandingUpdate({
+        navBarColor: nextForm.navBarColor,
+        navMenuColor: nextForm.navMenuColor,
+        navMenuActiveColor: nextForm.navMenuActiveColor
+      });
       toast.success('Theme saved. Organisations using tenant branding will inherit these settings.');
     } catch (error) {
       toast.error(error.message || 'Failed to save theme');

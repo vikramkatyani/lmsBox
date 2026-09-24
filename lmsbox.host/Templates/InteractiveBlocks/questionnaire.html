@@ -1,6 +1,6 @@
 <div class="lmsbox-interactive-block" data-block-id="{{BLOCK_ID}}" data-block-type="questionnaire" role="region" aria-label="Lesson questionnaire">
 
-  <p class="lms-caption lmsbox-quiz-progress" data-quiz-progress aria-live="polite"></p>
+  {{LEAD_HTML}}
   <div class="lms-stack lms-stack--lg" data-quiz-root></div>
 
   <script type="application/json" id="lmsbox-questionnaire-data-{{BLOCK_ID}}">{{QUESTIONNAIRE_JSON}}</script>
@@ -19,7 +19,10 @@
     if (!questions.length) return;
 
     var listEl = root.querySelector('[data-quiz-root]');
-    var progressEl = root.querySelector('[data-quiz-progress]');
+    var progressEl = document.createElement('p');
+    progressEl.className = 'lms-caption lmsbox-quiz-progress';
+    progressEl.setAttribute('data-quiz-progress', '');
+    progressEl.setAttribute('aria-live', 'polite');
     var answered = {};
     var completed = false;
     var LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -111,10 +114,11 @@
       head.className = 'lms-question__head';
       head.innerHTML =
         '<span class="lms-question__mentor" aria-hidden="true">' + MENTOR_SVG + '</span>' +
-        '<div>' +
+        '<div class="lms-question__meta">' +
           '<div class="lms-question__meta-label">Knowledge check</div>' +
           '<div class="lms-question__meta-name">' + metaName + '</div>' +
         '</div>';
+      if (qIndex === 0) head.appendChild(progressEl);
 
       var body = document.createElement('div');
       body.className = 'lms-question__body';

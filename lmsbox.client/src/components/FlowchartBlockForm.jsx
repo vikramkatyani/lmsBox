@@ -5,6 +5,7 @@ import InteractiveBlockIconPicker from './InteractiveBlockIconPicker';
 import InteractiveBlockPreview from './InteractiveBlockPreview';
 import interactiveLessonsService from '../services/interactiveLessons';
 import { withoutPendingImageUrls } from '../utils/pendingBlockImages';
+import BlockLeadFields from './BlockLeadFields';
 
 const MAX_NODES = 10;
 const MAX_TITLE = 200;
@@ -38,6 +39,7 @@ export default function FlowchartBlockForm({ value, onChange, blockId }) {
     if (!nodesReady(nodes)) return '';
     return JSON.stringify({
       heading: value.heading || '',
+      intro: value.intro || '',
       hint: value.hint || '',
       nodes: withoutPendingImageUrls(nodes).map((node) => ({
         title: node.title || '',
@@ -47,7 +49,7 @@ export default function FlowchartBlockForm({ value, onChange, blockId }) {
         variant: node.variant || 'step',
       })),
     });
-  }, [nodes, value.heading, value.hint]);
+  }, [nodes, value.heading, value.intro, value.hint]);
 
   useEffect(() => {
     if (!previewPayloadKey) {
@@ -129,6 +131,8 @@ export default function FlowchartBlockForm({ value, onChange, blockId }) {
           maxLength={MAX_HEADING}
         />
       </div>
+
+      <BlockLeadFields value={value} onChange={onChange} showHeading={false} />
 
       <div>
         <label className="block text-sm font-medium mb-1">Hint</label>

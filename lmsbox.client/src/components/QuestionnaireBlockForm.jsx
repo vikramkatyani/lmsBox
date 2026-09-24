@@ -13,6 +13,7 @@ import {
 } from './questionnaireFormHelpers';
 import { withoutPendingImageUrls } from '../utils/pendingBlockImages';
 import toast from 'react-hot-toast';
+import BlockLeadFields from './BlockLeadFields';
 
 const PREVIEW_DEBOUNCE_MS = 450;
 
@@ -77,6 +78,8 @@ export default function QuestionnaireBlockForm({
     if (!questionsReadyForPreview(questions)) return '';
     return JSON.stringify({
       contentDescription: value.contentDescription || 'Questionnaire preview',
+      heading: value.heading || '',
+      intro: value.intro || '',
       showFeedbackPerQuestion: !!value.showFeedbackPerQuestion,
       questions: withoutPendingImageUrls(questions).map((q) => ({
         text: q.text || '',
@@ -90,7 +93,7 @@ export default function QuestionnaireBlockForm({
         })),
       })),
     });
-  }, [questions, value.contentDescription, value.showFeedbackPerQuestion]);
+  }, [questions, value.contentDescription, value.heading, value.intro, value.showFeedbackPerQuestion]);
 
   useEffect(() => {
     if (!previewPayloadKey) {
@@ -263,6 +266,7 @@ export default function QuestionnaireBlockForm({
 
   return (
     <div className="space-y-4 border-t pt-4">
+      <BlockLeadFields value={value} onChange={onChange} />
       <div>
         <label className="block text-sm font-medium mb-1">Content description *</label>
         <textarea

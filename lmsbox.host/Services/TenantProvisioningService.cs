@@ -346,6 +346,9 @@ public static class TenantProvisioningService
             PageBackgroundColor = theme.PageBackgroundColor,
             ButtonColor = theme.ButtonColor,
             ButtonTextColor = theme.ButtonTextColor,
+            NavBarColor = theme.NavBarColor,
+            NavMenuColor = theme.NavMenuColor,
+            NavMenuActiveColor = theme.NavMenuActiveColor,
             LoginPath = TenantPortalUrl.TenantLoginPath(tenant.Code),
             Organisations = orgList.Select(o => new OrganisationSummaryResponse
             {

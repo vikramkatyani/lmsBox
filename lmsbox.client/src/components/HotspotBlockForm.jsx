@@ -1,6 +1,7 @@
 import React from 'react';
 import toast from 'react-hot-toast';
 import InteractiveBlockImageField from './InteractiveBlockImageField';
+import BlockLeadFields from './BlockLeadFields';
 
 const MAX_PINS = 12;
 const MAX_IMAGE_URL = 2000;
@@ -48,6 +49,7 @@ export default function HotspotBlockForm({ value, onChange }) {
 
   return (
     <div className="space-y-4 border-t pt-4">
+      <BlockLeadFields value={value} onChange={onChange} />
       <p className="text-xs text-gray-500">
         Completes after every pin has been opened.
       </p>

@@ -1,10 +1,13 @@
 <div class="lmsbox-interactive-block" data-block-id="{{BLOCK_ID}}" data-block-type="tabs" role="region" aria-label="Lesson tabs">
 
   {{HEADING_HTML}}
-  <p class="lms-caption lms-tabs__progress" data-tabs-progress aria-live="polite"></p>
+  {{INTRO_HTML}}
   <div class="lms-tabs" data-tabs>
     <div class="lms-tabs__list" role="tablist" aria-label="Content tabs">{{TABS_HTML}}</div>
-    <div class="lms-tabs__panels">{{PANELS_HTML}}</div>
+    <div class="lms-tabs__panels">
+      <p class="lms-caption lms-tabs__progress" data-tabs-progress aria-live="polite"></p>
+      {{PANELS_HTML}}
+    </div>
   </div>
 
   <script>

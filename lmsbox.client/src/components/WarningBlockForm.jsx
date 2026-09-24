@@ -1,10 +1,18 @@
-import React from 'react';
+import React, { useCallback } from 'react';
+import RichTextEditor from './RichTextEditor';
+import { initialRichHtml } from '../utils/plainTextToHtml';
 
 const MAX_LABEL = 60;
 const MAX_BODY = 2000;
 
 export default function WarningBlockForm({ value, onChange }) {
   const update = (patch) => onChange({ ...value, ...patch });
+  const handleBodyChange = useCallback(
+    ({ html, text }) => {
+      onChange({ ...value, bodyHtml: html, body: text });
+    },
+    [onChange, value],
+  );
 
   return (
     <div className="space-y-4 border-t pt-4">
@@ -26,13 +34,12 @@ export default function WarningBlockForm({ value, onChange }) {
 
       <div>
         <label className="block text-sm font-medium mb-1">Message *</label>
-        <textarea
-          value={value.body || ''}
-          onChange={(e) => update({ body: e.target.value })}
-          className="w-full border rounded px-3 py-2"
-          rows={4}
+        <RichTextEditor
+          value={initialRichHtml(value, 'bodyHtml', 'body')}
+          onChange={handleBodyChange}
+          ariaLabel="Warning message"
           placeholder="The limit, exclusion, or common mistake learners must watch for"
-          maxLength={MAX_BODY}
+          maxCharacters={MAX_BODY}
         />
       </div>
     </div>

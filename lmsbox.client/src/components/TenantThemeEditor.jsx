@@ -88,6 +88,20 @@ export default function TenantThemeEditor({
   const [showCss, setShowCss] = useState(!!form.customCss);
   const cssFileRef = useRef(null);
   const setField = (key, value) => onChange({ ...form, [key]: value });
+  const navFallbacks = {
+    navBarColor: form.primaryColor || DEFAULT_TENANT_THEME.primaryColor,
+    navMenuColor: '#ffffff',
+    navMenuActiveColor: form.accentColor || form.buttonColor || DEFAULT_TENANT_THEME.accentColor
+  };
+  const setNavColor = (key, value) => {
+    onChange({
+      ...form,
+      navBarColor: form.navBarColor || navFallbacks.navBarColor,
+      navMenuColor: form.navMenuColor || navFallbacks.navMenuColor,
+      navMenuActiveColor: form.navMenuActiveColor || navFallbacks.navMenuActiveColor,
+      [key]: value
+    });
+  };
 
   const preview = {
     brandName: form.brandName || tenantName || 'LMS Box',
@@ -96,6 +110,9 @@ export default function TenantThemeEditor({
     boxBg: form.primaryColor || DEFAULT_TENANT_THEME.primaryColor,
     buttonBg: form.buttonColor || DEFAULT_TENANT_THEME.buttonColor,
     buttonText: form.buttonTextColor || DEFAULT_TENANT_THEME.buttonTextColor,
+    navBar: form.navBarColor || navFallbacks.navBarColor,
+    navMenu: form.navMenuColor || navFallbacks.navMenuColor,
+    navActive: form.navMenuActiveColor || navFallbacks.navMenuActiveColor,
     hero: form.loginHeroUrl || loginIllustration,
     font: form.fontFamily || 'Inter, system-ui, sans-serif'
   };
@@ -206,6 +223,30 @@ export default function TenantThemeEditor({
               fallback={DEFAULT_TENANT_THEME.accentColor}
               onChange={(value) => setField('accentColor', value)}
             />
+            <div className="sm:col-span-2 pt-2">
+              <h3 className="text-sm font-semibold text-gray-900">Top navigation</h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Bar background, menu text, and the colour used for the current page and rollover.
+              </p>
+            </div>
+            <ColorField
+              label="Navigation bar"
+              value={form.navBarColor}
+              fallback={navFallbacks.navBarColor}
+              onChange={(value) => setNavColor('navBarColor', value)}
+            />
+            <ColorField
+              label="Menu item"
+              value={form.navMenuColor}
+              fallback={navFallbacks.navMenuColor}
+              onChange={(value) => setNavColor('navMenuColor', value)}
+            />
+            <ColorField
+              label="Active / rollover menu item"
+              value={form.navMenuActiveColor}
+              fallback={navFallbacks.navMenuActiveColor}
+              onChange={(value) => setNavColor('navMenuActiveColor', value)}
+            />
           </div>
         </section>
 
@@ -302,6 +343,20 @@ export default function TenantThemeEditor({
           </div>
         </div>
         <p className="text-xs text-gray-500 mt-2">This updates as you change the form. Save to apply it to the real login page.</p>
+        <p className="text-sm font-medium text-gray-700 mt-6 mb-3">Header preview</p>
+        <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+          <div className="flex items-center gap-6 px-4 py-3 min-h-[56px]" style={{ backgroundColor: preview.navBar }}>
+            <img src={preview.logo} alt="" className="h-8 w-auto max-w-[160px] object-contain object-left" />
+            <span className="text-sm font-medium" style={{ color: preview.navMenu }}>Courses</span>
+            <span
+              className="text-sm font-medium border-b-2 pb-0.5"
+              style={{ color: preview.navActive, borderColor: preview.navActive }}
+            >
+              Dashboard
+            </span>
+          </div>
+        </div>
+        <p className="text-xs text-gray-500 mt-2">Dashboard shows the active menu colour. Courses shows the default menu colour.</p>
       </div>
     </div>
   );
