@@ -165,6 +165,13 @@ public static class LmsBoxHostExtensions
             options.Limits.MaxRequestBodySize = 500 * 1024 * 1024;
         });
 
+        // Azure App Service hosts in-process behind IIS. Without this, IIS rejects
+        // uploads larger than ~28.6 MB with 413 before the controller limit applies.
+        builder.Services.Configure<Microsoft.AspNetCore.Builder.IISServerOptions>(options =>
+        {
+            options.MaxRequestBodySize = 500 * 1024 * 1024;
+        });
+
         builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
         {
             options.MultipartBodyLengthLimit = 500 * 1024 * 1024;

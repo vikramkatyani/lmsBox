@@ -1062,7 +1062,8 @@ public class AdminLessonsController : ControllerBase
     /// Upload SCORM package
     /// </summary>
     [HttpPost("upload-scorm")]
-    [RequestSizeLimit(500_000_000)] // 500MB limit
+    [RequestSizeLimit(524_288_000)] // 500 MB
+    [RequestFormLimits(MultipartBodyLengthLimit = 524_288_000)]
     public async Task<ActionResult<ScormUploadResponse>> UploadScorm(string courseId, IFormFile file)
     {
         try

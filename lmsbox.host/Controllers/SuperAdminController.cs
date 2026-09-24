@@ -1142,6 +1142,7 @@ public class SuperAdminController : ControllerBase
     [Authorize(Roles = "SuperAdmin")]
     [HttpPost("global-library/upload-scorm")]
     [RequestSizeLimit(524_288_000)] // 500 MB limit
+    [RequestFormLimits(MultipartBodyLengthLimit = 524_288_000)]
     public async Task<ActionResult<GlobalLibraryUploadResponse>> UploadScorm(
         [FromForm] IFormFile scormPackage, 
         [FromForm] string title, 

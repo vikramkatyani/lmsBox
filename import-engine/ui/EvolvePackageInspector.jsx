@@ -274,7 +274,7 @@ export function EvolvePackageInspector({ onCreateDraftCourse }) {
             )}
             <a
               href={`/admin/courses/${importResult.courseId}/edit`}
-              className="mt-2 inline-block font-medium text-[#1b365d] underline"
+              className="mt-3 inline-flex items-center rounded-md bg-[#1b365d] px-4 py-2 text-sm font-medium text-white no-underline hover:bg-[#152a4a]"
             >
               Open course editor
             </a>
@@ -642,7 +642,7 @@ function ImportSummaryPanel({ plan, importResult, canImport, importing, onCreate
 
         <a
           href={`/admin/courses/${importResult.courseId}/edit`}
-          className="inline-block font-medium text-[#1b365d] underline"
+          className="inline-flex items-center rounded-md bg-[#1b365d] px-4 py-2 text-sm font-medium text-white no-underline hover:bg-[#152a4a]"
         >
           Open course editor
         </a>
