@@ -106,10 +106,44 @@
   border-radius: 20px 20px 0 0;
 }
 
-.lmsbox-interactive-block .lmsbox-block-status + .lms-accordion > .lmsbox-accordion__item:first-child {
+/*
+ * Accordion sections in one block share a single card.
+ * The progress strip is the card header; each section is a row inside it.
+ */
+.lmsbox-interactive-block [data-accordion-root] {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 0;
+  width: 100%;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, var(--lmsbox-navy-08, rgba(0, 46, 98, 0.08)));
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.lmsbox-interactive-block .lmsbox-block-status + [data-accordion-root] {
+  border-top: 1px solid var(--border, var(--lmsbox-navy-08, rgba(0, 46, 98, 0.08)));
   border-top-left-radius: 0;
   border-top-right-radius: 0;
-  margin-top: 0;
+}
+
+.lmsbox-interactive-block [data-accordion-root] > .lms-accordion__item {
+  margin: 0;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.lmsbox-interactive-block [data-accordion-root] > .lms-accordion__item + .lms-accordion__item {
+  border-top: 1px solid var(--border, var(--lmsbox-navy-08, rgba(0, 46, 98, 0.08)));
+}
+
+.lmsbox-interactive-block [data-accordion-root] > .lms-accordion__item.is-open,
+.lmsbox-interactive-block [data-accordion-root] > .lms-accordion__item.open {
+  border-left-color: transparent;
 }
 
 /*
