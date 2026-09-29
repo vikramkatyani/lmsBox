@@ -469,6 +469,88 @@ describe('EvolveToLmsboxMapper', () => {
     );
   });
 
+  it('folds a graphic in the same Evolve block into the text block', () => {
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-text',
+        type: 'text',
+        title: 'Learning objectives',
+        body: '<p>Upon completion of this course, you will be able to:</p><ul><li>Identify the key product features</li></ul>',
+        raw: {
+          title: 'Learning objectives',
+          body: '<p>Upon completion of this course, you will be able to:</p><ul><li>Identify the key product features</li></ul>',
+        },
+      }),
+      makeComponent({
+        id: 'c-g',
+        type: 'graphic',
+        title: 'Graphic Title',
+        raw: {
+          title: 'Graphic Title',
+          _graphic: { src: 'course/en/assets/kit.png', alt: 'VISITECT CD4 kit' },
+        },
+      }),
+    ]);
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    const block = plan.lessons[0].blocks[0];
+
+    expect(plan.lessons[0].blocks).toHaveLength(1);
+    expect(block.blockType).toBe('text');
+    expect(block.title).toBe('Learning objectives');
+    expect(block.formPayload.heading).toBe('Learning objectives');
+    expect(block.formPayload.imagePlacement).toBe('below');
+    expect(String(block.formPayload.bodyHtml)).toMatch(/key product features/);
+    expect(String(block.formPayload.bodyHtml)).not.toMatch(/Graphic Title/);
+    expect(block.mediaAssets[0]).toMatchObject({
+      sourcePath: 'course/en/assets/kit.png',
+      targetField: 'imageUrl',
+      alt: 'VISITECT CD4 kit',
+    });
+    expect(
+      plan.report.some(
+        (item) =>
+          item.sourceComponentId === 'c-g' &&
+          item.targetBlockType === 'text' &&
+          /text block/i.test(item.message)
+      )
+    ).toBe(true);
+  });
+
+  it('keeps a graphic in a different Evolve block as its own block', () => {
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-text',
+        type: 'text',
+        title: 'Objectives',
+        raw: { title: 'Objectives', body: '<p>Read this</p>' },
+      }),
+      makeComponent({
+        id: 'c-g',
+        type: 'graphic',
+        title: 'Graphic Title',
+        relationships: {
+          parentBlockId: 'b-other',
+          parentLessonId: 'a-1',
+          parentPageId: 'co-1',
+          courseId: 'course',
+          assetIds: [],
+        },
+        raw: {
+          title: 'Graphic Title',
+          _graphic: { src: 'course/en/assets/kit.png', alt: 'Kit' },
+        },
+      }),
+    ]);
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    expect(plan.lessons[0].blocks).toHaveLength(2);
+    expect(plan.lessons[0].blocks.map((block) => block.sourceComponentId)).toEqual([
+      'c-text',
+      'c-g',
+    ]);
+  });
+
   it('uses the image rendition beside an Evolve asset.json graphic reference', () => {
     const assetId = '64c79eed41c7210ba1c69b41';
     const imagePath = `course/en/assets/${assetId}/original.png`;

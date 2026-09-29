@@ -381,7 +381,8 @@ export class EvolveToLmsboxMapper {
 
     let assessmentComponentSkips = 0;
     const companionsByQuestion = pairQuestionCompanions(unmapped);
-    const questionById = new Map(unmapped.map((component) => [component.id, component]));
+    const componentById = new Map(unmapped.map((component) => [component.id, component]));
+    const questionById = componentById;
     const companionOwnerId = new Map<string, string>();
     for (const [questionId, companions] of companionsByQuestion) {
       for (const companion of companions) {
@@ -389,6 +390,31 @@ export class EvolveToLmsboxMapper {
       }
     }
     const emittedQuestionIds = new Set<string>();
+    const textCompanions = pairTextWithGraphics(
+      unmapped.filter(
+        (component) =>
+          !companionOwnerId.has(component.id) && !companionsByQuestion.has(component.id)
+      )
+    );
+    const textCompanionOwner = new Map<string, string>();
+    for (const [textId, companions] of textCompanions) {
+      for (const companion of companions) {
+        textCompanionOwner.set(companion.id, textId);
+      }
+    }
+    const emittedTextIds = new Set<string>();
+
+    const emitTextWithGraphics = (text: Component): void => {
+      if (emittedTextIds.has(text.id)) return;
+      emittedTextIds.add(text.id);
+      const mapped = this.mapComponent(
+        text,
+        report,
+        options.skipAssessments,
+        textCompanions.get(text.id) ?? []
+      );
+      if (mapped) blocks.push(mapped);
+    };
 
     const emitQuestion = (question: Component): void => {
       if (emittedQuestionIds.has(question.id)) return;
@@ -411,6 +437,29 @@ export class EvolveToLmsboxMapper {
     };
 
     for (const component of unmapped) {
+      const textOwnerId = textCompanionOwner.get(component.id);
+      if (textOwnerId) {
+        const owner = componentById.get(textOwnerId);
+        if (owner) emitTextWithGraphics(owner);
+        const sourceType = (component.type || 'unknown').toLowerCase();
+        report.push({
+          sourceComponentId: component.id,
+          sourceType,
+          sourceTitle: resolveHumanTitle(component, component.raw ?? {}, sourceType),
+          status: 'mapped',
+          targetBlockType: 'text',
+          message: isGraphicType(sourceType)
+            ? 'Included in the text block as its image.'
+            : 'Included in the text block.',
+        });
+        continue;
+      }
+
+      if (textCompanions.has(component.id)) {
+        emitTextWithGraphics(component);
+        continue;
+      }
+
       const ownerId = companionOwnerId.get(component.id);
       if (ownerId) {
         const owner = questionById.get(ownerId);
@@ -657,7 +706,7 @@ export class EvolveToLmsboxMapper {
 
     switch (targetType) {
       case 'text':
-        return this.mapToText(sourceType, component, raw);
+        return this.mapToText(sourceType, component, raw, companions);
       case 'accordion':
         return this.mapToAccordion(component, raw);
       case 'carousel':
@@ -688,7 +737,8 @@ export class EvolveToLmsboxMapper {
   private mapToText(
     sourceType: string,
     component: Component,
-    raw: Record<string, unknown>
+    raw: Record<string, unknown>,
+    companions: Component[] = []
   ): {
     formPayload: Record<string, unknown>;
     status: 'mapped' | 'stubbed';
@@ -707,29 +757,55 @@ export class EvolveToLmsboxMapper {
     const mediaAssets: PendingMediaAttachment[] = [];
     let imageUrl = '';
     let imageAlt = '';
+    let imagePlacement = '';
 
-    if (sourceType === 'graphic') {
-      const src = this.resolveImageSource(raw, component);
-      const alt = resolveEvolveGraphicAlt(raw) || heading;
+    for (const extra of companions.filter((item) => isPlainTextType(item.type))) {
+      const extraRaw = extra.raw ?? {};
+      const extraHtml =
+        asString(extraRaw.body) || extra.body || asString(extraRaw.content) || '';
+      if (stripHtml(extraHtml)) bodyHtml = `${bodyHtml}${extraHtml}`;
+    }
+    body = stripHtml(bodyHtml);
+
+    const graphic =
+      sourceType === 'graphic'
+        ? component
+        : companions.find((item) => isGraphicType(item.type));
+    if (graphic) {
+      const graphicRaw = graphic.raw ?? {};
+      const src = this.resolveImageSource(graphicRaw, graphic);
+      const alt = usableImageAlt(
+        resolveEvolveGraphicAlt(graphicRaw),
+        sourceType === 'graphic' ? heading : ''
+      );
       imageAlt = truncate(alt, 300);
+      if (sourceType !== 'graphic') imagePlacement = 'below';
       if (src && isAbsoluteUrl(src)) {
         imageUrl = src;
-        message = `Mapped graphic with absolute image URL → text.`;
+        message =
+          sourceType === 'graphic'
+            ? 'Mapped graphic with absolute image URL → text.'
+            : 'Mapped text with the graphic from the same Evolve block.';
       } else if (src) {
         mediaAssets.push(makePendingMedia(src, 'imageUrl', alt));
-        bodyHtml =
-          bodyHtml ||
-          `<p><em>Image will attach from Evolve package: ${escapeHtml(src)}</em></p>`;
-        body = stripHtml(bodyHtml);
+        if (sourceType === 'graphic' && !bodyHtml.trim()) {
+          bodyHtml = `<p><em>Image will attach from Evolve package: ${escapeHtml(src)}</em></p>`;
+          body = stripHtml(bodyHtml);
+        }
         status = 'stubbed';
-        message = `Graphic queued for media attach (${src}).`;
-      } else {
+        message =
+          sourceType === 'graphic'
+            ? `Graphic queued for media attach (${src}).`
+            : `Text and graphic combined; image queued for media attach (${src}).`;
+      } else if (sourceType === 'graphic') {
         bodyHtml =
-          bodyHtml ||
-          `<p><em>Graphic component imported without image asset.</em></p>`;
+          bodyHtml || `<p><em>Graphic component imported without image asset.</em></p>`;
         body = stripHtml(bodyHtml);
         status = 'stubbed';
         message = 'Graphic had no image source.';
+      } else {
+        status = 'stubbed';
+        message = 'Text and graphic combined, but the graphic had no image source.';
       }
     }
 
@@ -744,7 +820,7 @@ export class EvolveToLmsboxMapper {
         subheading: '',
         bodyHtml,
         body: truncate(body, 10000),
-        ...(sourceType === 'graphic' ? { imageUrl, imageAlt } : {}),
+        ...(graphic ? { imageUrl, imageAlt, ...(imagePlacement ? { imagePlacement } : {}) } : {}),
         showContinueButton: true,
       },
       status,
@@ -1568,6 +1644,53 @@ function isQuestionnaireSourceType(type: string | undefined): boolean {
 
 function isQuestionCompanionType(type: string | undefined): boolean {
   return QUESTION_COMPANION_TYPES.has((type || '').toLowerCase());
+}
+
+const PLAIN_TEXT_TYPES = new Set(['text', 'blank', 'narrative']);
+
+function isPlainTextType(type: string | undefined): boolean {
+  return PLAIN_TEXT_TYPES.has((type || '').toLowerCase());
+}
+
+function isGraphicType(type: string | undefined): boolean {
+  return (type || '').toLowerCase() === 'graphic';
+}
+
+/**
+ * Evolve lays a text component and a graphic out as one block.
+ * Fold that graphic into the text block instead of creating a second block.
+ * Leave the group alone when the block also has another interaction.
+ */
+function pairTextWithGraphics(components: Component[]): Map<string, Component[]> {
+  const paired = new Map<string, Component[]>();
+  const byBlock = new Map<string, Component[]>();
+  for (const component of components) {
+    const blockId = component.relationships?.parentBlockId;
+    if (!blockId) continue;
+    const list = byBlock.get(blockId) ?? [];
+    list.push(component);
+    byBlock.set(blockId, list);
+  }
+
+  for (const group of byBlock.values()) {
+    const texts = group.filter((component) => isPlainTextType(component.type));
+    const graphics = group.filter((component) => isGraphicType(component.type));
+    if (texts.length === 0 || graphics.length === 0) continue;
+    const hasOther = group.some(
+      (component) => !isPlainTextType(component.type) && !isGraphicType(component.type)
+    );
+    if (hasOther) continue;
+    paired.set(texts[0].id, [...texts.slice(1), ...graphics]);
+  }
+  return paired;
+}
+
+function usableImageAlt(alt: string, fallback: string): string {
+  const value = alt.trim();
+  if (value && !isPlaceholderComponentTitle(value)) return value;
+  const backup = fallback.trim();
+  if (backup && !isPlaceholderComponentTitle(backup)) return backup;
+  return '';
 }
 
 /**
