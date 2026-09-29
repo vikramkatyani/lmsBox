@@ -37,13 +37,14 @@ export default function CarouselBlockForm({
       contentDescription: value.contentDescription || 'Carousel preview',
       heading: value.heading || '',
       intro: value.intro || '',
+      layout: value.layout || '',
       slides: withoutPendingImageUrls(slides).map((slide) => ({
         title: slide.title || '',
         body: slide.body || '',
         imageUrl: slide.imageUrl || '',
       })),
     });
-  }, [slides, value.contentDescription, value.heading, value.intro]);
+  }, [slides, value.contentDescription, value.heading, value.intro, value.layout]);
 
   useEffect(() => {
     if (!previewPayloadKey) {

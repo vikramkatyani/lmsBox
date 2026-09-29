@@ -107,6 +107,10 @@ public class InteractiveBlockDisplayService : IInteractiveBlockDisplayService
         {
             await SignJsonStringPropertyAsync(root, "backgroundImageUrl");
         }
+        else if (type == "text")
+        {
+            await SignJsonStringPropertyAsync(root, "imageUrl");
+        }
         else if (type == "hotspot")
         {
             await SignJsonStringPropertyAsync(root, "imageUrl");

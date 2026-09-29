@@ -718,8 +718,13 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
             });
         }
 
+        var layout = ReadText(root["layout"]);
+        var templateName = string.Equals(layout, "sides", StringComparison.OrdinalIgnoreCase)
+            ? "slider.html"
+            : "carousel.html";
+
         var html = FillTemplate(
-            "carousel.html",
+            templateName,
             blockId,
             ("{{LEAD_HTML}}", RenderBlockLead(root, inset: true)),
             ("{{SLIDES_JSON}}", EscapeForScriptJson(JsonSerializer.Serialize(slides, CamelCaseJson))));

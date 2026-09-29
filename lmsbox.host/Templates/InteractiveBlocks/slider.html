@@ -1,0 +1,152 @@
+<div class="lmsbox-interactive-block" data-block-id="{{BLOCK_ID}}" data-block-type="carousel" role="region" aria-roledescription="carousel" aria-label="Lesson slider">
+
+  <div class="lmsbox-carousel lmsbox-carousel--sides">
+    {{LEAD_HTML}}
+    <div class="lmsbox-carousel__frame">
+      <button type="button" class="lmsbox-carousel__nav lmsbox-carousel__nav--prev" aria-label="Previous slide" data-carousel-prev>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+          <path d="M15 5L8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+
+      <div class="lmsbox-carousel__stage" aria-live="polite">
+        <div class="lmsbox-carousel__image-wrap" data-carousel-image-wrap hidden>
+          <img class="lmsbox-carousel__image" data-carousel-image alt="" />
+        </div>
+        <p class="lmsbox-carousel__kicker" data-carousel-kicker></p>
+        <h3 class="lmsbox-carousel__title" data-carousel-title></h3>
+        <p class="lmsbox-carousel__body" data-carousel-body></p>
+        <p class="lmsbox-carousel__sr" data-carousel-status aria-live="polite"></p>
+      </div>
+
+      <button type="button" class="lmsbox-carousel__nav lmsbox-carousel__nav--next" aria-label="Next slide" data-carousel-next>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+          <path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="lmsbox-carousel__dots" data-carousel-dots role="tablist" aria-label="Slide indicators"></div>
+  </div>
+
+  <script type="application/json" id="lmsbox-carousel-data-{{BLOCK_ID}}">{{SLIDES_JSON}}</script>
+  <script>
+  (function () {
+    var root = document.querySelector('.lmsbox-interactive-block[data-block-type="carousel"][data-block-id="{{BLOCK_ID}}"]');
+    if (!root || root.getAttribute('data-carousel-ready') === '1') return;
+    root.setAttribute('data-carousel-ready', '1');
+
+    var blockId = root.getAttribute('data-block-id');
+    var dataEl = document.getElementById('lmsbox-carousel-data-{{BLOCK_ID}}');
+    var slides = [];
+    try {
+      slides = JSON.parse(dataEl ? dataEl.textContent : '[]');
+    } catch (e) {
+      slides = [];
+    }
+    if (!Array.isArray(slides) || slides.length === 0) return;
+
+    var index = 0;
+    var viewed = {};
+    var completed = false;
+    var kickerEl = root.querySelector('[data-carousel-kicker]');
+    var titleEl = root.querySelector('[data-carousel-title]');
+    var bodyEl = root.querySelector('[data-carousel-body]');
+    var imageWrap = root.querySelector('[data-carousel-image-wrap]');
+    var imageEl = root.querySelector('[data-carousel-image]');
+    var statusEl = root.querySelector('[data-carousel-status]');
+    var dotsEl = root.querySelector('[data-carousel-dots]');
+    var prevBtn = root.querySelector('[data-carousel-prev]');
+    var nextBtn = root.querySelector('[data-carousel-next]');
+
+    function notifyComplete() {
+      if (completed) return;
+      completed = true;
+      var payload = { type: 'interactive-block-complete', blockId: Number(blockId) };
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, '*');
+      }
+      if (window.lmsboxInteractive && typeof window.lmsboxInteractive.notifyComplete === 'function') {
+        window.lmsboxInteractive.notifyComplete(Number(blockId));
+      }
+    }
+
+    function markViewed(i) {
+      viewed[i] = true;
+      var all = true;
+      for (var s = 0; s < slides.length; s++) {
+        if (!viewed[s]) { all = false; break; }
+      }
+      if (all) notifyComplete();
+    }
+
+    function renderDots() {
+      dotsEl.innerHTML = '';
+      for (var i = 0; i < slides.length; i++) {
+        (function (slideIndex) {
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'lmsbox-carousel__dot';
+          btn.setAttribute('role', 'tab');
+          btn.setAttribute('aria-label', 'Go to slide ' + (slideIndex + 1));
+          if (slideIndex === index) btn.setAttribute('aria-current', 'true');
+          btn.addEventListener('click', function () { goTo(slideIndex); });
+          dotsEl.appendChild(btn);
+        })(i);
+      }
+    }
+
+    function renderSlide() {
+      var slide = slides[index] || {};
+      var title = slide.title || '';
+      var body = slide.body || '';
+      var imageUrl = (slide.imageUrl || '').trim();
+
+      if (kickerEl) kickerEl.textContent = 'Slide ' + (index + 1) + ' of ' + slides.length;
+      titleEl.textContent = title;
+      bodyEl.textContent = body;
+
+      if (imageUrl) {
+        imageEl.src = imageUrl;
+        imageEl.alt = title || 'Slide image';
+        imageWrap.hidden = false;
+      } else {
+        imageEl.removeAttribute('src');
+        imageEl.alt = '';
+        imageWrap.hidden = true;
+      }
+
+      prevBtn.disabled = index === 0;
+      nextBtn.disabled = index === slides.length - 1;
+      statusEl.textContent = 'Slide ' + (index + 1) + ' of ' + slides.length;
+      renderDots();
+      markViewed(index);
+    }
+
+    function goTo(nextIndex) {
+      if (nextIndex < 0 || nextIndex >= slides.length || nextIndex === index) return;
+      index = nextIndex;
+      renderSlide();
+    }
+
+    prevBtn.addEventListener('click', function () { goTo(index - 1); });
+    nextBtn.addEventListener('click', function () { goTo(index + 1); });
+
+    var touchStartX = null;
+    root.addEventListener('touchstart', function (e) {
+      if (!e.changedTouches || !e.changedTouches[0]) return;
+      touchStartX = e.changedTouches[0].clientX;
+    }, { passive: true });
+    root.addEventListener('touchend', function (e) {
+      if (touchStartX == null || !e.changedTouches || !e.changedTouches[0]) return;
+      var dx = e.changedTouches[0].clientX - touchStartX;
+      touchStartX = null;
+      if (Math.abs(dx) < 40) return;
+      if (dx < 0) goTo(index + 1);
+      else goTo(index - 1);
+    }, { passive: true });
+
+    renderSlide();
+  })();
+  </script>
+</div>

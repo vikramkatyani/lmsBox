@@ -105,6 +105,60 @@
       return feedback;
     }
 
+    function looksLikeAnswerInstruction(text) {
+      return /^(please\s+)?(select|choose|pick)\s+(the\s+|a\s+|an\s+)?(correct|best|right|one)\s+(answer|option|response|choice)/i
+        .test(String(text || '').trim());
+    }
+
+    function placeQuestionCopy(body, questionText, qIndex) {
+      var ask = document.createElement('div');
+      ask.className = 'lms-question__ask';
+
+      var label = document.createElement('p');
+      label.className = 'lms-question__ask-label';
+      label.textContent = 'Question';
+
+      var prompt = document.createElement('h2');
+      prompt.className = 'lms-question__prompt';
+
+      var introEl = qIndex === 0 ? root.querySelector('.lmsbox-block-lead__intro') : null;
+      var introText = introEl ? introEl.textContent.trim() : '';
+      var question = String(questionText || '').trim();
+      var introIsTheQuestion = !!(
+        introText &&
+        question &&
+        introText.toLowerCase() !== question.toLowerCase() &&
+        looksLikeAnswerInstruction(question)
+      );
+
+      if (introIsTheQuestion) {
+        prompt.textContent = introText;
+        if (introEl.parentNode) introEl.parentNode.removeChild(introEl);
+        var hint = document.createElement('p');
+        hint.className = 'lms-question__hint';
+        hint.textContent = question;
+        ask.appendChild(label);
+        ask.appendChild(prompt);
+        ask.appendChild(hint);
+      } else {
+        if (introEl && introText) {
+          introEl.classList.remove('lmsbox-block-lead__intro');
+          introEl.classList.add('lms-question__context');
+          ask.appendChild(introEl);
+        }
+        prompt.textContent = question;
+        ask.appendChild(label);
+        ask.appendChild(prompt);
+      }
+
+      var lead = root.querySelector('.lmsbox-block-lead');
+      if (lead && !lead.textContent.trim() && lead.parentNode) {
+        lead.parentNode.removeChild(lead);
+      }
+
+      body.appendChild(ask);
+    }
+
     function createQuestionShell(qIndex, metaName) {
       var section = document.createElement('section');
       section.className = 'lms-question';
@@ -149,10 +203,7 @@
       var shell = createQuestionShell(qIndex, metaName);
       var body = shell.body;
 
-      var prompt = document.createElement('p');
-      prompt.className = 'lms-question__prompt';
-      prompt.textContent = question.text || '';
-      body.appendChild(prompt);
+      placeQuestionCopy(body, question.text || '', qIndex);
 
       if (question.imageUrl) {
         var img = document.createElement('img');

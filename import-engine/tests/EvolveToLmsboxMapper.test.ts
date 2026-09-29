@@ -1144,6 +1144,54 @@ describe('EvolveToLmsboxMapper', () => {
     expect(panels[3].body).toMatch(/Compare the test line/i);
   });
 
+  it('uses the Evolve tabTitle field as the tab header, not the panel title', () => {
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-tabs',
+        type: 'tabs',
+        title: 'Interpreting the test',
+        raw: {
+          _items: [
+            {
+              tabTitle: '<span>V</span>alidity',
+              title: 'Control line',
+              body: '<p>The control line must appear.</p>',
+            },
+            {
+              tabTitle: { _default: '<span>ABO</span>VE REFERENCE' },
+              title: '<p>A line above the reference window.</p>',
+              body: '<p>Read the window.</p>',
+            },
+            {
+              _tabTitle: 'BELO<span>W REFERENCE</span>',
+              title: 'Tab 3',
+              body: '<p>A line below the reference window.</p>',
+            },
+            {
+              tabText: 'Reading <span>R</span>esults',
+              title: 'How to read the cassette',
+              body: '<p>Compare the test line with the reference.</p>',
+            },
+          ],
+        },
+      }),
+    ]);
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    const panels = plan.lessons[0].blocks[0].formPayload.panels as { title: string; body: string }[];
+
+    expect(panels.map((panel) => panel.title)).toEqual([
+      'Validity',
+      'ABOVE REFERENCE',
+      'BELOW REFERENCE',
+      'Reading Results',
+    ]);
+    expect(panels[0].body).toMatch(/control line must appear/i);
+    expect(panels[1].body).toMatch(/Read the window/);
+    expect(panels[3].body).toMatch(/How to read the cassette/);
+    expect(panels[3].body).toMatch(/Compare the test line/i);
+  });
+
   it('maps flowChart items to flowchart nodes', () => {
     const course = makeCourse([
       makeComponent({
@@ -1480,5 +1528,159 @@ describe('EvolveToLmsboxMapper', () => {
     });
     expect(lesson.blocks[1].blockType).toBe('text');
     expect(plan.report.some((item) => item.targetBlockType === 'hero')).toBe(true);
+  });
+
+  it('maps an Evolve narrative slideshow to a side-arrow carousel', () => {
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-narrative',
+        type: 'narrative',
+        title: 'Time to practise',
+        body: '<p>It is important to practise with the equipment you will need to run the test.</p>',
+        raw: {
+          title: 'Time to practise',
+          body: '<p>It is important to practise with the equipment you will need to run the test.</p>',
+          instruction: "Let's take a closer look by selecting the side arrows.",
+          _items: [
+            {
+              title: 'Practise using your timer',
+              body: '<p>The test takes 40 minutes to run</p>',
+              _graphic: { src: 'course/en/assets/timer.png', alt: 'Timer' },
+            },
+            {
+              title: 'Buffer bottle',
+              body: '<p>Use the buffer bottle next</p>',
+              _graphic: { src: 'course/en/assets/buffer.png', alt: 'Buffer' },
+            },
+          ],
+        },
+      }),
+    ]);
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    const block = plan.lessons[0].blocks[0];
+
+    expect(block.blockType).toBe('carousel');
+    expect(block.formPayload).toMatchObject({
+      heading: 'Time to practise',
+      layout: 'sides',
+    });
+    expect(String(block.formPayload.intro)).toContain('important to practise');
+    expect(String(block.formPayload.intro)).toContain('side arrows');
+    expect(block.formPayload.slides).toEqual([
+      {
+        title: 'Practise using your timer',
+        body: 'The test takes 40 minutes to run',
+        imageUrl: '',
+      },
+      {
+        title: 'Buffer bottle',
+        body: 'Use the buffer bottle next',
+        imageUrl: '',
+      },
+    ]);
+    expect(block.mediaAssets?.map((asset) => asset.targetField)).toEqual([
+      'slides.0.imageUrl',
+      'slides.1.imageUrl',
+    ]);
+  });
+
+  it('keeps a narrative without slides as a text block', () => {
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-note',
+        type: 'narrative',
+        title: 'Using a Timer',
+        body: '<p>Timing steps are very important.</p>',
+        raw: {
+          title: 'Using a Timer',
+          body: '<p>Timing steps are very important.</p>',
+        },
+      }),
+    ]);
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    expect(plan.lessons[0].blocks[0].blockType).toBe('text');
+    expect(plan.lessons[0].blocks[0].formPayload).toMatchObject({
+      heading: 'Using a Timer',
+    });
+  });
+
+  it('does not fold a narrative slideshow into the text beside it', () => {
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-text',
+        type: 'text',
+        title: 'Time to practise',
+        body: '<p>It is important to practise with the equipment.</p>',
+        raw: {
+          title: 'Time to practise',
+          body: '<p>It is important to practise with the equipment.</p>',
+        },
+      }),
+      makeComponent({
+        id: 'c-narrative',
+        type: 'narrative',
+        title: 'Equipment',
+        body: '<p>Look at each item.</p>',
+        raw: {
+          title: 'Equipment',
+          body: '<p>Look at each item.</p>',
+          instruction: 'Select the side arrows.',
+          _items: [
+            { title: 'Timer', body: '40 minutes' },
+            { title: 'Buffer', body: 'Add the buffer' },
+          ],
+        },
+      }),
+    ]);
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    const blocks = plan.lessons[0].blocks;
+
+    expect(blocks.map((block) => block.blockType)).toEqual(['text', 'carousel']);
+    expect(blocks[1].formPayload.layout).toBe('sides');
+    expect(blocks[1].sourceType).toBe('narrative');
+  });
+
+  it('maps a content slider to a carousel and skips a numeric question slider', () => {
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-content-slider',
+        type: 'slider',
+        title: 'Kit contents',
+        raw: {
+          title: 'Kit contents',
+          _items: [
+            { title: 'Timer', body: 'Set 20 minutes' },
+            { title: 'Pipette', body: 'Use the precision pipette' },
+          ],
+        },
+      }),
+      makeComponent({
+        id: 'c-number-slider',
+        type: 'slider',
+        title: 'Rate your confidence',
+        raw: {
+          title: 'Rate your confidence',
+          _scaleStart: 1,
+          _scaleEnd: 10,
+          _correctRange: { _bottom: 7, _top: 10 },
+        },
+      }),
+    ]);
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    const blocks = plan.lessons[0].blocks;
+
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0]).toMatchObject({
+      blockType: 'carousel',
+      sourceType: 'slider',
+    });
+    expect(blocks[0].formPayload.layout).toBe('sides');
+    expect(plan.report.some((item) => item.sourceComponentId === 'c-number-slider' && item.status === 'skipped')).toBe(
+      true
+    );
   });
 });

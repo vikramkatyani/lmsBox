@@ -57,6 +57,7 @@ const MAX_QUESTIONS_PER_BLOCK = 1;
 export const EVOLVE_TO_LMSBOX_BLOCK_TYPE: Record<string, string> = {
   text: 'text',
   blank: 'text',
+  // Item-less narrative stays text. Narratives with slides are promoted to carousel.
   narrative: 'text',
   graphic: 'text',
   accordion: 'accordion',
@@ -530,10 +531,7 @@ export class EvolveToLmsboxMapper {
     const graphic = components.find(
       (component) => (component.type || '').toLowerCase() === 'graphic'
     );
-    const textComponents = components.filter((component) => {
-      const type = (component.type || '').toLowerCase();
-      return type === 'text' || type === 'blank' || type === 'narrative';
-    });
+    const textComponents = components.filter((component) => isPlainTextComponent(component));
     const consumedComponentIds = [
       ...(graphic ? [graphic.id] : []),
       ...textComponents.map((component) => component.id),
@@ -638,7 +636,9 @@ export class EvolveToLmsboxMapper {
       return null;
     }
 
-    const targetType = EVOLVE_TO_LMSBOX_BLOCK_TYPE[sourceType];
+    const targetType = isContentSlideshow(component)
+      ? 'carousel'
+      : EVOLVE_TO_LMSBOX_BLOCK_TYPE[sourceType];
 
     if (!targetType) {
       report.push({
@@ -759,7 +759,7 @@ export class EvolveToLmsboxMapper {
     let imageAlt = '';
     let imagePlacement = '';
 
-    for (const extra of companions.filter((item) => isPlainTextType(item.type))) {
+    for (const extra of companions.filter((item) => isPlainTextComponent(item))) {
       const extraRaw = extra.raw ?? {};
       const extraHtml =
         asString(extraRaw.body) || extra.body || asString(extraRaw.content) || '';
@@ -880,7 +880,33 @@ export class EvolveToLmsboxMapper {
     message: string;
     mediaAssets: PendingMediaAttachment[];
   } {
-    const items = asArray(raw._items ?? raw.items ?? raw._slides);
+    const sourceType = (component.type || 'carousel').toLowerCase();
+    const resolvedTitle = resolveHumanTitle(component, raw, sourceType);
+    const heading = GENERIC_SLIDESHOW_TITLES.has(resolvedTitle)
+      ? ''
+      : truncate(resolvedTitle, 200);
+    const bodyText = stripHtml(asString(raw.body) || component.body || '');
+    const instruction = stripHtml(
+      readEvolveText(raw.instruction) ||
+        readEvolveText(raw._instruction) ||
+        readEvolveText(raw.mobileInstruction) ||
+        readEvolveText(raw._mobileInstruction)
+    );
+    const introParts: string[] = [];
+    if (bodyText && bodyText.toLowerCase() !== heading.toLowerCase()) {
+      introParts.push(bodyText);
+    }
+    if (
+      instruction &&
+      instruction.toLowerCase() !== heading.toLowerCase() &&
+      !introParts.some((part) => part.toLowerCase().includes(instruction.toLowerCase()))
+    ) {
+      introParts.push(instruction);
+    }
+    const intro = truncate(introParts.join(' '), 500);
+    const layout = isContentSlideshow(component) ? 'sides' : '';
+
+    const items = asArray(raw._items ?? raw.items ?? raw._slides ?? raw.slides);
     const mediaAssets: PendingMediaAttachment[] = [];
     const slides = items
       .map((item, index) => {
@@ -910,18 +936,23 @@ export class EvolveToLmsboxMapper {
       });
     }
 
+    const kind = layout === 'sides' ? `${sourceType} slideshow` : 'carousel';
     return {
       formPayload: {
         contentDescription:
           stripHtml(component.body || '') ||
-          `Imported carousel: ${component.title || component.id}`,
+          intro ||
+          `Imported ${kind}: ${component.title || component.id}`,
+        ...(heading ? { heading } : {}),
+        ...(intro ? { intro } : {}),
+        ...(layout ? { layout } : {}),
         slides: slides.slice(0, 10),
       },
       status: mediaAssets.length > 0 ? 'stubbed' : 'mapped',
       message:
         mediaAssets.length > 0
-          ? `Mapped carousel; ${mediaAssets.length} slide image(s) queued for attach.`
-          : `Mapped carousel with ${slides.length} slide(s).`,
+          ? `Mapped ${kind}; ${mediaAssets.length} slide image(s) queued for attach.`
+          : `Mapped ${kind} with ${slides.length} slide(s).`,
       mediaAssets,
     };
   }
@@ -1370,7 +1401,7 @@ export class EvolveToLmsboxMapper {
       .map((item, index) => {
         if (!item || typeof item !== 'object') return null;
         const row = item as Record<string, unknown>;
-        const resolved = resolveItemHeading(row, index, 'Tab');
+        const resolved = resolveTabItem(row, index);
         const title = resolved.title;
         const body = resolved.bodyText || title;
         const imageSrc = resolveEvolveGraphicSrc(row, component, this.courseAssets, {
@@ -1646,11 +1677,55 @@ function isQuestionCompanionType(type: string | undefined): boolean {
   return QUESTION_COMPANION_TYPES.has((type || '').toLowerCase());
 }
 
+function isFoldableQuestionCompanion(component: Component): boolean {
+  return isQuestionCompanionType(component.type) && !isContentSlideshow(component);
+}
+
 const PLAIN_TEXT_TYPES = new Set(['text', 'blank', 'narrative']);
 
 function isPlainTextType(type: string | undefined): boolean {
   return PLAIN_TEXT_TYPES.has((type || '').toLowerCase());
 }
+
+function slideshowItems(raw: Record<string, unknown> | undefined): unknown[] {
+  if (!raw) return [];
+  return asArray(raw._items ?? raw.items ?? raw._slides ?? raw.slides).filter(
+    (item) => !!item && typeof item === 'object'
+  );
+}
+
+/** Adapt's slider is a numeric question. A content slider has slides and no scale. */
+function isNumericQuestionSlider(raw: Record<string, unknown> | undefined): boolean {
+  if (!raw) return false;
+  return (
+    raw._scaleStart != null ||
+    raw.scaleStart != null ||
+    raw._scaleEnd != null ||
+    raw.scaleEnd != null ||
+    raw._correctRange != null ||
+    raw._correctAnswer != null
+  );
+}
+
+/**
+ * Evolve's narrative (and a non-numeric slider) is the side-arrow slideshow
+ * in the published course. Item-less narrative stays plain text.
+ */
+function isContentSlideshow(component: Component): boolean {
+  const type = (component.type || '').toLowerCase();
+  if (slideshowItems(component.raw).length === 0) return false;
+  if (type === 'narrative' || type === 'textnarrative' || type === 'text-narrative') {
+    return true;
+  }
+  return type === 'slider' && !isNumericQuestionSlider(component.raw);
+}
+
+function isPlainTextComponent(component: Component): boolean {
+  if (isContentSlideshow(component)) return false;
+  return isPlainTextType(component.type);
+}
+
+const GENERIC_SLIDESHOW_TITLES = new Set(['Narrative', 'Carousel', 'Slider', 'Content', 'Slide']);
 
 function isGraphicType(type: string | undefined): boolean {
   return (type || '').toLowerCase() === 'graphic';
@@ -1673,11 +1748,11 @@ function pairTextWithGraphics(components: Component[]): Map<string, Component[]>
   }
 
   for (const group of byBlock.values()) {
-    const texts = group.filter((component) => isPlainTextType(component.type));
+    const texts = group.filter((component) => isPlainTextComponent(component));
     const graphics = group.filter((component) => isGraphicType(component.type));
     if (texts.length === 0 || graphics.length === 0) continue;
     const hasOther = group.some(
-      (component) => !isPlainTextType(component.type) && !isGraphicType(component.type)
+      (component) => !isPlainTextComponent(component) && !isGraphicType(component.type)
     );
     if (hasOther) continue;
     paired.set(texts[0].id, [...texts.slice(1), ...graphics]);
@@ -1707,7 +1782,7 @@ function pairQuestionCompanions(components: Component[]): Map<string, Component[
   if (
     questions.length === 1 &&
     others.length > 0 &&
-    others.every((component) => isQuestionCompanionType(component.type))
+    others.every((component) => isFoldableQuestionCompanion(component))
   ) {
     paired.set(questions[0].id, others);
     return paired;
@@ -1721,7 +1796,7 @@ function pairQuestionCompanions(components: Component[]): Map<string, Component[
     );
     const blockQuestions = inBlock.filter((component) => isQuestionnaireSourceType(component.type));
     if (blockQuestions.length !== 1) continue;
-    const companions = inBlock.filter((component) => isQuestionCompanionType(component.type));
+    const companions = inBlock.filter((component) => isFoldableQuestionCompanion(component));
     if (companions.length > 0) paired.set(question.id, companions);
   }
   return paired;
@@ -2005,9 +2080,62 @@ function nested(
 
 function stripHtml(html: string): string {
   return decodeHtmlEntities(html)
+    // Inline tags style part of a word. Replacing them with a space splits "Validity".
+    .replace(/<\/?(?:span|b|i|strong|em|u|font|a|sub|sup|small|mark|label)\b[^>]*>/gi, '')
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/**
+ * Evolve tabs identify the button label separately from the panel heading.
+ * `tabTitle` is the tab header. `title` is the heading inside the open panel.
+ */
+const TAB_HEADER_KEYS = ['tabTitle', '_tabTitle', 'tabLabel', '_tabLabel', 'tabText', '_tabText'] as const;
+
+function readTabHeader(row: Record<string, unknown>): string {
+  for (const key of TAB_HEADER_KEYS) {
+    const value = stripHtml(readEvolveText(row[key]));
+    if (value && !isGenericItemTitle(value)) return value;
+  }
+  return '';
+}
+
+function readPanelTitle(row: Record<string, unknown>): string {
+  for (const key of ['title', 'displayTitle', 'heading', '_title'] as const) {
+    const value = stripHtml(readEvolveText(row[key]));
+    if (value && !isGenericItemTitle(value)) return value;
+  }
+  return '';
+}
+
+function resolveTabItem(
+  row: Record<string, unknown>,
+  index: number
+): { title: string; bodyHtml: string; bodyText: string } {
+  const tabHeader = readTabHeader(row);
+  const resolved = resolveItemHeading(row, index, 'Tab');
+  if (!tabHeader) return resolved;
+
+  const bodyHtml =
+    readEvolveText(row.body) ||
+    readEvolveText(row.text) ||
+    readEvolveText(row.description);
+  let bodyText = stripHtml(bodyHtml);
+  const panelTitle = readPanelTitle(row);
+  if (
+    panelTitle &&
+    panelTitle.toLowerCase() !== tabHeader.toLowerCase() &&
+    !bodyText.toLowerCase().includes(panelTitle.toLowerCase())
+  ) {
+    bodyText = `${panelTitle} ${bodyText}`.trim();
+  }
+
+  return {
+    title: truncate(tabHeader, 200),
+    bodyHtml,
+    bodyText: bodyText || tabHeader,
+  };
 }
 
 function escapeHtml(text: string): string {

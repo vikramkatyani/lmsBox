@@ -864,9 +864,186 @@
   border: 0;
 }
 
+/* Evolve narrative / content slider: arrows on the frame, dots underneath. */
+.lmsbox-carousel--sides .lmsbox-carousel__frame {
+  position: relative;
+  margin: 0 1.25rem 0.85rem;
+  border: 1px solid var(--border, var(--lmsbox-navy-16, rgba(0, 46, 98, 0.16)));
+  border-radius: 4px;
+  background: var(--surface, #fff);
+}
+
+.lmsbox-carousel--sides .lmsbox-carousel__stage {
+  text-align: center;
+  padding: 1.5rem 3.25rem 1.15rem;
+}
+
+.lmsbox-carousel--sides .lmsbox-carousel__kicker {
+  display: none;
+}
+
+.lmsbox-carousel--sides .lmsbox-carousel__image-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 0 auto 1rem;
+  background: transparent;
+  border-radius: 0;
+}
+
+.lmsbox-carousel--sides .lmsbox-carousel__image {
+  width: auto;
+  max-width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+}
+
+.lmsbox-carousel--sides .lmsbox-carousel__title,
+.lmsbox-carousel--sides .lmsbox-carousel__body {
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.lmsbox-carousel--sides .lmsbox-carousel__nav {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 4px;
+  background: var(--secondary, var(--lmsbox-blue, #0059a3));
+  color: #fff;
+  transform: translateY(-50%);
+}
+
+.lmsbox-carousel--sides .lmsbox-carousel__nav--prev {
+  left: 0;
+}
+
+.lmsbox-carousel--sides .lmsbox-carousel__nav--next {
+  right: 0;
+}
+
+.lmsbox-carousel--sides .lmsbox-carousel__nav:hover:not(:disabled) {
+  background: var(--primary, var(--lmsbox-navy, #002e62));
+  color: #fff;
+  border-color: transparent;
+  transform: translateY(-50%);
+}
+
+.lmsbox-carousel--sides .lmsbox-carousel__nav:disabled {
+  background: var(--border-strong, rgba(0, 46, 98, 0.16));
+  color: var(--surface, #fff);
+  opacity: 1;
+}
+
+.lmsbox-carousel--sides .lmsbox-carousel__dots {
+  flex: none;
+  width: 100%;
+  padding: 0.15rem 1rem 1.35rem;
+}
+
+.lmsbox-carousel--sides .lmsbox-carousel__dot,
+.lmsbox-carousel--sides .lmsbox-carousel__dot[aria-current="true"] {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--primary, var(--lmsbox-navy, #002e62));
+  background: transparent;
+}
+
+.lmsbox-carousel--sides .lmsbox-carousel__dot[aria-current="true"] {
+  background: var(--primary, var(--lmsbox-navy, #002e62));
+}
+
 /* ==========================================================================
    QUESTIONNAIRE / QUIZ
    ========================================================================== */
+
+/* Questionnaire: the question stem is the thing learners must find.
+   The block title stays a small label so it does not read as the question. */
+.lmsbox-interactive-block[data-block-type="questionnaire"] .lmsbox-block-lead {
+  padding: 1rem 1.75rem 0.15rem;
+}
+
+.lmsbox-interactive-block[data-block-type="questionnaire"] .lmsbox-block-lead__heading {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-medium, 500);
+  letter-spacing: 0.12em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: var(--secondary, var(--lmsbox-blue, #0059a3));
+}
+
+.lmsbox-interactive-block[data-block-type="questionnaire"] .lms-question__head {
+  padding: 14px 28px;
+}
+
+.lmsbox-interactive-block[data-block-type="questionnaire"] .lms-question__mentor {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+
+.lmsbox-interactive-block[data-block-type="questionnaire"] .lms-question__mentor svg {
+  width: 18px;
+  height: 18px;
+}
+
+.lmsbox-interactive-block[data-block-type="questionnaire"] .lms-question__meta-name {
+  font-size: 0.875rem;
+}
+
+.lmsbox-interactive-block[data-block-type="questionnaire"] .lms-question__body {
+  padding-top: 22px;
+}
+
+.lmsbox-interactive-block[data-block-type="questionnaire"] .lms-question__ask {
+  margin: 0 0 1.5rem;
+  padding: 0.15rem 0 0.15rem 1rem;
+  border-left: 4px solid var(--accent-strong, var(--lmsbox-orange, #e74011));
+}
+
+.lmsbox-interactive-block[data-block-type="questionnaire"] .lms-question__context {
+  margin: 0 0 0.85rem;
+  max-width: 40rem;
+  font-size: 1.0625rem;
+  font-weight: var(--font-weight-regular, 400);
+  line-height: 1.55;
+  color: var(--text, #0f172a);
+}
+
+.lmsbox-interactive-block[data-block-type="questionnaire"] .lms-question__ask-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-semibold, 600);
+  letter-spacing: 0.14em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  color: var(--accent-strong, var(--lmsbox-orange, #e74011));
+}
+
+.lmsbox-interactive-block[data-block-type="questionnaire"] .lms-question__prompt {
+  margin: 0;
+  max-width: 40rem;
+  font-family: inherit;
+  font-size: clamp(1.375rem, 2.5vw, 1.85rem);
+  font-weight: var(--font-weight-semibold, 600);
+  letter-spacing: -0.025em;
+  line-height: 1.28;
+  color: var(--primary, var(--lmsbox-navy, #002e62));
+}
+
+.lmsbox-interactive-block[data-block-type="questionnaire"] .lms-question__hint {
+  margin: 0.7rem 0 0;
+  max-width: 40rem;
+  font-size: 0.9375rem;
+  font-weight: var(--font-weight-regular, 400);
+  line-height: 1.45;
+  color: var(--text-secondary, #334155);
+}
 
 /* Progress line inside the knowledge-check card header */
 .lmsbox-quiz-progress {
@@ -1796,6 +1973,15 @@
 
   .lmsbox-carousel__dot[aria-current="true"] {
     width: 28px;
+  }
+
+  .lmsbox-carousel--sides .lmsbox-carousel__stage {
+    padding: 1.25rem 2.75rem 1rem;
+  }
+
+  .lmsbox-carousel--sides .lmsbox-carousel__dot,
+  .lmsbox-carousel--sides .lmsbox-carousel__dot[aria-current="true"] {
+    width: 10px;
   }
 
   .lmsbox-quiz__item-body,
