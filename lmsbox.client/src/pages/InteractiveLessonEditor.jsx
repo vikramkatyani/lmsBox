@@ -670,7 +670,7 @@ export default function InteractiveLessonEditor() {
         (block.blockType === 'tabs' && formData.panels?.length) ||
         (block.blockType === 'questionnaire' && formData.questions?.length) ||
         (block.blockType === 'ordering' && formData.items?.length >= 2) ||
-        (block.blockType === 'text' && (formData.bodyHtml?.trim() || formData.body?.trim())) ||
+        (block.blockType === 'text' && (formData.bodyHtml?.trim() || formData.body?.trim() || formData.imageUrl?.trim())) ||
         (block.blockType === 'video' && formData.videoUrl?.trim()) ||
         (block.blockType === 'audio' && formData.audioUrl?.trim());
 

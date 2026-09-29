@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import RichTextEditor from './RichTextEditor';
+import InteractiveBlockImageField from './InteractiveBlockImageField';
 
 const MAX_BODY_CHARACTERS = 10000;
 
@@ -59,8 +60,29 @@ export default function TextBlockForm({ value, onChange }) {
         />
       </div>
 
+      <InteractiveBlockImageField
+        url={value.imageUrl || ''}
+        altPreview={value.imageAlt || ''}
+        onChange={(imageUrl) => update({ imageUrl })}
+      />
+
+      {value.imageUrl ? (
+        <div>
+          <label className="block text-sm font-medium mb-1">Image description</label>
+          <input
+            value={value.imageAlt || ''}
+            onChange={(e) => update({ imageAlt: e.target.value })}
+            className="w-full border rounded px-3 py-2"
+            maxLength={300}
+            placeholder="Describe the image for screen reader users"
+          />
+        </div>
+      ) : null}
+
       <div>
-        <label className="block text-sm font-medium mb-1">Text content *</label>
+        <label className="block text-sm font-medium mb-1">
+          {value.imageUrl ? 'Text content' : 'Text content *'}
+        </label>
         <RichTextEditor
           value={toInitialHtml(value)}
           onChange={handleBodyChange}

@@ -1,6 +1,9 @@
 import interactiveLessonsService from './interactiveLessons';
 import { getFile, findFileBySuffix } from '@import-engine/src/types/VirtualFileSystem';
-import { choosePackagedMedia } from '@import-engine/src/utils/evolveMedia';
+import { choosePackagedMedia, resolveAssetIdFromManifests } from '@import-engine/src/utils/evolveMedia';
+
+const ATTACH_PLACEHOLDER_HTML = /<p><em>(Image will attach from Evolve package:.*?|Graphic component imported without image asset\.)<\/em><\/p>/gi;
+const ATTACH_PLACEHOLDER_TEXT = /(Image will attach from Evolve package:\s*\S*|Graphic component imported without image asset\.?)/gi;
 
 /**
  * Sprint 3 — upload Evolve package media into created LMSBox draft blocks.
@@ -63,28 +66,53 @@ function resolveVfsFile(vfs, sourcePath) {
     const hit = lookupPath(vfs, chosen);
     if (hit) return hit;
   }
-  return lookupPath(vfs, normalised);
+  const direct = lookupPath(vfs, normalised);
+  if (direct) return direct;
+
+  const fromManifest = resolveAssetIdFromManifests(normalised, jsonManifests(vfs), files);
+  return fromManifest ? lookupPath(vfs, fromManifest) : null;
+}
+
+const manifestCache = new WeakMap();
+
+function jsonManifests(vfs) {
+  if (manifestCache.has(vfs)) return manifestCache.get(vfs);
+  const manifests = [];
+  for (const path of vfs.paths || []) {
+    if (!/\.json$/i.test(path)) continue;
+    const entry = getFile(vfs, path);
+    if (!entry) continue;
+    const text = entry.text ?? (entry.data ? new TextDecoder().decode(entry.data) : null);
+    manifests.push({ path, text });
+  }
+  manifestCache.set(vfs, manifests);
+  return manifests;
+}
+
+function withoutAttachPlaceholders(formPayload) {
+  const next = { ...formPayload };
+  next.bodyHtml = String(next.bodyHtml || '').replace(ATTACH_PLACEHOLDER_HTML, '').trim();
+  next.body = String(next.body || '').replace(ATTACH_PLACEHOLDER_TEXT, '').trim();
+  return next;
+}
+
+function withMissingImageNote(formPayload, sourcePath) {
+  const note = `Image could not be imported from the Evolve package (${sourcePath}). Upload it in the block editor.`;
+  const next = withoutAttachPlaceholders(formPayload);
+  const escaped = note.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  next.bodyHtml = `<p><em>${escaped}</em></p>${next.bodyHtml}`;
+  next.body = next.body ? `${note}\n\n${next.body}` : note;
+  return next;
 }
 
 function applyTargetField(formPayload, targetField, url, alt) {
   const next = { ...formPayload };
 
-  if (targetField === 'bodyHtml') {
-    const img = `<p><img src="${url}" alt="${alt || ''}" /></p>`;
-    const existing = String(next.bodyHtml || '');
-    // Replace attach placeholder notes when present.
-    const cleaned = existing
-      .replace(/<p><em>Image will attach from Evolve package:.*?<\/em><\/p>/gi, '')
-      .replace(/<p><em>Graphic component imported without image asset\.<\/em><\/p>/gi, '');
-    next.bodyHtml = `${img}${cleaned}`;
-    next.body = String(next.body || '')
-      .replace(/Image will attach from Evolve package:[^.]*\.?/gi, '')
-      .replace(/Graphic component imported without image asset\.?/gi, '')
-      .trim();
-    if (!next.body) {
-      next.body = alt || 'Image';
-    }
-    return next;
+  if (targetField === 'imageUrl' || targetField === 'bodyHtml') {
+    const cleaned = withoutAttachPlaceholders(next);
+    cleaned.imageUrl = url;
+    if (!cleaned.imageAlt && alt) cleaned.imageAlt = String(alt).slice(0, 300);
+    return cleaned;
   }
 
   const slideMatch = /^(slides|panels|nodes|pins)\.(\d+)\.imageUrl$/.exec(targetField);
@@ -159,6 +187,9 @@ export async function attachEvolveMedia({ importResult, plan, vfs, onProgress })
                   ? `No image rendition in ZIP for ${pathKey}`
                   : `Missing in ZIP: ${pathKey}`
               );
+              if (attachment.targetField === 'imageUrl' || attachment.targetField === 'bodyHtml') {
+                formPayload = withMissingImageNote(formPayload, pathKey);
+              }
               continue;
             }
 

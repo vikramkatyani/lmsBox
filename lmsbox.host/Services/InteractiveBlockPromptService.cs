@@ -1957,6 +1957,10 @@ Return ONLY the HTML fragment.
                 $"Subheading must be at most {InteractiveLessonConstants.MaxTextSubheadingLength} characters.");
         }
 
+        LimitOptionalHttpUrl(root["imageUrl"], "Image", InteractiveLessonConstants.MaxBlockImageUrlLength);
+        LimitOptionalText(root["imageAlt"], "Image description", InteractiveLessonConstants.MaxTextImageAltLength);
+        var hasImage = !string.IsNullOrWhiteSpace(ReadText(root["imageUrl"]));
+
         var bodyHtml = root["bodyHtml"]?.GetValue<string>();
         var body = root["body"]?.GetValue<string>();
 
@@ -1965,6 +1969,11 @@ Return ONLY the HTML fragment.
         {
             if (string.IsNullOrWhiteSpace(body))
             {
+                if (hasImage)
+                {
+                    return;
+                }
+
                 throw new ArgumentException("Text content is required.");
             }
 
@@ -1983,7 +1992,7 @@ Return ONLY the HTML fragment.
         }
 
         var characters = InteractiveRichTextSanitizer.CountCharacters(bodyHtml);
-        if (characters == 0)
+        if (characters == 0 && !hasImage)
         {
             throw new ArgumentException("Text content is required.");
         }

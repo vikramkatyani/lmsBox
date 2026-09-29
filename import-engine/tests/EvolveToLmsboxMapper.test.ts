@@ -209,7 +209,7 @@ describe('EvolveToLmsboxMapper', () => {
     expect(block.mediaAssets).toHaveLength(1);
     expect(block.mediaAssets[0]).toMatchObject({
       sourcePath: 'course/en/images/06_01_030/06_01_030_image_white.png',
-      targetField: 'bodyHtml',
+      targetField: 'imageUrl',
     });
     expect(String(block.formPayload.bodyHtml)).toMatch(/Image will attach from Evolve package/);
   });
@@ -327,7 +327,7 @@ describe('EvolveToLmsboxMapper', () => {
 
     expect(block.mediaAssets[0]).toMatchObject({
       sourcePath: 'course/en/assets/kit-contents.png',
-      targetField: 'bodyHtml',
+      targetField: 'imageUrl',
     });
     expect(plan.report[0].message).toMatch(/queued for media attach/i);
   });

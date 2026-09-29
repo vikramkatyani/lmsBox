@@ -79,6 +79,7 @@ public static class InteractiveLessonConstants
     public const int MaxHotspotPins = 12;
     public const int MaxHotspotImageUrlLength = 2000;
     public const int MaxHotspotImageAltLength = 300;
+    public const int MaxTextImageAltLength = 300;
     public const int MaxHotspotPinTitleLength = 120;
     public const int MaxHotspotPinBodyLength = 600;
 

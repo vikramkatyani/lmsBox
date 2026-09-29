@@ -705,16 +705,18 @@ export class EvolveToLmsboxMapper {
     let status: 'mapped' | 'stubbed' = 'mapped';
     let message = `Mapped ${sourceType} → text.`;
     const mediaAssets: PendingMediaAttachment[] = [];
+    let imageUrl = '';
+    let imageAlt = '';
 
     if (sourceType === 'graphic') {
       const src = this.resolveImageSource(raw, component);
       const alt = resolveEvolveGraphicAlt(raw) || heading;
+      imageAlt = truncate(alt, 300);
       if (src && isAbsoluteUrl(src)) {
-        bodyHtml = `<p><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" /></p>${bodyHtml}`;
-        body = stripHtml(bodyHtml);
+        imageUrl = src;
         message = `Mapped graphic with absolute image URL → text.`;
       } else if (src) {
-        mediaAssets.push(makePendingMedia(src, 'bodyHtml', alt));
+        mediaAssets.push(makePendingMedia(src, 'imageUrl', alt));
         bodyHtml =
           bodyHtml ||
           `<p><em>Image will attach from Evolve package: ${escapeHtml(src)}</em></p>`;
@@ -731,7 +733,7 @@ export class EvolveToLmsboxMapper {
       }
     }
 
-    if (!bodyHtml.trim() && !body.trim()) {
+    if (!bodyHtml.trim() && !body.trim() && !imageUrl) {
       body = heading || 'Imported content';
       bodyHtml = `<p>${escapeHtml(body)}</p>`;
     }
@@ -742,6 +744,7 @@ export class EvolveToLmsboxMapper {
         subheading: '',
         bodyHtml,
         body: truncate(body, 10000),
+        ...(sourceType === 'graphic' ? { imageUrl, imageAlt } : {}),
         showContinueButton: true,
       },
       status,

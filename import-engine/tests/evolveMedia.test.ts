@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { choosePackagedMedia, expandPackagePath } from '../src/utils/evolveMedia';
+import {
+  choosePackagedMedia,
+  expandPackagePath,
+  resolveAssetIdFromManifests,
+} from '../src/utils/evolveMedia';
 import type { Asset } from '../src/models/Asset';
 
 function asset(path: string, mediaType: string): Asset {
@@ -37,6 +41,43 @@ describe('choosePackagedMedia', () => {
     expect(choosePackagedMedia('course/en/assets/kit-contents.png', files)).toBe(
       'course/en/assets/kit-contents.png'
     );
+  });
+});
+
+describe('resolveAssetIdFromManifests', () => {
+  const assetId = '5ff2fefca6b2535263894e7a';
+
+  it('follows the manifest record that names the file', () => {
+    const files = [
+      { path: 'course/en/assets.json', filename: 'assets.json' },
+      { path: 'course/en/assets/kit-contents.png', filename: 'kit-contents.png' },
+    ];
+    const manifests = [
+      {
+        path: 'course/en/assets.json',
+        text: JSON.stringify([{ _id: assetId, path: 'course/en/assets/kit-contents.png' }]),
+      },
+    ];
+    expect(resolveAssetIdFromManifests(assetId, manifests, files)).toBe(
+      'course/en/assets/kit-contents.png'
+    );
+  });
+
+  it('uses renditions beside an asset.json whose folder is not the id', () => {
+    const files = [
+      { path: 'course/en/assets/kit/asset.json', filename: 'asset.json' },
+      { path: 'course/en/assets/kit/large.jpg', filename: 'large.jpg' },
+    ];
+    const manifests = [
+      { path: 'course/en/assets/kit/asset.json', text: JSON.stringify({ _id: assetId }) },
+    ];
+    expect(resolveAssetIdFromManifests(assetId, manifests, files)).toBe(
+      'course/en/assets/kit/large.jpg'
+    );
+  });
+
+  it('returns empty when no manifest mentions the id', () => {
+    expect(resolveAssetIdFromManifests(assetId, [{ path: 'a.json', text: '{}' }], [])).toBe('');
   });
 });
 

@@ -464,6 +464,17 @@
   display: none;
 }
 
+.lmsbox-text__figure {
+  margin: 0 0 1.5rem;
+}
+
+.lmsbox-text__image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-md, 8px);
+}
+
 .lmsbox-text__body {
   margin: 0 0 1.5rem;
   color: var(--text-secondary, var(--lmsbox-grey, #575756));

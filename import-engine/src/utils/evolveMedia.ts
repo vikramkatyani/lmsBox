@@ -261,6 +261,99 @@ export function choosePackagedMedia(
   return '';
 }
 
+/**
+ * Some packages keep assets outside an `{id}` folder, so a bare asset id only resolves
+ * through the JSON manifest that records it (e.g. `assets.json` or a sibling `asset.json`).
+ */
+export function resolveAssetIdFromManifests(
+  assetId: string,
+  jsonFiles: { path: string; text: string | null }[],
+  files: { path: string; filename: string }[]
+): string {
+  const id = assetId.trim();
+  if (!looksLikeAssetId(id)) return '';
+  const lower = id.toLowerCase();
+
+  for (const manifest of jsonFiles) {
+    if (!manifest.text || !manifest.text.toLowerCase().includes(lower)) continue;
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(manifest.text);
+    } catch {
+      continue;
+    }
+
+    const record = findRecordWithId(parsed, lower);
+    if (!record) continue;
+
+    const manifestPath = manifest.path.replace(/\\/g, '/');
+    const manifestFolder = manifestPath.includes('/')
+      ? manifestPath.slice(0, manifestPath.lastIndexOf('/'))
+      : '';
+
+    for (const reference of recordFileReferences(record)) {
+      const candidates = [reference];
+      if (manifestFolder && !reference.includes('/')) {
+        candidates.push(`${manifestFolder}/${reference}`);
+      }
+      for (const candidate of candidates) {
+        const chosen = choosePackagedMedia(candidate, files);
+        if (chosen && files.some((file) => samePath(file.path, chosen))) return chosen;
+      }
+    }
+
+    // A record-level asset.json describes the renditions stored next to it.
+    const isRootRecord = parsed === record;
+    if (isRootRecord && manifestFolder) {
+      const inFolder = bestImage(files.filter((file) => isInsideFolder(file.path, manifestFolder)));
+      if (inFolder) return inFolder;
+    }
+  }
+
+  return '';
+}
+
+function findRecordWithId(node: unknown, lowerId: string, depth = 0): Record<string, unknown> | null {
+  if (node == null || depth > 8 || typeof node !== 'object') return null;
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      const found = findRecordWithId(item, lowerId, depth + 1);
+      if (found) return found;
+    }
+    return null;
+  }
+  const obj = node as Record<string, unknown>;
+  const ownId = [obj._id, obj.id, obj.assetId, obj._assetId].find(
+    (value) => typeof value === 'string' && value.trim().toLowerCase() === lowerId
+  );
+  if (ownId) return obj;
+  for (const [key, child] of Object.entries(obj)) {
+    if (key.trim().toLowerCase() === lowerId && child && typeof child === 'object') {
+      return child as Record<string, unknown>;
+    }
+    const found = findRecordWithId(child, lowerId, depth + 1);
+    if (found) return found;
+  }
+  return null;
+}
+
+function recordFileReferences(record: Record<string, unknown>): string[] {
+  const keys = ['path', '_path', 'filename', '_filename', 'src', '_src', 'url', '_url', 'file', 'original', 'large'];
+  const references: string[] = [];
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'string' && value.trim() && !looksLikeAssetId(value)) {
+      references.push(value.trim().replace(/\\/g, '/').replace(/^\.\//, ''));
+    }
+  }
+  return references;
+}
+
+function samePath(a: string, b: string): boolean {
+  return a.replace(/\\/g, '/').toLowerCase() === b.replace(/\\/g, '/').toLowerCase();
+}
+
 export function expandPackagePath(path: string, assets: Asset[]): string {
   if (!path) return '';
   const normalised = path.replace(/\\/g, '/');

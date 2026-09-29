@@ -1091,6 +1091,8 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
         var body = root["body"]?.GetValue<string>()?.Trim() ?? "";
         var bodyHtml = root["bodyHtml"]?.GetValue<string>() ?? "";
         var showContinue = root["showContinueButton"]?.GetValue<bool>() ?? true;
+        var imageUrl = ReadText(root["imageUrl"]);
+        var imageAlt = ReadText(root["imageAlt"]);
 
         // Blocks authored before the rich text editor only carry plain text, which the
         // template renders with preserved line breaks.
@@ -1098,12 +1100,16 @@ public class InteractiveBlockTemplateService : IInteractiveBlockTemplateService
         var renderedBody = isRichBody
             ? InteractiveRichTextSanitizer.Sanitize(bodyHtml)
             : HtmlEncode(body);
+        var renderedImage = string.IsNullOrWhiteSpace(imageUrl)
+            ? ""
+            : $"""<figure class="lmsbox-text__figure">{RenderOptionalImage(imageUrl, "lmsbox-text__image", imageAlt)}</figure>""";
 
         var html = FillTemplate(
             "text.html",
             blockId,
             ("{{HEADING}}", HtmlEncode(heading)),
             ("{{SUBHEADING}}", HtmlEncode(subheading)),
+            ("{{IMAGE}}", renderedImage),
             ("{{BODY}}", renderedBody),
             ("{{BODY_FORMAT}}", isRichBody ? "rich" : "plain"),
             ("{{SHOW_CONTINUE}}", showContinue ? "1" : "0"));
