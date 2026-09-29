@@ -24,6 +24,7 @@ import { SHOW_PRACTICAL_IN_ADD_MENU } from '../config/lessonFeatureFlags';
 import { Sparkles } from 'lucide-react';
 import { getUserRole } from '../utils/auth';
 import { adminFeatureFlags } from '../config/adminFeatureFlags';
+import ContentPolicyAcknowledgement from '../components/ContentPolicyAcknowledgement';
 
 export default function AdminCourseEditor() {
   const navigate = useNavigate();
@@ -65,6 +66,7 @@ export default function AdminCourseEditor() {
 
   const [tagInput, setTagInput] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [contentPolicyAccepted, setContentPolicyAccepted] = useState(false);
   const [activeTab, setActiveTab] = useState('details'); // details | lessons | resources | quizzes
   
   // Surveys state (for dropdowns)
@@ -869,6 +871,11 @@ export default function AdminCourseEditor() {
 
   const onSave = async () => {
     setSubmitted(true);
+    if (isNew && !contentPolicyAccepted) {
+      setActiveTab('details');
+      toast.error('Accept the Content Policy before creating this course.');
+      return;
+    }
     if (!isValid) {
       if (!form.title.trim()) {
         toast.error('Please enter a course title');
@@ -886,6 +893,7 @@ export default function AdminCourseEditor() {
       
       let _savedCourse;
       if (isNew) {
+        courseData.contentPolicyAccepted = true;
         _savedCourse = await adminCourseService.createCourse(courseData);
         toast.success('Course created successfully! Now add lessons in the Lessons tab.');
         // Stay on the page and switch to lessons tab
@@ -1288,9 +1296,23 @@ export default function AdminCourseEditor() {
               </div>
             </div>
 
+            {isNew && (
+              <ContentPolicyAcknowledgement
+                accepted={contentPolicyAccepted}
+                onChange={setContentPolicyAccepted}
+                showError={submitted}
+              />
+            )}
+
             <div className="flex justify-end gap-3 pt-2">
               <button onClick={() => navigate(-1)} className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">Cancel</button>
-              <button onClick={onSave} className="px-4 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90 cursor-pointer">Save</button>
+              <button
+                onClick={onSave}
+                disabled={saving || (isNew && !contentPolicyAccepted)}
+                className="px-4 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? 'Saving...' : isNew ? 'Create Course' : 'Save'}
+              </button>
             </div>
           </div>
           )}
@@ -1330,7 +1352,7 @@ export default function AdminCourseEditor() {
 
               {isNew && (
                 <div className="bg-warning border border-warning rounded-lg p-4 text-sm text-warning">
-                  <strong>Note:</strong> Please save the course first before adding lessons.
+                  <strong>Note:</strong> Accept the Content Policy on the Details tab and create the course before adding lessons.
                 </div>
               )}
 
@@ -1731,10 +1753,10 @@ export default function AdminCourseEditor() {
                 <button onClick={() => navigate(-1)} className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">Cancel</button>
                 <button 
                   onClick={onSave} 
-                  disabled={saving}
+                  disabled={saving || (isNew && !contentPolicyAccepted)}
                   className="px-4 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {saving ? 'Saving...' : 'Save Course'}
+                  {saving ? 'Saving...' : isNew ? 'Create Course' : 'Save Course'}
                 </button>
               </div>
             </div>

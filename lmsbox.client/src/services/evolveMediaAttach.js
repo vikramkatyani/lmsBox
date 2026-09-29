@@ -95,6 +95,17 @@ function applyTargetField(formPayload, targetField, url, alt) {
     return next;
   }
 
+  const questionMatch = /^questions\.(\d+)\.imageUrl$/.exec(targetField);
+  if (questionMatch) {
+    const index = Number(questionMatch[1]);
+    const list = Array.isArray(next.questions) ? [...next.questions] : [];
+    if (list[index]) {
+      list[index] = { ...list[index], imageUrl: url };
+      next.questions = list;
+    }
+    return next;
+  }
+
   next[targetField] = url;
   return next;
 }

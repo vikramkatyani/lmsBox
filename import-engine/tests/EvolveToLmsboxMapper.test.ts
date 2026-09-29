@@ -507,9 +507,142 @@ describe('EvolveToLmsboxMapper', () => {
 
     expect(plan.lessons).toHaveLength(1);
     expect(plan.lessons[0].blocks[0].blockType).toBe('questionnaire');
+    const question = (
+      plan.lessons[0].blocks[0].formPayload.questions as {
+        text: string;
+        options: { text: string; isCorrect: boolean }[];
+      }[]
+    )[0];
+    expect(question.text).toBe('What is 2+2?');
+    expect(question.options.map((option) => option.text)).toEqual(['4', '5']);
+    expect(question.options.map((option) => option.isCorrect)).toEqual([true, false]);
     expect(plan.report.some((r) => r.sourceType === 'mcq' && r.status === 'mapped')).toBe(
       true
     );
+  });
+
+  it('maps Evolve answer items as options and queues the question image', () => {
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-mcq',
+        type: 'mcq',
+        title: 'Mini quiz – Question 1',
+        displayTitle: 'Mini quiz – Question 1',
+        body: '<p>Interpret the following test.</p>',
+        raw: {
+          title: 'Mini quiz – Question 1',
+          displayTitle: 'Mini quiz – Question 1',
+          body: '<p>Interpret the following test.</p>',
+          instruction: 'Select the image of the test to view it from an alternative angle.',
+          _selectable: 1,
+          _graphic: { src: 'course/en/assets/visitect.png', alt: 'VISITECT CD4 test' },
+          _items: [
+            { text: 'Above Reference', _shouldBeSelected: false },
+            { text: 'Below Reference', _shouldBeSelected: true },
+            { text: 'Invalid Result', _shouldBeSelected: false },
+          ],
+          _feedback: {
+            correct: 'Correct interpretation.',
+            _incorrect: { final: 'Look at the control and test lines again.' },
+          },
+        },
+      }),
+    ]);
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    const block = plan.lessons[0].blocks[0];
+    const question = (
+      block.formPayload.questions as {
+        text: string;
+        type: string;
+        imageUrl: string;
+        correctFeedback: string;
+        incorrectFeedback: string;
+        options: { text: string; isCorrect: boolean }[];
+      }[]
+    )[0];
+
+    expect(block.blockType).toBe('questionnaire');
+    expect(question.text).toBe('Interpret the following test.');
+    expect(question.type).toBe('single');
+    expect(question.options).toEqual([
+      { text: 'Above Reference', isCorrect: false },
+      { text: 'Below Reference', isCorrect: true },
+      { text: 'Invalid Result', isCorrect: false },
+    ]);
+    expect(question.correctFeedback).toBe('Correct interpretation.');
+    expect(question.incorrectFeedback).toMatch(/control and test lines/);
+    expect(block.formPayload.heading).toBe('Mini quiz – Question 1');
+    expect(block.formPayload.intro).toMatch(/alternative angle/);
+    expect(question.imageUrl).toBe('');
+    expect(block.mediaAssets[0]).toMatchObject({
+      sourcePath: 'course/en/assets/visitect.png',
+      targetField: 'questions.0.imageUrl',
+      alt: 'VISITECT CD4 test',
+    });
+  });
+
+  it('folds the sibling test graphic into the questionnaire', () => {
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-graphic',
+        type: 'graphic',
+        title: 'Mini quiz – Question 1',
+        displayTitle: 'Mini quiz – Question 1',
+        body: '<p>Interpret the following test.</p>',
+        raw: {
+          displayTitle: 'Mini quiz – Question 1',
+          body: '<p>Interpret the following test.</p>',
+          instruction: 'Select the image of the test to view it from an alternative angle.',
+          _graphic: { src: 'course/en/assets/visitect.png', alt: 'Test cassette' },
+        },
+      }),
+      makeComponent({
+        id: 'c-mcq',
+        type: 'mcq',
+        title: 'MCQ',
+        raw: {
+          title: 'MCQ',
+          _items: [
+            { text: 'Above Reference', _shouldBeSelected: true },
+            { text: 'Below Reference', _shouldBeSelected: false },
+            { text: 'Invalid Result', _shouldBeSelected: false },
+          ],
+        },
+      }),
+    ]);
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    const block = plan.lessons[0].blocks[0];
+    const question = (
+      block.formPayload.questions as {
+        text: string;
+        options: { text: string }[];
+      }[]
+    )[0];
+
+    expect(plan.lessons[0].blocks).toHaveLength(1);
+    expect(block.blockType).toBe('questionnaire');
+    expect(block.title).toMatch(/Mini quiz/);
+    expect(question.text).toBe('Interpret the following test.');
+    expect(question.options.map((option) => option.text)).toEqual([
+      'Above Reference',
+      'Below Reference',
+      'Invalid Result',
+    ]);
+    expect(block.formPayload.intro).toMatch(/alternative angle/);
+    expect(block.mediaAssets[0]).toMatchObject({
+      sourcePath: 'course/en/assets/visitect.png',
+      targetField: 'questions.0.imageUrl',
+    });
+    expect(
+      plan.report.some(
+        (item) =>
+          item.sourceComponentId === 'c-graphic' &&
+          item.targetBlockType === 'questionnaire' &&
+          item.status === 'mapped'
+      )
+    ).toBe(true);
   });
 
   it('can map mcq when skipAssessments is false', () => {
@@ -802,6 +935,50 @@ describe('EvolveToLmsboxMapper', () => {
     expect((block.formPayload.panels as { title: string }[])[0].title).toBe('One');
   });
 
+  it('uses original Evolve tab headings instead of Tab 1 labels', () => {
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-tabs',
+        type: 'tabs',
+        title: 'Interpreting the test',
+        raw: {
+          _items: [
+            {
+              title: 'Tab 1',
+              _tabTitle: 'Validity',
+              body: '<p>The control line must appear.</p>',
+            },
+            {
+              title: '',
+              tabTitle: { _default: 'ABOVE REFERENCE' },
+              body: '<p>A line above the reference window.</p>',
+            },
+            {
+              title: 'Tab 3',
+              body: '<p>BELOW REFERENCE</p><p>A line below the reference window.</p>',
+            },
+            {
+              title: '',
+              body: '<p><strong>Reading Results</strong></p><p>Compare the test line with the reference.</p>',
+            },
+          ],
+        },
+      }),
+    ]);
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    const panels = plan.lessons[0].blocks[0].formPayload.panels as { title: string; body: string }[];
+
+    expect(panels.map((panel) => panel.title)).toEqual([
+      'Validity',
+      'ABOVE REFERENCE',
+      'BELOW REFERENCE',
+      'Reading Results',
+    ]);
+    expect(panels[2].body).toMatch(/below the reference window/i);
+    expect(panels[3].body).toMatch(/Compare the test line/i);
+  });
+
   it('maps flowChart items to flowchart nodes', () => {
     const course = makeCourse([
       makeComponent({
@@ -827,6 +1004,52 @@ describe('EvolveToLmsboxMapper', () => {
     expect(nodes[0].variant).toBe('start');
     expect(nodes[1].variant).toBe('decision');
     expect(nodes[2].variant).toBe('end');
+  });
+
+  it('uses the original body heading instead of generic Stage 1 labels', () => {
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-flow',
+        type: 'flowChart',
+        title: 'VISITECT® CD4 Advanced Disease test overview',
+        raw: {
+          instruction: 'Select a stage to read more',
+          _items: [
+            {
+              title: 'Stage 1',
+              body:
+                '<p>Why are CD4+ T cell counts important?</p><p>In people living with HIV, the virus attacks CD4+ T cells.</p>',
+            },
+            {
+              title: '',
+              body: '<h2>What does the test measure?</h2><p>It reports a visual result.</p>',
+            },
+            {
+              title: { _default: 'How should the result be used?' },
+              body: '<p>Use it to support diagnostic decision making.</p>',
+            },
+          ],
+        },
+      }),
+    ]);
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    const nodes = plan.lessons[0].blocks[0].formPayload.nodes as {
+      title: string;
+      body: string;
+      variant: string;
+    }[];
+
+    expect(nodes.map((node) => node.title)).toEqual([
+      'Why are CD4+ T cell counts important?',
+      'What does the test measure?',
+      'How should the result be used?',
+    ]);
+    expect(nodes[0].body).toMatch(/virus attacks CD4\+ T cells/i);
+    expect(nodes[0].body).not.toMatch(/^Why are CD4\+ T cell counts important\?$/);
+    expect(nodes[1].body).toMatch(/visual result/i);
+    expect(nodes[0].variant).toBe('start');
+    expect(nodes[1].variant).toBe('step');
   });
 
   it('links flowchart stage images stored as per-device asset ids', () => {

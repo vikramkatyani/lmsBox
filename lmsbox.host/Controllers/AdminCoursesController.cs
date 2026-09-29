@@ -546,6 +546,11 @@ public class AdminCoursesController : ControllerBase
                 return BadRequest(new { message = "User must belong to an organization to create courses" });
             }
 
+            if (!request.ContentPolicyAccepted)
+            {
+                return BadRequest(new { message = "You must acknowledge and accept the Content Policy before creating a course." });
+            }
+
             // Validate required fields
             if (string.IsNullOrWhiteSpace(request.Title))
             {
@@ -604,7 +609,9 @@ public class AdminCoursesController : ControllerBase
                 IsPreSurveyMandatory = request.IsPreSurveyMandatory,
                 IsPostSurveyMandatory = request.IsPostSurveyMandatory,
                 RequireSequentialLessons = request.RequireSequentialLessons,
-                ShowLessonNavigation = request.ShowLessonNavigation
+                ShowLessonNavigation = request.ShowLessonNavigation,
+                ContentPolicyAcceptedAt = DateTime.UtcNow,
+                ContentPolicyVersion = ContentPolicy.CurrentVersion
             };
 
             _context.Courses.Add(course);
@@ -1144,7 +1151,9 @@ public class AdminCoursesController : ControllerBase
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 RequireSequentialLessons = originalCourse.RequireSequentialLessons,
-                ShowLessonNavigation = originalCourse.ShowLessonNavigation
+                ShowLessonNavigation = originalCourse.ShowLessonNavigation,
+                ContentPolicyAcceptedAt = originalCourse.ContentPolicyAcceptedAt,
+                ContentPolicyVersion = originalCourse.ContentPolicyVersion
             };
 
             _context.Courses.Add(newCourse);
@@ -1897,6 +1906,11 @@ public class CreateCourseRequest
     public bool IsPostSurveyMandatory { get; set; } = false;
     public bool RequireSequentialLessons { get; set; } = false;
     public bool ShowLessonNavigation { get; set; } = false;
+
+    /// <summary>
+    /// Must be true to create a course. Ignored on update.
+    /// </summary>
+    public bool ContentPolicyAccepted { get; set; }
 }
 
 public class UpdateCourseRequest : CreateCourseRequest

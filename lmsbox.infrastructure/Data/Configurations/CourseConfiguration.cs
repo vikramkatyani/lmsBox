@@ -15,6 +15,9 @@ public class CourseConfiguration : IEntityTypeConfiguration<Course>
                .IsRequired()
                .HasMaxLength(250);
 
+        builder.Property(c => c.ContentPolicyVersion)
+               .HasMaxLength(32);
+
         // Unique Title per Organisation, ignoring soft-deleted courses so a deleted
         // course does not reserve its title forever.
         builder.HasIndex(c => new { c.OrganisationId, c.Title })

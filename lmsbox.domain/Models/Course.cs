@@ -52,6 +52,17 @@ public class Course
     /// </summary>
     public bool ShowLessonNavigation { get; set; } = false;
 
+    /// <summary>
+    /// UTC time the creating admin accepted the content policy. Null for courses created before acceptance was required.
+    /// </summary>
+    public DateTime? ContentPolicyAcceptedAt { get; set; }
+
+    /// <summary>
+    /// Version of the content policy that was accepted.
+    /// </summary>
+    [MaxLength(32)]
+    public string? ContentPolicyVersion { get; set; }
+
     // Ownership: course belongs to an organisation
     public long OrganisationId { get; set; }
     [ForeignKey(nameof(OrganisationId))]

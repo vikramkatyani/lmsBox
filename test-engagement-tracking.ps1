@@ -105,6 +105,7 @@ try {
         description = "Course created to test engagement tracking"
         category = "Testing"
         certificateEnabled = $false
+        contentPolicyAccepted = $true
     } | ConvertTo-Json
     $newCourse = Invoke-RestMethod -Uri "$baseUrl/api/admin/courses" -Method Post -Headers $adminHeaders -Body $createCourseBody
     $testCourseId = $newCourse.id

@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import AdminHeader from '../components/AdminHeader';
 import Pagination from '../components/Pagination';
 import toast from 'react-hot-toast';
@@ -249,7 +249,10 @@ export default function AdminCourses() {
 
         <div className="bg-white rounded-lg shadow">
           {/* Header and Create button */}
-          <div className="px-6 py-4 border-b flex flex-wrap gap-3 items-center justify-end">
+          <div className="px-6 py-4 border-b flex flex-wrap gap-3 items-center justify-between">
+            <Link to="/admin/content-policy" className="text-sm font-medium text-[#1b365d] underline hover:text-[#0f2340]">
+              Content Policy
+            </Link>
             <button onClick={onCreateNew} className="px-4 py-2 bg-boxlms-primary-btn text-boxlms-primary-btn-txt rounded hover:brightness-90 cursor-pointer">
               Add New Course
             </button>

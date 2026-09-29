@@ -305,6 +305,7 @@ export default function AdminHeader({ hideNavigation = false }) {
                   <ul className="space-y-1.5">
                     <li><Link to="/admin/profile" className="text-sm text-gray-500 hover:text-slate-900" onClick={() => setShowProfileMenu(false)}>Profile Settings</Link></li>
                     <li><Link to="/admin/settings" className="text-sm text-gray-500 hover:text-slate-900" onClick={() => setShowProfileMenu(false)}>System Settings</Link></li>
+                    <li><Link to="/admin/content-policy" className="text-sm text-gray-500 hover:text-slate-900" onClick={() => setShowProfileMenu(false)}>Content Policy</Link></li>
                     {isTenantAdmin() && (
                       <li><Link to="/tenant/branding" className="text-sm text-gray-500 hover:text-slate-900" onClick={() => setShowProfileMenu(false)}>Branding</Link></li>
                     )}

@@ -550,6 +550,13 @@ namespace lmsbox.infrastructure.Migrations
                     b.Property<bool>("CertificateEnabled")
                         .HasColumnType("bit");
 
+                    b.Property<DateTime?>("ContentPolicyAcceptedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ContentPolicyVersion")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 

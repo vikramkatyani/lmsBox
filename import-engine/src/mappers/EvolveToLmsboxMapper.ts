@@ -380,8 +380,58 @@ export class EvolveToLmsboxMapper {
     const unmapped = components.filter((component) => !consumedIds.has(component.id));
 
     let assessmentComponentSkips = 0;
+    const companionsByQuestion = pairQuestionCompanions(unmapped);
+    const questionById = new Map(unmapped.map((component) => [component.id, component]));
+    const companionOwnerId = new Map<string, string>();
+    for (const [questionId, companions] of companionsByQuestion) {
+      for (const companion of companions) {
+        companionOwnerId.set(companion.id, questionId);
+      }
+    }
+    const emittedQuestionIds = new Set<string>();
+
+    const emitQuestion = (question: Component): void => {
+      if (emittedQuestionIds.has(question.id)) return;
+      emittedQuestionIds.add(question.id);
+      const before = report.length;
+      const mapped = this.mapComponent(
+        question,
+        report,
+        options.skipAssessments,
+        companionsByQuestion.get(question.id) ?? []
+      );
+      if (mapped) {
+        blocks.push(mapped);
+      } else if (
+        report[report.length - 1]?.reasonCode === 'assessment_component' &&
+        report.length > before
+      ) {
+        assessmentComponentSkips += 1;
+      }
+    };
 
     for (const component of unmapped) {
+      const ownerId = companionOwnerId.get(component.id);
+      if (ownerId) {
+        const owner = questionById.get(ownerId);
+        if (owner) emitQuestion(owner);
+        const sourceType = (component.type || 'unknown').toLowerCase();
+        report.push({
+          sourceComponentId: component.id,
+          sourceType,
+          sourceTitle: resolveHumanTitle(component, component.raw ?? {}, sourceType),
+          status: 'mapped',
+          targetBlockType: 'questionnaire',
+          message: 'Included with the questionnaire as question text or image.',
+        });
+        continue;
+      }
+
+      if (companionsByQuestion.has(component.id)) {
+        emitQuestion(component);
+        continue;
+      }
+
       const before = report.length;
       const mapped = this.mapComponent(
         component,
@@ -513,10 +563,19 @@ export class EvolveToLmsboxMapper {
   private mapComponent(
     component: Component,
     report: MappingReportItem[],
-    skipAssessments = true
+    skipAssessments = true,
+    companions: Component[] = []
   ): MappedBlock | null {
     const sourceType = (component.type || 'unknown').toLowerCase();
-    const title = resolveHumanTitle(component, component.raw ?? {}, sourceType);
+    let title = resolveHumanTitle(component, component.raw ?? {}, sourceType);
+    if (companions.length > 0 && isGenericQuestionTitle(title)) {
+      const companionTitle = companions
+        .map((companion) =>
+          resolveHumanTitle(companion, companion.raw ?? {}, (companion.type || '').toLowerCase())
+        )
+        .find((value) => value && !isGenericQuestionTitle(value));
+      if (companionTitle) title = companionTitle;
+    }
 
     if (skipAssessments && isEvolveAssessmentComponentType(sourceType)) {
       report.push({
@@ -548,7 +607,8 @@ export class EvolveToLmsboxMapper {
       const { formPayload, status, message, mediaAssets } = this.buildPayload(
         sourceType,
         targetType,
-        component
+        component,
+        companions
       );
 
       report.push({
@@ -585,7 +645,8 @@ export class EvolveToLmsboxMapper {
   private buildPayload(
     sourceType: string,
     targetType: string,
-    component: Component
+    component: Component,
+    companions: Component[] = []
   ): {
     formPayload: Record<string, unknown>;
     status: 'mapped' | 'stubbed';
@@ -612,7 +673,7 @@ export class EvolveToLmsboxMapper {
       case 'hotspot':
         return this.mapToHotspot(component, raw);
       case 'questionnaire':
-        return this.mapToQuestionnaire(component, raw);
+        return this.mapToQuestionnaire(component, raw, companions);
       case 'tabs':
         return this.mapToTabs(component, raw);
       case 'flowchart':
@@ -703,12 +764,11 @@ export class EvolveToLmsboxMapper {
       .map((item, index) => {
         if (!item || typeof item !== 'object') return null;
         const row = item as Record<string, unknown>;
-        const title =
-          asString(row.title) ||
-          asString(row.displayTitle) ||
-          `Panel ${index + 1}`;
-        const body = asString(row.body) || asString(row.text) || '';
-        return { title: truncate(title, 200), body: stripHtml(body) || title };
+        const resolved = resolveItemHeading(row, index, 'Panel');
+        return {
+          title: truncate(resolved.title, 200),
+          body: resolved.bodyText || resolved.title,
+        };
       })
       .filter((p): p is { title: string; body: string } => !!p);
 
@@ -747,11 +807,9 @@ export class EvolveToLmsboxMapper {
       .map((item, index) => {
         if (!item || typeof item !== 'object') return null;
         const row = item as Record<string, unknown>;
-        const title =
-          asString(row.title) ||
-          asString(row.displayTitle) ||
-          `Slide ${index + 1}`;
-        const body = stripHtml(asString(row.body) || asString(row.text) || '') || title;
+        const resolved = resolveItemHeading(row, index, 'Slide');
+        const title = resolved.title;
+        const body = resolved.bodyText || title;
         const imageSrc = resolveEvolveGraphicSrc(row, component, this.courseAssets, {
           allowAssetFallback: false,
         });
@@ -803,11 +861,9 @@ export class EvolveToLmsboxMapper {
       .map((item, index) => {
         if (!item || typeof item !== 'object') return null;
         const row = item as Record<string, unknown>;
-        const title =
-          asString(row.title) ||
-          asString(row.displayTitle) ||
-          `Item ${index + 1}`;
-        const body = stripHtml(asString(row.body) || '') || title;
+        const resolved = resolveItemHeading(row, index, 'Item');
+        const title = resolved.title;
+        const body = resolved.bodyText || title;
         return {
           label: asString(row.label) || 'Click to reveal',
           title: truncate(title, 200),
@@ -1051,72 +1107,173 @@ export class EvolveToLmsboxMapper {
 
   private mapToQuestionnaire(
     component: Component,
-    raw: Record<string, unknown>
+    raw: Record<string, unknown>,
+    companions: Component[] = []
   ): {
     formPayload: Record<string, unknown>;
     status: 'mapped' | 'stubbed';
     message: string;
     mediaAssets: PendingMediaAttachment[];
   } {
+    const mediaAssets: PendingMediaAttachment[] = [];
     const items = asArray(raw._items ?? raw.items);
-    const sourceItems = items.length > 0 ? items : [raw];
-    const mappedItems = sourceItems.slice(0, MAX_QUESTIONS_PER_BLOCK);
+    const feedback = readEvolveFeedback(raw);
+    const companionCopy = readCompanionCopy(companions);
+    const stem = firstDistinctText([
+      stripHtml(readEvolveText(raw.body) || component.body || ''),
+      ...companionCopy.bodies,
+    ]);
+    const instruction = firstDistinctText(
+      [stripHtml(readEvolveText(raw.instruction)), ...companionCopy.instructions],
+      stem
+    );
 
-    const questions = mappedItems.map((item, questionIndex) => {
+    // Adapt/Evolve MCQ stores one question per component. `_items` are the answer
+    // choices (`text` + `_shouldBeSelected`). A nested `_options` list is the older
+    // shape used when one component carries several questions.
+    const itemsAreQuestions = items.length > 0 && items.every((item) => hasNestedOptions(item));
+    const questionSources = itemsAreQuestions ? items : [raw];
+    const mappedSources = questionSources.slice(0, MAX_QUESTIONS_PER_BLOCK);
+    const optionSource = itemsAreQuestions ? [] : items.length > 0 ? items : asArray(raw._options ?? raw.options);
+
+    const questions = mappedSources.map((item, questionIndex) => {
       const row = item && typeof item === 'object' ? (item as Record<string, unknown>) : {};
-      const text =
-        asString(row.text) ||
-        asString(row.title) ||
-        asString(raw.body) ||
-        component.title ||
-        `Question ${questionIndex + 1}`;
-      const rawOptions = asArray(row._options ?? row.options);
-      let options: { text: string; isCorrect: boolean }[] =
-        rawOptions.length >= 2
-          ? rawOptions.map((opt, index) => {
-              if (typeof opt === 'string') {
-                return { text: opt, isCorrect: index === 0 };
-              }
-              const o = (opt ?? {}) as Record<string, unknown>;
-              return {
-                text: asString(o.text) || asString(o.title) || `Option ${index + 1}`,
-                isCorrect: Boolean(o._isCorrect ?? o.isCorrect ?? index === 0),
-              };
-            })
-          : [
-              { text: 'Option A', isCorrect: true },
-              { text: 'Option B', isCorrect: false },
-            ];
+      const rowFeedback = readEvolveFeedback(row);
+      const rawOptions = itemsAreQuestions
+        ? asArray(row._options ?? row.options)
+        : optionSource;
+      const options = mapAnswerOptions(rawOptions);
+      const text = itemsAreQuestions
+        ? stripHtml(
+            readEvolveText(row.text) ||
+              readEvolveText(row.title) ||
+              readEvolveText(row.body) ||
+              stem ||
+              component.title ||
+              `Question ${questionIndex + 1}`
+          )
+        : stem ||
+          instruction ||
+          readComponentTitle(component) ||
+          companionCopy.titles[0] ||
+          `Question ${questionIndex + 1}`;
 
-      if (!options.some((o) => o.isCorrect)) {
-        options[0].isCorrect = true;
-      }
+      const selectable = Number(raw._selectable ?? row._selectable ?? 1);
+      const correctCount = options.filter((option) => option.isCorrect).length;
+      const type = selectable > 1 || correctCount > 1 ? 'multiple' : 'single';
 
       return {
-        text: truncate(stripHtml(text), 500),
-        type: 'single',
+        text: truncate(text, 500),
+        type,
         options: options.slice(0, 6),
-        correctFeedback: asString(row.correctFeedback || row._feedbackCorrect),
-        incorrectFeedback: asString(row.incorrectFeedback || row._feedbackIncorrect),
+        correctFeedback: truncate(
+          stripHtml(rowFeedback.correct || feedback.correct || readEvolveText(row.correctFeedback) || readEvolveText(row._feedbackCorrect)),
+          1000
+        ),
+        incorrectFeedback: truncate(
+          stripHtml(
+            rowFeedback.incorrect ||
+              feedback.incorrect ||
+              readEvolveText(row.incorrectFeedback) ||
+              readEvolveText(row._feedbackIncorrect)
+          ),
+          1000
+        ),
         imageUrl: '',
       };
     });
 
+    const imageSrc = this.resolveQuestionImage(component, companions);
+    if (imageSrc && questions[0]) {
+      const alt =
+        resolveEvolveGraphicAlt(raw) ||
+        companions.map((companion) => resolveEvolveGraphicAlt(companion.raw ?? {})).find(Boolean) ||
+        questions[0].text;
+      if (isAbsoluteUrl(imageSrc)) {
+        questions[0].imageUrl = imageSrc;
+      } else {
+        mediaAssets.push(makePendingMedia(imageSrc, 'questions.0.imageUrl', alt));
+      }
+    }
+
+    const heading = firstDistinctText(
+      [readComponentTitle(component), ...companionCopy.titles],
+      questions[0]?.text || ''
+    );
+    const intro = firstDistinctText([instruction, ...companionCopy.bodies], questions[0]?.text || '');
+    const contentDescription =
+      firstDistinctText([stem, ...companionCopy.bodies, instruction, questions[0]?.text || '']) ||
+      `Imported question from Evolve component ${component.id}`;
+
+    const optionCount = questions[0]?.options.length ?? 0;
+    const truncatedQuestions = itemsAreQuestions && items.length > MAX_QUESTIONS_PER_BLOCK;
+    let message = truncatedQuestions
+      ? `Mapped first ${MAX_QUESTIONS_PER_BLOCK} MCQ items (${items.length} items in Evolve).`
+      : `Mapped MCQ → questionnaire (${questions.length} question${questions.length === 1 ? '' : 's'}, ${optionCount} option${optionCount === 1 ? '' : 's'}).`;
+    if (mediaAssets.length > 0) {
+      message += ` Question image queued for attach (${mediaAssets[0].sourcePath}).`;
+    } else if (imageSrc) {
+      message += ' Question image attached.';
+    }
+    if (companions.length > 0) {
+      message += ` Included ${companions.length} companion component${companions.length === 1 ? '' : 's'} (text/image).`;
+    }
+
     return {
       formPayload: {
-        contentDescription:
-          stripHtml(component.body || '') ||
-          `Imported question from Evolve component ${component.id}`,
+        contentDescription: truncate(contentDescription, 2000),
+        heading: truncate(heading, 200),
+        intro: truncate(intro, 500),
         showFeedbackPerQuestion: true,
         questions,
       },
-      status: items.length > MAX_QUESTIONS_PER_BLOCK ? 'stubbed' : 'mapped',
-      message:
-        items.length > MAX_QUESTIONS_PER_BLOCK
-          ? `Mapped first ${MAX_QUESTIONS_PER_BLOCK} MCQ items (${items.length} items in Evolve).`
-          : `Mapped MCQ → questionnaire (${questions.length} question${questions.length === 1 ? '' : 's'}).`,
-      mediaAssets: [],
+      status: truncatedQuestions || mediaAssets.length > 0 ? 'stubbed' : 'mapped',
+      message,
+      mediaAssets,
     };
+  }
+
+  /**
+   * Question image comes from the MCQ/GMCQ graphic, then from a sibling graphic
+   * in the same article. Answer-choice graphics are not reused as the prompt image.
+   */
+  private resolveQuestionImage(component: Component, companions: Component[]): string {
+    const sources = [
+      ...this.questionImageSources(component, false),
+      ...companions.flatMap((companion) => this.questionImageSources(companion, true)),
+    ];
+    const seen = new Set<string>();
+    for (const src of sources) {
+      const key = src.toLowerCase();
+      if (!src || seen.has(key)) continue;
+      seen.add(key);
+      this.markImageUsed(src);
+      return src;
+    }
+    return '';
+  }
+
+  private questionImageSources(component: Component, includeItemGraphics: boolean): string[] {
+    const raw = component.raw ?? {};
+    const sourceType = (component.type || '').toLowerCase();
+    const direct = resolveEvolveGraphicSrc(raw, component, this.courseAssets, {
+      allowAssetFallback: sourceType === 'graphic' || sourceType === 'mcq' || sourceType === 'gmcq',
+      includeItems: false,
+    });
+    const sources = direct ? [direct] : [];
+    if (!includeItemGraphics) return sources;
+
+    for (const item of asArray(raw._items ?? raw.items)) {
+      if (!item || typeof item !== 'object') continue;
+      const row = item as Record<string, unknown>;
+      if (isAnswerOptionRow(row)) continue;
+      const src = resolveEvolveGraphicSrc(row, component, this.courseAssets, {
+        allowAssetFallback: false,
+        includeItems: false,
+      });
+      if (src) sources.push(src);
+    }
+    return sources;
   }
 
   private mapToTabs(
@@ -1129,16 +1286,14 @@ export class EvolveToLmsboxMapper {
     mediaAssets: PendingMediaAttachment[];
   } {
     const mediaAssets: PendingMediaAttachment[] = [];
-    const items = asArray(raw._items ?? raw.items);
+    const items = asArray(raw._items ?? raw.items ?? raw._tabs ?? raw._tabItems ?? raw.tabs);
     const panels = items
       .map((item, index) => {
         if (!item || typeof item !== 'object') return null;
         const row = item as Record<string, unknown>;
-        const title =
-          asString(row.title) ||
-          asString(row.displayTitle) ||
-          `Tab ${index + 1}`;
-        const body = stripHtml(asString(row.body) || asString(row.text) || '') || title;
+        const resolved = resolveItemHeading(row, index, 'Tab');
+        const title = resolved.title;
+        const body = resolved.bodyText || title;
         const imageSrc = resolveEvolveGraphicSrc(row, component, this.courseAssets, {
           allowAssetFallback: false,
         });
@@ -1190,14 +1345,9 @@ export class EvolveToLmsboxMapper {
       .map((item, index) => {
         if (!item || typeof item !== 'object') return null;
         const row = item as Record<string, unknown>;
-        const title =
-          asString(row.title) ||
-          asString(row.displayTitle) ||
-          asString(row.label) ||
-          `Stage ${index + 1}`;
-        const body =
-          stripHtml(asString(row.body) || asString(row.text) || asString(row.description) || '') ||
-          title;
+        const resolved = resolveItemHeading(row, index, 'Stage');
+        const title = resolved.title;
+        const body = resolved.bodyText || title;
         const imageSrc = resolveEvolveGraphicSrc(row, component, this.courseAssets, {
           allowAssetFallback: false,
         });
@@ -1219,7 +1369,7 @@ export class EvolveToLmsboxMapper {
         if (rawVariant.includes('end') || (items.length > 1 && index === items.length - 1)) {
           variant = 'end';
         }
-        if (rawVariant.includes('decision') || rawVariant.includes('diamond') || title.includes('?')) {
+        if (rawVariant.includes('decision') || rawVariant.includes('diamond') || looksLikeDecisionLabel(title)) {
           variant = 'decision';
         }
         return {
@@ -1384,6 +1534,333 @@ function asString(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
+/** Evolve often stores copy as a string or a language map `{ _default, en }`. */
+function readEvolveText(value: unknown): string {
+  if (typeof value === 'string') {
+    return decodeHtmlEntities(value).trim();
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return '';
+  }
+  const row = value as Record<string, unknown>;
+  for (const key of ['_default', 'en', 'en-gb', 'en-us', 'text', 'title', 'displayTitle', 'body']) {
+    if (typeof row[key] === 'string' && row[key].trim()) {
+      return decodeHtmlEntities(row[key] as string).trim();
+    }
+  }
+  for (const nestedValue of Object.values(row)) {
+    if (typeof nestedValue === 'string' && nestedValue.trim() && !/[\\/]|\.(png|jpe?g|gif|webp|svg|mp3|mp4)$/i.test(nestedValue)) {
+      return decodeHtmlEntities(nestedValue).trim();
+    }
+  }
+  return '';
+}
+
+const QUESTIONNAIRE_SOURCE_TYPES = new Set(['mcq', 'gmcq']);
+const QUESTION_COMPANION_TYPES = new Set(['graphic', 'text', 'blank', 'narrative']);
+
+function isQuestionnaireSourceType(type: string | undefined): boolean {
+  return QUESTIONNAIRE_SOURCE_TYPES.has((type || '').toLowerCase());
+}
+
+function isQuestionCompanionType(type: string | undefined): boolean {
+  return QUESTION_COMPANION_TYPES.has((type || '').toLowerCase());
+}
+
+/**
+ * A knowledge-check article is usually the question plus the text/graphic beside it.
+ * Fold those into one questionnaire. When the article also has other interactions,
+ * only fold companions that share the question's Evolve block.
+ */
+function pairQuestionCompanions(components: Component[]): Map<string, Component[]> {
+  const questions = components.filter((component) => isQuestionnaireSourceType(component.type));
+  const paired = new Map<string, Component[]>();
+  if (questions.length === 0) return paired;
+
+  const others = components.filter((component) => !isQuestionnaireSourceType(component.type));
+  if (
+    questions.length === 1 &&
+    others.length > 0 &&
+    others.every((component) => isQuestionCompanionType(component.type))
+  ) {
+    paired.set(questions[0].id, others);
+    return paired;
+  }
+
+  for (const question of questions) {
+    const blockId = question.relationships?.parentBlockId;
+    if (!blockId) continue;
+    const inBlock = components.filter(
+      (component) => component.relationships?.parentBlockId === blockId
+    );
+    const blockQuestions = inBlock.filter((component) => isQuestionnaireSourceType(component.type));
+    if (blockQuestions.length !== 1) continue;
+    const companions = inBlock.filter((component) => isQuestionCompanionType(component.type));
+    if (companions.length > 0) paired.set(question.id, companions);
+  }
+  return paired;
+}
+
+function hasNestedOptions(item: unknown): boolean {
+  if (!item || typeof item !== 'object') return false;
+  const row = item as Record<string, unknown>;
+  return asArray(row._options ?? row.options).length > 0;
+}
+
+function isAnswerOptionRow(row: Record<string, unknown>): boolean {
+  if (hasNestedOptions(row)) return false;
+  return '_shouldBeSelected' in row || '_isCorrect' in row || 'isCorrect' in row;
+}
+
+function mapAnswerOptions(rawOptions: unknown[]): { text: string; isCorrect: boolean }[] {
+  const rows = rawOptions.filter((opt) => opt != null);
+  const explicit = rows.some((opt) => {
+    if (!opt || typeof opt !== 'object') return false;
+    const row = opt as Record<string, unknown>;
+    return '_shouldBeSelected' in row || '_isCorrect' in row || 'isCorrect' in row || '_score' in row;
+  });
+
+  const options = rows
+    .map((opt, index) => {
+      if (typeof opt === 'string') {
+        const text = stripHtml(opt);
+        return text ? { text, isCorrect: !explicit && index === 0 } : null;
+      }
+      const row = opt as Record<string, unknown>;
+      const text = stripHtml(
+        readEvolveText(row.text) || readEvolveText(row.title) || readEvolveText(row.body)
+      );
+      if (!text) return null;
+      return { text, isCorrect: optionIsCorrect(row, index, explicit) };
+    })
+    .filter((option): option is { text: string; isCorrect: boolean } => !!option);
+
+  if (options.length >= 2) {
+    if (!options.some((option) => option.isCorrect)) {
+      options[0].isCorrect = true;
+    }
+    return options;
+  }
+
+  return [
+    { text: 'Option A', isCorrect: true },
+    { text: 'Option B', isCorrect: false },
+  ];
+}
+
+function optionIsCorrect(
+  row: Record<string, unknown>,
+  index: number,
+  anyExplicit: boolean
+): boolean {
+  if ('_shouldBeSelected' in row) return Boolean(row._shouldBeSelected);
+  if ('_isCorrect' in row) return Boolean(row._isCorrect);
+  if ('isCorrect' in row) return Boolean(row.isCorrect);
+  if (typeof row._score === 'number') return row._score > 0;
+  return !anyExplicit && index === 0;
+}
+
+function readEvolveFeedback(raw: Record<string, unknown>): { correct: string; incorrect: string } {
+  const feedback = raw._feedback;
+  if (!feedback || typeof feedback !== 'object' || Array.isArray(feedback)) {
+    return { correct: '', incorrect: '' };
+  }
+  const row = feedback as Record<string, unknown>;
+  const incorrectNode = row._incorrect ?? row.incorrect;
+  let incorrect = '';
+  if (typeof incorrectNode === 'string') {
+    incorrect = incorrectNode;
+  } else if (incorrectNode && typeof incorrectNode === 'object' && !Array.isArray(incorrectNode)) {
+    const nestedFeedback = incorrectNode as Record<string, unknown>;
+    incorrect =
+      readEvolveText(nestedFeedback.final) ||
+      readEvolveText(nestedFeedback.notFinal) ||
+      readEvolveText(nestedFeedback);
+  }
+  return {
+    correct: readEvolveText(row.correct),
+    incorrect,
+  };
+}
+
+function readComponentTitle(component: Component): string {
+  const raw = component.raw ?? {};
+  const candidates = [
+    readEvolveText(raw.displayTitle),
+    readEvolveText(raw.title),
+    component.displayTitle || '',
+    component.title && component.title !== component.id ? component.title : '',
+  ]
+    .map((value) => decodeHtmlEntities(value).trim())
+    .filter((value) => value && !looksLikeEvolveId(value) && !isPlaceholderComponentTitle(value));
+  return candidates[0] || '';
+}
+
+function readCompanionCopy(companions: Component[]): {
+  bodies: string[];
+  instructions: string[];
+  titles: string[];
+} {
+  const bodies: string[] = [];
+  const instructions: string[] = [];
+  const titles: string[] = [];
+  for (const companion of companions) {
+    const raw = companion.raw ?? {};
+    const body = stripHtml(readEvolveText(raw.body) || companion.body || '');
+    const instruction = stripHtml(readEvolveText(raw.instruction));
+    const title = readComponentTitle(companion);
+    if (body) bodies.push(body);
+    if (instruction) instructions.push(instruction);
+    if (title && !isGenericQuestionTitle(title)) titles.push(title);
+  }
+  return { bodies, instructions, titles };
+}
+
+function firstDistinctText(candidates: string[], excluded = ''): string {
+  const skip = excluded.trim().toLowerCase();
+  for (const candidate of candidates) {
+    const value = candidate.trim();
+    if (!value || value.toLowerCase() === skip) continue;
+    if (isGenericQuestionTitle(value) || isPlaceholderComponentTitle(value)) continue;
+    return value;
+  }
+  return '';
+}
+
+function isGenericQuestionTitle(title: string): boolean {
+  const value = title.trim();
+  if (!value) return true;
+  if (isGenericItemTitle(value)) return true;
+  return /^(question|mcq|gmcq)(\s*[-–:]?\s*\d+)?$/i.test(value);
+}
+
+function isGenericItemTitle(title: string): boolean {
+  const value = title.trim();
+  if (!value) return true;
+  if (looksLikeEvolveId(value)) return true;
+  if (isPlaceholderComponentTitle(value) || isPlaceholderArticleTitle(value)) {
+    return true;
+  }
+  return /^(stage|panel|item|slide|tab|step|node|pin)(\s*\d+)?$/i.test(value);
+}
+
+/** Short flowchart labels like "Decide?" stay decisions; long question headings do not. */
+function looksLikeDecisionLabel(title: string): boolean {
+  const value = title.trim();
+  if (!value.includes('?')) return false;
+  const words = value.split(/\s+/).filter(Boolean);
+  if (/^(why|what|how|when|where|which|who|whose|whom)\b/i.test(value) && words.length >= 4) {
+    return false;
+  }
+  return value.length <= 40 && words.length <= 4;
+}
+
+function extractHeadingFromHtml(html: string): { heading: string; remainingHtml: string } {
+  if (!html.trim()) return { heading: '', remainingHtml: html };
+
+  const headingTag = html.match(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/i);
+  if (headingTag) {
+    const heading = stripHtml(headingTag[1]);
+    if (heading) {
+      return { heading, remainingHtml: html.replace(headingTag[0], '') };
+    }
+  }
+
+  const strongTag = html.match(/<(strong|b)\b[^>]*>([\s\S]*?)<\/\1>/i);
+  if (strongTag) {
+    const heading = stripHtml(strongTag[2]);
+    if (heading && heading.length <= 80) {
+      return { heading, remainingHtml: html.replace(strongTag[0], '') };
+    }
+  }
+
+  const paragraph = html.match(/<p\b[^>]*>([\s\S]*?)<\/p>/i);
+  const firstChunk = paragraph ? stripHtml(paragraph[1]) : stripHtml(html);
+  const question = firstChunk.match(/^(.{8,200}?\?)/);
+  if (question) {
+    const heading = question[1].trim();
+    if (paragraph && stripHtml(paragraph[1]).trim() === heading) {
+      return { heading, remainingHtml: html.replace(paragraph[0], '') };
+    }
+    if (!paragraph && firstChunk.trim() === heading) {
+      return { heading, remainingHtml: '' };
+    }
+    if (firstChunk.startsWith(heading)) {
+      const rest = firstChunk.slice(heading.length).trim();
+      return {
+        heading,
+        remainingHtml: rest ? `<p>${escapeHtml(rest)}</p>` : html.replace(heading, ''),
+      };
+    }
+    return { heading, remainingHtml: html };
+  }
+
+  const shortLabel =
+    firstChunk.length >= 2 &&
+    firstChunk.length <= 80 &&
+    !firstChunk.includes('.') &&
+    firstChunk.split(/\s+/).length <= 8;
+  if (shortLabel && paragraph) {
+    const restHasContent = stripHtml(html.replace(paragraph[0], '')).length > 0;
+    if (restHasContent) {
+      return { heading: firstChunk, remainingHtml: html.replace(paragraph[0], '') };
+    }
+  }
+
+  return { heading: '', remainingHtml: html };
+}
+
+/**
+ * Prefer the author's visible item heading. Evolve flowChart/accordion items often
+ * use empty or "Stage 1" titles and put the real heading in the body.
+ */
+function resolveItemHeading(
+  row: Record<string, unknown>,
+  index: number,
+  fallbackPrefix: string
+): { title: string; bodyHtml: string; bodyText: string } {
+  const declared = [
+    row.displayTitle,
+    row.title,
+    row.heading,
+    row.label,
+    row.tabTitle,
+    row._tabTitle,
+    row._title,
+    row.ariaLabel,
+    row._ariaLabel,
+    row.name,
+    row.caption,
+  ]
+    .map((value) => stripHtml(readEvolveText(value)))
+    .find((value) => value && !isGenericItemTitle(value)) || '';
+  const bodyHtml =
+    readEvolveText(row.body) ||
+    readEvolveText(row.text) ||
+    readEvolveText(row.description);
+  const extracted = extractHeadingFromHtml(bodyHtml);
+  const graphicAlt = stripHtml(
+    readEvolveText(nested(row, ['_graphic', 'alt']) || nested(row, ['graphic', 'alt']))
+  );
+
+  let title = declared;
+  let remainingHtml = bodyHtml;
+  if (!title && extracted.heading) {
+    title = extracted.heading;
+    remainingHtml = extracted.remainingHtml.trim() ? extracted.remainingHtml : bodyHtml;
+  }
+  if (!title && graphicAlt && !isGenericItemTitle(graphicAlt)) {
+    title = graphicAlt;
+  }
+
+  const bodyText = stripHtml(remainingHtml);
+  return {
+    title: truncate(title, 200) || `${fallbackPrefix} ${index + 1}`,
+    bodyHtml: remainingHtml,
+    bodyText: bodyText || title || `${fallbackPrefix} ${index + 1}`,
+  };
+}
+
 function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
@@ -1457,9 +1934,10 @@ function resolveEvolveGraphicSrc(
   raw: Record<string, unknown>,
   component?: Component,
   courseAssets: Asset[] = [],
-  options: { allowAssetFallback?: boolean } = {}
+  options: { allowAssetFallback?: boolean; includeItems?: boolean } = {}
 ): string {
   const pool = [...(component?.assets ?? []), ...courseAssets];
+  const includeItems = options.includeItems !== false;
   const fromJson = [
     extractMediaPath(raw._graphic),
     extractMediaPath(raw.graphic),
@@ -1474,12 +1952,17 @@ function resolveEvolveGraphicSrc(
     extractMediaPath(raw._srcAdvanced),
     extractMediaPath(raw.srcAdvanced),
     extractImgSrcFromHtml(asString(raw.body)),
+    extractImgSrcFromHtml(readEvolveText(raw.body)),
     extractImgSrcFromHtml(asString(raw.text)),
     extractImgSrcFromHtml(asString(raw.description)),
-    extractMediaPath(raw),
-    findFirstMediaString(raw._items),
-    findFirstMediaString(raw.items),
-    findFirstMediaString(raw),
+    ...(includeItems
+      ? [
+          extractMediaPath(raw),
+          findFirstMediaString(raw._items),
+          findFirstMediaString(raw.items),
+          findFirstMediaString(raw),
+        ]
+      : []),
   ].find(Boolean);
 
   if (fromJson) {

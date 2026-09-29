@@ -16,6 +16,7 @@ import AdminCourses from './pages/AdminCourses';
 import AdminSurveys from './pages/AdminSurveys';
 import AdminReports from './pages/AdminReports';
 import AdminCourseEditor from './pages/AdminCourseEditor';
+import ContentPolicy from './pages/ContentPolicy';
 import AdminCoursePreview from './pages/AdminCoursePreview';
 import AdminLessonLibrary from './pages/AdminLessonLibrary';
 import AdminAutomation from './pages/AdminAutomation';
@@ -242,6 +243,14 @@ function App() {
             element={
               <AdminRoute>
                 <AdminCourses />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/content-policy"
+            element={
+              <AdminRoute>
+                <ContentPolicy />
               </AdminRoute>
             }
           />
