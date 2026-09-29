@@ -1,5 +1,6 @@
 import interactiveLessonsService from './interactiveLessons';
 import { getFile, findFileBySuffix } from '@import-engine/src/types/VirtualFileSystem';
+import { choosePackagedMedia } from '@import-engine/src/utils/evolveMedia';
 
 /**
  * Sprint 3 — upload Evolve package media into created LMSBox draft blocks.
@@ -27,8 +28,7 @@ function guessMime(fileName) {
   return map[ext] || 'application/octet-stream';
 }
 
-function resolveVfsFile(vfs, sourcePath) {
-  if (!vfs || !sourcePath) return null;
+function lookupPath(vfs, sourcePath) {
   const normalised = String(sourcePath).replace(/\\/g, '/').replace(/^\.\//, '');
   const candidates = [
     normalised,
@@ -36,30 +36,34 @@ function resolveVfsFile(vfs, sourcePath) {
     `course/${normalised}`,
     `course/en/${normalised}`,
   ];
-  // If path already starts with course/, also try without repeating
   if (normalised.startsWith('course/')) {
     candidates.push(normalised.slice('course/'.length));
   }
   for (const candidate of candidates) {
     const hit = getFile(vfs, candidate);
-    if (hit) return hit;
+    if (hit?.data && !/\.json$/i.test(hit.filename || hit.path || '')) return hit;
   }
   const filename = normalised.split('/').pop() || normalised;
-  const suffixHit = findFileBySuffix(vfs, filename);
-  if (suffixHit) return suffixHit;
-
-  const lower = filename.toLowerCase();
-  const isObjectId = /^[a-f0-9]{24}$/i.test(lower);
-  for (const path of vfs.paths || []) {
-    const base = String(path).split('/').pop()?.toLowerCase() || '';
-    if (
-      (isObjectId && (base.startsWith(lower) || String(path).toLowerCase().includes(`/${lower}`))) &&
-      /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(base)
-    ) {
-      return getFile(vfs, path);
-    }
+  if (/\.(jpg|jpeg|png|gif|webp|svg|bmp|mp4|webm|mp3|wav|ogg|m4a|aac|flac|mov)$/i.test(filename)) {
+    const suffixHit = findFileBySuffix(vfs, filename);
+    if (suffixHit?.data) return suffixHit;
   }
   return null;
+}
+
+function resolveVfsFile(vfs, sourcePath) {
+  if (!vfs || !sourcePath) return null;
+  const normalised = String(sourcePath).replace(/\\/g, '/').replace(/^\.\//, '');
+  const files = (vfs.paths || []).map((path) => {
+    const clean = String(path).replace(/\\/g, '/');
+    return { path: clean, filename: clean.split('/').pop() || clean };
+  });
+  const chosen = choosePackagedMedia(normalised, files);
+  if (chosen) {
+    const hit = lookupPath(vfs, chosen);
+    if (hit) return hit;
+  }
+  return lookupPath(vfs, normalised);
 }
 
 function applyTargetField(formPayload, targetField, url, alt) {
@@ -149,7 +153,12 @@ export async function attachEvolveMedia({ importResult, plan, vfs, onProgress })
             const fileEntry = resolveVfsFile(vfs, pathKey);
             if (!fileEntry?.data) {
               failed += 1;
-              errors.push(`Missing in ZIP: ${pathKey}`);
+              const label = String(pathKey).split('/').pop() || pathKey;
+              errors.push(
+                /\.json$/i.test(label)
+                  ? `No image rendition in ZIP for ${pathKey}`
+                  : `Missing in ZIP: ${pathKey}`
+              );
               continue;
             }
 

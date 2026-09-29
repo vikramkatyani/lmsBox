@@ -469,6 +469,89 @@ describe('EvolveToLmsboxMapper', () => {
     );
   });
 
+  it('uses the image rendition beside an Evolve asset.json graphic reference', () => {
+    const assetId = '64c79eed41c7210ba1c69b41';
+    const imagePath = `course/en/assets/${assetId}/original.png`;
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-g',
+        type: 'graphic',
+        title: 'Graphic Title',
+        raw: {
+          title: 'Graphic Title',
+          _graphic: {
+            src: `course/en/assets/${assetId}/asset.json`,
+            alt: 'VISITECT CD4 kit',
+          },
+        },
+      }),
+    ]);
+    course.assets = [
+      {
+        id: `asset:course/en/assets/${assetId}/asset.json`,
+        filename: 'asset.json',
+        path: `course/en/assets/${assetId}/asset.json`,
+        mediaType: 'application/json',
+        exists: true,
+      },
+      {
+        id: `asset:course/en/assets/${assetId}/small.png`,
+        filename: 'small.png',
+        path: `course/en/assets/${assetId}/small.png`,
+        mediaType: 'image/png',
+        exists: true,
+      },
+      {
+        id: `asset:${imagePath}`,
+        filename: 'original.png',
+        path: imagePath,
+        mediaType: 'image/png',
+        exists: true,
+      },
+    ];
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    const block = plan.lessons[0].blocks[0];
+
+    expect(block.mediaAssets[0].sourcePath).toBe(imagePath);
+    expect(String(block.formPayload.bodyHtml)).not.toMatch(/asset\.json/);
+  });
+
+  it('resolves a bare asset id to the image in that folder, not asset.json', () => {
+    const assetId = '5ff2fe93a6b2535263894e79';
+    const imagePath = `course/en/assets/${assetId}/original.jpg`;
+    const course = makeCourse([
+      makeComponent({
+        id: 'c-g',
+        type: 'graphic',
+        title: 'Graphic Title',
+        raw: {
+          title: 'Graphic Title',
+          _graphic: { src: assetId, alt: 'Kit' },
+        },
+      }),
+    ]);
+    course.assets = [
+      {
+        id: `asset:course/en/assets/${assetId}/asset.json`,
+        filename: 'asset.json',
+        path: `course/en/assets/${assetId}/asset.json`,
+        mediaType: 'application/json',
+        exists: true,
+      },
+      {
+        id: `asset:${imagePath}`,
+        filename: 'original.jpg',
+        path: imagePath,
+        mediaType: 'image/jpeg',
+        exists: true,
+      },
+    ];
+
+    const plan = mapper.map(course, { uniquifyTitle: false });
+    expect(plan.lessons[0].blocks[0].mediaAssets[0].sourcePath).toBe(imagePath);
+  });
+
   it('decodes HTML entities in mapped titles', () => {
     const course = makeCourse([
       makeComponent({

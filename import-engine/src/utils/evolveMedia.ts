@@ -211,23 +211,132 @@ export function findFirstMediaString(node: unknown, depth = 0): string {
   return '';
 }
 
+/**
+ * Evolve publishes a graphic as a folder:
+ * `course/en/assets/{id}/asset.json` plus renditions (`original.jpg`, `large.png`, …).
+ * Component JSON often points at `asset.json` or only the asset id.
+ * Pick the image rendition instead of the metadata file.
+ */
+export function choosePackagedMedia(
+  sourcePath: string,
+  files: { path: string; filename: string }[]
+): string {
+  const normalised = sourcePath.replace(/\\/g, '/').replace(/^\.\//, '').trim();
+  if (!normalised || /^https?:\/\//i.test(normalised)) return normalised;
+  if (isDirectMediaFile(normalised) && normalised.includes('/')) return normalised;
+  if (isDirectMediaFile(normalised)) {
+    const match = files.find((file) => sameFilename(file, normalised));
+    return match ? match.path.replace(/\\/g, '/') : normalised;
+  }
+
+  const folder = normalised.includes('/')
+    ? normalised.slice(0, normalised.lastIndexOf('/'))
+    : '';
+  const assetId = assetIdFromReference(normalised);
+
+  if (folder) {
+    const inFolder = bestImage(
+      files.filter((file) => isInsideFolder(file.path, folder))
+    );
+    if (inFolder) return inFolder;
+  }
+
+  if (assetId) {
+    const lower = assetId.toLowerCase();
+    const byId = bestImage(
+      files.filter((file) => {
+        const path = file.path.replace(/\\/g, '/').toLowerCase();
+        const name = (file.filename || path.split('/').pop() || '').toLowerCase();
+        return path.includes(`/${lower}/`) || path.includes(`/${lower}.`) || name.startsWith(lower);
+      })
+    );
+    if (byId) return byId;
+  }
+
+  if (!normalised.includes('/')) {
+    const byName = files.find((file) => sameFilename(file, normalised) && isDirectMediaFile(file.path));
+    if (byName) return byName.path.replace(/\\/g, '/');
+  }
+
+  return '';
+}
+
 export function expandPackagePath(path: string, assets: Asset[]): string {
   if (!path) return '';
-  if (/^https?:\/\//i.test(path) || path.includes('/')) {
-    const byExact = assets.find((asset) => asset.path.replace(/\\/g, '/') === path);
-    return byExact?.path || path;
-  }
-  const lower = path.toLowerCase();
+  const normalised = path.replace(/\\/g, '/');
+  if (/^https?:\/\//i.test(normalised)) return normalised;
+
+  const chosen = choosePackagedMedia(
+    normalised,
+    assets.map((asset) => ({
+      path: asset.path.replace(/\\/g, '/'),
+      filename: asset.filename,
+    }))
+  );
+  if (chosen) return chosen;
+
+  if (isDirectMediaFile(normalised) || normalised.includes('/')) return normalised;
+
+  const lower = normalised.toLowerCase();
   const hit = assets.find((asset) => {
     const filename = asset.filename.toLowerCase();
     const assetPath = asset.path.toLowerCase().replace(/\\/g, '/');
-    if (filename === lower || assetPath.endsWith(`/${lower}`)) return true;
-    if (looksLikeAssetId(path) && (filename.startsWith(lower) || assetPath.includes(`/${lower}`))) {
-      return true;
-    }
-    return false;
+    return filename === lower || assetPath.endsWith(`/${lower}`);
   });
-  return hit?.path || path;
+  return hit?.path || normalised;
+}
+
+function sameFilename(file: { path: string; filename: string }, reference: string): boolean {
+  const lower = reference.toLowerCase();
+  const name = file.filename.toLowerCase();
+  const path = file.path.replace(/\\/g, '/').toLowerCase();
+  return name === lower || path.endsWith(`/${lower}`);
+}
+
+function isDirectMediaFile(path: string): boolean {
+  return MEDIA_EXTENSIONS.test(path);
+}
+
+function assetIdFromReference(path: string): string {
+  const trimmed = path.trim();
+  if (looksLikeAssetId(trimmed)) return trimmed;
+  const match = trimmed.match(/(?:^|\/)([a-f0-9]{24})(?:\/|\.|$)/i);
+  return match?.[1] ?? '';
+}
+
+function isInsideFolder(path: string, folder: string): boolean {
+  const prefix = `${folder.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()}/`;
+  return path.replace(/\\/g, '/').toLowerCase().startsWith(prefix);
+}
+
+function bestImage(files: { path: string; filename: string }[]): string {
+  const images = files.filter((file) =>
+    IMAGE_EXTENSIONS.test(file.filename || file.path)
+  );
+  if (!images.length) return '';
+  const ranked = [...images].sort((a, b) => imageRank(b) - imageRank(a));
+  return ranked[0].path.replace(/\\/g, '/');
+}
+
+function imageRank(file: { path: string; filename: string }): number {
+  const filename = file.filename || file.path.split('/').pop() || '';
+  const stem = filename.replace(/\.[^.]+$/, '').toLowerCase();
+  const rendition: Record<string, number> = {
+    original: 100,
+    extralarge: 80,
+    'extra-large': 80,
+    extra_large: 80,
+    large: 70,
+    desktop: 60,
+    medium: 40,
+    small: 20,
+    mobile: 10,
+    thumbnail: 5,
+    thumb: 5,
+  };
+  const score = rendition[stem] ?? 50;
+  const depth = file.path.split('/').length;
+  return score * 10 - depth;
 }
 
 export function matchAssetByTitle(title: string, assets: Asset[]): Asset | undefined {
